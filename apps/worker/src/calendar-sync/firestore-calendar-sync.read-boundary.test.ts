@@ -103,6 +103,46 @@ describe('CAL-PILOT worker stored read boundary', () => {
     expect(store.writes).not.toHaveBeenCalled();
   });
 
+  it.each([{ ids: [] }, { ids: ['synthetic_enabled'] }])(
+    'projects only enabled patient references for configuration: %j',
+    async ({ ids }) => {
+      const data = vi.fn(() => {
+        throw new Error('Patient fields must not be consumed.');
+      });
+      const get = vi.fn().mockResolvedValue({
+        docs: ids.map((id) => ({ id, data }))
+      });
+      const select = vi.fn(() => ({ get }));
+      const where = vi.fn(() => ({ select, get }));
+      const db = {
+        collection: (name: string) =>
+          name === 'calendar_pilot_patients'
+            ? { where }
+            : {
+                doc: () => ({
+                  get: () =>
+                    Promise.resolve({ exists: true, data: () => configuration })
+                })
+              }
+      } as unknown as Firestore;
+
+      const result = await new FirestoreCalendarSyncRepository(
+        db,
+        'synthetic'.repeat(8)
+      ).loadConfiguration();
+
+      expect(where).toHaveBeenCalledExactlyOnceWith('enabled', '==', true);
+      expect(select).toHaveBeenCalledExactlyOnceWith();
+      expect(get).toHaveBeenCalledOnce();
+      expect(data).not.toHaveBeenCalled();
+      expect(result).toMatchObject({
+        ...configuration,
+        sourceVersion: configuration.version,
+        knownPatientCodes: new Set(ids)
+      });
+    }
+  );
+
   it('accepts the same completed preflight as the API', async () => {
     await expect(
       repository(preflight).repository.findPreflight('synthetic_preflight')

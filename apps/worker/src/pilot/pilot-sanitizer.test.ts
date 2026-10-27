@@ -162,8 +162,16 @@ describe('假名', () => {
     );
   });
 
-  it('不同來源 ID → 不同假名', () => {
+  it('不同來源 ID → 不同不透明 ID，不代表顯示標籤唯一', () => {
     expect(pilotIdFor('event_a', KEY)).not.toBe(pilotIdFor('event_b', KEY));
+  });
+
+  it('不同 pilotId 可以有相同顯示標籤，不能用標籤代替唯一識別', () => {
+    const firstPilotId = '00000000000000000000000000000001';
+    const secondPilotId = '00000000000000000000000000000002';
+
+    expect(firstPilotId).not.toBe(secondPilotId);
+    expect(displayLabelFor(firstPilotId)).toBe(displayLabelFor(secondPilotId));
   });
 
   // 換金鑰就全部斷開，所以銷毀金鑰本身就是一種消滅連結性的手段。
