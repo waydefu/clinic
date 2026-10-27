@@ -30,6 +30,8 @@ const extensions = [
 const filenames = [
   '.env',
   '.env.production',
+  'secrets/non-secret.fixture.txt',
+  'cal-pilot-keys/non-secret.fixture.txt',
   ...extensions.map((extension) => `synthetic.${extension}`)
 ];
 
@@ -43,7 +45,15 @@ describe('filename boundaries without reading any credential content', () => {
       for (const prefix of ['', 'nested/deeper/']) {
         const result = spawnSync(
           'git',
-          ['check-ignore', '--no-index', '--quiet', '--', prefix + filename],
+          [
+            '-c',
+            'core.excludesFile=',
+            'check-ignore',
+            '--no-index',
+            '--quiet',
+            '--',
+            prefix + filename
+          ],
           { cwd: directory }
         );
         expect(result.status, prefix + filename).toBe(0);
@@ -57,10 +67,48 @@ describe('filename boundaries without reading any credential content', () => {
       expect(
         spawnSync(
           'git',
-          ['check-ignore', '--no-index', '--quiet', '--', filename],
+          [
+            '-c',
+            'core.excludesFile=',
+            'check-ignore',
+            '--no-index',
+            '--quiet',
+            '--',
+            filename
+          ],
           { cwd: directory }
         ).status
       ).toBe(1);
+    }
+  });
+
+  it('does not exclude harmless directory fixtures when repository rules are absent', () => {
+    const directory = mkdtempSync(
+      path.join(os.tmpdir(), 'synthetic-ignore-control-')
+    );
+    roots.push(directory);
+    expect(spawnSync('git', ['init', '--quiet', directory]).status).toBe(0);
+    writeFileSync(path.join(directory, '.gitignore'), '');
+    for (const filename of [
+      'secrets/non-secret.fixture.txt',
+      'cal-pilot-keys/non-secret.fixture.txt'
+    ]) {
+      for (const prefix of ['', 'nested/deeper/']) {
+        const result = spawnSync(
+          'git',
+          [
+            '-c',
+            'core.excludesFile=',
+            'check-ignore',
+            '--no-index',
+            '--quiet',
+            '--',
+            prefix + filename
+          ],
+          { cwd: directory }
+        );
+        expect(result.status, prefix + filename).toBe(1);
+      }
     }
   });
 
