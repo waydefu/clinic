@@ -626,6 +626,73 @@ describe('business termination close review', () => {
     ).rejects.toBeInstanceOf(ConflictError);
   });
 
+  it.each([
+    'not-a-timestamp',
+    '2030-12-19T04:00:00',
+    '2030-12-19T12:00:00+08:00',
+    '2030-02-30T04:00:00.000Z'
+  ])(
+    'refuses malformed stored retention %s without closing or logging',
+    async (until) => {
+      const job = await downloadedExport();
+      const created = await terminations.create(createTerminationCommand());
+      let current = await terminations.acknowledge(
+        acknowledgement(
+          created.terminationId,
+          {
+            idempotencyKey: 'synthetic-utc-data-return',
+            receiptKind: 'data_return',
+            exportId: job.exportId
+          },
+          NOTICE_DUE
+        )
+      );
+      for (const receiptKind of [
+        'backup_disposition',
+        'audit_disposition',
+        'access_revocation'
+      ] as const) {
+        current = await terminations.acknowledge(
+          acknowledgement(
+            created.terminationId,
+            {
+              idempotencyKey: `synthetic-utc-${receiptKind}`,
+              receiptKind,
+              evidenceRef: `synthetic_utc_${receiptKind}`
+            },
+            RETENTION_DUE
+          )
+        );
+      }
+      expect(current.closeReadiness.ready).toBe(true);
+      const record = db
+        .collection(TERMINATION_COLLECTIONS.records)
+        .doc(created.terminationId);
+      await record.update({ controlledRetentionUntil: until });
+      const before = (await record.get()).data();
+      const logsBefore = (
+        await db.collection(TERMINATION_COLLECTIONS.log).get()
+      ).size;
+
+      await expect(
+        terminations.get(
+          created.terminationId,
+          RETENTION_DUE,
+          'internal_synthetic'
+        )
+      ).rejects.toBeInstanceOf(DomainError);
+      await expect(
+        terminations.close(
+          closeCommand(created.terminationId, current.version, RETENTION_DUE)
+        )
+      ).rejects.toBeInstanceOf(DomainError);
+      expect((await record.get()).data()).toEqual(before);
+      expect(
+        (await db.collection(TERMINATION_COLLECTIONS.log).get()).size
+      ).toBe(logsBefore);
+    }
+  );
+
   it('lists every missing step and does not accept a client assertion of completion', async () => {
     const created = await terminations.create(createTerminationCommand());
     const readiness = await terminations.get(

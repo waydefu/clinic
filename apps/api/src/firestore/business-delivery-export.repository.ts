@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import {
+  assertUtcTimestamp,
   DomainError,
   renderBusinessExportCsvFile,
   toBusinessExportRow,
@@ -96,9 +97,11 @@ export function exportStatus(
   job: StoredExportJob,
   now: string
 ): BusinessExportJob['status'] {
-  const nowMs = Date.parse(now);
   if (job.revokedAt !== null) return 'revoked';
+  assertUtcTimestamp(now, 'now');
+  const nowMs = Date.parse(now);
   if (nowMs >= job.purgeAt.toMillis()) return 'purged';
+  assertUtcTimestamp(job.downloadExpiresAt, 'downloadExpiresAt');
   if (nowMs >= Date.parse(job.downloadExpiresAt)) return 'expired';
   if (job.downloadCount >= job.maxDownloads) return 'exhausted';
   return 'ready';

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import {
+  assertUtcTimestamp,
   DomainError,
   planBusinessTerminationOperation,
   taipeiCalendarDateOf,
@@ -239,11 +240,16 @@ function closeMissingSteps(
     [];
   if (!record.receipts.some((receipt) => receipt.receiptKind === 'data_return'))
     missing.push('data_return');
-  if (
-    record.controlledRetentionUntil === null ||
-    Date.parse(now) < Date.parse(record.controlledRetentionUntil)
-  ) {
+  if (record.controlledRetentionUntil === null) {
     missing.push('controlled_copy_retention');
+  } else {
+    assertUtcTimestamp(now, 'now');
+    assertUtcTimestamp(
+      record.controlledRetentionUntil,
+      'controlledRetentionUntil'
+    );
+    if (Date.parse(now) < Date.parse(record.controlledRetentionUntil))
+      missing.push('controlled_copy_retention');
   }
   for (const item of CHECKLIST_ITEMS) {
     if (!record.receipts.some((receipt) => receipt.receiptKind === item))
