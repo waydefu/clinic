@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import {
+  assertUtcTimestamp,
   DomainError,
   planRetentionCalendarProjections,
   planRetentionOperation,
@@ -267,14 +268,12 @@ export class FirestoreBusinessRetentionRepository {
       if (
         appointments.docs.some((appointment) => {
           const data = appointment.data();
-          const startsAt = stringField(data, 'startsAt');
-          const startsAtMs =
-            startsAt === undefined ? NaN : Date.parse(startsAt);
-          return (
-            (data['status'] === 'confirmed' || data['status'] === 'arrived') &&
-            Number.isFinite(startsAtMs) &&
-            startsAtMs > Date.parse(command.now)
-          );
+          if (data['status'] !== 'confirmed' && data['status'] !== 'arrived')
+            return false;
+          const startsAt = stringField(data, 'startsAt') ?? '';
+          assertUtcTimestamp(startsAt, 'startsAt');
+          assertUtcTimestamp(command.now, 'now');
+          return Date.parse(startsAt) > Date.parse(command.now);
         })
       ) {
         throw new ConflictError();

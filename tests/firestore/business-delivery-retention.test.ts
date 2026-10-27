@@ -1,6 +1,9 @@
 import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
-import { resolveApprovedBusinessDeliveryPolicy } from '@beauessence/domain';
+import {
+  DomainError,
+  resolveApprovedBusinessDeliveryPolicy
+} from '@beauessence/domain';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -349,6 +352,50 @@ describe('archive and restore', () => {
             .get()
         ).get('archivedAt')
       ).toBeUndefined();
+    }
+  );
+
+  it.each([
+    ['confirmed', 'not-a-timestamp'],
+    ['arrived', 'not-a-timestamp'],
+    ['confirmed', '2030-10-21T00:00:00'],
+    ['confirmed', '2030-10-21T08:00:00+08:00'],
+    ['confirmed', '2030-02-30T00:00:00.000Z'],
+    ['confirmed', null],
+    ['confirmed', 42],
+    ['confirmed', undefined]
+  ] as const)(
+    'refuses active %s with malformed stored startsAt %s without effects',
+    async (status, startsAt) => {
+      await seedPatient();
+      const appointment = db
+        .collection(COLLECTIONS.appointments)
+        .doc('appointment_ret_invalid_utc');
+      await appointment.set({
+        patientId: PATIENT_ID,
+        status,
+        ...(startsAt === undefined ? {} : { startsAt })
+      });
+      const patient = db
+        .collection(PATIENT_COLLECTIONS.patients)
+        .doc(PATIENT_ID);
+      const index = db
+        .collection(PATIENT_COLLECTIONS.lookupIndex)
+        .doc(INDEX_ID);
+      const patientBefore = (await patient.get()).data();
+      const appointmentBefore = (await appointment.get()).data();
+      const indexBefore = (await index.get()).data();
+
+      await expect(repository.archive(baseCommand())).rejects.toBeInstanceOf(
+        DomainError
+      );
+      expect((await patient.get()).data()).toEqual(patientBefore);
+      expect((await appointment.get()).data()).toEqual(appointmentBefore);
+      expect((await index.get()).data()).toEqual(indexBefore);
+      expect(await retentionJobs()).toEqual([]);
+      expect((await db.collection(RETENTION_COLLECTIONS.log).get()).empty).toBe(
+        true
+      );
     }
   );
 
