@@ -250,7 +250,7 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
         appointmentStartsAtAtDetection: _startsAtAtDetection,
         sourceId: _sourceId,
         ...publicRecord
-      } = documentData(CalendarPilotCandidateRecordSchema, document);
+      } = documentData(CalendarPilotCandidateRecordSchema.strip(), document);
       return publicRecord;
     });
     const suggestedPatientIds = [
@@ -352,7 +352,7 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       .limit(200)
       .get();
     return documents.docs.map((document) =>
-      documentData(CalendarPilotAppointmentRecordSchema, document)
+      documentData(CalendarPilotAppointmentRecordSchema.strip(), document)
     );
   }
 
