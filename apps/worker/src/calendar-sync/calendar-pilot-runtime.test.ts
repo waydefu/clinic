@@ -1,6 +1,10 @@
 import type { DocumentSnapshot, Firestore } from 'firebase-admin/firestore';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import {
+  GoogleCalendarEventReader,
+  GoogleCalendarEventWriter
+} from './google-sync-client.js';
 import {
   assertExpectedMirrorEtag,
   CalendarPilotRuntime,
@@ -10,6 +14,122 @@ import {
   calendarWriteEventForMirror,
   resolveCalendarPilotRuntimeConfiguration
 } from './calendar-pilot-runtime.js';
+
+describe('calendar pilot preflight fresh clock admission', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  function setup(now: string) {
+    const owner = 'synthetic_worker';
+    const configuration = {
+      activeSourceId: C1_SYNTHETIC_CALENDAR_SOURCE_ID,
+      version: 0,
+      expiresAt: '2028-03-02T00:00:00Z',
+      inboundEnabled: true,
+      outboundEnabled: true,
+      workerLeaseOwner: owner,
+      workerLeaseExpiresAt: '2028-03-01T00:00:00Z'
+    };
+    const snapshot = { exists: true, data: () => configuration };
+    const transaction = {
+      get: vi.fn(() => Promise.resolve(snapshot)),
+      set: vi.fn()
+    };
+    const collection = vi.fn(() => ({
+      doc: (id: string) => ({ id, get: () => Promise.resolve(snapshot) }),
+      where: () => ({
+        select: () => ({ get: () => Promise.resolve({ docs: [] }) })
+      })
+    }));
+    const db = {
+      collection,
+      runTransaction: vi.fn((callback: (value: never) => unknown) =>
+        Promise.resolve(callback(transaction as never))
+      )
+    } as unknown as Firestore;
+    const reader = vi
+      .spyOn(GoogleCalendarEventReader.prototype, 'listEvents')
+      .mockResolvedValue({ events: [] });
+    const writer = vi
+      .spyOn(GoogleCalendarEventWriter.prototype, 'verifyWriteAccess')
+      .mockResolvedValue(undefined);
+    const clock = vi.fn(() => now).mockReturnValueOnce('2028-02-29T00:00:00Z');
+    const lease = { owner, generation: 0, now: clock };
+    const runtime = new CalendarPilotRuntime(db, {
+      CALENDAR_PILOT_RUNTIME_MODE: 'C1_SYNTHETIC_ADC',
+      GOOGLE_CLOUD_PROJECT: 'beauessence-clinic-stg-c1a01',
+      CALENDAR_PILOT_PSEUDONYM_KEY: 'p'.repeat(32),
+      GOOGLE_CALENDAR_AUTH: 'CLOUD_ADC',
+      GOOGLE_CALENDAR_ID: 'synthetic-calendar-id'
+    });
+    return {
+      admit: () => runtime['withLease'](lease),
+      preflight: () =>
+        runtime['preflight'](
+          {
+            kind: 'calendar_source_preflight',
+            status: 'processing',
+            sourceId: C1_SYNTHETIC_CALENDAR_SOURCE_ID
+          },
+          { id: 'synthetic_preflight' } as DocumentSnapshot,
+          lease
+        ),
+      collection,
+      transaction,
+      reader,
+      writer,
+      clock
+    };
+  }
+
+  it.each([
+    '2028-02-30T00:00:00Z',
+    '2026-02-29T00:00:00Z',
+    '2028-02-29T24:00:00Z',
+    '2028-02-29T00:00:00',
+    '2028-02-29T08:00:00+08:00',
+    'Feb 29 2028 GMT',
+    '2028-02-29',
+    ''
+  ])(
+    'rejects a fresh noncanonical clock %s after lease admission',
+    async (now) => {
+      const store = setup(now);
+      await store.admit();
+      store.collection.mockClear();
+      store.transaction.get.mockClear();
+
+      await expect(store.preflight()).rejects.toThrow(/lease/iu);
+      expect(store.clock).toHaveBeenCalledTimes(2);
+      expect(store.collection).not.toHaveBeenCalled();
+      expect(store.transaction.get).not.toHaveBeenCalled();
+      expect(store.transaction.set).not.toHaveBeenCalled();
+      expect(store.reader).not.toHaveBeenCalled();
+      expect(store.writer).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(['2028-02-29T00:00:00Z', '2028-02-29T00:00:00.123456Z'])(
+    'keeps the existing preflight window for canonical UTC %s',
+    async (now) => {
+      const store = setup(now);
+      await store.admit();
+
+      await expect(store.preflight()).resolves.toBeUndefined();
+      expect(store.reader).toHaveBeenCalledExactlyOnceWith({
+        timeMin: new Date(Date.parse(now) - 30 * 86_400_000).toISOString(),
+        timeMax: new Date(Date.parse(now) + 60 * 86_400_000).toISOString()
+      });
+      expect(store.writer).toHaveBeenCalledExactlyOnceWith(
+        'synthetic_preflight'
+      );
+      expect(store.transaction.set).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ id: 'synthetic_preflight' }),
+        expect.objectContaining({ status: 'passed', completedAt: now }),
+        { merge: true }
+      );
+    }
+  );
+});
 
 describe('calendar pilot canonical runtime clock', () => {
   const environment = {
