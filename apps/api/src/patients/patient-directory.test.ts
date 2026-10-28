@@ -62,6 +62,7 @@ describe.each(['firestore', 'memory'] as const)(
           directory,
           allocateId,
           reads: vi.spyOn(directory.lookup, 'get'),
+          sessionReads: vi.spyOn(directory.sessions, 'get'),
           sessionCount: () => directory.sessions.size,
           writeData: () => directory.sessions.get('rs_synthetic_session')
         };
@@ -85,6 +86,7 @@ describe.each(['firestore', 'memory'] as const)(
             }),
           create: (data: Record<string, unknown>) => {
             writes.push(data);
+            values.set(name, data);
             return Promise.resolve();
           }
         }))
@@ -95,6 +97,7 @@ describe.each(['firestore', 'memory'] as const)(
         } as unknown as Firestore),
         allocateId,
         reads: collection,
+        sessionReads: collection,
         sessionCount: () => writes.length,
         writeData: () => writes[0]
       };
@@ -132,6 +135,90 @@ describe.each(['firestore', 'memory'] as const)(
         ).rejects.toBeInstanceOf(DomainError);
         expect(fixture.allocateId).not.toHaveBeenCalled();
         expect(fixture.sessionCount()).toBe(0);
+      }
+    );
+
+    it.each(invalidTimes)(
+      'rejects a return-session clock %s before session access',
+      async (now) => {
+        const fixture = setup();
+        await expect(
+          fixture.directory.readReturnSession('rs_synthetic_session', now)
+        ).rejects.toBeInstanceOf(DomainError);
+        expect(fixture.sessionReads).not.toHaveBeenCalled();
+      }
+    );
+
+    it.each([...invalidTimes, '2030-02-30T00:00:00Z', 'not-a-time'])(
+      'does not release an identity for malformed stored expiry %s',
+      async (expiresAt) => {
+        const fixture = setup();
+        const session = await fixture.directory.lookupReturn(
+          INTAKE.phone,
+          INTAKE.birthDate,
+          NOW,
+          fixture.allocateId
+        );
+        if (session === undefined) throw new Error('Missing synthetic session');
+        const stored = fixture.writeData();
+        if (stored === undefined)
+          throw new Error('Missing synthetic session row');
+        stored['expiresAt'] = expiresAt;
+        fixture.sessionReads.mockClear();
+        await expect(
+          fixture.directory.readReturnSession(session.sessionId, NOW)
+        ).resolves.toBeUndefined();
+        expect(fixture.sessionReads).toHaveBeenCalledTimes(1);
+        expect(stored['expiresAt']).toBe(expiresAt);
+      }
+    );
+
+    it.each([
+      ['2028-02-29T00:00:00.500Z', '2028-02-29T00:00:00Z', true],
+      ['2028-02-29T00:00:00Z', '2028-02-29T00:00:00.001Z', false],
+      ['2028-02-29T00:00:00Z', '2028-02-29T00:00:00.000Z', false],
+      ['2028-02-29T00:00:00.000Z', '2028-02-29T00:00:00Z', false],
+      ['2028-02-29T00:00:00.100Z', '2028-02-29T00:00:00.100000000Z', false],
+      ['2028-02-29T00:00:00.100000000Z', '2028-02-29T00:00:00.100Z', false],
+      [
+        '2028-02-29T00:00:00.125000000Z',
+        '2028-02-29T00:00:00.124999999Z',
+        true
+      ],
+      [
+        '2028-02-29T00:00:00.100000001Z',
+        '2028-02-29T00:00:00.100000000Z',
+        true
+      ],
+      [
+        '2028-02-29T00:00:00.100000000Z',
+        '2028-02-29T00:00:00.100000001Z',
+        false
+      ],
+      [
+        '2028-02-29T00:00:00.1000000010Z',
+        '2028-02-29T00:00:00.100000001Z',
+        false
+      ]
+    ] as const)(
+      'compares expiry %s against %s chronologically (active=%s)',
+      async (expiresAt, nowUtc, active) => {
+        const fixture = setup();
+        const session = await fixture.directory.lookupReturn(
+          INTAKE.phone,
+          INTAKE.birthDate,
+          NOW,
+          fixture.allocateId
+        );
+        if (session === undefined) throw new Error('Missing synthetic session');
+        const stored = fixture.writeData();
+        if (stored === undefined)
+          throw new Error('Missing synthetic session row');
+        stored['expiresAt'] = expiresAt;
+        await expect(
+          fixture.directory.readReturnSession(session.sessionId, nowUtc)
+        ).resolves.toBe(active ? 'synthetic_patient' : undefined);
+        expect(stored['expiresAt']).toBe(expiresAt);
       }
     );
 

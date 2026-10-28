@@ -1,6 +1,7 @@
 import {
   assertUtcTimestamp,
   DomainError,
+  isUtcIsoTimestamp,
   normalisePatientIdentity,
   PATIENT_NATIONALITIES,
   patientPhoneDigits,
@@ -38,6 +39,19 @@ export const PATIENT_COLLECTIONS = {
 } as const;
 
 const RETURN_SESSION_MS = 15 * 60 * 1000;
+
+function isUnexpiredReturnSession(expiresAt: unknown, nowUtc: string): boolean {
+  if (typeof expiresAt !== 'string' || !isUtcIsoTimestamp(expiresAt))
+    return false;
+  const expirySecond = expiresAt.slice(0, 19);
+  const nowSecond = nowUtc.slice(0, 19);
+  if (expirySecond !== nowSecond) return expirySecond > nowSecond;
+  // Date.parse loses sub-millisecond precision admitted by the UTC validator.
+  const expiryFraction = expiresAt.slice(20, -1);
+  const nowFraction = nowUtc.slice(20, -1);
+  const width = Math.max(expiryFraction.length, nowFraction.length);
+  return expiryFraction.padEnd(width, '0') > nowFraction.padEnd(width, '0');
+}
 
 /**
  * Upper bound on appointment documents one staff list call may scan while
@@ -464,13 +478,14 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
     sessionId: string,
     nowUtc: string
   ): Promise<string | undefined> {
+    assertUtcTimestamp(nowUtc, 'nowUtc');
     const snapshot = await this.db
       .collection(PATIENT_COLLECTIONS.returnSessions)
       .doc(sessionId)
       .get();
     if (!snapshot.exists) return undefined;
     const data = snapshot.data() ?? {};
-    if (typeof data['expiresAt'] !== 'string' || data['expiresAt'] <= nowUtc) {
+    if (!isUnexpiredReturnSession(data['expiresAt'], nowUtc)) {
       return undefined;
     }
     const patientId = stringField(data, 'patientId');
@@ -729,9 +744,14 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
     sessionId: string,
     nowUtc: string
   ): Promise<string | undefined> {
+    assertUtcTimestamp(nowUtc, 'nowUtc');
     await Promise.resolve();
     const session = this.sessions.get(sessionId);
-    if (session === undefined || session.expiresAt <= nowUtc) return undefined;
+    if (
+      session === undefined ||
+      !isUnexpiredReturnSession(session.expiresAt, nowUtc)
+    )
+      return undefined;
     return this.patients.has(session.patientId) &&
       this.patients.get(session.patientId)?.archivedAt === undefined
       ? session.patientId
