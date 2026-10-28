@@ -34,6 +34,7 @@ import {
 import { ApiExceptionFilter } from '../errors/api-exception.filter.js';
 import {
   MAINTENANCE_GATE,
+  ReadThroughMaintenanceGate,
   StaticMaintenanceGate,
   type MaintenanceGate
 } from './maintenance-gate.js';
@@ -227,6 +228,51 @@ describe('synthetic Nest/Fastify maintenance admission', () => {
     await instance.getHttpAdapter().getInstance().ready();
     return instance;
   }
+
+  it('re-reads control through HTTP admission without bypassing authentication', async () => {
+    let control: unknown = false;
+    const instance = await boot(
+      false,
+      new ReadThroughMaintenanceGate(() => Promise.resolve(control))
+    );
+    for (const [value, status] of [
+      [false, 401],
+      [true, 503],
+      [null, 503],
+      [false, 401]
+    ] as const) {
+      control = value;
+      const response = await instance.inject({
+        method: 'POST',
+        url: '/v1/fixture/write',
+        payload: BODY
+      });
+      expect(response.statusCode).toBe(status);
+      expect(response.headers['cache-control']).toBe('private, no-store');
+    }
+    expect(calls.gate).toBe(4);
+    expect(calls.handler).toBe(0);
+  });
+
+  it('maps a failed control read to a no-store 503 without exposing its error', async () => {
+    const instance = await boot(
+      false,
+      new ReadThroughMaintenanceGate(() =>
+        Promise.reject(new Error('synthetic control reader failure'))
+      )
+    );
+    const response = await instance.inject({
+      method: 'POST',
+      url: '/v1/fixture/write',
+      payload: BODY
+    });
+    expect(response.statusCode).toBe(503);
+    expect(response.headers['cache-control']).toBe('private, no-store');
+    expect(response.body).toContain('SERVICE_UNAVAILABLE');
+    expect(response.body).not.toContain('synthetic control reader failure');
+    expect(calls.gate).toBe(1);
+    expect(calls.handler).toBe(0);
+  });
 
   it.each([false, true])(
     'checks real business HTTP dispatch with gate closed=%s',
