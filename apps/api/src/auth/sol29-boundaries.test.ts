@@ -43,6 +43,11 @@ function fixture(patch: Record<string, unknown> = {}) {
     collection: () => ({
       doc: (id: string) => ({
         id,
+        get: () =>
+          Promise.resolve({
+            exists: rows.has(id),
+            data: () => rows.get(id)
+          }),
         create: vi.fn(async (record: Record<string, unknown>) => {
           rows.set(id, record);
           return Promise.resolve();
@@ -199,5 +204,109 @@ describe('SOL29 session proof and allowlist regressions', () => {
       'opaque_cookie',
       true
     );
+  });
+});
+
+describe('E4-15 existing CAL-PILOT session read boundaries', () => {
+  it.each([
+    { data: undefined },
+    { data: null },
+    { data: [] },
+    { data: 'opaque_malformed_record' }
+  ])(
+    'maps malformed stored document %j to authentication denial',
+    async ({ data }) => {
+      const b = fixture();
+      const issued = await b.service.create('opaque_token', NOW);
+      const id = [...b.rows.keys()][0]!;
+      b.rows.set(id, data as never);
+      await expect(
+        b.service.authenticate(issued.cookieValue, NOW)
+      ).rejects.toBeInstanceOf(AuthenticationRequiredError);
+      await expect(
+        b.service.assertCsrf(id, issued.csrfToken)
+      ).rejects.toBeInstanceOf(AuthenticationRequiredError);
+      expect(b.update).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    { actorId: null },
+    { actorRole: null },
+    { createdAt: null },
+    { lastSeenAt: 42 },
+    { expiresAt: [] },
+    { revokedAt: {} },
+    { csrfHash: undefined },
+    { csrfHash: null },
+    { csrfHash: 42 },
+    { csrfHash: 'opaque_not_hex' },
+    { csrfHash: 'a'.repeat(63) }
+  ])(
+    'rejects corrupt authentication metadata %j without a write',
+    async (patch) => {
+      const b = fixture();
+      const issued = await b.service.create('opaque_token', NOW);
+      const id = [...b.rows.keys()][0]!;
+      b.rows.set(id, { ...b.rows.get(id), ...patch });
+      await expect(
+        b.service.authenticate(issued.cookieValue, NOW)
+      ).rejects.toBeInstanceOf(AuthenticationRequiredError);
+      expect(b.update).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([undefined, null, {}, 42, 'opaque_not_hex', 'a'.repeat(63)])(
+    'maps malformed stored CSRF hash %j to authentication denial',
+    async (csrfHash) => {
+      const b = fixture();
+      const issued = await b.service.create('opaque_token', NOW);
+      const id = [...b.rows.keys()][0]!;
+      b.rows.set(id, { ...b.rows.get(id), csrfHash });
+      await expect(
+        b.service.assertCsrf(id, issued.csrfToken)
+      ).rejects.toBeInstanceOf(AuthenticationRequiredError);
+      expect(b.update).not.toHaveBeenCalled();
+    }
+  );
+
+  it('rejects a valid hash with non-hex suffix instead of accepting Buffer truncation', async () => {
+    const b = fixture();
+    const issued = await b.service.create('opaque_token', NOW);
+    const id = [...b.rows.keys()][0]!;
+    const record = b.rows.get(id)!;
+    b.rows.set(id, {
+      ...record,
+      csrfHash: `${String(record.csrfHash)}not_hex`
+    });
+    await expect(
+      b.service.assertCsrf(id, issued.csrfToken)
+    ).rejects.toBeInstanceOf(AuthenticationRequiredError);
+    await expect(
+      b.service.authenticate(issued.cookieValue, NOW)
+    ).rejects.toBeInstanceOf(AuthenticationRequiredError);
+    expect(b.update).not.toHaveBeenCalled();
+  });
+
+  it('preserves the issued legacy record and case-insensitive valid hex CSRF matching', async () => {
+    const b = fixture();
+    const issued = await b.service.create('opaque_token', NOW);
+    const id = [...b.rows.keys()][0]!;
+    const record = b.rows.get(id)!;
+    expect(record).not.toHaveProperty('schemaVersion');
+    b.rows.set(id, {
+      ...record,
+      csrfHash: String(record.csrfHash).toUpperCase()
+    });
+    await expect(
+      b.service.authenticate(issued.cookieValue, NOW)
+    ).resolves.toMatchObject({ actorId: 'opaque_staff', actorRole: role });
+    await expect(
+      b.service.assertCsrf(id, issued.csrfToken)
+    ).resolves.toBeUndefined();
+    await expect(
+      b.service.assertCsrf(id, 'opaque_wrong_csrf')
+    ).rejects.toBeInstanceOf(AuthenticationRequiredError);
+    expect(b.update).not.toHaveBeenCalled();
   });
 });

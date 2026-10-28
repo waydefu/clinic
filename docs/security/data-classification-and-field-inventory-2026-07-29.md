@@ -64,13 +64,15 @@ payroll, social-channel or NAS records.
 
 ## 3. Local Firestore/contract baseline
 
-**Source refresh: 2026-10-28.** The patient and business-delivery rows below
-cover the collection registries in
+**Source refresh: 2026-10-28, base `a90d57f2f8d1bdcac27b2a13074c5fe095af3586`.**
+The patient and business-delivery rows below cover the collection registries in
 [`patient-directory.ts`](../../apps/api/src/patients/patient-directory.ts),
 [`usage-events.ts`](../../apps/api/src/business-delivery/usage-events.ts),
 [`business-delivery-export.repository.ts`](../../apps/api/src/firestore/business-delivery-export.repository.ts),
 [`business-delivery-retention.repository.ts`](../../apps/api/src/firestore/business-delivery-retention.repository.ts)
-and [`business-delivery-termination.repository.ts`](../../apps/api/src/firestore/business-delivery-termination.repository.ts).
+and [`business-delivery-termination.repository.ts`](../../apps/api/src/firestore/business-delivery-termination.repository.ts),
+plus the standalone `MILESTONE_ACKNOWLEDGEMENT_LOG` in
+[`business-delivery.repository.ts`](../../apps/api/src/firestore/business-delivery.repository.ts).
 These are source observations, not evidence of live documents, deployed TTL,
 provider behaviour or an approved production schema. Internal-test execution
 remains subject to the project, expiry and synthetic-data gates in
@@ -78,8 +80,9 @@ remains subject to the project, expiry and synthetic-data gates in
 
 The original six collection rows are the 2026-07-29 baseline, not re-verified
 by this refresh. Sections 2 and 4 likewise remain dated snapshots. The added
-rows list representative stored fields and their purpose; the per-field
-production approval worksheet in section 5 is still required.
+rows summarise purpose and handling; current explicit write paths and unknown
+boundaries are listed below. The per-field production approval worksheet in
+section 5 is still required.
 
 | Collection/contract | Observed fields / purpose | Tier | Important boundary |
 | --- | --- | --- | --- |
@@ -96,6 +99,7 @@ production approval worksheet in section 5 is still required.
 | `patient_follow_up_states` | `required`, source appointment/follow-up IDs and active follow-up appointment ID | `P3` | Care/appointment inference; state is not permission to expose medical records or add clinical fields |
 | `bd_usage_events` | schema/event ID, kind, runtime/maintenance class, occurrence time and optional `actorRef`; usage counting | `P2` | Staff reference is SHA-256 of UID, never raw UID, email, name, phone or birth value; hashing is not anonymisation |
 | `bd_milestones` | first-use, capture-gap and owner-acknowledgement milestone records | `P2` | Usage/commercial-delivery evidence only; a marker is not proof that missing events were captured |
+| `bd_milestone_acknowledgement_log` | schema/milestone/revision, evidence/actor references, acknowledgement, raw idempotency key, request hash and policy version | **TBD — owner classification required** | Append-only acknowledgement/replay trail written by `acknowledge`; existing API guards are unchanged. Evidence-reference contents, field access and retention require section 5 approval; do not assume this is anonymous or safe for unrestricted access |
 | `bd_export_jobs` | export ID/range, row/byte/chunk counts, hash, creator reference, expiry/download/revocation state and policy version | `P3` | Describes a restricted export; metadata does not authorise a download or a production data flow |
 | `bd_export_chunks` | `exportId`, `index`, CSV `content`, `purgeAt`; bounded export-file storage | `P3` | Content can include direct contact fields; it is not an opaque-ID-only collection. Download, revocation and retention controls remain separate |
 | `bd_export_log` | export/action/actor references and time; export operation trail | `P2` | No CSV content or patient contact values in log entries |
@@ -105,6 +109,41 @@ production approval worksheet in section 5 is still required.
 | `bd_termination_export_receipts` | termination/export references, acknowledgement, hash and export-coverage facts | `P3` | Return-of-data evidence, not a copy of the export; receipt presence alone does not prove delivery or legal acceptance |
 | Appointment command contracts | idempotency key, slot/service ID and booking kind; server supplies verified patient/actor context and timestamps | `P2`/`P3` | ADR-0005 keeps patient intake/verification separate; public production routes remain disabled |
 | Calendar projection | appointment/event linkage and allowlisted title fields on the dedicated appointment calendar | `P3` when title includes identity or notes | Only the [ADR-0002 2026-09-29 amendment](../adr/0002-calendar-is-a-projection-not-the-lock.md#2026-09-29-修訂專用預約日曆的標題欄位) permits name, phone, birthday month/day, booking kind/service and patient booking note there. No other calendar, full birthday, government ID, medical record or credential; production still requires D-009 |
+
+### Current explicit write paths and variants
+
+Paths below are source keys, not example record values or an assertion that
+every key is present on every document. Dotted paths and `[]` describe nested
+objects/arrays; `$milestone` means an existing `BusinessMilestoneId` key. The
+collection row above supplies purpose and proposed handling, not production
+approval. Source-local interfaces are not runtime validation or proof that
+historical documents contain no other fields.
+
+- `patients` — `FirestorePatientDirectory.planIntakeWithin` writes `patientId`, `name`, `phoneDigits`, `birthMonthDay`, `createdAt` and `updatedAt`. `FirestoreBusinessRetentionRepository.archive`, `restore` and `setLegalHold` additionally write or remove `archivedAt`, `archivedByRef`, `restorableUntil`, `legalHold`, `legalHoldReasonCode`, `legalHoldUpdatedAt` and `legalHoldUpdatedByRef`. Permanent deletion removes the whole document. Partial updates preserve unmentioned fields, so any additional historical keys are **UNKNOWN**, not silently inventoried or authorised.
+- `patient_lookup_index` — only the legacy registry entry is observed in the directory; it has no current directory read/write path. Stored field names, types and historical contents are **UNKNOWN**. Do not infer them from the legacy hash comment or authorise a migration.
+- `patient_lookup_index_v2` — directory candidate binding reads `patientIds` and writes `patientIds`, `createdAt`, `updatedAt`. Existing index data is spread into writes, so other historical keys remain **UNKNOWN**. The lookup hash is the document key, not a copied phone or birthday field.
+- `return_sessions` — directory `lookupReturn` writes `patientId`, `createdAt` and `expiresAt`; application lookup checks expiry. This is not evidence of a deployed TTL policy or authority for a new session flow.
+- `patient_follow_up_states` — directory reads and booking repository writers cover `required`, `activeFollowUpAppointmentId`, `sourceAppointmentId`, `sourceFollowUpId` and `updatedAt`. `reserve`, `recordFollowUp` and `releaseActiveFollowUp` merge/update these keys and can delete the active pointer. Existing extra keys remain **UNKNOWN**; this does not refresh the historical booking collection rows.
+- `bd_usage_events` — `bookingCreatedUsageEvent` / `staffLoginUsageEvent` produce `schemaVersion`, `eventId`, `kind`, `eventClass`, `occurredAt` and staff-login-only `actorRef`. Runtime/maintenance are values of `eventClass`, not separate fields.
+- `bd_milestones` — first-use marker: `schemaVersion`, `occurredAt`, `eventId`; capture-gap marker: `schemaVersion`, `month`, `firstObservedAt`, `reason`; acknowledgement record: `schemaVersion`, `revision`, `$milestone.evidenceRef`, optional `$milestone.launchDate`, `$milestone.acknowledgedAt`, `$milestone.actorRef`, `$milestone.idempotencyKey`, `$milestone.requestHash`, `$milestone.policyVersion`. `FirestoreBusinessDeliveryRepository.acknowledge` spreads the prior acknowledgement record, so untyped historical keys remain **UNKNOWN**.
+- `bd_milestone_acknowledgement_log` — the same `acknowledge` writer adds `schemaVersion`, `milestoneId`, `revision` and the acknowledgement entry's `evidenceRef`, optional `launchDate`, `acknowledgedAt`, `actorRef`, `idempotencyKey`, `requestHash`, `policyVersion`. The standalone collection export must be checked alongside object registries; a mention only in prose is not an inventory row.
+- `bd_export_jobs` — `StoredExportJob` and `create` / `download` / `revoke` cover `schemaVersion`, `exportId`, `format`, `from`, `to`, `rowCount`, `byteLength`, `sha256`, `chunkCount`, `createdAt`, `createdByRef`, `downloadExpiresAt`, `maxDownloads`, `downloadCount`, `purgeAt`, `revokedAt`, `idempotencyKey`, `requestHash`, optional `revokeIdempotencyKey`, `policyVersion`. `purgeAt` is a Firestore `Timestamp`; returned `status` is computed, not a field in the create literal.
+- `bd_export_chunks` — export creation writes `exportId`, `index`, `content`, `purgeAt`; the literal has no `schemaVersion`. `content` is CSV text, not a nested record with only opaque identifiers. It is removed on revocation; a source delete/TTL field is not deployment or deletion evidence.
+- `bd_export_log` — `appendLog` writes `schemaVersion`, `exportId`, `action`, `actorRef`, `at`, without copying CSV content.
+- `bd_retention_log` — `writeLog` writes `schemaVersion`, `action`, `patientId`, `actorRef`, `at`, `requestHash`, `result`, optional `reasonCode`. Result variants: archive has `patientId`, `state`, `restorableUntil`; restore has `patientId`, `state`; legal hold has `patientId`, `legalHold`; permanent deletion has `patientId`, `state`, `layers`. The last variant's layer-count keys are `patients`, `appointments`, `patient_booking_guards`, `patient_follow_up_states`, `return_sessions`, `follow_ups`, `patient_lookup_index_v2`; these are counts in the log, not copies or a refreshed inventory of those collections.
+- `bd_terminations` — `StoredTermination` covers `schemaVersion`, `terminationId`, `state`, `noticeDate`, `noticeStartedAt`, `noticeDueAt`, `noticeExceptionReference`, `returnManifestReference`, `recipientConfirmationReference`, `returnCompletedAt`, `controlledRetentionUntil`, `receipts`, `version`, `createdAt`, `createdByRef`, `updatedAt`, `closeReviewRequestedAt`, `policyVersion`, `scope`. Receipt variants use `receipts[].receiptKind`, `.actorRef`, `.acknowledgedAt`, and variant/legacy-dependent `.exportId`, `.evidenceRef`, `.sha256`, `.from`, `.to`, `.rowCount`, `.byteLength`.
+- `bd_termination_log` — `writeOperationLog` stores `schemaVersion`, `terminationId`, `action`, `actorRef`, `at`, `idempotencyKeyHash`, `version`, `requestHash`, `result`. `result` is the `view` response: `terminationId`, `state`, `noticeDate`, `noticeStartedAt`, `noticeDueAt`, `controlledRetentionUntil`, `version`, `receipts` (the variants above), `closeReadiness.ready`, `closeReadiness.missingSteps`, optional `replayed`; it is not a raw termination-document copy.
+- `bd_termination_export_receipts` — the data-return acknowledgement writes `schemaVersion`, `exportId`, `terminationId`, `actorRef`, `acknowledgedAt`, `sha256`, `from`, `to`, `rowCount`, `byteLength`. Older embedded receipt variants can omit coverage; that does not establish delivery or legal acceptance.
+
+The writer observations above also use
+[`booking.repository.ts`](../../apps/api/src/firestore/booking.repository.ts)
+only for the shared follow-up-state path, and the existing usage-marker writers
+in [`calendar-pilot-session.ts`](../../apps/api/src/auth/calendar-pilot-session.ts).
+No provider, document contents, migration or restore was inspected.
+Free-form evidence references and
+passthrough historical fields require owner review; their contents must not be
+assumed harmless. The new acknowledgement-log row deliberately leaves its
+classification, field access and retention unapproved instead of guessing.
 
 This refresh adds no field, collection, permission, retention duration or legal
 basis. It does not re-verify all UI/API fields, historical data, deployed
