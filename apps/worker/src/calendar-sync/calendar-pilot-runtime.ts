@@ -686,6 +686,7 @@ export class CalendarPilotRuntime {
     lease: PilotLeaseContext
   ) {
     const now = lease.now();
+    if (!isUtcIsoTimestamp(now)) throw new CalendarPilotLeaseLostError();
     if (job.sourceId === undefined)
       throw new Error('Preflight source is missing.');
     const configuration = await this.repository.loadConfiguration();
