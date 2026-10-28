@@ -13,6 +13,7 @@ import {
 } from '@beauessence/contracts';
 import {
   CALENDAR_INBOUND_AUDIT_ACTIONS,
+  isUtcIsoTimestamp,
   type ParsedCalendarEntry
 } from '@beauessence/domain';
 import { opaqueLookupIdentity } from '@beauessence/domain/patient-lookup-identity.node';
@@ -263,6 +264,7 @@ export class FirestoreCalendarSyncRepository
     if (
       typeof status !== 'string' ||
       typeof startsAt !== 'string' ||
+      !isUtcIsoTimestamp(startsAt) ||
       (bookingKind !== 'initial' && bookingKind !== 'follow_up')
     )
       return undefined;

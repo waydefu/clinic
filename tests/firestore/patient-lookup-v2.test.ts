@@ -54,6 +54,60 @@ afterAll(async () => {
 });
 
 describe('patient lookup v2 on the Firestore emulator', () => {
+  it('admits stored return-session UTC before releasing an identity', async () => {
+    const directory = new FirestorePatientDirectory(db);
+    const patientId = 'synthetic_return_session_utc';
+    const patient = db.collection(PATIENT_COLLECTIONS.patients).doc(patientId);
+    const session = db
+      .collection(PATIENT_COLLECTIONS.returnSessions)
+      .doc('rs_synthetic_return_session_utc');
+    await patient.set({ patientId });
+    for (const [expiresAt, nowUtc, active] of [
+      ['2028-02-29T00:00:00.500Z', '2028-02-29T00:00:00Z', true],
+      ['2028-02-29T00:00:00Z', '2028-02-29T00:00:00.001Z', false],
+      ['2028-02-29T00:00:00Z', '2028-02-29T00:00:00.000Z', false],
+      ['2028-02-29T00:00:00.100Z', '2028-02-29T00:00:00.100000000Z', false],
+      ['2028-02-29T00:00:00.100000000Z', '2028-02-29T00:00:00.100Z', false],
+      ['Jan 1 2030 GMT', '2028-02-29T00:00:00Z', false],
+      ['2030-02-30T00:00:00Z', '2028-02-29T00:00:00Z', false],
+      [
+        '2028-02-29T00:00:00.100000001Z',
+        '2028-02-29T00:00:00.100000000Z',
+        true
+      ],
+      [
+        '2028-02-29T00:00:00.100000000Z',
+        '2028-02-29T00:00:00.100000001Z',
+        false
+      ],
+      [
+        '2028-02-29T00:00:00.1000000010Z',
+        '2028-02-29T00:00:00.100000001Z',
+        false
+      ]
+    ] as const) {
+      await session.set({ schemaVersion: 1, patientId, expiresAt });
+      expect(await directory.readReturnSession(session.id, nowUtc)).toBe(
+        active ? patientId : undefined
+      );
+      expect((await session.get()).data()?.['expiresAt']).toBe(expiresAt);
+    }
+    await patient.update({ archivedAt: NOW });
+    await session.set({
+      schemaVersion: 1,
+      patientId,
+      expiresAt: '2028-02-29T00:00:00.500Z'
+    });
+    expect(
+      await directory.readReturnSession(session.id, '2028-02-29T00:00:00Z')
+    ).toBeUndefined();
+    await patient.delete();
+    expect(
+      await directory.readReturnSession(session.id, '2028-02-29T00:00:00Z')
+    ).toBeUndefined();
+    await session.delete();
+  });
+
   it('lets concurrent creates for the same person converge on one patient', async () => {
     const directory = new FirestorePatientDirectory(db);
     const phone = '0900000101';
