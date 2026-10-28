@@ -1,6 +1,8 @@
 import { getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
+import { validateActivationWindow } from './cal-pilot-extension-policy.mjs';
+
 const projectId = process.env['GOOGLE_CLOUD_PROJECT'];
 if (projectId !== 'beauessence-clinic-staging')
   throw new Error('Refusing to activate outside beauessence-clinic-staging.');
@@ -10,8 +12,11 @@ const now = new Date().toISOString();
 await db.runTransaction(async (transaction) => {
   const configRef = db.collection('calendar_pilot_configuration').doc('active');
   const config = await transaction.get(configRef);
-  if (!config.exists || Date.parse(now) >= Date.parse(config.data().expiresAt))
-    throw new Error('CAL-PILOT configuration is missing or expired.');
+  validateActivationWindow({
+    configurationExists: config.exists,
+    expiresAt: config.data()?.expiresAt,
+    now
+  });
   transaction.update(configRef, {
     inboundEnabled: true,
     outboundEnabled: true,

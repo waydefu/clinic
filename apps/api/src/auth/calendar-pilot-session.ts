@@ -101,6 +101,45 @@ function digest(value: string): string {
   return createHash('sha256').update(value).digest('hex');
 }
 
+function storedSessionData(value: unknown): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    throw new AuthenticationRequiredError();
+  return value as Record<string, unknown>;
+}
+
+function storedCsrfHash(value: unknown): string {
+  if (typeof value !== 'string' || !/^[a-f0-9]{64}$/i.test(value))
+    throw new AuthenticationRequiredError();
+  return value;
+}
+
+function storedSessionRecord(
+  value: unknown,
+  actorId: string,
+  actorRole: CalendarPilotStaffRole
+): CalendarPilotSessionRecord {
+  const data = storedSessionData(value);
+  const { createdAt, lastSeenAt, expiresAt, revokedAt } = data;
+  if (
+    data['actorId'] !== actorId ||
+    data['actorRole'] !== actorRole ||
+    typeof createdAt !== 'string' ||
+    typeof lastSeenAt !== 'string' ||
+    typeof expiresAt !== 'string' ||
+    (revokedAt !== null && typeof revokedAt !== 'string')
+  )
+    throw new AuthenticationRequiredError();
+  return {
+    actorId,
+    actorRole,
+    csrfHash: storedCsrfHash(data['csrfHash']),
+    createdAt,
+    lastSeenAt,
+    expiresAt,
+    revokedAt
+  };
+}
+
 function splitAllowlist(value: string | undefined): ReadonlySet<string> {
   return new Set(
     (value ?? '')
@@ -439,7 +478,7 @@ export class CalendarPilotSessionService {
     await this.db.runTransaction(async (transaction) => {
       const document = await transaction.get(ref);
       if (!document.exists) throw new AuthenticationRequiredError();
-      const session = document.data() as CalendarPilotSessionRecord;
+      const session = storedSessionRecord(document.data(), decoded.uid, role);
       if (
         !isCalendarPilotSessionActive(
           session,
@@ -470,10 +509,8 @@ export class CalendarPilotSessionService {
       .get();
     if (!document.exists || csrfToken.trim() === '')
       throw new AuthenticationRequiredError();
-    const expected = Buffer.from(
-      (document.data() as CalendarPilotSessionRecord).csrfHash,
-      'hex'
-    );
+    const data = storedSessionData(document.data());
+    const expected = Buffer.from(storedCsrfHash(data['csrfHash']), 'hex');
     const actual = Buffer.from(digest(csrfToken), 'hex');
     if (expected.length !== actual.length || !timingSafeEqual(expected, actual))
       throw new AuthenticationRequiredError();
