@@ -4,7 +4,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { FirestoreCalendarSyncRepository } from './firestore-calendar-sync.repository.js';
 
 function repository(value: unknown) {
-  const snapshot = { exists: value !== undefined, data: () => value };
+  const snapshot = {
+    exists: value !== undefined,
+    data: () => value,
+    updateTime: { seconds: 1, nanoseconds: 0 }
+  };
   const writes = vi.fn();
   const db = {
     collection: () => ({
@@ -38,6 +42,49 @@ const preflight = {
 };
 
 describe('CAL-PILOT worker stored read boundary', () => {
+  it.each(['2030-01-02T00:00:00Z', '2030-01-02T00:00:00.123456789Z'])(
+    'preserves a minimal authoritative projection with UTC startsAt %s',
+    async (startsAt) => {
+      const value = { status: 'confirmed', startsAt, bookingKind: 'initial' };
+      const store = repository(value);
+      await expect(
+        store.repository.loadAuthoritativeAppointment('synthetic_appointment')
+      ).resolves.toEqual({
+        appointmentId: 'synthetic_appointment',
+        ...value,
+        readVersion: { seconds: 1, nanoseconds: 0 }
+      });
+      expect(store.writes).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    'Jul 25 2030 Z',
+    '2030-02-30T00:00:00Z',
+    '2030-01-02T24:00:00Z',
+    '2030-01-02T00:00:00+08:00',
+    '2030-01-02',
+    ''
+  ])('does not admit stored authoritative startsAt %s', async (startsAt) => {
+    const store = repository({
+      status: 'confirmed',
+      startsAt,
+      bookingKind: 'initial'
+    });
+    await expect(
+      store.repository.loadAuthoritativeAppointment('synthetic_appointment')
+    ).resolves.toBeUndefined();
+    expect(store.writes).not.toHaveBeenCalled();
+  });
+
+  it('keeps a missing authoritative appointment absent', async () => {
+    await expect(
+      repository(undefined).repository.loadAuthoritativeAppointment(
+        'synthetic_appointment'
+      )
+    ).resolves.toBeUndefined();
+  });
+
   it('keeps a missing source distinct from a malformed source', async () => {
     await expect(
       repository(undefined).repository.findSource('synthetic_source')
