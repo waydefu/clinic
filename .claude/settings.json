@@ -55,7 +55,10 @@
       "Edit(**/*.jks)",
       "Write(**/*.jks)",
       "Edit(**/*.keystore)",
-      "Write(**/*.keystore)"
+      "Write(**/*.keystore)",
+      "Read(**/cal-pilot-keys/**)",
+      "Edit(**/cal-pilot-keys/**)",
+      "Write(**/cal-pilot-keys/**)"
     ],
     "ask": [
       "Bash(corepack pnpm install*)",
