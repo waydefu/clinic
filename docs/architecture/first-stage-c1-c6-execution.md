@@ -109,6 +109,23 @@ Machine: `scripts/sequential-c-gate.mjs`. Live tree with C1～C6 smoke is
 | DATA-R03 remaining codecs / worker casts / alerting | C6 blocker *if* C6 uses those collections | unwired `calendar_watch_channels` retains its schemaVersion 1 parser; the merged read-guard source covers existing CAL-PILOT configuration/source/preflight/mirror/candidate/appointment/outbox/availability/guard/health reads and idempotent responses, including lease-fenced worker reads before dispatch or persistence. Consumed-field projections preserve existing optional/null fields, generation zero, retry scheduling and invalid-expiry disable behavior. Synthetic regressions cover unreadable records, unknown versions, malformed UTC, denied claims and transaction rollback. Baseline `a70c854fc87f21c15db49d7fd5d662dcba4bdd5f` passed [main verification run 40377461035](https://github.com/waydefu/clinic/actions/runs/40377461035), including unit tests and Firestore Emulator; this is source/synthetic evidence, not deployed alerting or target-provider acceptance. No new collection, writer, persisted version, migration or provider connection. Deployed alerting and historical E4-15 evidence remain OPEN / NOT_VERIFIED; the verified read-guard source is not whole SOL-CONTRACTS acceptance. |
 | SCM-R04 `stream-json@1` / `csv-parse@5` | delayable debt; not C6 synthetic blocker | no force-upgrade |
 
+### E4-15 existing session read boundary
+
+The exact dated claim is §2 of
+[the DATA-R03 engineering slices](../reviews/2026-09-09-data-r03-engineering-slices.md):
+it names `apps/api/src/auth/calendar-pilot-session.ts` among the remaining
+unchecked reads. The bounded source change validates the existing session shape
+against the already-verified actor and role before authentication, and validates
+the existing SHA-256 hex digest before CSRF comparison. Malformed documents deny
+with `AuthenticationRequiredError`; a non-hex suffix cannot be silently truncated
+by `Buffer.from`. The existing timestamp/session policy still owns expiration.
+Synthetic regressions in `apps/api/src/auth/sol29-boundaries.test.ts` exercise
+corrupt documents/fields, rejected writes, malformed and truncated hash input,
+and the valid unversioned session with case-insensitive hex matching. No new
+collection, persisted version, writer, role, migration or provider is introduced.
+This is one source boundary, not closure of historical DATA-R03, deployed alerting,
+E4-15 in full, or the SOL-CONTRACTS packet.
+
 ## Hard stop
 
 Any Firebase live-channel, production Calendar, or real Calendar/patient
