@@ -8,6 +8,7 @@ import {
   LOCAL_FIREBASE_PROJECT_ID,
   requireLocalFirestoreEmulatorTarget
 } from '../../packages/config/src/index.js';
+import { CalendarAvailabilityResponseSchema } from '../../packages/contracts/src/index.js';
 
 requireLocalFirestoreEmulatorTarget(process.env['FIRESTORE_EMULATOR_HOST']);
 const projectId = LOCAL_FIREBASE_PROJECT_ID;
@@ -159,6 +160,57 @@ describe('CAL-PILOT overlapping creation race', () => {
     expect((await db.collection('calendar_pilot_outbox').get()).size).toBe(
       outboxBefore
     );
+  });
+
+  it('validates availability document IDs without rewriting blocks or outbox', async () => {
+    await repository.createSyntheticAppointment(
+      createCommand({ patientCode: 'A17', idempotencyKey: 'dto-boundary-001' })
+    );
+    const availability = await repository.getAvailability(NOW);
+    expect(
+      CalendarAvailabilityResponseSchema.safeParse(availability).success
+    ).toBe(true);
+    const blocks = await db
+      .collection('calendar_pilot_availability_blocks')
+      .get();
+    expect(blocks.size).toBe(1);
+    const original = blocks.docs[0]!;
+    expect(availability.blocks[0]?.blockId).toBe(original.id);
+    const before = original.data();
+    const invalid = db
+      .collection('calendar_pilot_availability_blocks')
+      .doc('x'.repeat(256));
+    await invalid.set(before);
+    const outboxBefore = (await db.collection('calendar_pilot_outbox').get())
+      .size;
+
+    await expect(repository.getAvailability(NOW)).rejects.toThrow(
+      'Unreadable CAL-PILOT record.'
+    );
+    expect((await original.ref.get()).data()).toEqual(before);
+    expect((await invalid.get()).data()).toEqual(before);
+    expect((await db.collection('calendar_pilot_outbox').get()).size).toBe(
+      outboxBefore
+    );
+  });
+
+  it('validates synthetic patient document IDs without rewriting the catalog', async () => {
+    await expect(repository.listSyntheticPatients()).resolves.toEqual([
+      { patientCode: 'A17' },
+      { patientCode: 'A18' }
+    ]);
+    const invalid = db.collection('calendar_pilot_patients').doc('A31');
+    const patient = { enabled: true };
+    await invalid.set(patient);
+    const seeded = db.collection('calendar_pilot_patients').doc('A17');
+    const seededBefore = (await seeded.get()).data();
+
+    await expect(repository.listSyntheticPatients()).rejects.toThrow(
+      'Unreadable CAL-PILOT record.'
+    );
+    expect((await invalid.get()).data()).toEqual(patient);
+    expect((await seeded.get()).data()).toEqual(seededBefore);
+    expect((await db.collection('calendar_pilot_outbox').get()).size).toBe(0);
   });
 
   it('rejects an unreadable overlap before any appointment or outbox write', async () => {

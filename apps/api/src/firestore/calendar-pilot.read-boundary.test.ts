@@ -1,15 +1,20 @@
+import { CalendarAvailabilityResponseSchema } from '@beauessence/contracts';
 import type { Firestore } from 'firebase-admin/firestore';
 import { describe, expect, it, vi } from 'vitest';
 
 import { FirestoreCalendarPilotRepository } from './calendar-pilot.repository.js';
 
-function store(value: unknown, blocks: readonly unknown[] = []) {
+function store(
+  value: unknown,
+  blocks: readonly unknown[] = [],
+  documentIds: readonly string[] = []
+) {
   const snapshot = { exists: value !== undefined, data: () => value };
   const query = {
     get: () =>
       Promise.resolve({
         docs: blocks.map((block, index) => ({
-          id: `synthetic_block_${index}`,
+          id: documentIds[index] ?? `synthetic_block_${index}`,
           exists: true,
           data: () => block
         }))
@@ -25,7 +30,7 @@ function store(value: unknown, blocks: readonly unknown[] = []) {
     orderBy: () => ({ limit: () => query }),
     where: () => ({
       get: query.get,
-      orderBy: () => ({ limit: () => query }),
+      orderBy: () => ({ ...query, limit: () => query }),
       count: () => ({
         get: () => Promise.resolve({ data: () => ({ count: 0 }) })
       })
@@ -201,6 +206,55 @@ describe('CAL-PILOT API stored read boundary', () => {
     expect(runTransaction).not.toHaveBeenCalled();
   });
 
+  it('accepts contract-valid synthetic patient codes without rewriting records', async () => {
+    const patient = { enabled: true };
+    const before = structuredClone(patient);
+    const { repository, runTransaction } = store(undefined, [patient], ['A17']);
+    await expect(repository.listSyntheticPatients()).resolves.toEqual([
+      { patientCode: 'A17' }
+    ]);
+    expect(patient).toEqual(before);
+    expect(runTransaction).not.toHaveBeenCalled();
+  });
+
+  it.each(['A00', 'A31', 'synthetic_patient'])(
+    'refuses a patient document ID outside the existing summary contract: %s',
+    async (patientCode) => {
+      const patient = { enabled: true };
+      const before = structuredClone(patient);
+      const { repository, runTransaction } = store(
+        undefined,
+        [patient],
+        [patientCode]
+      );
+      await expect(repository.listSyntheticPatients()).rejects.toThrow(
+        'Unreadable CAL-PILOT record.'
+      );
+      expect(patient).toEqual(before);
+      expect(runTransaction).not.toHaveBeenCalled();
+    }
+  );
+
+  it('refuses an availability document ID outside the existing wire contract', async () => {
+    const block = {
+      kind: 'busy',
+      startsAt: '2030-01-02T00:00:00Z',
+      endsAt: '2030-01-02T00:30:00Z',
+      displayLabel: 'Synthetic busy'
+    };
+    const before = structuredClone(block);
+    const { repository, runTransaction } = store(
+      configuration,
+      [block],
+      ['x'.repeat(256)]
+    );
+    await expect(
+      repository.getAvailability('2030-01-02T00:00:00Z')
+    ).rejects.toThrow('Unreadable CAL-PILOT record.');
+    expect(block).toEqual(before);
+    expect(runTransaction).not.toHaveBeenCalled();
+  });
+
   it('accepts an existing availability block without rewriting it', async () => {
     const block = {
       kind: 'appointment',
@@ -212,9 +266,11 @@ describe('CAL-PILOT API stored read boundary', () => {
     };
     const before = structuredClone(block);
     const { repository, runTransaction } = store(configuration, [block]);
-    await expect(
-      repository.getAvailability(block.startsAt)
-    ).resolves.toMatchObject({
+    const availability = await repository.getAvailability(block.startsAt);
+    expect(
+      CalendarAvailabilityResponseSchema.safeParse(availability).success
+    ).toBe(true);
+    expect(availability).toMatchObject({
       blocks: [
         {
           blockId: 'synthetic_block_0',
