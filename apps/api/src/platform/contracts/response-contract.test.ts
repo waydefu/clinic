@@ -295,6 +295,52 @@ for (const testCase of cases) {
         expect(service[testCase.name]).toHaveBeenCalledTimes(1);
       }
     );
+    if (['create', 'list', 'get', 'reschedule'].includes(testCase.name)) {
+      it.each([
+        'Sep 02 2026 Z',
+        '2026-02-31T00:00:00Z',
+        '2026-10-15T09:00:00+08:00',
+        '2026-10-15T24:00:00Z'
+      ])(
+        'refuses malformed UTC timestamp %s as generic 500 without timestamp leakage',
+        async (timestamp) => {
+          for (const field of ['startsAt', 'endsAt'] as const) {
+            const malformed = { ...confirmed, [field]: timestamp };
+            output =
+              testCase.name === 'list'
+                ? { appointments: [malformed] }
+                : malformed;
+            const response = await inject(testCase);
+            expect(response.statusCode).toBe(500);
+            expect(response.json()).toEqual({
+              error: {
+                code: 'INTERNAL_ERROR',
+                message: '系統發生非預期錯誤，請稍後再試。',
+                correlationId: expect.any(String)
+              }
+            });
+            expect(response.payload).not.toContain(timestamp);
+          }
+          expect(service[testCase.name]).toHaveBeenCalledTimes(2);
+        }
+      );
+      it('preserves UTC timestamp strings with 9 fractional digits', async () => {
+        const precise = {
+          ...confirmed,
+          startsAt: '2026-10-15T01:00:00.123456789Z',
+          endsAt: '2026-10-15T01:30:00.123456789Z'
+        };
+        output =
+          testCase.name === 'list' ? { appointments: [precise] } : precise;
+        const expected = structuredClone(output);
+        const response = await inject(testCase);
+        expect(response.statusCode).toBe(
+          testCase.method === 'POST' ? 201 : 200
+        );
+        expect(response.json()).toEqual(expected);
+        expect(service[testCase.name]).toHaveBeenCalledTimes(1);
+      });
+    }
   });
 }
 
