@@ -572,7 +572,7 @@ export function initializeBusinessView({
     element(
       'p',
       'section-description',
-      '清單不含姓名。封存與永久刪除需要重新登入；30 天內可復原，有 legal hold 時不能永久刪除。'
+      '清單不含姓名。未永久刪除的封存資料，管理者皆可復原，不限 30 天；系統不會自動永久刪除。手動封存與永久刪除須重新登入，有 legal hold 時不能永久刪除。'
     )
   );
   const retentionForms = element('div', 'card-list');
@@ -955,7 +955,7 @@ export function initializeBusinessView({
           reauthenticate: true,
           refresh: true,
           responseLabel: (result) =>
-            `已封存，可復原至 ${dateLabel(result.restorableUntil)}。`
+            `已封存。資料不會自動刪除，管理者可復原；${dateLabel(result.restorableUntil)} 起列入人工審理清單。`
         }
       )
     )
@@ -1090,7 +1090,11 @@ export function initializeBusinessView({
         item.append(
           element('strong', '', patient.patientId),
           element('p', '', `封存時間：${dateLabel(patient.archivedAt)}`),
-          element('p', '', `可復原期限：${dateLabel(patient.restorableUntil)}`),
+          element(
+            'p',
+            '',
+            `可送人工刪除審理日：${dateLabel(patient.restorableUntil)}`
+          ),
           element(
             'p',
             '',
