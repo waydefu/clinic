@@ -16,7 +16,10 @@ export interface CalendarPilotSyntheticAdmission extends CalendarPilotSyntheticL
 }
 
 export type CalendarPilotSyntheticQuarantineReason =
-  'unknown_worker' | 'unknown_in_flight' | 'unverifiable_isolation';
+  | 'unknown_worker'
+  | 'unknown_in_flight'
+  | 'unverifiable_isolation'
+  | 'invalid_lease_time';
 
 export type CalendarPilotSyntheticCoordinatorPhase =
   'active' | 'draining' | 'quiescent' | 'committed' | 'quarantined';
@@ -69,16 +72,24 @@ export class CalendarPilotSyntheticLeaseCoordinator {
   private tokenSequence = 0;
   private admissionSequence = 0;
   private syntheticDispatchStarts = 0;
+  private lastClock = -Infinity;
   private readonly admissions = new Map<string, AdmissionRecord>();
   private readonly segmentIds = new Set<string>();
   private readonly intentIds = new Set<string>();
 
-  public constructor(owner: string, generation = 0) {
+  public constructor(
+    owner: string,
+    generation: number,
+    private readonly expiresAtMillis: number,
+    private readonly now: () => number
+  ) {
     if (owner.trim() === '') {
       throw new Error('Synthetic lease owner is missing.');
     }
     if (!Number.isSafeInteger(generation) || generation < 0)
       throw new Error('Synthetic lease generation is invalid.');
+    if (!Number.isFinite(expiresAtMillis))
+      throw new Error('Synthetic lease deadline is invalid.');
     this.lease = this.newLease(owner, generation);
   }
 
@@ -133,6 +144,7 @@ export class CalendarPilotSyntheticLeaseCoordinator {
   public beginChange(intentId: string, nextOwner: string): void {
     if (this.phase !== 'active')
       throw new Error('Calendar lease change cannot start in this phase.');
+    if (!this.hasLiveLeaseTime()) throw new CalendarPilotLeaseLostError();
     if (
       intentId.trim() === '' ||
       nextOwner.trim() === '' ||
@@ -158,7 +170,9 @@ export class CalendarPilotSyntheticLeaseCoordinator {
   ): Promise<T> {
     const record = this.admissionRecord(admission);
     const mayStart =
-      this.phase === 'active' && sameLease(record.admission, this.lease);
+      this.phase === 'active' &&
+      sameLease(record.admission, this.lease) &&
+      this.hasLiveLeaseTime();
     if (!mayStart) {
       if (record.state === 'admitted') {
         record.state = 'settled';
@@ -172,7 +186,9 @@ export class CalendarPilotSyntheticLeaseCoordinator {
     record.state = 'in_flight';
     this.syntheticDispatchStarts += 1;
     try {
-      return await syntheticEffect();
+      const result = await syntheticEffect();
+      if (!this.hasLiveLeaseTime()) throw new CalendarPilotLeaseLostError();
+      return result;
     } finally {
       record.state = 'settled';
       this.advanceQuiescence();
@@ -196,6 +212,7 @@ export class CalendarPilotSyntheticLeaseCoordinator {
   public commit(): CalendarPilotSyntheticLease {
     if (this.phase !== 'quiescent' || this.intent === undefined)
       throw new Error('Calendar lease cannot commit before quiescence.');
+    if (!this.hasLiveLeaseTime()) throw new CalendarPilotLeaseLostError();
     if ([...this.admissions.values()].some(({ state }) => state !== 'settled'))
       throw new Error('Calendar lease has unsettled synthetic admissions.');
     const generation = this.lease.generation + 1;
@@ -210,6 +227,7 @@ export class CalendarPilotSyntheticLeaseCoordinator {
   public activate(): CalendarPilotSyntheticLease {
     if (this.phase !== 'committed')
       throw new Error('Calendar lease cannot activate before commit.');
+    if (!this.hasLiveLeaseTime()) throw new CalendarPilotLeaseLostError();
     this.phase = 'active';
     this.intent = undefined;
     return this.currentLease;
@@ -221,7 +239,8 @@ export class CalendarPilotSyntheticLeaseCoordinator {
       ![
         'unknown_worker',
         'unknown_in_flight',
-        'unverifiable_isolation'
+        'unverifiable_isolation',
+        'invalid_lease_time'
       ].includes(reason)
     )
       throw new Error('Synthetic Calendar quarantine reason is invalid.');
@@ -241,8 +260,30 @@ export class CalendarPilotSyntheticLeaseCoordinator {
     );
   }
 
+  private hasLiveLeaseTime(): boolean {
+    if (this.phase === 'quarantined') return false;
+    let now: number;
+    try {
+      now = this.now();
+    } catch {
+      this.quarantine('invalid_lease_time');
+      return false;
+    }
+    if (
+      !Number.isFinite(now) ||
+      now < this.lastClock ||
+      now >= this.expiresAtMillis
+    ) {
+      this.quarantine('invalid_lease_time');
+      return false;
+    }
+    this.lastClock = now;
+    return true;
+  }
+
   private assertCurrentLease(lease: CalendarPilotSyntheticLease): void {
-    if (lease !== this.lease) throw new CalendarPilotLeaseLostError();
+    if (lease !== this.lease || !this.hasLiveLeaseTime())
+      throw new CalendarPilotLeaseLostError();
   }
 
   private admissionRecord(

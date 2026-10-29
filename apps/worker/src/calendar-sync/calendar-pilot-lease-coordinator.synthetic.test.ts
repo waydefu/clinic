@@ -12,8 +12,211 @@ function deferred<T>() {
 }
 
 describe('synthetic Calendar lease coordination model', () => {
+  it('returns a synthetic result before hard expiry', async () => {
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => 9
+    );
+    const admission = coordinator.admit(
+      coordinator.currentLease,
+      'before_expiry'
+    );
+    await expect(
+      coordinator.dispatch(admission, () => 'receipt')
+    ).resolves.toBe('receipt');
+    expect(coordinator.snapshot().syntheticDispatchStarts).toBe(1);
+  });
+
+  it.each([10, 11])('rejects new admissions at time %s', (now) => {
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => now
+    );
+    expect(() =>
+      coordinator.admit(coordinator.currentLease, 'expired')
+    ).toThrow(CalendarPilotLeaseLostError);
+    expect(coordinator.snapshot()).toMatchObject({
+      phase: 'quarantined',
+      syntheticDispatchStarts: 0
+    });
+  });
+
+  it.each([10, 11])(
+    'never starts an admitted stub at time %s',
+    async (expiredAt) => {
+      let now = 0;
+      const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+        'worker_a',
+        0,
+        10,
+        () => now
+      );
+      const admission = coordinator.admit(coordinator.currentLease, 'delayed');
+      const stub = vi.fn(() => 'receipt');
+      now = expiredAt;
+      await expect(coordinator.dispatch(admission, stub)).rejects.toThrow(
+        CalendarPilotLeaseLostError
+      );
+      expect(stub).not.toHaveBeenCalled();
+      expect(coordinator.snapshot()).toMatchObject({
+        phase: 'quarantined',
+        pendingAdmissions: 0,
+        syntheticDispatchStarts: 0
+      });
+    }
+  );
+
+  it('does not return success when a started stub settles at expiry', async () => {
+    let now = 0;
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => now
+    );
+    const admission = coordinator.admit(coordinator.currentLease, 'in_flight');
+    const completion = deferred<string>();
+    const dispatch = coordinator.dispatch(admission, () => completion.promise);
+    now = 10;
+    completion.resolve('receipt');
+    await expect(dispatch).rejects.toThrow(CalendarPilotLeaseLostError);
+    expect(coordinator.snapshot()).toMatchObject({
+      phase: 'quarantined',
+      inFlight: 0,
+      syntheticDispatchStarts: 1
+    });
+    now = 0;
+    expect(() =>
+      coordinator.admit(coordinator.currentLease, 'clock_rollback')
+    ).toThrow();
+  });
+
+  it('fails closed when its supplied clock regresses', async () => {
+    let now = 2;
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => now
+    );
+    const admission = coordinator.admit(
+      coordinator.currentLease,
+      'clock_regression'
+    );
+    const stub = vi.fn();
+    now = 1;
+    await expect(coordinator.dispatch(admission, stub)).rejects.toThrow(
+      CalendarPilotLeaseLostError
+    );
+    expect(stub).not.toHaveBeenCalled();
+    expect(coordinator.snapshot().phase).toBe('quarantined');
+  });
+
+  it.each([NaN, Infinity, -Infinity])(
+    'rejects non-finite clock time %s',
+    (now) => {
+      const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+        'worker_a',
+        0,
+        10,
+        () => now
+      );
+      expect(() =>
+        coordinator.admit(coordinator.currentLease, 'invalid_clock')
+      ).toThrow(CalendarPilotLeaseLostError);
+      expect(coordinator.snapshot().syntheticDispatchStarts).toBe(0);
+    }
+  );
+
+  it('quarantines a supplied clock failure without starting a stub', () => {
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => {
+        throw new Error('synthetic_clock_failure');
+      }
+    );
+    expect(() =>
+      coordinator.admit(coordinator.currentLease, 'failed_clock')
+    ).toThrow(CalendarPilotLeaseLostError);
+    expect(coordinator.snapshot()).toMatchObject({
+      phase: 'quarantined',
+      syntheticDispatchStarts: 0
+    });
+  });
+
+  it.each([NaN, Infinity, -Infinity])(
+    'rejects a non-finite deadline %s',
+    (deadline) => {
+      expect(
+        () =>
+          new CalendarPilotSyntheticLeaseCoordinator(
+            'worker_a',
+            0,
+            deadline,
+            () => 0
+          )
+      ).toThrow();
+    }
+  );
+
+  it('refuses to begin a change at hard expiry', () => {
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => 10
+    );
+    expect(() => coordinator.beginChange('expired_change', 'worker_b')).toThrow(
+      CalendarPilotLeaseLostError
+    );
+    expect(coordinator.snapshot()).toMatchObject({
+      phase: 'quarantined',
+      syntheticDispatchStarts: 0
+    });
+  });
+
+  it('refuses commit after hard expiry without advancing the generation', () => {
+    let now = 0;
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => now
+    );
+    coordinator.beginChange('expiry_before_commit', 'worker_b');
+    now = 10;
+    expect(() => coordinator.commit()).toThrow(CalendarPilotLeaseLostError);
+    expect(coordinator.snapshot().lease.generation).toBe(0);
+  });
+
+  it('refuses successor activation after hard expiry', () => {
+    let now = 0;
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => now
+    );
+    coordinator.beginChange('expiry_before_activation', 'worker_b');
+    coordinator.commit();
+    now = 10;
+    expect(() => coordinator.activate()).toThrow(CalendarPilotLeaseLostError);
+    expect(coordinator.snapshot().phase).toBe('quarantined');
+  });
+
   it('drains before activating a successor', async () => {
-    const coordinator = new CalendarPilotSyntheticLeaseCoordinator('worker_a');
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => 0
+    );
     const oldLease = coordinator.currentLease;
     const delayed = coordinator.admit(oldLease, 'segment_delayed');
 
@@ -80,7 +283,12 @@ describe('synthetic Calendar lease coordination model', () => {
   });
 
   it('waits for the in-flight stub to settle', async () => {
-    const coordinator = new CalendarPilotSyntheticLeaseCoordinator('worker_a');
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => 0
+    );
     const lease = coordinator.currentLease;
     const admission = coordinator.admit(lease, 'segment_in_flight');
     const completion = deferred<void>();
@@ -112,7 +320,12 @@ describe('synthetic Calendar lease coordination model', () => {
   });
 
   it('quarantines unknown in-flight state without proof', () => {
-    const coordinator = new CalendarPilotSyntheticLeaseCoordinator('worker_a');
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => 0
+    );
     const lease = coordinator.currentLease;
     const admission = coordinator.admit(lease, 'segment_uncertain');
     coordinator.beginChange('intent_unknown_state', 'worker_b');
@@ -139,7 +352,12 @@ describe('synthetic Calendar lease coordination model', () => {
   });
 
   it('rejects release and completed dispatch replay', async () => {
-    const coordinator = new CalendarPilotSyntheticLeaseCoordinator('worker_a');
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => 0
+    );
     const lease = coordinator.currentLease;
     const released = coordinator.admit(lease, 'segment_released');
     coordinator.releaseUndispatched(released);
@@ -165,8 +383,18 @@ describe('synthetic Calendar lease coordination model', () => {
   });
 
   it('rejects cloned and foreign authority handles', async () => {
-    const first = new CalendarPilotSyntheticLeaseCoordinator('worker_a');
-    const second = new CalendarPilotSyntheticLeaseCoordinator('worker_a');
+    const first = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => 0
+    );
+    const second = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => 0
+    );
     const lease = first.currentLease;
     expect(second.currentLease).toEqual(lease);
     expect(() => first.admit(second.currentLease, 'cross_instance')).toThrow(
@@ -192,7 +420,12 @@ describe('synthetic Calendar lease coordination model', () => {
   });
 
   it('never mistakes replay for quiescence', async () => {
-    const coordinator = new CalendarPilotSyntheticLeaseCoordinator('worker_a');
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => 0
+    );
     const admission = coordinator.admit(coordinator.currentLease, 'pending');
     const completion = deferred<void>();
     const stub = vi.fn(() => completion.promise);
@@ -211,16 +444,22 @@ describe('synthetic Calendar lease coordination model', () => {
   it.each([
     'unknown_worker',
     'unknown_in_flight',
-    'unverifiable_isolation'
+    'unverifiable_isolation',
+    'invalid_lease_time'
   ] as const)('keeps %s quarantined', async (reason) => {
-    const coordinator = new CalendarPilotSyntheticLeaseCoordinator('worker_a');
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => 0
+    );
     const admission = coordinator.admit(coordinator.currentLease, 'uncertain');
     const completion = deferred<void>();
     const dispatch = coordinator.dispatch(admission, () => completion.promise);
     coordinator.quarantine(reason);
     expect(coordinator.snapshot().inFlight).toBe(1);
     completion.resolve();
-    await dispatch;
+    await expect(dispatch).rejects.toThrow(CalendarPilotLeaseLostError);
     expect(coordinator.snapshot()).toMatchObject({
       phase: 'quarantined',
       inFlight: 0,
@@ -231,7 +470,12 @@ describe('synthetic Calendar lease coordination model', () => {
   });
 
   it('settles a failed stub without starting it twice', async () => {
-    const coordinator = new CalendarPilotSyntheticLeaseCoordinator('worker_a');
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => 0
+    );
     const admission = coordinator.admit(coordinator.currentLease, 'failed');
     const stub = vi.fn(() => {
       coordinator.beginChange('drain_failed_stub', 'worker_b');
