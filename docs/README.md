@@ -204,6 +204,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Privacy policy checklist](security/privacy-policy-checklist.md) — what a publishable policy must contain
 - [技術／資安決定事項回填草稿 (2026-08-23)](security/technical-security-decision-draft-2026-08-23.md) — draft answers for the previously blank 21-item technical/security list: nine回填 from repository evidence, eight recommendations bounded by approved D-006/D-010, and four explicitly left blank (test-environment pricing date, the non-existent regional-failure plan, the C0 approval switch and every approval signature). It approves nothing and does not move C0 out of `revise`
 - [Privacy policy draft](legal/privacy-policy-draft.md) — draft text, not published and not a recorded consent
+- [Privacy engineering review draft (2026-10-29)](legal/privacy-engineering-review-draft-2026-10-29.md) — field differences, blank retention worksheet, interim personal-data acknowledgement-log inventory, role-mailbox placeholder and protected-source exclusions; engineering preparation only, not final legal copy or packet closeout
 
 ## 7. Review record
 
