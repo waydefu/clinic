@@ -29,6 +29,9 @@ jobs:
     name: 結構、文件、格式、lint、型別與單元測試
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      POWERSHELL_TELEMETRY_OPTOUT: '1'
+      POWERSHELL_UPDATECHECK: 'Off'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -44,6 +47,13 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      # Warm the runtime and JSON cmdlets before parallel unit workers compete.
+      - name: Warm PowerShell before parallel unit tests
+        run: >-
+          /usr/bin/time -f 'pwsh warm-up elapsed: %e s'
+          pwsh -NoLogo -NoProfile -NonInteractive
+          -Command "'{}' | ConvertFrom-Json | ConvertTo-Json -Compress | Out-Null"
 
       - run: pnpm verify
 
