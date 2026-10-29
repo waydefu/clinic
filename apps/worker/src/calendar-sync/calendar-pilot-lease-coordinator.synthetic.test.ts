@@ -894,6 +894,294 @@ describe('synthetic Calendar lease coordination model', () => {
     }
   );
 
+  it('keeps an in-flight dispatch within the old lease while renewal is pending', async () => {
+    let now = 1;
+    const binding = 'a'.repeat(64);
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => now,
+      { sourceBinding: binding, expiresAtMillis: 5 }
+    );
+    const lease = coordinator.currentLease;
+    const inFlight = coordinator.admit(lease, 'in_flight', binding);
+    const queued = coordinator.admit(lease, 'queued', binding);
+    const normalFlight = deferred<string>();
+    const normalStub = vi.fn(() => normalFlight.promise);
+    const receipt = coordinator.dispatch(inFlight, normalStub);
+    const ack = deferred<
+      typeof lease & { sourceBinding: string; expiresAtMillis: number }
+    >();
+    const renewalCallback = vi.fn(() => ack.promise);
+    const renewal = coordinator.renewWith(lease, binding, renewalCallback);
+
+    expect(renewalCallback).toHaveBeenCalledTimes(1);
+    expect(coordinator.snapshot()).toMatchObject({
+      phase: 'renewing',
+      leaseExpiresAtMillis: 5,
+      pendingAdmissions: 2,
+      inFlight: 1,
+      syntheticDispatchStarts: 1
+    });
+    expect(() => coordinator.admit(lease, 'blocked', binding)).toThrow();
+    expect(() => coordinator.renew(lease, binding, 8)).toThrow();
+    const duplicateCallback = vi.fn(() =>
+      Promise.resolve({
+        ...lease,
+        sourceBinding: binding,
+        expiresAtMillis: 9
+      })
+    );
+    await expect(
+      coordinator.renewWith(lease, binding, duplicateCallback)
+    ).rejects.toThrow();
+    expect(duplicateCallback).not.toHaveBeenCalled();
+    expect(() => coordinator.beginChange('blocked', 'worker_b')).toThrow();
+    expect(() => coordinator.commit()).toThrow();
+    expect(() => coordinator.activate()).toThrow();
+    const queuedStub = vi.fn(() => 'queued');
+    await expect(coordinator.dispatch(queued, queuedStub)).rejects.toThrow(
+      CalendarPilotLeaseLostError
+    );
+    expect(queuedStub).not.toHaveBeenCalled();
+
+    normalFlight.resolve('in-flight receipt');
+    await expect(receipt).resolves.toBe('in-flight receipt');
+    expect(coordinator.snapshot()).toMatchObject({
+      phase: 'renewing',
+      pendingAdmissions: 0,
+      inFlight: 0,
+      syntheticDispatchStarts: 1
+    });
+
+    now = 2;
+    ack.resolve({ ...lease, sourceBinding: binding, expiresAtMillis: 8 });
+    await expect(renewal).resolves.toBe(lease);
+    expect(coordinator.snapshot()).toMatchObject({
+      phase: 'active',
+      leaseExpiresAtMillis: 8,
+      sourceBinding: binding
+    });
+    now = 6;
+    const later = coordinator.admit(lease, 'after_renewal', binding);
+    await expect(
+      coordinator.dispatch(later, () => 'later receipt')
+    ).resolves.toBe('later receipt');
+    await expect(coordinator.dispatch(queued, queuedStub)).rejects.toThrow(
+      'Synthetic Calendar admission was already consumed.'
+    );
+    expect(queuedStub).not.toHaveBeenCalled();
+    expect(coordinator.snapshot()).toMatchObject({
+      syntheticDispatchStarts: 2,
+      pendingAdmissions: 0,
+      inFlight: 0
+    });
+  });
+
+  it.each([
+    { sourceBinding: 'b'.repeat(64) },
+    { owner: 'worker_b' },
+    { generation: 1 },
+    { token: 'not-issued' },
+    { expiresAtMillis: Number.NaN },
+    { expiresAtMillis: 11 }
+  ])('quarantines an invalid renewal acknowledgement %#', async (override) => {
+    const now = 1;
+    const binding = 'a'.repeat(64);
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => now,
+      { sourceBinding: binding, expiresAtMillis: 5 }
+    );
+    const lease = coordinator.currentLease;
+    coordinator.admit(lease, 'retained', binding);
+    const callback = vi.fn(() =>
+      Promise.resolve({
+        ...lease,
+        sourceBinding: binding,
+        expiresAtMillis: 8,
+        ...override
+      })
+    );
+
+    await expect(
+      coordinator.renewWith(lease, binding, callback)
+    ).rejects.toThrow();
+    expect(callback).toHaveBeenCalledTimes(1);
+    expect(coordinator.snapshot()).toMatchObject({
+      phase: 'quarantined',
+      leaseExpiresAtMillis: 5,
+      sourceBinding: binding,
+      pendingAdmissions: 1,
+      inFlight: 0,
+      syntheticDispatchStarts: 0,
+      lease
+    });
+    expect(coordinator.currentLease).toBe(lease);
+  });
+
+  it('does not accept a renewal acknowledgement at the old deadline', async () => {
+    let now = 1;
+    const binding = 'a'.repeat(64);
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => now,
+      { sourceBinding: binding, expiresAtMillis: 5 }
+    );
+    const lease = coordinator.currentLease;
+    coordinator.admit(lease, 'retained', binding);
+    const ack = deferred<
+      typeof lease & { sourceBinding: string; expiresAtMillis: number }
+    >();
+    const renewal = coordinator.renewWith(lease, binding, () => ack.promise);
+
+    now = 5;
+    ack.resolve({ ...lease, sourceBinding: binding, expiresAtMillis: 8 });
+    await expect(renewal).rejects.toThrow(CalendarPilotLeaseLostError);
+    expect(coordinator.snapshot()).toMatchObject({
+      phase: 'quarantined',
+      quarantineReason: 'invalid_lease_time',
+      leaseExpiresAtMillis: 5,
+      sourceBinding: binding,
+      pendingAdmissions: 1,
+      syntheticDispatchStarts: 0,
+      lease
+    });
+  });
+
+  it('keeps callback failure quarantined without clearing retained admissions', async () => {
+    const now = 1;
+    const binding = 'a'.repeat(64);
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => now,
+      { sourceBinding: binding, expiresAtMillis: 5 }
+    );
+    const lease = coordinator.currentLease;
+    coordinator.admit(lease, 'retained', binding);
+    const lostReplyError = new Error('synthetic reply unavailable');
+    const callback = deferred<
+      typeof lease & { sourceBinding: string; expiresAtMillis: number }
+    >();
+    const renewal = coordinator.renewWith(
+      lease,
+      binding,
+      () => callback.promise
+    );
+    callback.resolve(Promise.reject(lostReplyError));
+
+    await expect(renewal).rejects.toBe(lostReplyError);
+    expect(coordinator.snapshot()).toMatchObject({
+      phase: 'quarantined',
+      quarantineReason: 'unknown_worker',
+      leaseExpiresAtMillis: 5,
+      sourceBinding: binding,
+      pendingAdmissions: 1,
+      syntheticDispatchStarts: 0,
+      lease
+    });
+    const laterCallback = vi.fn(() =>
+      Promise.resolve({
+        ...lease,
+        sourceBinding: binding,
+        expiresAtMillis: 8
+      })
+    );
+    await expect(
+      coordinator.renewWith(lease, binding, laterCallback)
+    ).rejects.toThrow();
+    expect(laterCallback).not.toHaveBeenCalled();
+  });
+
+  it('keeps explicit quarantine sticky when a pending renewal later acknowledges', async () => {
+    const now = 1;
+    const binding = 'a'.repeat(64);
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => now,
+      { sourceBinding: binding, expiresAtMillis: 5 }
+    );
+    const lease = coordinator.currentLease;
+    coordinator.admit(lease, 'retained', binding);
+    const ack = deferred<
+      typeof lease & { sourceBinding: string; expiresAtMillis: number }
+    >();
+    const renewal = coordinator.renewWith(lease, binding, () => ack.promise);
+
+    coordinator.quarantine('unknown_worker');
+    ack.resolve({ ...lease, sourceBinding: binding, expiresAtMillis: 8 });
+    await expect(renewal).rejects.toThrow(CalendarPilotLeaseLostError);
+    expect(coordinator.snapshot()).toMatchObject({
+      phase: 'quarantined',
+      quarantineReason: 'unknown_worker',
+      leaseExpiresAtMillis: 5,
+      sourceBinding: binding,
+      pendingAdmissions: 1,
+      syntheticDispatchStarts: 0,
+      lease
+    });
+    expect(coordinator.currentLease).toBe(lease);
+  });
+
+  it.each(['unbound', 'wrong_binding', 'cloned', 'stale'] as const)(
+    'rejects renewal before callback for %s handles',
+    async (kind) => {
+      const now = 1;
+      const binding = 'a'.repeat(64);
+      const coordinator =
+        kind === 'unbound'
+          ? new CalendarPilotSyntheticLeaseCoordinator(
+              'worker_a',
+              0,
+              10,
+              () => now
+            )
+          : new CalendarPilotSyntheticLeaseCoordinator(
+              'worker_a',
+              0,
+              10,
+              () => now,
+              { sourceBinding: binding, expiresAtMillis: 5 }
+            );
+      const lease = coordinator.currentLease;
+      if (kind === 'stale') {
+        coordinator.beginChange('change-1', 'worker_b');
+        coordinator.commit();
+        coordinator.activate();
+      }
+      const issuedLease = kind === 'cloned' ? { ...lease } : lease;
+      const requestedBinding =
+        kind === 'wrong_binding' ? 'b'.repeat(64) : binding;
+      const callback = vi.fn(() =>
+        Promise.resolve({
+          ...lease,
+          sourceBinding: binding,
+          expiresAtMillis: 8
+        })
+      );
+
+      await expect(
+        coordinator.renewWith(issuedLease, requestedBinding, callback)
+      ).rejects.toThrow(CalendarPilotLeaseLostError);
+      expect(callback).not.toHaveBeenCalled();
+      expect(coordinator.snapshot()).toMatchObject({
+        phase: 'active',
+        leaseExpiresAtMillis: kind === 'unbound' ? 10 : 5,
+        ...(kind === 'unbound' ? {} : { sourceBinding: binding }),
+        syntheticDispatchStarts: 0
+      });
+    }
+  );
+
   it('copies initial binding options instead of retaining the caller object', () => {
     let now = 1;
     const binding = 'a'.repeat(64);
