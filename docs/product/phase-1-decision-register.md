@@ -1,5 +1,55 @@
 # Phase 1 Decision Register
 
+## 2026-10-29 Sol：負責人授權 Claude 的工程代決（LEASE gate 1／PRIVACY 準備）
+
+依 Claude 在本輪代負責人轉達的紀錄：2026-10-29 03:23（Asia/Taipei），
+負責人（工程師，非診所業主）授權 Claude 決定兩個 `BLOCKED-OWNER` 包，原文為：
+
+> 然後由你決定「記得紀錄」，再恢復sol，要加快進度。不能決定的等我睡醒再說，我先去睡
+
+以下是 **Claude 按該授權作出的可逆工程代決**，不是 Sol 自行推定的核准，
+也不是負責人或診所對所有未決事項的直接定稿。
+Claude 已將兩份參考 brief 與本登記簿核對；brief 本身不是新的 Canon。
+未另提供 approval ID，不另造。
+
+### SOL-CALENDAR-LEASE（D-05、D-12）：選 A，僅 gate 1
+
+- 製作具體設計：單一 egress point、handoff 前排空、未知狀態 quarantine 與 recovery。
+  覆蓋每條派送路徑：正常同步，以及 Calendar 來源切換的 copy／cleanup／replay。
+- 製作純合成證明：跨租約、兩個競爭 worker、大量未來預約的有界搬移、續租與中斷後恢復。
+  失去租約時不得推進同步進度或回報成功；到期後嚴格零派送的要求不變。
+- **Gate 2（接入真實 worker runtime）未核准，等待負責人。**
+  Gate 1 不接既有 provider runtime、不建立或修改雲端資源、不接 provider、不部署、不用真實資料。
+  合成模型成功不等於實際網路隔離、fleet 排空或嚴格零派送已驗收。
+
+### SOL-PRIVACY（9 findings）：僅工程準備
+
+| 題目 | Claude 代決的可執行範圍 | 仍等待的決定 |
+| --- | --- | --- |
+| Q1 正式告知 | 準備逐欄 diff 草案：比對 privacy page、已決定的專用 Calendar title 例外與過時草稿欄位，交診所審查；不發布、不定稿法律文字 | 診所由誰正式核准：等待負責人；本節不任命診所核准人 |
+| Q2 保留期 | 準備預約、Calendar、匯出、acknowledgement log、備份的分類保留表；不填任何年數、不新增自動刪除 | 年數與法律依據：等待負責人、診所及專業確認 |
+| Q3 `bd_milestone_acknowledgement_log` | 暫按個人資料處理，不視為匿名；不新增目的、不擴增既有角色存取，保留期 TBD，不新增自動刪除；準備逐欄表供後續確認 | 後續欄位確認及保留期／法律依據仍待確認，不因保守分類而取得新用途或存取權 |
+| Q4 公開角色信箱 | 準備替換草稿，使用明確標示的 `【待負責人提供的公開角色信箱】` 佔位符，不猜真實地址 | 真實信箱等待負責人；對外承諾仍依診所確認程序 |
+| Q5 限定範圍去識別 | 選 A：先寫精確檔案與欄位清單，再以正常 PR 做最小替換 | 清單外或超出本節的決定先列等待負責人，不自行擴大 |
+
+Q5 不動 Git history、部署綁定或核准來源；不得把原值重貼作為證據。
+既有角色仍以 `packages/domain/src/roles.ts` 為唯一來源，不因本節新增角色或擴權。
+
+### 合併順序、下游與未授權事項
+
+- 本登記 PR 排合併佇列第一；依本節可先做工程準備與 Draft PR，
+  登記 PR 合併前不宣稱依賴它的 PR「現在可以合併」。
+- 依 2026-10-24 規則，PRIVACY 的來源 PR 全部合併、合併後 main CI 綠，
+  且僅剩診所文案時，才可列 `SOURCE-DONE／待診所文案`，並逐包核對下游
+  `SOL-GOVERNANCE`、`SOL-HTML`、`SOL-DOCS`、`SOL-RUNTIME-EVIDENCE` 的其他前置後開工。
+  本登記本身或草案完成不代表下游已解鎖，也不代表正式告知已核准。
+- 關鍵鏈仍先處理 CONTRACTS（含 D-43 與其餘 findings）→ SESSION → IDENTITY，
+  其後仍依既有 executionGraph；不把兩個代決包混成一個無邊界的修改。
+- 未決事項仍包括 LEASE gate 2、診所正式核准人、保留年數與法律依據、真實公開角色信箱。
+  本節以外不能決定的事項，記錄為等待負責人，續做不依賴它的合法工作。
+- 不改 D-001～D-016 現有狀態、ADR 或 Safety Floor；不授予合併、部署、受保護動作、
+  憑證、雲端／provider、真實資料或 production 權限；不改 timeout、不降或修改 gate。
+
 ## 2026-10-25 官網卡片質感、換頁接續、圖片淡入、每頁獨立標題與官方社群配色
 
 負責人（工程師）在 Claude Code 對話中，看過 Active Theory（activetheory.net）的實測評分與「可學習清單」後指示：
