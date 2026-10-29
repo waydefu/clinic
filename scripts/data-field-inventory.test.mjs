@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { BUSINESS_EXPORT_FIELDS } from '../packages/domain/src/business-delivery-export.ts';
 import { sectionText } from './check-docs-links.mjs';
 
 const SECTION = '3. Local Firestore/contract baseline';
@@ -134,5 +135,23 @@ describe('data-field inventory collection baseline', () => {
     ["export const TEST_COLLECTIONS = 'prefix' + suffix;", /Missing/]
   ])('fails closed on computed declarations: %s', (source, error) => {
     expect(() => flatRegistryValues(source, 'TEST_COLLECTIONS')).toThrow(error);
+  });
+
+  it('aligns the engineering nationality row with the approved export amendment', () => {
+    const draft = readFileSync(
+      new URL(
+        '../docs/legal/privacy-engineering-review-draft-2026-10-29.md',
+        import.meta.url
+      ),
+      'utf8'
+    );
+    const rows = draft
+      .split(/\r?\n/)
+      .filter((line) => /^\|\s*國籍\s*\|/.test(line));
+    expect(rows).toHaveLength(1);
+    expect(BUSINESS_EXPORT_FIELDS).toContain('nationality');
+    expect(rows[0]).toContain('2026-09-29');
+    expect(rows[0]).toContain('ADR-0009');
+    expect(rows[0]).not.toContain('不進身分比對、Calendar 或匯出');
   });
 });
