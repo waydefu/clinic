@@ -95,6 +95,72 @@ describe('synthetic Calendar lease coordination model', () => {
     ).toThrow();
   });
 
+  it.each(['throws', 'NaN', 'Infinity', '-Infinity', 'regresses'] as const)(
+    'quarantines an invalid clock when a started stub settles: %s',
+    async (mode) => {
+      let fail = false;
+      const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+        'worker_a',
+        0,
+        10,
+        () => {
+          if (!fail) return 2;
+          if (mode === 'throws') throw new Error('synthetic_clock_failure');
+          if (mode === 'regresses') return 1;
+          return Number(mode);
+        }
+      );
+      const inFlight = coordinator.admit(
+        coordinator.currentLease,
+        'settling_in_flight'
+      );
+      const pending = coordinator.admit(
+        coordinator.currentLease,
+        'still_pending'
+      );
+      const completion = deferred<string>();
+      const stub = vi.fn(() => completion.promise);
+      const dispatch = coordinator.dispatch(inFlight, stub);
+      expect(stub).toHaveBeenCalledTimes(1);
+      expect(coordinator.snapshot()).toMatchObject({
+        pendingAdmissions: 2,
+        inFlight: 1,
+        syntheticDispatchStarts: 1
+      });
+
+      fail = true;
+      completion.resolve('receipt');
+      await expect(dispatch).rejects.toThrow(CalendarPilotLeaseLostError);
+      expect(stub).toHaveBeenCalledTimes(1);
+      expect(coordinator.snapshot()).toMatchObject({
+        phase: 'quarantined',
+        quarantineReason: 'invalid_lease_time',
+        pendingAdmissions: 1,
+        inFlight: 0,
+        syntheticDispatchStarts: 1,
+        lease: { generation: 0 }
+      });
+
+      fail = false;
+      const pendingStub = vi.fn();
+      await expect(coordinator.dispatch(pending, pendingStub)).rejects.toThrow(
+        CalendarPilotLeaseLostError
+      );
+      expect(pendingStub).not.toHaveBeenCalled();
+      expect(coordinator.snapshot()).toMatchObject({
+        phase: 'quarantined',
+        pendingAdmissions: 0,
+        inFlight: 0,
+        syntheticDispatchStarts: 1
+      });
+      expect(() => coordinator.commit()).toThrow();
+      expect(() => coordinator.activate()).toThrow();
+      expect(() =>
+        coordinator.admit(coordinator.currentLease, 'after_clock_recovery')
+      ).toThrow();
+    }
+  );
+
   it('fails closed when its supplied clock regresses', async () => {
     let now = 2;
     const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
