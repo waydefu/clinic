@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 
 import type { z } from 'zod';
 import {
+  CalendarAvailabilityResponseSchema,
   CalendarPilotAppointmentIdentityRecordSchema,
   CalendarPilotAppointmentRecordSchema,
   CalendarPilotAvailabilityOverlapRecordSchema,
@@ -17,6 +18,7 @@ import {
   CalendarSourcePreflightResponseSchema,
   ReviewCalendarCandidateResponseSchema,
   SyntheticAppointmentCommandResponseSchema,
+  SyntheticPatientSummarySchema,
   parseCalendarPilotRecord
 } from '@beauessence/contracts';
 import type {
@@ -322,7 +324,7 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       .orderBy('endsAt', 'asc')
       .limit(500)
       .get();
-    return {
+    return parseCalendarPilotRecord(CalendarAvailabilityResponseSchema, {
       generatedAt: now,
       sourceVersion: configuration.version,
       blocks: blocks.docs.map((document) => {
@@ -340,7 +342,7 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
           displayLabel: data.displayLabel
         };
       })
-    };
+    });
   }
 
   public async listSyntheticAppointments(): Promise<
@@ -364,7 +366,11 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       .where('enabled', '==', true)
       .orderBy('__name__', 'asc')
       .get();
-    return documents.docs.map((document) => ({ patientCode: document.id }));
+    return documents.docs.map((document) =>
+      parseCalendarPilotRecord(SyntheticPatientSummarySchema, {
+        patientCode: document.id
+      })
+    );
   }
 
   public async getSourcePreflight(
