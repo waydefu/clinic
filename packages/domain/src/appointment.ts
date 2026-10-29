@@ -10,7 +10,7 @@ export type AppointmentStatus =
   | 'completed'
   | 'no_show';
 
-export type CompletionActorRole = 'clinic_admin' | 'front_desk' | 'system';
+export type CompletionActorRole = 'clinic_admin' | 'front_desk';
 
 export interface Appointment {
   readonly id: string;
@@ -98,7 +98,7 @@ export function markAppointmentCompleted(
     );
   }
 
-  if (!['clinic_admin', 'front_desk', 'system'].includes(actorRole)) {
+  if (!['clinic_admin', 'front_desk'].includes(actorRole)) {
     throw new DomainError(
       'COMPLETION_NOT_AUTHORIZED',
       'The actor role cannot mark an appointment as completed.'

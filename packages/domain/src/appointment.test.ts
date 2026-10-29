@@ -92,4 +92,18 @@ describe('appointment invariants', () => {
       })
     );
   });
+
+  it('rejects system completion of an arrived appointment', () => {
+    expect(() =>
+      markAppointmentCompleted(
+        { ...confirmedAppointment, status: 'arrived' },
+        'system' as never,
+        '2026-07-21T02:00:00.000Z'
+      )
+    ).toThrow(
+      expect.objectContaining<Partial<DomainError>>({
+        code: 'COMPLETION_NOT_AUTHORIZED'
+      })
+    );
+  });
 });

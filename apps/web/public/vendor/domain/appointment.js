@@ -34,7 +34,7 @@ export function markAppointmentCompleted(appointment, actorRole, completedAt) {
     if (appointment.status !== 'arrived') {
         throw new DomainError('APPOINTMENT_NOT_CONFIRMABLE', 'Only an arrived appointment can be marked completed.');
     }
-    if (!['clinic_admin', 'front_desk', 'system'].includes(actorRole)) {
+    if (!['clinic_admin', 'front_desk'].includes(actorRole)) {
         throw new DomainError('COMPLETION_NOT_AUTHORIZED', 'The actor role cannot mark an appointment as completed.');
     }
     return {
