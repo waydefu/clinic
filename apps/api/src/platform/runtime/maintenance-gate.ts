@@ -22,3 +22,17 @@ export class StaticMaintenanceGate implements MaintenanceGate {
     }
   }
 }
+
+/** Read boundary only: this does not create or wire an operational shared store. */
+export class ReadThroughMaintenanceGate implements MaintenanceGate {
+  public constructor(private readonly readControl: () => Promise<unknown>) {}
+
+  public async assertAvailable(): Promise<void> {
+    try {
+      if ((await this.readControl()) === false) return;
+    } catch {
+      // A failed control read is not evidence that writes are safe.
+    }
+    throw new ServiceUnavailableError();
+  }
+}

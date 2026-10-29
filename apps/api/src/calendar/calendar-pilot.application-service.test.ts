@@ -1,3 +1,4 @@
+import { DomainError, ROLES } from '@beauessence/domain';
 import { describe, expect, it, vi } from 'vitest';
 
 import { AuthorizationDeniedError } from '../platform/errors/api-error.js';
@@ -189,3 +190,150 @@ describe('CalendarPilotApplicationService role boundary', () => {
     });
   });
 });
+
+const CLOCK_ACTOR = { actorId: 'synthetic_utc_actor', actorRole: ROLES[0] };
+const CLOCK_COMMAND = {
+  idempotencyKey: 'synthetic_calendar_clock_0001',
+  expectedVersion: 1
+};
+const CLOCK_SOURCE = {
+  ...CLOCK_COMMAND,
+  sourceId: 'synthetic_source',
+  preflightId: 'synthetic_preflight'
+};
+const CLOCK_APPOINTMENT = {
+  ...CLOCK_COMMAND,
+  patientCode: 'A17',
+  bookingKind: 'initial' as const,
+  serviceId: 'service_snoring',
+  startsAt: '2028-03-01T06:00:00.000Z'
+};
+const clockConsumers: readonly [
+  string,
+  keyof CalendarPilotRepositoryPort,
+  (service: CalendarPilotApplicationService) => unknown
+][] = [
+  ['status', 'getStatus', (service) => service.status(CLOCK_ACTOR)],
+  [
+    'availability',
+    'getAvailability',
+    (service) => service.availability(CLOCK_ACTOR)
+  ],
+  [
+    'preflight',
+    'requestSourcePreflight',
+    (service) => service.preflightSource(CLOCK_SOURCE, CLOCK_ACTOR)
+  ],
+  [
+    'activate',
+    'activateSource',
+    (service) => service.activateSource(CLOCK_SOURCE, CLOCK_ACTOR)
+  ],
+  [
+    'rollback',
+    'rollbackSource',
+    (service) => service.rollbackSource(CLOCK_SOURCE, CLOCK_ACTOR)
+  ],
+  [
+    'review',
+    'reviewCandidate',
+    (service) =>
+      service.reviewCandidate(
+        'synthetic_candidate',
+        'accept',
+        CLOCK_COMMAND,
+        CLOCK_ACTOR
+      )
+  ],
+  [
+    'resolve',
+    'reviewCandidate',
+    (service) =>
+      service.resolveCandidate(
+        'synthetic_candidate',
+        { ...CLOCK_COMMAND, resolution: 'system' },
+        CLOCK_ACTOR
+      )
+  ],
+  [
+    'correct',
+    'correctCandidate',
+    (service) =>
+      service.correctCandidate(
+        'synthetic_candidate',
+        { ...CLOCK_APPOINTMENT, kind: 'appointment' },
+        CLOCK_ACTOR
+      )
+  ],
+  [
+    'create',
+    'createSyntheticAppointment',
+    (service) =>
+      service.createSyntheticAppointment(CLOCK_APPOINTMENT, CLOCK_ACTOR)
+  ],
+  [
+    'reschedule',
+    'rescheduleSyntheticAppointment',
+    (service) =>
+      service.rescheduleSyntheticAppointment(
+        'synthetic_appointment',
+        CLOCK_APPOINTMENT,
+        CLOCK_ACTOR
+      )
+  ],
+  [
+    'cancel',
+    'cancelSyntheticAppointment',
+    (service) =>
+      service.cancelSyntheticAppointment(
+        'synthetic_appointment',
+        CLOCK_COMMAND,
+        CLOCK_ACTOR
+      )
+  ]
+];
+
+describe.each(clockConsumers)(
+  '%s UTC clock admission',
+  (_name, method, invoke) => {
+    it.each([
+      'not-a-timestamp',
+      '2028-02-29',
+      '2028-02-29T00:00:00',
+      '2028-02-29T00:00:00+00:00',
+      '2028-02-29T08:00:00+08:00',
+      '2028-02-30T00:00:00Z',
+      '2028-02-29T24:00:00Z',
+      'Feb 29 2028 GMT'
+    ])('rejects clock %s before repository access', async (now) => {
+      const repo = repository();
+      const service = new CalendarPilotApplicationService(repo.port, {
+        nowUtc: () => now
+      });
+      await expect(async () => {
+        await invoke(service);
+      }).rejects.toThrow(DomainError);
+      for (const spy of Object.values(repo.port)) {
+        expect(spy).not.toHaveBeenCalled();
+      }
+    });
+
+    it.each(['2028-02-29T00:00:00Z', '2028-02-29T00:00:00.123456Z'])(
+      'preserves legal UTC clock %s verbatim',
+      async (now) => {
+        const repo = repository();
+        const service = new CalendarPilotApplicationService(repo.port, {
+          nowUtc: () => now
+        });
+        const spy = vi.spyOn(repo.port, method);
+        await invoke(service);
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(spy.mock.calls.flat()).toContainEqual(
+          method === 'getStatus' || method === 'getAvailability'
+            ? now
+            : expect.objectContaining({ occurredAt: now })
+        );
+      }
+    );
+  }
+);
