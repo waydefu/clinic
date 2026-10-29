@@ -1252,7 +1252,8 @@ describe('accountless intake, return lookup and follow-up lineage', () => {
         bookingKind: 'initial',
         status: 'confirmed',
         startsAt: '2026-07-25T04:00:00.000Z',
-        intakeNationality: 'foreign'
+        intakeNationality: 'foreign',
+        identityReviewRequired: true
       },
       {
         appointmentId: 'appointment_nationality_002',
@@ -1268,6 +1269,11 @@ describe('accountless intake, return lookup and follow-up lineage', () => {
       actorId: 'actor_verified_001',
       actorRole: 'test_front_desk'
     });
+    expect(clinic.appointments[0]).toHaveProperty(
+      'identityReviewRequired',
+      true
+    );
+    expect(clinic.appointments[1]).not.toHaveProperty('identityReviewRequired');
     expect(clinic.appointments.map((item) => item.intakeNationality)).toEqual([
       'foreign',
       undefined
@@ -1284,6 +1290,7 @@ describe('accountless intake, return lookup and follow-up lineage', () => {
     expect(mine.appointments).toHaveLength(2);
     for (const item of mine.appointments) {
       expect(item).not.toHaveProperty('intakeNationality');
+      expect(item).not.toHaveProperty('identityReviewRequired');
       expect(item).not.toHaveProperty('patientId');
     }
   });

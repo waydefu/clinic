@@ -20,6 +20,84 @@ const INTAKE = {
   privacyConsent: true as const
 };
 
+describe('reuse with newly discovered archived identity candidates', () => {
+  it.each([undefined, true])(
+    'marks an active match and retains both previous and new private refs (previous flag %s)',
+    async (previousFlag) => {
+      const activeRef = { id: 'patient_active_synthetic' };
+      const active = {
+        name: INTAKE.name,
+        phoneDigits: '0900000001',
+        birthMonthDay: INTAKE.birthDate,
+        pendingArchivedPatientIds: ['patient_archived_previous'],
+        ...(previousFlag === undefined
+          ? {}
+          : { identityReviewRequired: previousFlag })
+      };
+      const archived = {
+        name: '合成舊紀錄',
+        archivedAt: '2029-12-10T00:00:00.000Z'
+      };
+      const update = vi.fn();
+      const transaction = {
+        get: vi.fn(() =>
+          Promise.resolve({
+            data: () => ({
+              patientIds: [activeRef.id, 'patient_archived_synthetic']
+            })
+          })
+        ),
+        getAll: vi.fn(() =>
+          Promise.resolve([
+            {
+              id: activeRef.id,
+              ref: activeRef,
+              exists: true,
+              data: () => active
+            },
+            {
+              id: 'patient_archived_synthetic',
+              ref: { id: 'patient_archived_synthetic' },
+              exists: true,
+              data: () => archived
+            }
+          ])
+        ),
+        update
+      };
+      const db = {
+        collection: vi.fn(() => ({ doc: (id: string) => ({ id }) }))
+      } as unknown as Firestore;
+      const plan = await new FirestorePatientDirectory(db).planIntakeWithin(
+        transaction as unknown as Parameters<
+          FirestorePatientDirectory['planIntakeWithin']
+        >[0],
+        INTAKE,
+        '2030-01-01T00:00:00.000Z',
+        () => {
+          throw new Error('must reuse the existing active record');
+        }
+      );
+      expect(plan.patientId).toBe(activeRef.id);
+      expect(plan).toHaveProperty('identityReviewRequired', true);
+      expect(update).not.toHaveBeenCalled();
+      plan.apply();
+      expect(update).toHaveBeenCalledExactlyOnceWith(activeRef, {
+        identityReviewRequired: true,
+        pendingArchivedPatientIds: [
+          'patient_archived_previous',
+          'patient_archived_synthetic'
+        ],
+        updatedAt: '2030-01-01T00:00:00.000Z'
+      });
+      expect(archived).toEqual({
+        name: '合成舊紀錄',
+        archivedAt: '2029-12-10T00:00:00.000Z'
+      });
+    }
+  );
+});
+
 describe.each(['firestore', 'memory'] as const)(
   'return lookup UTC admission (%s)',
   (adapter) => {
@@ -560,6 +638,34 @@ describe('toListRecord intake nationality', () => {
         'intakeNationality'
       );
   });
+});
+
+describe('staff identity-review flag', () => {
+  const row = {
+    patientId: 'patient_001',
+    slotId: 'slot_001',
+    bookingKind: 'initial',
+    status: 'confirmed'
+  };
+
+  it('carries only the server-owned true flag, never archived candidate references', () => {
+    const record = toListRecord('appointment_001', {
+      ...row,
+      identityReviewRequired: true,
+      pendingArchivedPatientIds: ['patient_archived_synthetic']
+    });
+    expect(record).toHaveProperty('identityReviewRequired', true);
+    expect(record).not.toHaveProperty('pendingArchivedPatientIds');
+  });
+
+  it.each([undefined, false, 'true', 1])(
+    'does not echo a missing or malformed flag: %s',
+    (identityReviewRequired) => {
+      expect(
+        toListRecord('appointment_001', { ...row, identityReviewRequired })
+      ).not.toHaveProperty('identityReviewRequired');
+    }
+  );
 });
 
 describe('toListRecord booking note', () => {
