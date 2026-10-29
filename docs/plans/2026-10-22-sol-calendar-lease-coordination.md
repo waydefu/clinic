@@ -22,13 +22,25 @@ Gate 1 沿用現有
 | 排空後才交接、未知狀態 quarantine | 已建模 admission、in-flight、handoff 與 sticky quarantine 的記憶體內排序 | 保留現有拒絕舊 handle、在途未結束不得交接、未知結果不得繼續 admission 的斷言 |
 | 跨 lease／兩個 worker 競爭 | 直接測試 `serializes two synthetic workers through one coordinator during handoff`：兩個合成 worker 共用同一 coordinator，交錯舊 worker 的在途／未開始工作與 successor；排空前不生效，交接後拒絕舊 handle，successor 的在途工作不被舊重播誤清除 | 保留外來 handle／複製 permit 的拒絕案例；此合成排序不等於真實跨程序的唯一 egress／隔離證明 |
 | 到期後零新派送、無 progress／success | 已有測試供給的硬 deadline／clock；相等即到期、回退／不明時間與 quarantine 都拒絕新派送或成功回傳。新增五種在途結果回傳時的 clock fault，恢復 clock 也不能重新啟動 pending stub。未建模實際同步 cursor | 保留直接穿越 hard expiry、stub 零新開始、到期結果拒絕與 handoff 不前進的斷言；不得當成實際 provider 或同步進度證明 |
-| 續租與 source binding | 未建模 renewal，不能由 generation 未改推定租約仍有效 | 合成 renewal／失敗交錯都重驗目前 lease、deadline 與 binding；未知狀態保持隔離，不用假成功續租解鎖 |
+| 續租與 source binding | 已在同一模型區分 worker deadline／不可延長的 configuration hard deadline；明確 binding 的 admission 與同步續租提案有正反測試。未建模外部續租取得／遺失回覆或 registry 的來源切換 | 保留目前 issued handle、兩個 deadline、binding 與 closed phase 的拒絕案例；仍須補未知續租結果的交錯證明，保持隔離，不用假成功續租解鎖 |
 | 大量 future bookings 有界搬移 | 只有 segment ID，沒有大量項目、分段 cursor 或 copy／cleanup／replay 流程 | 測試提供批次上限與合成未來項目，正常同步、copy、cleanup、replay 全部經同一邊界；每段有限、只收同 binding／generation 的 receipts，失 lease 不推進 cursor |
 | 中斷後恢復與冪等重播 | quarantine 沒有已證明的恢復路徑；不能清掉 pending 或重建 instance 當復原 | 在 admission、派送後未知結果、receipt／cursor 寫入前後插入中斷；保留未決工作，以穩定 identity 查證／重播，只有合成排空／隔離證據完整才可接續 |
 
 以上時間、批次與故障都是測試輸入，不設定 production TTL、safe margin、batch 預設值或新的接管政策。
 stub 的開始計數只證明合成呼叫排序，不證明封包撤回、實際 Calendar 寫入停止或跨程序隔離。
 Gate 1 只有在上述正例與拒絕／衝突案例都有 exact-head 合成執行證據、且經 Sol 審查後才可稱完成；不能拿現有 guard 單測或文件 CI 代替。
+
+### 明確的合成續租與 binding（不等於完整 Gate 1）
+
+本輪直接測試先得到既有 34 例通過／新增 18 例失敗，再由同一原型實作至 52／52 通過；其中 current-handle clone 與 stale handle 分開驗證。這是本機執行證據；CI 狀態以 PR 的 exact head 為準。
+
+- 保留四參數建構方式的既有單一硬 deadline 行為；它不取得新的 source-binding／續租證明。
+- 可選第五參數由測試明確供給 `workerLease: { sourceBinding, expiresAtMillis }`。複製 primitive 值，不保留可變呼叫者物件；binding 是合成的 opaque 標識，不接 registry 或 Calendar ID，也不在此重定義持久化 binding 的格式規則。
+- 既有第三參數仍是不可延長的 configuration hard deadline；額外 worker deadline 必須有限且不晚於它。所有派送開始、結果回傳與交接判斷都同時受兩個 deadline 約束。
+- bound 模式的 `admit(lease, segmentId, sourceBinding)` 要求明確且一致的 binding；遺漏或不一致不得取得 admission。既有未綁定模式不擅自獲得 binding。
+- `renew(lease, sourceBinding, expiresAtMillis)` 僅是此 coordinator 內、對明確提案的同步原子判斷：必須 active、目前 issued handle、目前仍有效的 clock／兩個 deadline，以及相同 binding。新 worker deadline 僅可嚴格延長且不可超越 configuration hard deadline；不更換 owner、generation、token 或既有 admission。
+- 錯誤提案不能改動 deadline、binding 或工作計數；到期／不明 clock 仍沿用 sticky quarantine，不能透過續租復活，draining／quarantine 也不能續租。
+- 正反測試涵蓋明確延長、硬上限、錯誤／遺漏 binding、舊／複製 handle、失效提案、到期、closed phase 及呼叫者物件變動。這不建模實際續租取得／遺失回覆、來源 registry 切換或恢復；這些仍是 Gate 1 的未完成證明，不把此增量升格成完整協調或 Gate 2 授權。
 
 ## 現有證據與未關閉的窗口
 

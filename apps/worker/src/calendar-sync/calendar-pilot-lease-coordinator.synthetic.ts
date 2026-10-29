@@ -13,6 +13,7 @@ export interface CalendarPilotSyntheticLease extends Pick<
 export interface CalendarPilotSyntheticAdmission extends CalendarPilotSyntheticLease {
   readonly admissionId: string;
   readonly segmentId: string;
+  readonly sourceBinding?: string;
 }
 
 export type CalendarPilotSyntheticQuarantineReason =
@@ -27,6 +28,8 @@ export type CalendarPilotSyntheticCoordinatorPhase =
 export interface CalendarPilotSyntheticCoordinatorSnapshot {
   readonly phase: CalendarPilotSyntheticCoordinatorPhase;
   readonly lease: CalendarPilotSyntheticLease;
+  readonly leaseExpiresAtMillis: number;
+  readonly sourceBinding?: string;
   readonly pendingAdmissions: number;
   readonly inFlight: number;
   readonly syntheticDispatchStarts: number;
@@ -73,6 +76,8 @@ export class CalendarPilotSyntheticLeaseCoordinator {
   private admissionSequence = 0;
   private syntheticDispatchStarts = 0;
   private lastClock = -Infinity;
+  private leaseExpiresAtMillis: number;
+  private readonly sourceBinding: string | undefined;
   private readonly admissions = new Map<string, AdmissionRecord>();
   private readonly segmentIds = new Set<string>();
   private readonly intentIds = new Set<string>();
@@ -81,7 +86,11 @@ export class CalendarPilotSyntheticLeaseCoordinator {
     owner: string,
     generation: number,
     private readonly expiresAtMillis: number,
-    private readonly now: () => number
+    private readonly now: () => number,
+    workerLease?: {
+      readonly sourceBinding: string;
+      readonly expiresAtMillis: number;
+    }
   ) {
     if (owner.trim() === '') {
       throw new Error('Synthetic lease owner is missing.');
@@ -90,6 +99,17 @@ export class CalendarPilotSyntheticLeaseCoordinator {
       throw new Error('Synthetic lease generation is invalid.');
     if (!Number.isFinite(expiresAtMillis))
       throw new Error('Synthetic lease deadline is invalid.');
+    if (
+      workerLease !== undefined &&
+      (typeof workerLease.sourceBinding !== 'string' ||
+        workerLease.sourceBinding.trim() === '' ||
+        !Number.isFinite(workerLease.expiresAtMillis) ||
+        workerLease.expiresAtMillis > expiresAtMillis)
+    )
+      throw new Error('Synthetic worker lease binding or deadline is invalid.');
+    this.sourceBinding = workerLease?.sourceBinding;
+    this.leaseExpiresAtMillis =
+      workerLease === undefined ? expiresAtMillis : workerLease.expiresAtMillis;
     this.lease = this.newLease(owner, generation);
   }
 
@@ -108,6 +128,10 @@ export class CalendarPilotSyntheticLeaseCoordinator {
     return Object.freeze({
       phase: this.phase,
       lease: this.currentLease,
+      leaseExpiresAtMillis: this.leaseExpiresAtMillis,
+      ...(this.sourceBinding === undefined
+        ? {}
+        : { sourceBinding: this.sourceBinding }),
       pendingAdmissions,
       inFlight,
       syntheticDispatchStarts: this.syntheticDispatchStarts,
@@ -118,20 +142,50 @@ export class CalendarPilotSyntheticLeaseCoordinator {
     });
   }
 
+  // shortcut: synchronous proposals only, model uncertain replies before Gate 1 closes.
+  public renew(
+    lease: CalendarPilotSyntheticLease,
+    sourceBinding: string,
+    expiresAtMillis: number
+  ): CalendarPilotSyntheticLease {
+    if (this.phase !== 'active')
+      throw new Error('Calendar lease renewal is closed.');
+    this.assertCurrentLease(lease);
+    if (
+      this.sourceBinding === undefined ||
+      sourceBinding !== this.sourceBinding
+    )
+      throw new CalendarPilotLeaseLostError();
+    if (
+      !Number.isFinite(expiresAtMillis) ||
+      expiresAtMillis <= this.leaseExpiresAtMillis ||
+      expiresAtMillis > this.expiresAtMillis
+    )
+      throw new Error('Synthetic Calendar renewal deadline is invalid.');
+    this.leaseExpiresAtMillis = expiresAtMillis;
+    return this.currentLease;
+  }
+
   public admit(
     lease: CalendarPilotSyntheticLease,
-    segmentId: string
+    segmentId: string,
+    sourceBinding?: string
   ): CalendarPilotSyntheticAdmission {
     if (this.phase !== 'active')
       throw new Error('Calendar lease admission is closed.');
     this.assertCurrentLease(lease);
+    if (sourceBinding !== this.sourceBinding)
+      throw new CalendarPilotLeaseLostError();
     if (segmentId.trim() === '' || this.segmentIds.has(segmentId))
       throw new Error('Synthetic Calendar segment ID is invalid or repeated.');
 
     const admission = Object.freeze({
       ...this.currentLease,
       admissionId: `admission-${++this.admissionSequence}`,
-      segmentId
+      segmentId,
+      ...(this.sourceBinding === undefined
+        ? {}
+        : { sourceBinding: this.sourceBinding })
     });
     this.segmentIds.add(segmentId);
     this.admissions.set(admission.admissionId, {
@@ -272,7 +326,8 @@ export class CalendarPilotSyntheticLeaseCoordinator {
     if (
       !Number.isFinite(now) ||
       now < this.lastClock ||
-      now >= this.expiresAtMillis
+      now >= this.expiresAtMillis ||
+      now >= this.leaseExpiresAtMillis
     ) {
       this.quarantine('invalid_lease_time');
       return false;

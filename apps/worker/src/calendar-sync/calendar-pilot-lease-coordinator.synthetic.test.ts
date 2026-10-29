@@ -657,4 +657,273 @@ describe('synthetic Calendar lease coordination model', () => {
     await expect(coordinator.dispatch(admission, stub)).rejects.toThrow();
     expect(stub).toHaveBeenCalledTimes(1);
   });
+
+  it('renews a bound lease without changing its handle or existing admission', async () => {
+    let now = 1;
+    const binding = 'a'.repeat(64);
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => now,
+      { sourceBinding: binding, expiresAtMillis: 5 }
+    );
+    const lease = coordinator.currentLease;
+    const admission = coordinator.admit(lease, 'before_renewal', binding);
+    expect(admission.sourceBinding).toBe(binding);
+    expect(coordinator.renew(lease, binding, 8)).toBe(lease);
+
+    now = 6;
+    const stub = vi.fn(() => 'receipt');
+    await expect(coordinator.dispatch(admission, stub)).resolves.toBe(
+      'receipt'
+    );
+    expect(stub).toHaveBeenCalledTimes(1);
+    expect(coordinator.currentLease).toBe(lease);
+    expect(coordinator.renew(lease, binding, 10)).toBe(lease);
+
+    now = 10;
+    expect(() => coordinator.admit(lease, 'at_hard_expiry', binding)).toThrow(
+      CalendarPilotLeaseLostError
+    );
+    expect(coordinator.snapshot()).toMatchObject({
+      phase: 'quarantined',
+      leaseExpiresAtMillis: 10,
+      sourceBinding: binding,
+      quarantineReason: 'invalid_lease_time',
+      syntheticDispatchStarts: 1
+    });
+    expect(coordinator.currentLease).toBe(lease);
+
+    let renewNow = 1;
+    const renewCoordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => renewNow,
+      { sourceBinding: binding, expiresAtMillis: 5 }
+    );
+    const renewLease = renewCoordinator.currentLease;
+    expect(renewCoordinator.renew(renewLease, binding, 10)).toBe(renewLease);
+    renewNow = 10;
+    expect(() => renewCoordinator.renew(renewLease, binding, 10)).toThrow(
+      CalendarPilotLeaseLostError
+    );
+    expect(renewCoordinator.snapshot()).toMatchObject({
+      phase: 'quarantined',
+      leaseExpiresAtMillis: 10,
+      quarantineReason: 'invalid_lease_time',
+      syntheticDispatchStarts: 0
+    });
+  });
+
+  it('rejects missing or mismatched source bindings without changing state', () => {
+    const binding = 'a'.repeat(64);
+    const otherBinding = 'b'.repeat(64);
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => 1,
+      { sourceBinding: binding, expiresAtMillis: 5 }
+    );
+    const lease = coordinator.currentLease;
+
+    expect(() => coordinator.admit(lease, 'missing_binding')).toThrow(
+      CalendarPilotLeaseLostError
+    );
+    expect(() =>
+      coordinator.admit(lease, 'other_binding', otherBinding)
+    ).toThrow(CalendarPilotLeaseLostError);
+    expect(() => coordinator.renew(lease, otherBinding, 8)).toThrow(
+      CalendarPilotLeaseLostError
+    );
+    expect(coordinator.snapshot()).toMatchObject({
+      phase: 'active',
+      leaseExpiresAtMillis: 5,
+      sourceBinding: binding,
+      pendingAdmissions: 0,
+      syntheticDispatchStarts: 0
+    });
+  });
+
+  it('does not bind an existing unbound coordinator through renewal', () => {
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => 1
+    );
+    const lease = coordinator.currentLease;
+
+    expect(() => coordinator.renew(lease, 'a'.repeat(64), 8)).toThrow(
+      CalendarPilotLeaseLostError
+    );
+    expect(coordinator.snapshot()).toMatchObject({
+      phase: 'active',
+      leaseExpiresAtMillis: 10
+    });
+    expect(coordinator.snapshot()).not.toHaveProperty('sourceBinding');
+  });
+
+  it.each(['cloned', 'stale'])('rejects renewing a %s lease handle', (kind) => {
+    const binding = 'a'.repeat(64);
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => 1,
+      { sourceBinding: binding, expiresAtMillis: 5 }
+    );
+    const lease = coordinator.currentLease;
+    const handle = kind === 'cloned' ? { ...lease } : lease;
+
+    if (kind === 'stale') {
+      coordinator.beginChange('renew_handle', 'worker_b');
+      coordinator.commit();
+      coordinator.activate();
+    }
+    const deadlineBeforeRenewal = coordinator.snapshot().leaseExpiresAtMillis;
+
+    expect(() => coordinator.renew(handle, binding, 8)).toThrow(
+      CalendarPilotLeaseLostError
+    );
+    expect(coordinator.snapshot()).toMatchObject({
+      phase: 'active',
+      lease: { owner: kind === 'stale' ? 'worker_b' : 'worker_a' },
+      leaseExpiresAtMillis: deadlineBeforeRenewal,
+      syntheticDispatchStarts: 0
+    });
+  });
+
+  it.each([NaN, Infinity, -Infinity, 5, 4, 11])(
+    'rejects renewal deadline %s without changing state',
+    (newDeadline) => {
+      const binding = 'a'.repeat(64);
+      const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+        'worker_a',
+        0,
+        10,
+        () => 1,
+        { sourceBinding: binding, expiresAtMillis: 5 }
+      );
+      const lease = coordinator.currentLease;
+      coordinator.admit(lease, 'pending', binding);
+
+      expect(() => coordinator.renew(lease, binding, newDeadline)).toThrow(
+        Error
+      );
+      expect(coordinator.snapshot()).toMatchObject({
+        phase: 'active',
+        leaseExpiresAtMillis: 5,
+        sourceBinding: binding,
+        pendingAdmissions: 1,
+        inFlight: 0,
+        syntheticDispatchStarts: 0
+      });
+    }
+  );
+
+  it.each([
+    { sourceBinding: '', expiresAtMillis: 5 },
+    { sourceBinding: 'a'.repeat(64), expiresAtMillis: NaN },
+    { sourceBinding: 'a'.repeat(64), expiresAtMillis: 11 }
+  ])('rejects invalid initial binding options %o', (options) => {
+    expect(
+      () =>
+        new CalendarPilotSyntheticLeaseCoordinator(
+          'worker_a',
+          0,
+          10,
+          () => 1,
+          options
+        )
+    ).toThrow(Error);
+  });
+
+  it('does not revive a worker lease at its expiry time', () => {
+    let now = 1;
+    const binding = 'a'.repeat(64);
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => now,
+      { sourceBinding: binding, expiresAtMillis: 5 }
+    );
+    const lease = coordinator.currentLease;
+    now = 5;
+
+    expect(() => coordinator.renew(lease, binding, 8)).toThrow(
+      CalendarPilotLeaseLostError
+    );
+    expect(coordinator.snapshot()).toMatchObject({
+      phase: 'quarantined',
+      leaseExpiresAtMillis: 5,
+      syntheticDispatchStarts: 0
+    });
+  });
+
+  it.each(['draining', 'quarantined'] as const)(
+    'does not renew a %s coordinator or unlock its admissions',
+    (phase) => {
+      const binding = 'a'.repeat(64);
+      const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+        'worker_a',
+        0,
+        10,
+        () => 1,
+        { sourceBinding: binding, expiresAtMillis: 5 }
+      );
+      const lease = coordinator.currentLease;
+      coordinator.admit(lease, 'pending', binding);
+      if (phase === 'draining') {
+        coordinator.beginChange('renew_closed_phase', 'worker_b');
+      } else {
+        coordinator.quarantine('unknown_worker');
+      }
+
+      expect(() => coordinator.renew(lease, binding, 8)).toThrow(Error);
+      expect(coordinator.snapshot()).toMatchObject({
+        phase,
+        leaseExpiresAtMillis: 5,
+        sourceBinding: binding,
+        pendingAdmissions: 1,
+        syntheticDispatchStarts: 0
+      });
+    }
+  );
+
+  it('copies initial binding options instead of retaining the caller object', () => {
+    let now = 1;
+    const binding = 'a'.repeat(64);
+    const options = { sourceBinding: binding, expiresAtMillis: 5 };
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => now,
+      options
+    );
+    options.sourceBinding = 'b'.repeat(64);
+    options.expiresAtMillis = 9;
+
+    expect(coordinator.snapshot()).toMatchObject({
+      leaseExpiresAtMillis: 5,
+      sourceBinding: binding
+    });
+    now = 6;
+    expect(() =>
+      coordinator.admit(
+        coordinator.currentLease,
+        'after_original_expiry',
+        binding
+      )
+    ).toThrow(CalendarPilotLeaseLostError);
+    expect(coordinator.snapshot()).toMatchObject({
+      leaseExpiresAtMillis: 5,
+      sourceBinding: binding,
+      phase: 'quarantined'
+    });
+  });
 });
