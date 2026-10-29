@@ -348,6 +348,103 @@ describe('synthetic Calendar lease coordination model', () => {
     expect(stubCalls).toBe(1);
   });
 
+  it('serializes two synthetic workers through one coordinator during handoff', async () => {
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      10,
+      () => 0
+    );
+    const oldLease = coordinator.currentLease;
+    const workerAInFlight = coordinator.admit(oldLease, 'worker_a_in_flight');
+    const workerAPending = coordinator.admit(oldLease, 'worker_a_pending');
+    const workerACompletion = deferred<string>();
+    const workerAStub = vi.fn(() => workerACompletion.promise);
+    const workerADispatch = coordinator.dispatch(workerAInFlight, workerAStub);
+
+    expect(workerAStub).toHaveBeenCalledTimes(1);
+    coordinator.beginChange('intent_two_workers', 'worker_b');
+
+    const staleStub = vi.fn(() => 'stale_receipt');
+    await expect(
+      coordinator.dispatch(workerAPending, staleStub)
+    ).rejects.toBeInstanceOf(CalendarPilotLeaseLostError);
+    expect(staleStub).not.toHaveBeenCalled();
+    expect(coordinator.snapshot()).toMatchObject({
+      phase: 'draining',
+      pendingAdmissions: 1,
+      inFlight: 1,
+      syntheticDispatchStarts: 1
+    });
+    expect(() => coordinator.commit()).toThrow(/before quiescence/u);
+    expect(() => coordinator.activate()).toThrow(/before commit/u);
+
+    workerACompletion.resolve('worker_a_receipt');
+    await expect(workerADispatch).resolves.toBe('worker_a_receipt');
+    expect(coordinator.snapshot()).toMatchObject({
+      phase: 'quiescent',
+      pendingAdmissions: 0,
+      inFlight: 0,
+      syntheticDispatchStarts: 1
+    });
+
+    const successorLease = coordinator.commit();
+    expect(successorLease).toMatchObject({ owner: 'worker_b', generation: 1 });
+    expect(successorLease.token).not.toBe(oldLease.token);
+    expect(coordinator.activate()).toEqual(successorLease);
+
+    const workerBAdmission = coordinator.admit(
+      successorLease,
+      'worker_b_in_flight'
+    );
+    const workerBCompletion = deferred<string>();
+    const workerBStub = vi.fn(() => workerBCompletion.promise);
+    const workerBDispatch = coordinator.dispatch(workerBAdmission, workerBStub);
+    expect(workerBStub).toHaveBeenCalledTimes(1);
+
+    await expect(
+      coordinator.dispatch(workerAPending, staleStub)
+    ).rejects.toBeInstanceOf(CalendarPilotLeaseLostError);
+    await expect(
+      coordinator.dispatch(workerAInFlight, workerAStub)
+    ).rejects.toBeInstanceOf(CalendarPilotLeaseLostError);
+    expect(() => coordinator.admit(oldLease, 'worker_a_after_handoff')).toThrow(
+      CalendarPilotLeaseLostError
+    );
+    expect(coordinator.snapshot()).toMatchObject({
+      phase: 'active',
+      pendingAdmissions: 1,
+      inFlight: 1,
+      syntheticDispatchStarts: 2
+    });
+    expect(coordinator.currentLease).toMatchObject({
+      owner: 'worker_b',
+      generation: 1
+    });
+    expect(workerAStub).toHaveBeenCalledTimes(1);
+    expect(staleStub).not.toHaveBeenCalled();
+    expect(workerBStub).toHaveBeenCalledTimes(1);
+
+    workerBCompletion.resolve('worker_b_receipt');
+    await expect(workerBDispatch).resolves.toBe('worker_b_receipt');
+    expect(coordinator.snapshot()).toMatchObject({
+      pendingAdmissions: 0,
+      inFlight: 0,
+      syntheticDispatchStarts: 2
+    });
+    await expect(
+      coordinator.dispatch(workerBAdmission, workerBStub)
+    ).rejects.toThrow(/already consumed/u);
+    expect(coordinator.snapshot()).toMatchObject({
+      pendingAdmissions: 0,
+      inFlight: 0,
+      syntheticDispatchStarts: 2
+    });
+    expect(workerAStub).toHaveBeenCalledTimes(1);
+    expect(staleStub).not.toHaveBeenCalled();
+    expect(workerBStub).toHaveBeenCalledTimes(1);
+  });
+
   it('waits for the in-flight stub to settle', async () => {
     const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
       'worker_a',

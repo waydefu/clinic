@@ -20,8 +20,8 @@ Gate 1 沿用現有
 | 要證明的承諾 | 目前模型能證明的範圍／缺口 | Gate 1 必須補齊的 oracle |
 | --- | --- | --- |
 | 排空後才交接、未知狀態 quarantine | 已建模 admission、in-flight、handoff 與 sticky quarantine 的記憶體內排序 | 保留現有拒絕舊 handle、在途未結束不得交接、未知結果不得繼續 admission 的斷言 |
-| 跨 lease／兩個 worker 競爭 | 有外來 handle／複製 permit 拒絕案例；不等於兩個 worker 共用唯一 egress 已獲證明 | 兩個合成 worker 共用同一 admission 排序邊界；交錯舊／新 lease，不得讓各自獨立 coordinator 的綠燈冒充唯一 egress |
-| 到期後零新派送、無 progress／success | 本次在既有模型加入測試供給的硬 deadline／clock；相等即到期、回退／不明時間與 quarantine 都拒絕新派送或成功回傳。未建模實際同步 cursor | 直接測試控制時間穿越 hard expiry，斷言 stub 零新開始、到期結束的 promise 拒絕、handoff 不前進；不得把這些結果當作實際 provider 或同步進度已獲證明 |
+| 跨 lease／兩個 worker 競爭 | 直接測試 `serializes two synthetic workers through one coordinator during handoff`：兩個合成 worker 共用同一 coordinator，交錯舊 worker 的在途／未開始工作與 successor；排空前不生效，交接後拒絕舊 handle，successor 的在途工作不被舊重播誤清除 | 保留外來 handle／複製 permit 的拒絕案例；此合成排序不等於真實跨程序的唯一 egress／隔離證明 |
+| 到期後零新派送、無 progress／success | 已有測試供給的硬 deadline／clock；相等即到期、回退／不明時間與 quarantine 都拒絕新派送或成功回傳。新增五種在途結果回傳時的 clock fault，恢復 clock 也不能重新啟動 pending stub。未建模實際同步 cursor | 保留直接穿越 hard expiry、stub 零新開始、到期結果拒絕與 handoff 不前進的斷言；不得當成實際 provider 或同步進度證明 |
 | 續租與 source binding | 未建模 renewal，不能由 generation 未改推定租約仍有效 | 合成 renewal／失敗交錯都重驗目前 lease、deadline 與 binding；未知狀態保持隔離，不用假成功續租解鎖 |
 | 大量 future bookings 有界搬移 | 只有 segment ID，沒有大量項目、分段 cursor 或 copy／cleanup／replay 流程 | 測試提供批次上限與合成未來項目，正常同步、copy、cleanup、replay 全部經同一邊界；每段有限、只收同 binding／generation 的 receipts，失 lease 不推進 cursor |
 | 中斷後恢復與冪等重播 | quarantine 沒有已證明的恢復路徑；不能清掉 pending 或重建 instance 當復原 | 在 admission、派送後未知結果、receipt／cursor 寫入前後插入中斷；保留未決工作，以穩定 identity 查證／重播，只有合成排空／隔離證據完整才可接續 |
