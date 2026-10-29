@@ -136,6 +136,60 @@ describe('parseAppointmentSnapshot', () => {
       )
     ).toBe('INVALID_VALUE');
   });
+
+  it.each([
+    'Jul 25 2026 Z',
+    '2026-02-30T00:00:00Z',
+    '2026-02-29T00:00:00Z',
+    '2026-02-28T24:00:00Z',
+    '2026-02-28T00:00:00',
+    '2026-02-28T08:00:00+08:00',
+    '',
+    null,
+    0
+  ])(
+    'rejects invalid startsAt %j for legacy and schema version 1',
+    (startsAt) => {
+      expect(
+        codeOf(() => parseAppointmentSnapshot(id, { ...legacy, startsAt }))
+      ).toBe('INVALID_VALUE');
+      expect(
+        codeOf(() =>
+          parseAppointmentSnapshot(id, {
+            ...legacy,
+            schemaVersion: 1,
+            startsAt
+          })
+        )
+      ).toBe('INVALID_VALUE');
+    }
+  );
+
+  it.each([
+    '2028-02-29T00:00:00Z',
+    '2028-02-29T00:00:00.123Z',
+    '2028-02-29T00:00:00.123456Z',
+    '2028-02-29T00:00:00.123456789Z'
+  ])(
+    'preserves valid leap-day startsAt %s for legacy and schema version 1',
+    (startsAt) => {
+      expect(
+        parseAppointmentSnapshot(id, { ...legacy, startsAt }).startsAt
+      ).toBe(startsAt);
+      expect(
+        parseAppointmentSnapshot(id, { ...legacy, schemaVersion: 1, startsAt })
+          .startsAt
+      ).toBe(startsAt);
+    }
+  );
+
+  it('omits startsAt when absent from the legacy shape', () => {
+    const parsed = parseAppointmentSnapshot(id, {
+      ...legacy,
+      startsAt: undefined
+    });
+    expect(parsed).not.toHaveProperty('startsAt');
+  });
 });
 
 describe('planTransition', () => {
