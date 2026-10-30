@@ -226,6 +226,36 @@ run "wildcard_ref_is_rejected" {
   ]
 }
 
+run "ci_principal_has_no_basic_or_data_or_key_roles" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha  = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                 = "beauessence-clinic-stg-smoke1"
+    billing_account_id         = "000000-000000-000000"
+    github_repository_id       = "123456789"
+    github_repository_owner_id = "987654321"
+  }
+
+  # B-41: negative baseline. Today's broad admin roles are tracked by B-01 and
+  # are not approved here; these must never appear.
+  assert {
+    condition = length(setintersection(
+      toset(keys(google_project_iam_member.terraform_ci)),
+      toset([
+        "roles/owner",
+        "roles/editor",
+        "roles/viewer",
+        "roles/datastore.user",
+        "roles/iam.securityAdmin",
+        "roles/iam.serviceAccountKeyAdmin",
+        "roles/iam.serviceAccountTokenCreator"
+      ])
+    )) == 0
+    error_message = "C1 Terraform CI must not hold basic, Firestore data or service-account key/token roles."
+  }
+}
+
 run "oversized_project_id_is_rejected" {
   command = plan
 
