@@ -86,11 +86,11 @@ const harnessApplication = {
     }
     return Promise.resolve({ appointmentId: 'synthetic_appointment_001' });
   },
-  list: () => {
+  listPage: () => {
     if (applicationMode === 'denial') {
       return Promise.reject(new AuthorizationDeniedError());
     }
-    return Promise.resolve({ appointments: [] });
+    return Promise.resolve({ response: { appointments: [] } });
   }
 };
 

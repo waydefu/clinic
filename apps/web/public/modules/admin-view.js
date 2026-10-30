@@ -650,9 +650,7 @@ export function appointmentPage(
     page: currentPage,
     pageSize: safePageSize,
     totalCount,
-    totalPages,
-    startIndex: totalCount === 0 ? 0 : startIndex,
-    endIndex: Math.min(startIndex + entries.length, totalCount)
+    totalPages
   };
 }
 

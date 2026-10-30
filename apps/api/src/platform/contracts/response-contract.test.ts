@@ -189,6 +189,14 @@ const service = Object.fromEntries(
     })
   ])
 );
+// The list route calls listPage() now. Forward it to the same `list` stub so
+// each case still counts exactly one application call and sees the same output
+// or error.
+Object.assign(service, {
+  listPage: vi.fn(async () => ({
+    response: await (service['list'] as () => Promise<unknown>)()
+  }))
+});
 
 @Module({
   controllers: [
