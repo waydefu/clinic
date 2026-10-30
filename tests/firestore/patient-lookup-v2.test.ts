@@ -232,11 +232,16 @@ describe('return session purge time on the Firestore emulator', () => {
   it('stores a Timestamp purgeAt beside the unchanged string expiresAt', async () => {
     const directory = new FirestorePatientDirectory(db);
     const phone = '0900000977';
-    await directory.resolveFromIntake(
+    const patientId = await directory.resolveFromIntake(
       intake(phone, '合成患者戊'),
       NOW,
       nextId('patient_v2_purge')
     );
+    // lookupReturn only opens a session for a patient owed a follow-up.
+    await db
+      .collection(PATIENT_COLLECTIONS.followUpState)
+      .doc(patientId)
+      .set({ required: true });
 
     const result = await directory.lookupReturn(
       phone,
