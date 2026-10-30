@@ -331,4 +331,30 @@ describe('parseOutboxSnapshot', () => {
     ).toBe('INVALID_VALUE');
     expect(codeOf(() => parseOutboxSnapshot(id, null))).toBe('INVALID_VALUE');
   });
+
+  it('reads retention markers and refuses unreadable or unmarked ones', () => {
+    const archivedAt = '2030-01-01T00:00:00.000Z';
+    expect(
+      parseOutboxSnapshot(id, {
+        ...legacy,
+        retentionOperation: 'archive',
+        retentionArchivedAt: archivedAt
+      })
+    ).toMatchObject({
+      retentionOperation: 'archive',
+      retentionArchivedAt: archivedAt
+    });
+    expect(
+      parseOutboxSnapshot(id, { ...legacy, retentionOperation: 'restore' })
+    ).toMatchObject({ retentionOperation: 'restore' });
+    for (const bad of [
+      { retentionOperation: 'archive' },
+      { retentionOperation: 'delete' },
+      { retentionOperation: 'restore', retentionArchivedAt: 'yesterday' }
+    ]) {
+      expect(codeOf(() => parseOutboxSnapshot(id, { ...legacy, ...bad }))).toBe(
+        'INVALID_VALUE'
+      );
+    }
+  });
 });
