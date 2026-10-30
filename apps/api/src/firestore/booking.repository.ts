@@ -220,6 +220,15 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
 
       // --- decision (pure) ---------------------------------------------
       const plan = planBooking(request, slot, patientBookingGuard);
+      // Recomputed in this callback, never copied from read-only preparation.
+      // Candidate archive references remain only on the private patient record.
+      const appointment = {
+        ...plan.appointment,
+        ...(intakePlan?.identityReviewRequired === true ||
+        patientDocument.data()?.['identityReviewRequired'] === true
+          ? { identityReviewRequired: true as const }
+          : {})
+      };
 
       // --- writes -------------------------------------------------------
       intakePlan?.apply();
@@ -227,7 +236,7 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
         this.db.collection(COLLECTIONS.appointments).doc(plan.appointment.id),
         request.bookingKind === 'follow_up'
           ? {
-              ...plan.appointment,
+              ...appointment,
               ...(typeof followUpStateData['sourceAppointmentId'] === 'string'
                 ? {
                     sourceAppointmentId:
@@ -238,7 +247,7 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
                 ? { sourceFollowUpId: followUpStateData['sourceFollowUpId'] }
                 : {})
             }
-          : plan.appointment
+          : appointment
       );
       this.writeSlotReservation(
         transaction,
