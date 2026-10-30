@@ -231,7 +231,7 @@ describe('patient contact storage on the Firestore emulator', () => {
 describe('return session purge time on the Firestore emulator', () => {
   it('stores a Timestamp purgeAt beside the unchanged string expiresAt', async () => {
     const directory = new FirestorePatientDirectory(db);
-    const phone = '0900000201';
+    const phone = '0900000977';
     await directory.resolveFromIntake(
       intake(phone, '合成患者戊'),
       NOW,

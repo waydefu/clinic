@@ -34,7 +34,7 @@ describe('returnSessionPurgeAt', () => {
 });
 
 describe('return session expiry does not depend on TTL deletion', () => {
-  async function setup() {
+  function setup() {
     const directory = new InMemoryPatientDirectory();
     directory.patients.set('patient_ttl_001', { name: '合成患者甲' });
     directory.sessions.set('rs_ttl_001', {
@@ -45,7 +45,7 @@ describe('return session expiry does not depend on TTL deletion', () => {
   }
 
   it('is usable until the expiry instant and unusable at and after it', async () => {
-    const directory = await setup();
+    const directory = setup();
     await expect(directory.readReturnSession('rs_ttl_001', NOW)).resolves.toBe(
       'patient_ttl_001'
     );
@@ -72,7 +72,7 @@ describe('return session expiry does not depend on TTL deletion', () => {
   ])(
     'treats a missing or malformed expiresAt (%j) as unusable',
     async (expiresAt) => {
-      const directory = await setup();
+      const directory = setup();
       directory.sessions.set('rs_ttl_bad', {
         patientId: 'patient_ttl_001',
         expiresAt: expiresAt as unknown as string
@@ -93,7 +93,7 @@ describe('return session expiry does not depend on TTL deletion', () => {
   ])(
     'answers unknown for a non-opaque session id (%j) without using it as a path',
     async (sessionId) => {
-      const directory = await setup();
+      const directory = setup();
       await expect(
         directory.readReturnSession(sessionId, NOW)
       ).resolves.toBeUndefined();
