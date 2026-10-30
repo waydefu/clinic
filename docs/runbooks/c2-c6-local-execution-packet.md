@@ -68,7 +68,9 @@ snapshot.
 
 No Terraform. After C2 PASS and C3 `granted`,
 `sequential-c-gate` evaluates `__session` HttpOnly/Secure/SameSite=Strict,
-idle 30m, absolute 8h, CSRF `assertCsrf`, logout `revoke`, and
+absolute 12h with no idle timeout (`STAFF_ABSOLUTE_SESSION_MS`,
+`STAFF-SESSION-12H-2026-10-03`; D-006 originally idle 30m / absolute 8h, kept
+as history), CSRF `assertCsrf`, logout `revoke`, and
 disabled-user rejection on the CAL-PILOT session module. That is C3
 source PASS for the synthetic surface, not production staff Hosting.
 

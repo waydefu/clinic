@@ -3,15 +3,30 @@
 **適用範圍：** `beauessence-clinic-staging` 的 synthetic-only 測試。
 **不適用：** 正式專案、正式日曆、真實姓名、電話、病歷、臨床內容或金流。
 
-**目前狀態（2026-08-31）：** 既有 30 天候選已啟用；業主已核准延長至
-`2026-11-28T04:51:37Z`，並在 stacked-PR 狀態釐清後指示將受控修正透過
-integration PR 真正合入 `main`，完成測試後部署到同一 synthetic-only
-staging。線上在 exact main SHA、CI、映像 digest、Terraform diff 與回復清單
-全數固定前仍不變。精確 revision、映像、期限、
-初次同步與驗證結果見
-[30 天 synthetic-only 部署紀錄](../reviews/2026-08-30-cal-pilot-30-day-deployment.md)。
-延期候選與凍結邊界見
-[2026-08-31 延期 change plan](../reviews/2026-08-31-cal-pilot-extension-change-plan.md)。
+**目前狀態（2026-10-30 文件對帳）：** 以下只整理授權與期限的來源，不證明線上現況
+（`UNVERIFIED`；現況須以較新的 dated 讀回為準）。
+
+- 授權與期限：[決策登記簿](../product/phase-1-decision-register.md)的
+  「CAL-PILOT synthetic-only extension approval — 2026-08-31」把 synthetic-only
+  子範圍延長至 `2026-11-28T04:51:37Z`；production 的 D-009／D-016 仍待核准，
+  本手冊不是 production 授權。
+- 受控修正：已依
+  [受控修正部署紀錄](../reviews/2026-08-31-cal-pilot-controlled-correction-deployment.md)
+  部署並讀回（2026-09-01）；該紀錄是 dated 證據，不代表今天的狀態。
+- 之後的狀態以較新的紀錄為準，例如
+  [Stage F 交接（2026-09-17）](../reviews/2026-09-17-stage-f-cal-pilot-handoff.md)
+  （當時 Scheduler 為 `PAUSED`）。接入真實 worker runtime 的 LEASE gate 2 尚未核准
+  （登記簿 2026-10-29 節）。
+
+> **歷史（2026-08-31 原狀態，保留作紀錄）：** 既有 30 天候選已啟用；業主已核准延長至
+> `2026-11-28T04:51:37Z`，並在 stacked-PR 狀態釐清後指示將受控修正透過
+> integration PR 真正合入 `main`，完成測試後部署到同一 synthetic-only
+> staging。線上在 exact main SHA、CI、映像 digest、Terraform diff 與回復清單
+> 全數固定前仍不變。精確 revision、映像、期限、
+> 初次同步與驗證結果見
+> [30 天 synthetic-only 部署紀錄](../reviews/2026-08-30-cal-pilot-30-day-deployment.md)。
+> 延期候選與凍結邊界見
+> [2026-08-31 延期 change plan](../reviews/2026-08-31-cal-pilot-extension-change-plan.md)。
 
 ## 1. 使用者會看到什麼
 
@@ -24,6 +39,11 @@ staging。線上在 exact main SHA、CI、映像 digest、Terraform diff 與回�
 - 只有 `manager` 可切換或回滾來源；`manager` 與 `front_desk` 可審核。
 
 ### 受控修正的部署狀態
+
+> **2026-10-30 註記：** 下段「在該 exact main 候選完成 CI 與部署紀錄前，它仍不是線上操作步驟」
+> 是 2026-08-31 的原文，保留作歷史。該候選已依
+> [部署紀錄](../reviews/2026-08-31-cal-pilot-controlled-correction-deployment.md) §5
+> 部署並讀回；現況仍以較新的讀回為準。
 
 後續功能 PR 增加 `POST /v1/calendar/candidates/{candidateId}/correct`。它原本只供
 本機與 CI review；業主現已核准透過 integration PR 部署至同一合成測試環境。

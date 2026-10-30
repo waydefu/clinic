@@ -5,6 +5,12 @@
 change plan。它不建立 Firebase／Google Cloud project、不啟用 Identity Platform、
 不建立帳號、不寫入真實病患資料，也不修改任何 route 或程式碼。
 
+> **2026-10-30 註記（session 時效）：** 本文中「閒置 30 分鐘／絕對 8 小時」的設計、
+> server-side activity state 與 29:59／30:00、7:59:59／8:00:00 邊界測試是
+> 2026-07-28 原稿，保留作歷史。2026-10-03 起現行時效為絕對 12 小時、無閒置登出
+> （`STAFF-SESSION-12H-2026-10-03`）；登入 MFA、停權後下一個受保護請求即拒絕、
+> CSRF 與敏感操作 10 分鐘 fresh Google＋TOTP 再驗證都不變。
+
 Stage 2 只允許隔離環境中的合成資料。正式預約、真實員工／病患資料、production
 Calendar 與公開寫入仍須各自通過 D-001～D-005、D-009、D-011 及部署核准。
 

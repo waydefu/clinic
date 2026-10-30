@@ -124,7 +124,7 @@ restore testing, vendor reviews and a tested incident runbook before production.
 
 The owner approved the D-006 minimum on 2026-07-28: Google federated plus
 clinic-managed local staff accounts, MFA for every staff member, TOTP for local
-accounts, 30-minute idle and 8-hour absolute session limits, and account disable
+accounts, 30-minute idle and 8-hour absolute session limits (since 2026-10-03: absolute 12 h, no idle timeout, per `STAFF-SESSION-12H-2026-10-03`; 10-minute reauth for sensitive operations unchanged; original text kept as history), and account disable
 that rejects the next protected request. Authorization codes for delegated
 appointment deletion are hashed, individually revocable and attempt-limited.
 Audit is permanent and append-only; no application role may alter or delete it.
