@@ -66,6 +66,14 @@ export type OperationalRole = (typeof OPERATIONAL_ROLES)[number];
 export type SystemRole = (typeof SYSTEM_ROLES)[number];
 export type Role = (typeof ROLES)[number];
 
+// D-006 permits clinic administrators/front desk; retain the old input spelling.
+export const COMPLETION_ACTOR_ROLES = [
+  'manager',
+  'front_desk',
+  'clinic_admin'
+] as const;
+export type CompletionActorRole = (typeof COMPLETION_ACTOR_ROLES)[number];
+
 /**
  * **未經核准的假設，集中在這一個地方。**
  *
@@ -92,6 +100,7 @@ export const ASSUME_CASE_MANAGER_IS_CONSULTANT = true;
 export const LEGACY_ROLE_ALIASES: Readonly<Record<string, Role>> =
   Object.freeze({
     admin: 'manager',
+    clinic_admin: 'manager',
     // 只有在 Q1 假設成立時，`case_manager` 才收斂到 `consultant`。假設被推翻時
     // 這一筆必須消失，而不是靜靜地把個管師當成諮詢師——那會讓一個尚未定義的
     // 職務沿用別人的權限。

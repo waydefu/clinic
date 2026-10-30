@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  COMPLETION_ACTOR_ROLES,
   LEGACY_ROLE_ALIASES,
   OPERATIONAL_ROLES,
   ROLES,
@@ -43,6 +44,12 @@ describe('roles', () => {
 
     it('maps the browser legacy admin onto manager', () => {
       expect(normaliseRole('admin')).toBe('manager');
+    });
+
+    it('maps the legacy completion administrator onto the canonical manager', () => {
+      const aliases = COMPLETION_ACTOR_ROLES.filter((role) => !isRole(role));
+      expect(aliases).toHaveLength(1);
+      expect(normaliseRole(aliases[0])).toBe(LEGACY_ROLE_ALIASES.admin);
     });
 
     // 認不得的身分必須失去權限，不得繼承任何人的。
