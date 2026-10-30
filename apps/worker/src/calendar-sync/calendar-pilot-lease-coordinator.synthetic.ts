@@ -23,7 +23,12 @@ export type CalendarPilotSyntheticQuarantineReason =
   | 'invalid_lease_time';
 
 export type CalendarPilotSyntheticCoordinatorPhase =
-  'active' | 'draining' | 'quiescent' | 'committed' | 'quarantined';
+  | 'active'
+  | 'renewing'
+  | 'draining'
+  | 'quiescent'
+  | 'committed'
+  | 'quarantined';
 
 export interface CalendarPilotSyntheticCoordinatorSnapshot {
   readonly phase: CalendarPilotSyntheticCoordinatorPhase;
@@ -142,7 +147,6 @@ export class CalendarPilotSyntheticLeaseCoordinator {
     });
   }
 
-  // shortcut: synchronous proposals only, model uncertain replies before Gate 1 closes.
   public renew(
     lease: CalendarPilotSyntheticLease,
     sourceBinding: string,
@@ -150,20 +154,36 @@ export class CalendarPilotSyntheticLeaseCoordinator {
   ): CalendarPilotSyntheticLease {
     if (this.phase !== 'active')
       throw new Error('Calendar lease renewal is closed.');
-    this.assertCurrentLease(lease);
-    if (
-      this.sourceBinding === undefined ||
-      sourceBinding !== this.sourceBinding
-    )
-      throw new CalendarPilotLeaseLostError();
-    if (
-      !Number.isFinite(expiresAtMillis) ||
-      expiresAtMillis <= this.leaseExpiresAtMillis ||
-      expiresAtMillis > this.expiresAtMillis
-    )
-      throw new Error('Synthetic Calendar renewal deadline is invalid.');
-    this.leaseExpiresAtMillis = expiresAtMillis;
+    this.applyRenewal(lease, sourceBinding, expiresAtMillis);
     return this.currentLease;
+  }
+
+  // shortcut: synthetic acknowledgements only, prove external authority before runtime wiring.
+  public async renewWith(
+    lease: CalendarPilotSyntheticLease,
+    sourceBinding: string,
+    syntheticRenewal: () => Promise<
+      CalendarPilotSyntheticLease & {
+        readonly sourceBinding: string;
+        readonly expiresAtMillis: number;
+      }
+    >
+  ): Promise<CalendarPilotSyntheticLease> {
+    if (this.phase !== 'active')
+      throw new Error('Calendar lease renewal is closed.');
+    this.assertBoundLease(lease, sourceBinding);
+    this.phase = 'renewing';
+    try {
+      const reply = await syntheticRenewal();
+      if (this.phase !== 'renewing' || !sameLease(reply, this.lease))
+        throw new CalendarPilotLeaseLostError();
+      this.applyRenewal(lease, reply.sourceBinding, reply.expiresAtMillis);
+      this.phase = 'active';
+      return this.currentLease;
+    } catch (error) {
+      this.quarantine('unknown_worker');
+      throw error;
+    }
   }
 
   public admit(
@@ -334,6 +354,33 @@ export class CalendarPilotSyntheticLeaseCoordinator {
     }
     this.lastClock = now;
     return true;
+  }
+
+  private assertBoundLease(
+    lease: CalendarPilotSyntheticLease,
+    sourceBinding: string
+  ): void {
+    this.assertCurrentLease(lease);
+    if (
+      this.sourceBinding === undefined ||
+      sourceBinding !== this.sourceBinding
+    )
+      throw new CalendarPilotLeaseLostError();
+  }
+
+  private applyRenewal(
+    lease: CalendarPilotSyntheticLease,
+    sourceBinding: string,
+    expiresAtMillis: number
+  ): void {
+    this.assertBoundLease(lease, sourceBinding);
+    if (
+      !Number.isFinite(expiresAtMillis) ||
+      expiresAtMillis <= this.leaseExpiresAtMillis ||
+      expiresAtMillis > this.expiresAtMillis
+    )
+      throw new Error('Synthetic Calendar renewal deadline is invalid.');
+    this.leaseExpiresAtMillis = expiresAtMillis;
   }
 
   private assertCurrentLease(lease: CalendarPilotSyntheticLease): void {

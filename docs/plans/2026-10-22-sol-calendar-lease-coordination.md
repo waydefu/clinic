@@ -22,7 +22,7 @@ Gate 1 沿用現有
 | 排空後才交接、未知狀態 quarantine | 已建模 admission、in-flight、handoff 與 sticky quarantine 的記憶體內排序 | 保留現有拒絕舊 handle、在途未結束不得交接、未知結果不得繼續 admission 的斷言 |
 | 跨 lease／兩個 worker 競爭 | 直接測試 `serializes two synthetic workers through one coordinator during handoff`：兩個合成 worker 共用同一 coordinator，交錯舊 worker 的在途／未開始工作與 successor；排空前不生效，交接後拒絕舊 handle，successor 的在途工作不被舊重播誤清除 | 保留外來 handle／複製 permit 的拒絕案例；此合成排序不等於真實跨程序的唯一 egress／隔離證明 |
 | 到期後零新派送、無 progress／success | 已有測試供給的硬 deadline／clock；相等即到期、回退／不明時間與 quarantine 都拒絕新派送或成功回傳。新增五種在途結果回傳時的 clock fault，恢復 clock 也不能重新啟動 pending stub。未建模實際同步 cursor | 保留直接穿越 hard expiry、stub 零新開始、到期結果拒絕與 handoff 不前進的斷言；不得當成實際 provider 或同步進度證明 |
-| 續租與 source binding | 已在同一模型區分 worker deadline／不可延長的 configuration hard deadline；明確 binding 的 admission 與同步續租提案有正反測試。未建模外部續租取得／遺失回覆或 registry 的來源切換 | 保留目前 issued handle、兩個 deadline、binding 與 closed phase 的拒絕案例；仍須補未知續租結果的交錯證明，保持隔離，不用假成功續租解鎖 |
+| 續租與 source binding | 已區分 worker deadline／不可延長的 configuration hard deadline；明確 binding 的同步提案及合成 ack 等待／錯配／回覆失敗均有直接測試。`renewing` 期間不准新派送／交接，未知結果保持隔離；未接外部續租或 registry 來源切換 | 保留目前 issued handle、兩個 deadline、ack 的 owner／generation／token／binding 及 closed phase 的拒絕案例；合成回覆不是實際來源 authority 或恢復證明，不用假成功續租解鎖 |
 | 大量 future bookings 有界搬移 | 只有 segment ID，沒有大量項目、分段 cursor 或 copy／cleanup／replay 流程 | 測試提供批次上限與合成未來項目，正常同步、copy、cleanup、replay 全部經同一邊界；每段有限、只收同 binding／generation 的 receipts，失 lease 不推進 cursor |
 | 中斷後恢復與冪等重播 | quarantine 沒有已證明的恢復路徑；不能清掉 pending 或重建 instance 當復原 | 在 admission、派送後未知結果、receipt／cursor 寫入前後插入中斷；保留未決工作，以穩定 identity 查證／重播，只有合成排空／隔離證據完整才可接續 |
 
@@ -40,7 +40,10 @@ Gate 1 只有在上述正例與拒絕／衝突案例都有 exact-head 合成執�
 - bound 模式的 `admit(lease, segmentId, sourceBinding)` 要求明確且一致的 binding；遺漏或不一致不得取得 admission。既有未綁定模式不擅自獲得 binding。
 - `renew(lease, sourceBinding, expiresAtMillis)` 僅是此 coordinator 內、對明確提案的同步原子判斷：必須 active、目前 issued handle、目前仍有效的 clock／兩個 deadline，以及相同 binding。新 worker deadline 僅可嚴格延長且不可超越 configuration hard deadline；不更換 owner、generation、token 或既有 admission。
 - 錯誤提案不能改動 deadline、binding 或工作計數；到期／不明 clock 仍沿用 sticky quarantine，不能透過續租復活，draining／quarantine 也不能續租。
-- 正反測試涵蓋明確延長、硬上限、錯誤／遺漏 binding、舊／複製 handle、失效提案、到期、closed phase 及呼叫者物件變動。這不建模實際續租取得／遺失回覆、來源 registry 切換或恢復；這些仍是 Gate 1 的未完成證明，不把此增量升格成完整協調或 Gate 2 授權。
+- 正反測試涵蓋明確延長、硬上限、錯誤／遺漏 binding、舊／複製 handle、失效提案、到期、closed phase 及呼叫者物件變動。
+- `renewWith(lease, sourceBinding, syntheticRenewal)` 只接受合成 promise。等待 ack 時維持 `renewing`，拒絕新 admission、派送、續租及交接；原已在途工作仍只能在原租約期限內結算，結算不會解鎖續租等待。
+- ack 必須符合目前 owner／generation／token／binding；共享既有期限驗證，確認舊租約仍有效且未被隔離後，才更新 worker deadline 並回到 active。錯配、回覆失敗或等待中被隔離都不能延長期限、清掉保留工作或自行恢復。原始錯誤與 sticky quarantine reason 保留。
+- ack 增量先確認既有 52 例通過／新增 14 例因缺少介面失敗，再實作至本機 66／66 通過。這只證明受控合成 promise 的等待與結算，不證明實際續租取得／遺失回覆偵測、來源 registry 切換、transport 隔離或恢復；其餘 Gate 1 oracle 仍須補齊，不升格成完整協調或 Gate 2 授權。
 
 ## 現有證據與未關閉的窗口
 
