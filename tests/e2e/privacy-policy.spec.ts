@@ -65,8 +65,14 @@ test.describe('隱私權政策頁', () => {
     await expect(definitions.nth(1)).toContainText('asia-east1');
     await expect(definitions.nth(2)).toContainText('草案');
     await expect(definitions.nth(2)).toContainText('Google');
-    // 日曆投影刻意不含 PII，這一點必須對患者說清楚。
-    await expect(section).toContainText('不含您的姓名');
+    // ADR-0002（OWNER-BATCH-2026-09-29B）：專用預約日曆的事件標題含姓名、電話、出生月日、
+    // 看診類型與項目、備註；頁面必須照實說，不能再說「不含您的姓名」。
+    const audience = (await definitions.nth(2).innerText()).replace(/\s+/g, '');
+    expect(audience).toContain(
+      '事件標題會顯示您的姓名、電話、出生月日、看診類型與項目，以及備註'
+    );
+    expect(audience).toContain('僅獲授權的診所人員看得到');
+    expect(audience).not.toContain('不含您的姓名');
   });
 
   test('蒐集類別與目前合成表單欄位一致', async ({ page }) => {

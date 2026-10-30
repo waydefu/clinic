@@ -21,7 +21,7 @@
 | `CURRENT_MAIN` | `716aaf4f97d77eb87aead6d15b70a2936e676831` |
 | `LATEST_MAIN_CI` | [verify 36094959216](https://github.com/waydefu/clinic/actions/runs/36094959216)，12/12 `success`，head 就是該 SHA |
 | `OPEN_PRS` | 只有 #165，draft，不合併 |
-| 帳號 | `wayde.fu@gmail.com` |
+| 帳號 | `診所負責人的 Google 帳號（依 Q3 隱去個人信箱）` |
 | API | `internal-test-api-p109durable1`，100% traffic，Ready。image `sha256:2250015b779b410ec63d58bc49676bb538448c6cc575e6eebe9454563a06820a`。SA `internal-test-api@beauessence-clinic-stg-c1a01.iam.gserviceaccount.com`。`TRUSTED_PROXY_HOPS=2`。booking enabled。expiry `2026-09-30T10:00:00Z`。流量 tag `fh-4f2b6f65fe8cc288` |
 | outbox | `internal-test-outbox-00012-vzl`，100%，Ready。worker `sha256:f44c61c710497f1a10437ee659ec7934ab197365caf72fb262ad415f0f3ab17d`。SA `internal-test-outbox@…` |
 | calendar-sync | `internal-test-calendar-sync-00001-422`，100%，Ready。同一 worker digest。entrypoint `node dist/calendar-sync/calendar-pilot-main.js`。SA `internal-test-calendar-sync@…` |
@@ -120,7 +120,7 @@ deploy pin = 上述兩個映像的 sha256 digest，禁止只用 tag
 APPROVE P1-09-C1-SYNTHETIC-CLOSEOUT
 
 AUTHORITY_SHA = 716aaf4f97d77eb87aead6d15b70a2936e676831
-OPERATOR = wayde.fu@gmail.com
+OPERATOR = 診所負責人的 Google 帳號（依 Q3 隱去個人信箱）
 APPROVER = PROJECT_OWNER
 VALID_FROM_UTC = 2026-09-25T05:00:00Z
 VALID_UNTIL_UTC = 2026-09-30T12:00:00Z

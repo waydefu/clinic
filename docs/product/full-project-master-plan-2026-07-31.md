@@ -177,6 +177,13 @@ OTP 因子，但本身不是抗網路釣魚方法
 | 全員 MFA、自管帳號 TOTP | 需兩個因子；verifier 另須提供至少一種抗釣魚選項 | **TOTP 可作第二因子，但不足以單獨支撐完整 AAL2 對齊聲明** |
 | 停權後下一個 protected request 即拒絕 | session host 必須執行逾時、失效與重新驗證 | 需由伺服器端負向測試證明 |
 
+> **2026-10-30 註記：** §4.1 與 §4.2 的「8 小時／30 分鐘」及 29:59／30:00、7:59:59／8:00:00
+> 邊界是 2026-07-31 原稿，保留作歷史。2026-10-03 起現行為絕對 12 小時、無閒置登出
+> （`STAFF-SESSION-12H-2026-10-03`）：12 小時仍在上表「≤ 24 小時」內，但不再有閒置
+> 逾時，不屬「閒置 ≤ 1 小時」建議之內；登記簿已把這點記為已知取捨（以人員離座鎖定
+> 電腦補償）。AAL2 對齊聲明仍由 security owner 書面定案，本註記不代為決定；敏感操作
+> 10 分鐘 fresh Google＋TOTP 再驗證不變。
+
 因此 C0／C2 必須由 security owner 書面選一項：加入 passkey／FIDO2 等抗釣魚選項；或
 明確記錄本專案**不宣稱完整符合 NIST AAL2**及其剩餘風險。這是新發現的標準差距，不得
 由實作者自行改寫 D-006。8 小時／30 分鐘本身不用重新爭論，但是否提出 AAL2 對齊聲明
@@ -482,7 +489,7 @@ TW-01～TW-05 可以與 Stage 1 決策並行；TW-06～TW-07 含政策值，必�
 | --- | --- | --- | --- |
 | C1 | 隔離 staging foundation | GOV-07＋C1 request／authority | remote state、WIF／IAM 負向測試、budget／alerts；Firestore／IdP／runtime／Calendar absence |
 | C2 | 合成 staff identity | C1＋IdP／recovery 核准 | Google＋local、email、MFA／recovery、抗釣魚選項或 AAL2 non-claim |
-| C3 | Server session | C2＋threat model | cookie／CSRF、8h／30m、logout／revocation 邊界測試 |
+| C3 | Server session | C2＋threat model | cookie／CSRF、8h／30m（2026-10-03 起改為絕對 12 小時、無閒置登出，見 `STAFF-SESSION-12H-2026-10-03`；敏感操作 10 分鐘再驗證不變；此為歷史原文）、logout／revocation 邊界測試 |
 | C4 | Server authorization | C3＋role/action／KDF 參數 | default-deny RBAC、field projection、停權／限流負向矩陣 |
 | C5 | Firestore／audit／restore | C4＋D-002 對齊＋C5 authority | location／protection、direct-client deny、append-only audit、backup／PITR restore |
 | C6 | Staff-only synthetic staging | C1～C5＋C6 authority | digest-bound 0% revision、分段流量、E2E／效能／告警／rollback、無 public／真資料 |

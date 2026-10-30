@@ -106,6 +106,7 @@ export function pilotIdFor(sourceId: string, key: string): string {
  * 是否為同一筆來源事件；配對、去重與唯一識別應使用 pilotId，不是 displayLabel。
  */
 export function displayLabelFor(pilotId: string): string {
+  // shortcut: 24 letters x 100 numbers = 2,400 labels, so labels collide; pilotId stays the key. Widen the label space only if a reviewer must tell more than a few hundred pilot events apart by eye.
   const letter = DISPLAY_LETTERS[parseInt(pilotId.slice(0, 2), 16) % 24] ?? 'A';
   const number = parseInt(pilotId.slice(2, 6), 16) % 100;
   return `患者 ${letter}${String(number).padStart(2, '0')}`;
