@@ -61,6 +61,11 @@ test.describe('隱私權政策頁', () => {
     const definitions = section.locator('dd');
     await expect(definitions.nth(0)).toContainText('草案');
     await expect(definitions.nth(0)).toContainText('兩年');
+    // 負責人 2026-10-30 的決定：滿兩年封存、不自動刪除；頁面不得再說「期滿後刪除」。
+    const period = (await definitions.nth(0).innerText()).replace(/\s+/g, '');
+    expect(period).toContain('封存並停止一般使用，不自動刪除');
+    expect(period).toContain('稽核與安全紀錄保存三年');
+    expect(period).not.toContain('期滿後刪除');
     await expect(definitions.nth(1)).toContainText('草案');
     await expect(definitions.nth(1)).toContainText('asia-east1');
     await expect(definitions.nth(2)).toContainText('草案');
