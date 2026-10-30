@@ -39,6 +39,62 @@ async function wipe(names: readonly string[]): Promise<void> {
   }
 }
 
+// Documents a test caused: present now, absent from the snapshot taken before
+// it ran. Other suites' leftovers in a shared collection never count.
+async function documentIds(collection: string): Promise<ReadonlySet<string>> {
+  const references = await db.collection(collection).listDocuments();
+  return new Set(references.map((reference) => reference.id));
+}
+
+async function addedDocumentIds(
+  collection: string,
+  before: ReadonlySet<string>
+): Promise<string[]> {
+  return [...(await documentIds(collection))]
+    .filter((id) => !before.has(id))
+    .sort();
+}
+
+const SYNC_WRITES = [
+  'calendar_pilot_mirrors',
+  'calendar_pilot_candidates',
+  'calendar_pilot_audit_events'
+] as const;
+
+async function snapshotSyncWrites(): Promise<
+  Record<(typeof SYNC_WRITES)[number], ReadonlySet<string>>
+> {
+  const [mirrors, candidates, audits] = await Promise.all([
+    documentIds(SYNC_WRITES[0]),
+    documentIds(SYNC_WRITES[1]),
+    documentIds(SYNC_WRITES[2])
+  ]);
+  return {
+    calendar_pilot_mirrors: mirrors,
+    calendar_pilot_candidates: candidates,
+    calendar_pilot_audit_events: audits
+  };
+}
+
+// Unrelated synthetic documents another suite could leave in shared collections.
+const UNRELATED_PATIENT_ID = 'l2b_unrelated_patient_001';
+const UNRELATED_APPOINTMENT_ID = 'l2b_unrelated_appointment_001';
+
+async function seedUnrelatedFixtures(): Promise<void> {
+  await Promise.all([
+    db
+      .collection('patients')
+      .doc(UNRELATED_PATIENT_ID)
+      .set({ patientId: UNRELATED_PATIENT_ID, name: '合成無關患者' }),
+    db.collection('appointments').doc(UNRELATED_APPOINTMENT_ID).set({
+      appointmentId: UNRELATED_APPOINTMENT_ID,
+      status: 'confirmed',
+      startsAt: '2030-03-04T02:00:00.000Z',
+      bookingKind: 'follow_up'
+    })
+  ]);
+}
+
 const SUGGESTION_PHONE = '0987654321';
 const SUGGESTION_BIRTHDAY = '--11-23';
 const SUGGESTION_INDEX_ID = opaqueLookupIdentity(
@@ -51,9 +107,11 @@ const SUGGESTION_PATIENT_IDS = [
   'l2b_suggestion_patient_archived_001'
 ] as const;
 
-async function clearSuggestionFixtures(): Promise<void> {
+async function clearOwnFixtures(): Promise<void> {
   await Promise.all([
     db.collection('patient_lookup_index_v2').doc(SUGGESTION_INDEX_ID).delete(),
+    db.collection('patients').doc(UNRELATED_PATIENT_ID).delete(),
+    db.collection('appointments').doc(UNRELATED_APPOINTMENT_ID).delete(),
     ...SUGGESTION_PATIENT_IDS.map((patientId) =>
       db.collection('patients').doc(patientId).delete()
     )
@@ -123,12 +181,12 @@ describe('Stage D Calendar inbound emulator', () => {
   });
 
   afterAll(async () => {
-    await clearSuggestionFixtures();
+    await clearOwnFixtures();
     await deleteApp(app);
   });
 
   beforeEach(async () => {
-    await clearSuggestionFixtures();
+    await clearOwnFixtures();
     await wipe([
       'calendar_pilot_configuration',
       'calendar_pilot_sources',
@@ -203,15 +261,14 @@ describe('Stage D Calendar inbound emulator', () => {
             nextSyncToken: 'guarded-next'
           })
       };
+      const before = await snapshotSyncWrites();
       await expect(
         new CalendarSyncEngine(reader, repository).run(NOW)
       ).rejects.toThrow('appointment changed');
-      for (const collection of [
-        'calendar_pilot_mirrors',
-        'calendar_pilot_candidates',
-        'calendar_pilot_audit_events'
-      ])
-        expect((await db.collection(collection).get()).size).toBe(0);
+      for (const collection of SYNC_WRITES)
+        expect(await addedDocumentIds(collection, before[collection])).toEqual(
+          []
+        );
       expect(
         (await db.collection('calendar_pilot_sources').doc(SOURCE).get()).data()
       ).not.toHaveProperty('syncToken');
@@ -225,11 +282,17 @@ describe('Stage D Calendar inbound emulator', () => {
       ).not.toHaveProperty('lastSuccessfulSyncAt');
       await new CalendarSyncEngine(reader, repository).run(NOW);
       expect(
-        (await db.collection('calendar_pilot_candidates').get()).size
-      ).toBe(1);
+        await addedDocumentIds(
+          'calendar_pilot_candidates',
+          before.calendar_pilot_candidates
+        )
+      ).toHaveLength(1);
       expect(
-        (await db.collection('calendar_pilot_audit_events').get()).size
-      ).toBe(1);
+        await addedDocumentIds(
+          'calendar_pilot_audit_events',
+          before.calendar_pilot_audit_events
+        )
+      ).toHaveLength(1);
     }
   );
 
@@ -490,9 +553,11 @@ describe('Stage D Calendar inbound emulator', () => {
   });
 
   it('does not auto-create a patient or appointment for an unmatched event', async () => {
+    await seedUnrelatedFixtures();
     const existingPatientIds = (await db.collection('patients').listDocuments())
       .map((ref) => ref.id)
       .sort();
+    const existingAppointmentIds = await documentIds('appointments');
     const repository = new FirestoreCalendarSyncRepository(
       db,
       'synthetic-pseudonym-key-32-characters-min'
@@ -517,10 +582,16 @@ describe('Stage D Calendar inbound emulator', () => {
       repository
     );
     await engine.run(NOW);
-    const appointments = await db.collection('appointments').listDocuments();
     const patients = await db.collection('patients').listDocuments();
-    expect(appointments).toHaveLength(0);
+    expect(
+      await addedDocumentIds('appointments', existingAppointmentIds)
+    ).toEqual([]);
+    expect(
+      (await db.collection('appointments').doc(UNRELATED_APPOINTMENT_ID).get())
+        .exists
+    ).toBe(true);
     expect(patients.map((ref) => ref.id).sort()).toEqual(existingPatientIds);
+    expect(existingPatientIds).toContain(UNRELATED_PATIENT_ID);
     const candidates = await db.collection('calendar_pilot_candidates').get();
     expect(candidates.docs[0]?.data()?.['kind']).toBe('unmatched');
     expect(candidates.docs[0]?.data()?.['status']).toBe('unmatched');
@@ -528,6 +599,7 @@ describe('Stage D Calendar inbound emulator', () => {
 
   it('suggests the sole active phone + month-day match without storing contact values', async () => {
     const patientId = SUGGESTION_PATIENT_IDS[0];
+    const existingAppointmentIds = await documentIds('appointments');
     await seedSuggestionPatients([patientId]);
     await runManualEvent('合成患者甲 0987-654-321　801123');
 
@@ -565,7 +637,26 @@ describe('Stage D Calendar inbound emulator', () => {
     expect(candidatesAfterArchive).not.toContainEqual(
       expect.objectContaining({ suggestedPatientId: patientId })
     );
-    expect((await db.collection('appointments').get()).docs).toHaveLength(0);
+    expect(
+      await addedDocumentIds('appointments', existingAppointmentIds)
+    ).toEqual([]);
+  });
+
+  it('the scoped no-new-document check still fails on a forbidden write', async () => {
+    const forbiddenId = 'l2b_forbidden_appointment_001';
+    await seedUnrelatedFixtures();
+    const before = await documentIds('appointments');
+    expect(await addedDocumentIds('appointments', before)).toEqual([]);
+    await db.collection('appointments').doc(forbiddenId).set({
+      appointmentId: forbiddenId
+    });
+    try {
+      expect(await addedDocumentIds('appointments', before)).toEqual([
+        forbiddenId
+      ]);
+    } finally {
+      await db.collection('appointments').doc(forbiddenId).delete();
+    }
   });
 
   it('does not suggest when the lookup index is ambiguous', async () => {
