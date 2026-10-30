@@ -11,11 +11,12 @@ import {
   type PatientCandidate
 } from '@beauessence/domain';
 import { opaqueLookupIdentity } from '@beauessence/domain/patient-lookup-identity.node';
-import type {
-  Firestore,
-  Transaction,
-  Query,
-  QueryDocumentSnapshot
+import {
+  Timestamp,
+  type Firestore,
+  type Transaction,
+  type Query,
+  type QueryDocumentSnapshot
 } from 'firebase-admin/firestore';
 
 import type { PatientIntake } from '@beauessence/contracts';
@@ -39,6 +40,23 @@ export const PATIENT_COLLECTIONS = {
 } as const;
 
 const RETURN_SESSION_MS = 15 * 60 * 1000;
+/** A return session's row stays 24 hours past its expiry (decision register). */
+const RETURN_SESSION_RETENTION_MS = 24 * 60 * 60 * 1000;
+const RETURN_SESSION_ID = /^[A-Za-z0-9_-]{1,128}$/;
+
+/**
+ * The typed field a Firestore TTL policy would act on (A05): a Timestamp, which
+ * a string cannot be. `expiresAt` stays the ISO string the service checks and
+ * alone decides whether a session can be used, so a late or absent TTL deletion
+ * never keeps an expired session alive. A missing or malformed expiry throws
+ * rather than inventing a purge time.
+ */
+export function returnSessionPurgeAt(expiresAt: string): Timestamp {
+  assertUtcTimestamp(expiresAt, 'expiresAt');
+  return Timestamp.fromMillis(
+    Date.parse(expiresAt) + RETURN_SESSION_RETENTION_MS
+  );
+}
 
 function isUnexpiredReturnSession(expiresAt: unknown, nowUtc: string): boolean {
   if (typeof expiresAt !== 'string' || !isUtcIsoTimestamp(expiresAt))
@@ -505,7 +523,8 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
       .create({
         patientId,
         createdAt: nowUtc,
-        expiresAt
+        expiresAt,
+        purgeAt: returnSessionPurgeAt(expiresAt)
       });
     if (existing !== undefined)
       return {
@@ -523,6 +542,9 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
     nowUtc: string
   ): Promise<string | undefined> {
     assertUtcTimestamp(nowUtc, 'nowUtc');
+    // Defence in depth (NEW-05): the authenticator already bounds the header;
+    // never let other text become a document path.
+    if (!RETURN_SESSION_ID.test(sessionId)) return undefined;
     const snapshot = await this.db
       .collection(PATIENT_COLLECTIONS.returnSessions)
       .doc(sessionId)
@@ -790,6 +812,7 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
   ): Promise<string | undefined> {
     assertUtcTimestamp(nowUtc, 'nowUtc');
     await Promise.resolve();
+    if (!RETURN_SESSION_ID.test(sessionId)) return undefined;
     const session = this.sessions.get(sessionId);
     if (
       session === undefined ||

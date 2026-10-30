@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { RateLimitPolicy } from '@beauessence/domain';
-import type { Firestore } from 'firebase-admin/firestore';
+import { Timestamp, type Firestore } from 'firebase-admin/firestore';
 
 import {
   planDurableRateLimit,
@@ -58,7 +58,16 @@ export class FirestoreDurableRateLimitStore implements DurableRateLimitStore {
         count: planned.record.count,
         windowStartMs: planned.record.windowStartMs,
         lockedUntilMs: planned.record.lockedUntilMs,
-        updatedAt: new Date(nowMs).toISOString()
+        updatedAt: new Date(nowMs).toISOString(),
+        // B-04: the typed field a Firestore TTL policy would act on. Enforcement
+        // above reads the counters, never this; it is never earlier than the end
+        // of the active window or lock, so purging it cannot free a live lock.
+        purgeAt: Timestamp.fromMillis(
+          Math.max(
+            planned.record.windowStartMs + policy.windowMs,
+            planned.record.lockedUntilMs ?? 0
+          )
+        )
       });
       return planned.result;
     });
