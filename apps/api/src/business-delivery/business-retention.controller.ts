@@ -7,6 +7,7 @@ import {
   Post,
   Query,
   Req,
+  Res,
   UseGuards
 } from '@nestjs/common';
 
@@ -14,7 +15,12 @@ import { CalendarPilotSessionGuard } from '../auth/calendar-pilot.guard.js';
 import type { CalendarPilotAuthenticatedRequest } from '../calendar/calendar-pilot.controller.js';
 import type { BusinessRetentionApplicationService } from './business-retention.application-service.js';
 import { BUSINESS_RETENTION_APPLICATION } from './business-delivery.tokens.js';
+import { PENDING_DELETION_NEXT_CURSOR_HEADER } from './pending-deletion-cursor.js';
 import { REAUTHENTICATION_HEADER } from './reauthentication.js';
+
+interface HeaderReply {
+  header(name: string, value: string): void;
+}
 
 /** CP-05 retention routes; all writes also pass the session guard's CSRF check. */
 @Controller('business-delivery/retention')
@@ -93,9 +99,17 @@ export class BusinessRetentionController {
   }
 
   @Get('pending-deletion')
-  public pendingDeletion(@Req() request: CalendarPilotAuthenticatedRequest) {
-    return this.application.pendingDeletion(
-      request.calendarPilotAuthentication
+  public async pendingDeletion(
+    @Query() query: Record<string, unknown>,
+    @Req() request: CalendarPilotAuthenticatedRequest,
+    @Res({ passthrough: true }) reply: HeaderReply
+  ) {
+    const page = await this.application.pendingDeletionPage(
+      request.calendarPilotAuthentication,
+      query
     );
+    if (page.nextCursor !== undefined)
+      reply.header(PENDING_DELETION_NEXT_CURSOR_HEADER, page.nextCursor);
+    return page.response;
   }
 }

@@ -30,6 +30,7 @@ import {
   type DocumentReference,
   type DocumentSnapshot,
   type Firestore,
+  type QueryDocumentSnapshot,
   type Transaction
 } from 'firebase-admin/firestore';
 
@@ -39,6 +40,20 @@ import {
   opaqueLookupIdentity,
   PATIENT_COLLECTIONS
 } from '../patients/patient-directory.js';
+
+/** Rows per page of the pending-deletion list: the default and the most. */
+export const PENDING_DELETION_PAGE_SIZE = 100;
+
+/** Where a page stopped: the last record returned, by (restorableUntil, ID). */
+export interface PendingDeletionPosition {
+  readonly restorableUntil: string;
+  readonly patientId: string;
+}
+
+export interface PendingDeletionPage extends PendingPatientDeletionResponse {
+  /** Present only when more records follow this page. */
+  readonly next?: PendingDeletionPosition;
+}
 
 export const RETENTION_COLLECTIONS = {
   log: 'bd_retention_log'
@@ -1028,14 +1043,56 @@ export class FirestoreBusinessRetentionRepository {
     });
   }
 
+  /**
+   * One page of the manual-review list, ordered by `restorableUntil` and, for
+   * records that share it, by patient ID (the order every Firestore index ends
+   * with), and read with `limit + 1` so "exactly one full page" is not
+   * reported as cut. The query stays on the one field `restorableUntil`, which
+   * the automatic single-field index serves, so no index is added: a position
+   * restarts the range at its time and skips the records of that time already
+   * returned. Nothing here deletes or reads a patient's name.
+   */
   public async pendingDeletion(
-    now: string
-  ): Promise<PendingPatientDeletionResponse> {
-    const snapshot = await this.db
+    now: string,
+    page: {
+      readonly limit?: number;
+      readonly after?: PendingDeletionPosition;
+    } = {}
+  ): Promise<PendingDeletionPage> {
+    const limit = page.limit ?? PENDING_DELETION_PAGE_SIZE;
+    const after = page.after;
+    let expired = this.db
       .collection(PATIENT_COLLECTIONS.patients)
-      .where('restorableUntil', '<=', now)
-      .get();
-    const patients = snapshot.docs.flatMap((document) => {
+      .where('restorableUntil', '<=', now);
+    if (after !== undefined)
+      expired = expired.where('restorableUntil', '>=', after.restorableUntil);
+    const ordered = expired.orderBy('restorableUntil', 'asc');
+    const found: QueryDocumentSnapshot[] = [];
+    let cursor: QueryDocumentSnapshot | undefined;
+    let exhausted = false;
+    while (found.length <= limit && !exhausted) {
+      const snapshot = await (
+        cursor === undefined ? ordered : ordered.startAfter(cursor)
+      )
+        .limit(limit + 1)
+        .get();
+      for (const document of snapshot.docs) {
+        cursor = document;
+        // Already returned on an earlier page: same time, ID not after it.
+        if (
+          after !== undefined &&
+          stringField(document.data(), 'restorableUntil') ===
+            after.restorableUntil &&
+          document.id <= after.patientId
+        )
+          continue;
+        found.push(document);
+        if (found.length > limit) break;
+      }
+      exhausted = snapshot.size < limit + 1;
+    }
+    const pageDocs = found.slice(0, limit);
+    const patients = pageDocs.flatMap((document) => {
       const data = document.data();
       const archivedAt = stringField(data, 'archivedAt');
       const restorableUntil = stringField(data, 'restorableUntil');
@@ -1055,11 +1112,15 @@ export class FirestoreBusinessRetentionRepository {
         }
       ];
     });
-    patients.sort(
-      (left, right) =>
-        left.archivedAt.localeCompare(right.archivedAt) ||
-        left.patientId.localeCompare(right.patientId)
-    );
-    return { patients };
+    const last = pageDocs.at(-1);
+    const lastRestorableUntil = stringField(last?.data(), 'restorableUntil');
+    return found.length > limit &&
+      last !== undefined &&
+      lastRestorableUntil !== undefined
+      ? {
+          patients,
+          next: { restorableUntil: lastRestorableUntil, patientId: last.id }
+        }
+      : { patients };
   }
 }

@@ -299,6 +299,68 @@ describe('unrouted AppointmentController RBAC harness', () => {
     return instance;
   }
 
+  // K7 (SOL-LIST): the list body stays `{ appointments }`; whether more rows
+  // follow travels in the x-next-cursor header and nowhere else.
+  it('sends x-next-cursor only when the application reports more rows', async () => {
+    const harness = await startHarness();
+    const application = harness.get<AppointmentApplicationService>(
+      APPOINTMENT_APPLICATION
+    );
+    const listPage = vi
+      .spyOn(application, 'listPage')
+      .mockResolvedValueOnce({
+        response: { appointments: [] },
+        nextCursor: 'cursor_next_001'
+      })
+      .mockResolvedValueOnce({ response: { appointments: [] } });
+
+    const first = await harness.inject({
+      method: 'GET',
+      url: '/v1/bookings?scope=clinic&limit=20&cursor=cursor_in_001',
+      headers: actorHeaders('manager')
+    });
+    expect(first.statusCode).toBe(200);
+    expect(first.headers['x-next-cursor']).toBe('cursor_next_001');
+    expect(first.json()).toEqual({ appointments: [] });
+    expect(listPage).toHaveBeenNthCalledWith(
+      1,
+      'clinic',
+      expect.objectContaining({ actorId: 'actor_manager_001' }),
+      { limit: 20, cursor: 'cursor_in_001' }
+    );
+
+    const last = await harness.inject({
+      method: 'GET',
+      url: '/v1/bookings',
+      headers: actorHeaders('manager')
+    });
+    expect(last.statusCode).toBe(200);
+    expect(last.headers['x-next-cursor']).toBeUndefined();
+    expect(last.json()).toEqual({ appointments: [] });
+  });
+
+  it.each([
+    'limit=51',
+    'limit=0',
+    'cursor=a%2Fb',
+    'startAfter=2026-07-24T04%3A00%3A00.000Z'
+  ])('rejects the list query %s with 400 before reading', async (query) => {
+    const harness = await startHarness();
+    const application = harness.get<AppointmentApplicationService>(
+      APPOINTMENT_APPLICATION
+    );
+    const listPage = vi.spyOn(application, 'listPage');
+
+    const response = await harness.inject({
+      method: 'GET',
+      url: `/v1/bookings?${query}`,
+      headers: actorHeaders('manager')
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(listPage).not.toHaveBeenCalled();
+  });
+
   it.each(['unexpected field', 'invalid UTC timestamp'])(
     'rejects an application response with %s as server failure, not client 400',
     async (defect) => {

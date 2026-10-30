@@ -113,6 +113,16 @@ export interface AppointmentListWindow {
   readonly to: string;
 }
 
+/**
+ * Where a list page stopped: the last row returned, by the order the lists
+ * use (`startsAt`, then document ID). The next page starts strictly after it,
+ * so rows that share a start time are neither skipped nor repeated.
+ */
+export interface AppointmentListPosition {
+  readonly startsAt: string;
+  readonly appointmentId: string;
+}
+
 export interface PreparedPatientIntake {
   readonly patientId: string;
   readonly intake: PatientIntake;
@@ -154,11 +164,13 @@ export interface PatientDirectoryPort {
   listByPatient(
     patientId: string,
     limit: number,
-    window?: AppointmentListWindow
+    window?: AppointmentListWindow,
+    after?: AppointmentListPosition
   ): Promise<AppointmentRecord[]>;
   listClinic(
     limit: number,
-    window?: AppointmentListWindow
+    window?: AppointmentListWindow,
+    after?: AppointmentListPosition
   ): Promise<AppointmentRecord[]>;
 }
 
@@ -256,6 +268,29 @@ function isInsideWindow(
   return (
     startsAt !== undefined && startsAt >= window.from && startsAt <= window.to
   );
+}
+
+interface ListOrderKey {
+  readonly startsAt?: string | undefined;
+  readonly appointmentId: string;
+}
+
+/** The order both lists use: start time, then document ID (code-unit order). */
+function compareListOrder(left: ListOrderKey, right: ListOrderKey): number {
+  const leftStart = left.startsAt ?? '';
+  const rightStart = right.startsAt ?? '';
+  if (leftStart !== rightStart) return leftStart < rightStart ? -1 : 1;
+  if (left.appointmentId === right.appointmentId) return 0;
+  return left.appointmentId < right.appointmentId ? -1 : 1;
+}
+
+/** Mirrors Firestore's `startAfter(startsAt, id)` for the process-local directory. */
+function isAfterPosition(
+  item: AppointmentRecord,
+  after: AppointmentListPosition | undefined
+): boolean {
+  if (after === undefined) return true;
+  return compareListOrder(item, after) > 0;
 }
 
 function isArchivedPatient(data: Record<string, unknown> | undefined): boolean {
@@ -597,19 +632,24 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
   /**
    * With a window the query carries `startsAt >= from` and `startsAt <= to`
    * on the field it already orders by, so the existing (patientId, startsAt)
-   * composite index serves it and no index is added.
+   * composite index serves it and no index is added. The trailing
+   * `__name__` order is the tail every Firestore index already has.
    */
   public async listByPatient(
     patientId: string,
     limit: number,
-    window?: AppointmentListWindow
+    window?: AppointmentListWindow,
+    after?: AppointmentListPosition
   ): Promise<AppointmentRecord[]> {
     return this.listActiveAppointments(
       withinWindow(
         this.db.collection('appointments').where('patientId', '==', patientId),
         window
-      ).orderBy('startsAt', 'asc'),
-      limit
+      )
+        .orderBy('startsAt', 'asc')
+        .orderBy('__name__', 'asc'),
+      limit,
+      after
     );
   }
 
@@ -621,14 +661,15 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
    */
   public async listClinic(
     limit: number,
-    window?: AppointmentListWindow
+    window?: AppointmentListWindow,
+    after?: AppointmentListPosition
   ): Promise<AppointmentRecord[]> {
     return this.listActiveAppointments(
-      withinWindow(this.db.collection('appointments'), window).orderBy(
-        'startsAt',
-        'asc'
-      ),
-      limit
+      withinWindow(this.db.collection('appointments'), window)
+        .orderBy('startsAt', 'asc')
+        .orderBy('__name__', 'asc'),
+      limit,
+      after
     );
   }
 
@@ -638,17 +679,27 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
    * `limit` active rows are collected, the rows run out, or the scan bound is
    * reached. Past the bound a call returns the active rows it found; archived
    * rows are never returned either way.
+   *
+   * shortcut: more than LIST_SCAN_LIMIT archived rows in a row end the page with
+   * no continuation (the caller sees fewer than `limit` rows), upgrade by
+   * returning the last scanned position when runs that long can occur.
    */
   private async listActiveAppointments(
     ordered: Query,
-    limit: number
+    limit: number,
+    after?: AppointmentListPosition
   ): Promise<AppointmentRecord[]> {
     const records: AppointmentRecord[] = [];
     let scanned = 0;
     let cursor: QueryDocumentSnapshot | undefined;
+    // The order is (`startsAt`, document ID), so a position is the pair.
+    const first =
+      after === undefined
+        ? ordered
+        : ordered.startAfter(after.startsAt, after.appointmentId);
     while (records.length < limit && scanned < LIST_SCAN_LIMIT) {
       const page = await (
-        cursor === undefined ? ordered : ordered.startAfter(cursor)
+        cursor === undefined ? first : ordered.startAfter(cursor)
       )
         .limit(limit)
         .get();
@@ -843,32 +894,33 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
   public async listByPatient(
     patientId: string,
     limit: number,
-    window?: AppointmentListWindow
+    window?: AppointmentListWindow,
+    after?: AppointmentListPosition
   ): Promise<AppointmentRecord[]> {
     await Promise.resolve();
     return this.appointments
       .filter(
         (item) =>
-          item.patientId === patientId && isInsideWindow(item.startsAt, window)
+          item.patientId === patientId &&
+          isInsideWindow(item.startsAt, window) &&
+          isAfterPosition(item, after)
       )
-      .slice()
-      .sort((left, right) =>
-        (left.startsAt ?? '').localeCompare(right.startsAt ?? '')
-      )
+      .sort(compareListOrder)
       .slice(0, limit);
   }
 
   public async listClinic(
     limit: number,
-    window?: AppointmentListWindow
+    window?: AppointmentListWindow,
+    after?: AppointmentListPosition
   ): Promise<AppointmentRecord[]> {
     await Promise.resolve();
     return this.appointments
-      .filter((item) => isInsideWindow(item.startsAt, window))
-      .slice()
-      .sort((left, right) =>
-        (left.startsAt ?? '').localeCompare(right.startsAt ?? '')
+      .filter(
+        (item) =>
+          isInsideWindow(item.startsAt, window) && isAfterPosition(item, after)
       )
+      .sort(compareListOrder)
       .slice(0, limit);
   }
 }

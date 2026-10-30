@@ -2,6 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import {
   ConfirmArchivedIdentityRequestSchema,
   OpaqueIdentifierSchema,
+  PendingPatientDeletionQuerySchema,
   PermanentDeletePatientRequestSchema,
   RetentionPatientRequestSchema,
   SetPatientLegalHoldRequestSchema,
@@ -20,6 +21,10 @@ import type { FirestoreBusinessRetentionRepository } from '../firestore/business
 import { evaluateAccess } from '../platform/authorization/rbac.js';
 import { AuthorizationDeniedError } from '../platform/errors/api-error.js';
 import type { BusinessDeliveryConfig } from './business-delivery.config.js';
+import {
+  decodePendingDeletionCursor,
+  encodePendingDeletionCursor
+} from './pending-deletion-cursor.js';
 import type { FreshReauthenticationVerifier } from './reauthentication.js';
 import { actorRefForUid } from './usage-events.js';
 
@@ -180,8 +185,37 @@ export class BusinessRetentionApplicationService {
   public async pendingDeletion(
     authentication: AuthenticationContext
   ): Promise<PendingPatientDeletionResponse> {
+    return (await this.pendingDeletionPage(authentication)).response;
+  }
+
+  /**
+   * One page of the manual-review list plus, when more records follow, the
+   * cursor for the next call. Feature and role are checked before the query is
+   * looked at; the body stays `{ patients }`.
+   */
+  public async pendingDeletionPage(
+    authentication: AuthenticationContext,
+    query: unknown = {}
+  ): Promise<{
+    readonly response: PendingPatientDeletionResponse;
+    readonly nextCursor?: string;
+  }> {
     this.enabledConfig();
     authorizeRetention(authentication);
-    return this.repository.pendingDeletion(this.nowUtc());
+    const parsed = PendingPatientDeletionQuerySchema.parse(query);
+    const after =
+      parsed.cursor === undefined
+        ? undefined
+        : decodePendingDeletionCursor(parsed.cursor);
+    const page = await this.repository.pendingDeletion(this.nowUtc(), {
+      ...(parsed.limit === undefined ? {} : { limit: parsed.limit }),
+      ...(after === undefined ? {} : { after })
+    });
+    return {
+      response: { patients: page.patients },
+      ...(page.next === undefined
+        ? {}
+        : { nextCursor: encodePendingDeletionCursor(page.next) })
+    };
   }
 }

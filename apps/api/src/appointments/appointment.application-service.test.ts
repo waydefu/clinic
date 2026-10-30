@@ -1961,7 +1961,9 @@ describe('AppointmentApplicationService list reads only the rows it will return'
 
     await service.list('clinic', STAFF);
 
-    expect(listClinic).toHaveBeenCalledWith(50, WINDOW);
+    // The page is 50 rows; the directory is asked for one more to know
+    // whether the page was cut.
+    expect(listClinic).toHaveBeenCalledWith(51, WINDOW, undefined);
   });
 
   it('passes the same window to the patient list query', async () => {
@@ -1977,8 +1979,9 @@ describe('AppointmentApplicationService list reads only the rows it will return'
 
     expect(listByPatient).toHaveBeenCalledWith(
       'patient_opaque_001',
-      50,
-      WINDOW
+      51,
+      WINDOW,
+      undefined
     );
   });
 
@@ -2024,5 +2027,169 @@ describe('AppointmentApplicationService list reads only the rows it will return'
       'appointment_now_a',
       'appointment_now_b'
     ]);
+  });
+});
+
+// K7 (SOL-LIST): the list used to stop at 50 rows with nothing to say that
+// more existed. A page now says so with a cursor and the next call continues
+// after the last row, with no omission or repeat, whatever the scope.
+describe('AppointmentApplicationService list continuation', () => {
+  const STAFF: AuthenticationContext = {
+    actorId: 'actor_verified_001',
+    actorRole: 'test_front_desk'
+  };
+  const MINE = (patientId: string): AuthenticationContext => ({
+    actorId: patientId,
+    actorRole: 'patient',
+    verifiedPatientId: patientId
+  });
+
+  /** `count` rows in the list window; every third row shares a start time. */
+  function rows(count: number, patientId = 'patient_opaque_101') {
+    return Array.from({ length: count }, (_, index) => ({
+      appointmentId: `appointment_page_${String(index).padStart(3, '0')}`,
+      patientId,
+      slotId: `slot_page_${index}`,
+      bookingKind: 'initial' as const,
+      status: 'confirmed' as const,
+      startsAt: new Date(
+        Date.parse('2026-07-24T04:00:00.000Z') +
+          Math.floor(index / 3) * 30 * 60_000
+      ).toISOString()
+    }));
+  }
+
+  async function readAll(
+    service: AppointmentApplicationService,
+    scope: 'clinic' | 'mine',
+    authentication: AuthenticationContext,
+    limit?: number
+  ) {
+    const pages: string[][] = [];
+    const cursors: Array<string | undefined> = [];
+    let cursor: string | undefined;
+    do {
+      const page = await service.listPage(scope, authentication, {
+        ...(limit === undefined ? {} : { limit }),
+        ...(cursor === undefined ? {} : { cursor })
+      });
+      pages.push(page.response.appointments.map((item) => item.appointmentId));
+      cursors.push(page.nextCursor);
+      cursor = page.nextCursor;
+    } while (cursor !== undefined && pages.length < 20);
+    return { pages, cursors };
+  }
+
+  it('pages 120 rows with equal start times without omissions or repeats', async () => {
+    const patients = new InMemoryPatientDirectory();
+    patients.appointments.push(...rows(120));
+    const { service } = createBoundService(patients);
+
+    const { pages, cursors } = await readAll(service, 'clinic', STAFF);
+
+    expect(pages.map((page) => page.length)).toEqual([50, 50, 20]);
+    expect(cursors.map((cursor) => cursor !== undefined)).toEqual([
+      true,
+      true,
+      false
+    ]);
+    expect(pages.flat()).toEqual(rows(120).map((row) => row.appointmentId));
+  });
+
+  it('does not report more for exactly one full page, and does for one more row', async () => {
+    const exact = new InMemoryPatientDirectory();
+    exact.appointments.push(...rows(50));
+    const exactPage = await createBoundService(exact).service.listPage(
+      'clinic',
+      STAFF
+    );
+    expect(exactPage.response.appointments).toHaveLength(50);
+    expect(exactPage.nextCursor).toBeUndefined();
+
+    const over = new InMemoryPatientDirectory();
+    over.appointments.push(...rows(51));
+    const { service } = createBoundService(over);
+    const first = await service.listPage('clinic', STAFF);
+    expect(first.response.appointments).toHaveLength(50);
+    expect(first.nextCursor).toEqual(expect.any(String));
+    const second = await service.listPage('clinic', STAFF, {
+      cursor: first.nextCursor as string
+    });
+    expect(
+      second.response.appointments.map((item) => item.appointmentId)
+    ).toEqual(['appointment_page_050']);
+    expect(second.nextCursor).toBeUndefined();
+  });
+
+  it('honours a smaller limit and refuses more than 50', async () => {
+    const patients = new InMemoryPatientDirectory();
+    patients.appointments.push(...rows(30));
+    const { service } = createBoundService(patients);
+
+    const { pages } = await readAll(service, 'clinic', STAFF, 10);
+
+    expect(pages.map((page) => page.length)).toEqual([10, 10, 10]);
+    await expect(
+      service.listPage('clinic', STAFF, { limit: 51 })
+    ).rejects.toMatchObject({ code: 'INVALID_VALUE' });
+    await expect(
+      service.listPage('clinic', STAFF, { limit: 0 })
+    ).rejects.toMatchObject({ code: 'INVALID_VALUE' });
+  });
+
+  it('keeps the patient scope on every page, even with a cursor taken from the clinic list', async () => {
+    const patients = new InMemoryPatientDirectory();
+    patients.appointments.push(
+      ...rows(60, 'patient_opaque_101'),
+      ...rows(60, 'patient_opaque_202').map((row) => ({
+        ...row,
+        appointmentId: row.appointmentId.replace('page', 'other')
+      }))
+    );
+    const { service } = createBoundService(patients);
+
+    const mine = await readAll(service, 'mine', MINE('patient_opaque_101'));
+    expect(mine.pages.flat()).toEqual(rows(60).map((row) => row.appointmentId));
+
+    const clinicFirst = await service.listPage('clinic', STAFF);
+    const borrowed = await service.listPage(
+      'mine',
+      MINE('patient_opaque_101'),
+      {
+        cursor: clinicFirst.nextCursor as string
+      }
+    );
+    expect(borrowed.response.appointments.length).toBeGreaterThan(0);
+    for (const item of borrowed.response.appointments) {
+      expect(item.appointmentId).toMatch(/^appointment_page_/);
+    }
+  });
+
+  it('rejects a malformed cursor as a validation error, and only after authorization', async () => {
+    const patients = new InMemoryPatientDirectory();
+    patients.appointments.push(...rows(3));
+    const { assertCanQuery, service } = createBoundService(patients);
+
+    for (const cursor of ['not-a-cursor', 'e30', 'W10']) {
+      await expect(
+        service.listPage('clinic', STAFF, { cursor })
+      ).rejects.toMatchObject({ code: 'INVALID_VALUE' });
+    }
+    // An unauthorised caller learns nothing about cursor validity.
+    assertCanQuery.mockRejectedValueOnce(new AuthorizationDeniedError());
+    await expect(
+      service.listPage('clinic', STAFF, { cursor: 'not-a-cursor' })
+    ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+  });
+
+  it('leaves the response body untouched for a client that ignores headers', async () => {
+    const patients = new InMemoryPatientDirectory();
+    patients.appointments.push(...rows(60));
+    const { service } = createBoundService(patients);
+
+    const body = await service.list('clinic', STAFF);
+
+    expect(Object.keys(body)).toEqual(['appointments']);
+    expect(body.appointments).toHaveLength(50);
   });
 });

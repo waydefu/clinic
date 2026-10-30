@@ -203,7 +203,8 @@ export async function requestBusinessApi(
     signal,
     fetchImpl = globalThis.fetch,
     storage = globalThis.sessionStorage,
-    responseType = 'json'
+    responseType = 'json',
+    onResponse
   } = {}
 ) {
   const csrf = storage?.getItem('calPilotCsrf');
@@ -245,7 +246,27 @@ export async function requestBusinessApi(
     error.status = response.status;
     throw error;
   }
+  onResponse?.(response);
   return responseType === 'text' ? { response, content: raw } : raw;
+}
+
+/**
+ * One page of the manual-review list. The server's body stays `{ patients }`;
+ * the next page's cursor is the `x-next-cursor` response header, absent on the
+ * last page.
+ */
+export async function requestPendingDeletionPage(api, cursor) {
+  let next;
+  const data = await api(
+    '/v1/business-delivery/retention/pending-deletion' +
+      (cursor === undefined ? '' : `?cursor=${encodeURIComponent(cursor)}`),
+    {
+      onResponse: (response) => {
+        next = response?.headers?.get?.('x-next-cursor') || undefined;
+      }
+    }
+  );
+  return { patients: data.patients, next };
 }
 
 function element(tag, className, label) {
@@ -583,11 +604,14 @@ export function initializeBusinessView({
   pendingHeader.append(refreshPending);
   const pendingSummary = element('p', 'result-summary', '尚未載入清單。');
   const pendingList = element('div', 'card-list');
+  const pendingMore = button('載入更多');
+  pendingMore.hidden = true;
   retentionPanel.append(
     retentionForms,
     pendingHeader,
     pendingSummary,
-    pendingList
+    pendingList,
+    pendingMore
   );
 
   const terminationPanel = element('article', 'event-panel');
@@ -1178,17 +1202,29 @@ export function initializeBusinessView({
     identityOutput
   );
 
-  async function loadPendingDeletion() {
+  // The list is read a page at a time (A03): x-next-cursor, when present,
+  // names the next page and 載入更多 fetches it without dropping what is shown.
+  let pendingShown = 0;
+  let pendingNextCursor;
+  async function loadPendingDeletion(cursor) {
     refreshPending.disabled = true;
+    pendingMore.disabled = true;
     pendingSummary.textContent = '正在載入清單…';
     try {
-      const data = await api(
-        '/v1/business-delivery/retention/pending-deletion'
-      );
+      const { patients, next } = await requestPendingDeletionPage(api, cursor);
       if (disposed) return;
-      pendingList.replaceChildren();
-      pendingSummary.textContent = `${data.patients.length} 位患者待處理。`;
-      for (const patient of data.patients) {
+      if (cursor === undefined) {
+        pendingList.replaceChildren();
+        pendingShown = 0;
+      }
+      pendingShown += patients.length;
+      pendingNextCursor = next;
+      pendingMore.hidden = next === undefined;
+      pendingSummary.textContent =
+        next === undefined
+          ? `${pendingShown} 位患者待處理。`
+          : `已顯示 ${pendingShown} 位患者，還有更多。`;
+      for (const patient of patients) {
         const item = element('article', 'event-panel');
         item.append(
           element('strong', '', patient.patientId),
@@ -1214,13 +1250,23 @@ export function initializeBusinessView({
         pendingList.append(item);
       }
     } catch (error) {
-      pendingList.replaceChildren();
+      // A failed first load clears the list; a failed 載入更多 keeps what is
+      // shown and leaves the button to try the same page again.
+      if (cursor === undefined) {
+        pendingList.replaceChildren();
+        pendingMore.hidden = true;
+      }
       pendingSummary.textContent = reportError(error);
     } finally {
       refreshPending.disabled = false;
+      pendingMore.disabled = false;
     }
   }
   refreshPending.addEventListener('click', () => void loadPendingDeletion());
+  pendingMore.addEventListener(
+    'click',
+    () => void loadPendingDeletion(pendingNextCursor)
+  );
 
   let terminationCase;
   const renderTerminationCase = (record) => {
