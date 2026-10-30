@@ -116,6 +116,8 @@ import {
             {
               archive: refuse,
               restore: refuse,
+              confirmArchivedIdentity: refuse,
+              identityCandidates: refuse,
               permanentlyDelete: refuse,
               setLegalHold: refuse,
               pendingDeletion: refuse
