@@ -46,9 +46,11 @@ run "named_sha_enables_c1_allowlist_only" {
   command = plan
 
   variables {
-    exact_apply_authority_sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    project_id                = "beauessence-clinic-stg-smoke1"
-    billing_account_id        = "000000-000000-000000"
+    exact_apply_authority_sha  = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                 = "beauessence-clinic-stg-smoke1"
+    billing_account_id         = "000000-000000-000000"
+    github_repository_id       = "123456789"
+    github_repository_owner_id = "987654321"
   }
 
   assert {
@@ -147,6 +149,81 @@ run "named_sha_enables_c1_allowlist_only" {
     condition     = google_monitoring_alert_policy.iam_setiampolicy[0].combiner == "OR"
     error_message = "C1 IAM alert combiner must be OR."
   }
+}
+
+run "wif_trust_is_pinned_to_numeric_ids_and_approved_refs" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha  = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                 = "beauessence-clinic-stg-smoke1"
+    billing_account_id         = "000000-000000-000000"
+    github_repository_id       = "123456789"
+    github_repository_owner_id = "987654321"
+  }
+
+  assert {
+    condition = (
+      google_iam_workload_identity_pool_provider.github[0].attribute_condition ==
+      "assertion.repository == 'waydefu/clinic' && assertion.repository_id == '123456789' && assertion.repository_owner_id == '987654321' && assertion.ref in ['refs/heads/main']"
+    )
+    error_message = "C1 WIF trust must pin repository name, numeric repository id, numeric owner id and the approved ref."
+  }
+
+}
+
+run "named_sha_without_repository_id_is_rejected" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha  = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                 = "beauessence-clinic-stg-smoke1"
+    billing_account_id         = "000000-000000-000000"
+    github_repository_owner_id = "987654321"
+  }
+
+  expect_failures = [
+    var.github_repository_id
+  ]
+}
+
+run "named_sha_without_owner_id_is_rejected" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                = "beauessence-clinic-stg-smoke1"
+    billing_account_id        = "000000-000000-000000"
+    github_repository_id      = "123456789"
+  }
+
+  expect_failures = [
+    var.github_repository_owner_id
+  ]
+}
+
+run "non_numeric_repository_id_is_rejected" {
+  command = plan
+
+  variables {
+    github_repository_id = "waydefu"
+  }
+
+  expect_failures = [
+    var.github_repository_id
+  ]
+}
+
+run "wildcard_ref_is_rejected" {
+  command = plan
+
+  variables {
+    github_allowed_refs = ["refs/heads/*"]
+  }
+
+  expect_failures = [
+    var.github_allowed_refs
+  ]
 }
 
 run "oversized_project_id_is_rejected" {

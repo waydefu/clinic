@@ -124,6 +124,7 @@ cd infra/terraform/c1-foundation
 terraform test
 cp terraform.tfvars.example terraform.tfvars
 # set project_id to $PROJECT_ID (24-30 chars), billing_account_id locally
+# github_repository_id / github_repository_owner_id: numeric ids read from GitHub (B-02)
 # exact_apply_authority_sha="$APPLY_SHA"
 terraform init \
   -backend-config="bucket=${STATE_BUCKET}" \
