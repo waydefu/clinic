@@ -1,9 +1,10 @@
+import { OPEN_STATUSES } from './appointment-rules.js';
 import {
   calendarEventIdForAppointment,
   calendarEventIdForFollowUp
 } from './calendar-event-id.js';
 import { DomainError } from './errors.js';
-import { assertUtcTimestamp } from './timestamp.js';
+import { assertUtcTimestamp, isUtcIsoTimestamp } from './timestamp.js';
 
 /**
  * BD-03 models a retention operation, not an appointment cancellation. The
@@ -392,6 +393,8 @@ export function planRetentionOperation(input: {
 export interface RetentionCalendarAppointment {
   readonly id: string;
   readonly status: string;
+  /** Needed only to decide what a restore still has to re-add. */
+  readonly startsAt?: unknown;
 }
 
 /** A stored follow-up decision (`follow_ups/{sourceAppointmentId}`). */
@@ -415,6 +418,10 @@ export interface PlannedRetentionCalendarJob {
   readonly attempts: 0;
   readonly createdAt: string;
   readonly nextAttemptAt: string;
+  /** Present on archive and restore jobs; permanent delete uses `deleted`. */
+  readonly retentionOperation?: 'archive' | 'restore';
+  /** Archive episode marker; the worker ignores the job once it has moved on. */
+  readonly retentionArchivedAt?: string;
 }
 
 const RETENTION_JOB_TAG: Readonly<Record<RetentionOperation, string>> = {
@@ -423,24 +430,39 @@ const RETENTION_JOB_TAG: Readonly<Record<RetentionOperation, string>> = {
   permanent_delete: 'ret_delete'
 };
 
+function isStillAhead(value: unknown, at: string): value is string {
+  return (
+    typeof value === 'string' &&
+    isUtcIsoTimestamp(value) &&
+    Date.parse(value) >= Date.parse(at)
+  );
+}
+
 /**
- * Calendar is a projection of the patient record (ADR-0002), and the
- * appointment calendar carries the approved name/phone/month-day title. A
- * retention operation therefore re-projects every event the patient can own:
+ * Calendar is a projection of the patient record (ADR-0002). An archived
+ * patient is "no longer used", so the dedicated appointment calendar must not
+ * carry that patient at all, de-identified or not:
  *
- * - archive / restore: re-upsert so the worker rebuilds the title from the
- *   now-archived (minimal summary) or restored (full title) patient record;
- * - permanent_delete: cancel (`events.delete`) every appointment event and
- *   every dated follow-up reminder before the records disappear.
+ * - archive: remove (`events.delete`) every appointment event and every dated
+ *   follow-up reminder. The operational records stay; only the projection
+ *   goes. The worker re-reads the latest archive state before it deletes, and
+ *   `archivedAt` names the archive episode so a delayed job cannot act on a
+ *   later one;
+ * - restore: re-add only what this return still needs. An appointment that is
+ *   still open and starts at or after `at`, and a dated reminder due at or
+ *   after `at`. Visits from before the archive are never rebuilt. The worker
+ *   re-checks live status, so a cancelled booking stays cancelled;
+ * - permanent_delete: cancel every appointment event and dated reminder
+ *   before the records disappear.
  *
- * The jobs carry identifiers, statuses and times only — never PII. The worker
- * still reads the live appointment status for ordinary events, so a job for
- * an already-cancelled appointment stays a harmless idempotent cancel.
+ * The jobs carry identifiers, statuses and times only, never PII.
  */
 export function planRetentionCalendarProjections(input: {
   readonly operation: RetentionOperation;
   readonly requestId: string;
   readonly at: string;
+  /** Required for `archive`: the `archivedAt` written to the patient. */
+  readonly archivedAt?: string;
   readonly appointments: readonly RetentionCalendarAppointment[];
   readonly followUps: readonly RetentionCalendarFollowUp[];
 }): readonly PlannedRetentionCalendarJob[] {
@@ -448,6 +470,14 @@ export function planRetentionCalendarProjections(input: {
   assertUtcTimestamp(input.at, 'at');
   const tag = RETENTION_JOB_TAG[input.operation];
   const deleting = input.operation === 'permanent_delete';
+  const archiving = input.operation === 'archive';
+  const restoring = input.operation === 'restore';
+  if (archiving) {
+    if (input.archivedAt === undefined) {
+      throw new DomainError('INVALID_VALUE', 'archivedAt is required.');
+    }
+    assertUtcTimestamp(input.archivedAt, 'archivedAt');
+  }
   const common = {
     type: 'calendar_projection_requested' as const,
     correlationId: input.requestId,
@@ -455,18 +485,36 @@ export function planRetentionCalendarProjections(input: {
     status: 'pending' as const,
     attempts: 0 as const,
     createdAt: input.at,
-    nextAttemptAt: input.at
+    nextAttemptAt: input.at,
+    ...(archiving && input.archivedAt !== undefined
+      ? {
+          retentionOperation: 'archive' as const,
+          retentionArchivedAt: input.archivedAt
+        }
+      : {}),
+    ...(restoring ? { retentionOperation: 'restore' as const } : {})
   };
 
-  const appointmentJobs = input.appointments.map((appointment) => {
+  const appointmentJobs = input.appointments.flatMap((appointment) => {
     assertOpaque(appointment.id, 'appointmentId');
-    return {
-      ...common,
-      id: `outbox_${appointment.id}_${tag}_${input.requestId}`,
-      appointmentId: appointment.id,
-      appointmentStatus: deleting ? 'deleted' : appointment.status,
-      idempotencyKey: calendarEventIdForAppointment(appointment.id)
-    };
+    if (
+      restoring &&
+      !(
+        (OPEN_STATUSES as readonly string[]).includes(appointment.status) &&
+        isStillAhead(appointment.startsAt, input.at)
+      )
+    ) {
+      return [];
+    }
+    return [
+      {
+        ...common,
+        id: `outbox_${appointment.id}_${tag}_${input.requestId}`,
+        appointmentId: appointment.id,
+        appointmentStatus: deleting ? 'deleted' : appointment.status,
+        idempotencyKey: calendarEventIdForAppointment(appointment.id)
+      }
+    ];
   });
 
   // Only a dated `required` decision has a reminder event on the calendar.
@@ -475,16 +523,18 @@ export function planRetentionCalendarProjections(input: {
       return [];
     assertOpaque(followUp.appointmentId, 'followUpSourceId');
     assertUtcTimestamp(followUp.dueAt, 'dueAt');
+    if (restoring && !isStillAhead(followUp.dueAt, input.at)) return [];
+    const removing = deleting || archiving;
     return [
       {
         ...common,
         id: `outbox_followup_${followUp.appointmentId}_${tag}_${input.requestId}`,
         appointmentId: followUp.appointmentId,
         followUpSourceId: followUp.appointmentId,
-        appointmentStatus: deleting
+        appointmentStatus: removing
           ? 'follow_up_not_required'
           : 'follow_up_required',
-        ...(deleting ? {} : { startsAt: followUp.dueAt }),
+        ...(removing ? {} : { startsAt: followUp.dueAt }),
         idempotencyKey: calendarEventIdForFollowUp(followUp.appointmentId)
       }
     ];

@@ -1,8 +1,10 @@
 import { createHash } from 'node:crypto';
 
 import {
+  ACTIVE_BOOKING_LIMIT,
   assertUtcTimestamp,
   DomainError,
+  parsePatientBookingGuard,
   planExpiredPatientArchive,
   planRetentionCalendarProjections,
   planRetentionOperation,
@@ -14,6 +16,8 @@ import {
 } from '@beauessence/domain';
 import type {
   PatientArchivedResponse,
+  PatientIdentityCandidatesResponse,
+  PatientIdentityConfirmedResponse,
   PatientLegalHoldResponse,
   PatientPermanentlyDeletedResponse,
   PatientRestoredResponse,
@@ -61,6 +65,14 @@ export type ArchiveExpiredPatientCommand = Omit<
   readonly scope: 'internal_synthetic';
 };
 export type RestorePatientCommand = RetentionCommand;
+/**
+ * `patientId` is the archived candidate to restore; `provisionalPatientId` is
+ * the flagged active record whose bookings move to it. Human actors only.
+ */
+export interface ConfirmArchivedIdentityCommand extends RetentionCommand {
+  readonly provisionalPatientId: string;
+  readonly reasonCode: Exclude<RetentionReasonCode, 'retention_expired'>;
+}
 export interface PermanentlyDeletePatientCommand extends RetentionCommand {
   readonly reasonCode: RetentionReasonCode;
 }
@@ -147,7 +159,8 @@ function calendarInputs(
   return {
     appointments: appointments.docs.map((appointment) => ({
       id: appointment.id,
-      status: stringField(appointment.data(), 'status') ?? 'unknown'
+      status: stringField(appointment.data(), 'status') ?? 'unknown',
+      startsAt: stringField(appointment.data(), 'startsAt')
     })),
     followUps: followUps.docs.map((followUp) => {
       const data: Record<string, unknown> = followUp.data() ?? {};
@@ -236,6 +249,29 @@ function validStoredIdentity(
     return undefined;
   }
   return { phoneDigits, birthMonthDay };
+}
+
+function stringArrayField(
+  data: Record<string, unknown> | undefined,
+  key: string
+): string[] {
+  const value = data?.[key];
+  return Array.isArray(value)
+    ? value.filter(
+        (item): item is string => typeof item === 'string' && item !== ''
+      )
+    : [];
+}
+
+/** Unfinished-appointment ids of a guard document; unreadable fails closed. */
+function guardAppointmentIds(snapshot: DocumentSnapshot): string[] {
+  if (!snapshot.exists) return [];
+  try {
+    return [...parsePatientBookingGuard(snapshot.data()).activeAppointmentIds];
+  } catch (error) {
+    if (error instanceof DomainError) throw new ConflictError();
+    throw error;
+  }
 }
 
 /**
@@ -364,11 +400,15 @@ export class FirestoreBusinessRetentionRepository {
       };
       if (wasArchived) return response;
       const followUps = await transaction.get(followUpsQuery);
-      // Rebuild every titled event from the archived record (minimal summary).
+      // An archived patient is no longer used: the worker removes every
+      // appointment and reminder event, but only while this archive episode
+      // (`archivedAt`) is still the current one.
+      if (plan.archivedAt === null) throw new ConflictError();
       const calendarJobs = planRetentionCalendarProjections({
         operation: 'archive',
         requestId,
         at: command.now,
+        archivedAt: plan.archivedAt,
         ...calendarInputs(appointments, followUps)
       });
       assertWriteLimit(appointments.size + calendarJobs.length + 2);
@@ -424,6 +464,11 @@ export class FirestoreBusinessRetentionRepository {
       const patientSnapshot = await transaction.get(patientRef);
       if (!patientSnapshot.exists) throw new NotFoundException();
       const patient = patientSnapshot.data() ?? {};
+      // A record retired by an identity confirmation points at its survivor
+      // and can never be restored as a second active identity.
+      if (patient['retiredIntoPatientId'] !== undefined) {
+        throw new ConflictError();
+      }
       planRetention({
         operation: 'restore',
         command,
@@ -474,7 +519,7 @@ export class FirestoreBusinessRetentionRepository {
         patientId: command.patientId,
         state: 'active'
       };
-      // Restore the approved titles that archive stripped.
+      // Re-add only the events this return still needs, not the old history.
       const calendarJobs = planRetentionCalendarProjections({
         operation: 'restore',
         requestId,
@@ -501,6 +546,298 @@ export class FirestoreBusinessRetentionRepository {
         actorRef: command.actorRef,
         at: command.now,
         requestHash: hash,
+        result: response
+      });
+      return response;
+    });
+  }
+
+  /**
+   * Manager-only candidate list for one flagged provisional record: opaque
+   * ids and archive dates, no names or contact values. Stale refs (deleted,
+   * restored or retired records) are dropped here and again at confirm time.
+   */
+  public async identityCandidates(
+    provisionalPatientId: string
+  ): Promise<PatientIdentityCandidatesResponse> {
+    const patients = this.db.collection(PATIENT_COLLECTIONS.patients);
+    const provisional = await patients.doc(provisionalPatientId).get();
+    const data = provisional.data();
+    if (
+      !provisional.exists ||
+      hasArchivedAt(data) ||
+      data?.['identityReviewRequired'] !== true
+    ) {
+      throw new NotFoundException();
+    }
+    const ids = [
+      ...new Set(stringArrayField(data, 'pendingArchivedPatientIds'))
+    ];
+    const snapshots =
+      ids.length === 0
+        ? []
+        : await this.db.getAll(...ids.map((id) => patients.doc(id)));
+    return {
+      patientId: provisionalPatientId,
+      candidates: snapshots.flatMap((snapshot) => {
+        const candidate = snapshot.data();
+        const archivedAt = stringField(candidate, 'archivedAt');
+        if (
+          !snapshot.exists ||
+          archivedAt === undefined ||
+          candidate?.['retiredIntoPatientId'] !== undefined
+        ) {
+          return [];
+        }
+        return [
+          {
+            patientId: snapshot.id,
+            archivedAt,
+            legalHold: candidate?.['legalHold'] === true
+          }
+        ];
+      })
+    };
+  }
+
+  /**
+   * CP-05 stage 2b. One transaction re-reads everything, then restores the
+   * chosen archived record, moves the provisional record's appointments,
+   * follow-ups, booking guard and follow-up state to it, and retires the
+   * provisional record (archived, never deleted). Nothing here is reachable by
+   * the system actor, and the existing restore still refuses another active
+   * identity; this is the single explicit exception for the flagged record.
+   */
+  public async confirmArchivedIdentity(
+    command: ConfirmArchivedIdentityCommand
+  ): Promise<PatientIdentityConfirmedResponse> {
+    const action = 'confirm_identity';
+    const hash = requestHash([
+      action,
+      command.provisionalPatientId,
+      command.patientId,
+      command.reasonCode
+    ]);
+    const requestId = `${OPAQUE_REQUEST_PREFIX}${sha256(`${action}:${command.idempotencyKey}`).slice(0, 40)}`;
+    const logRef = this.db
+      .collection(RETENTION_COLLECTIONS.log)
+      .doc(logId(action, command.idempotencyKey));
+    if (command.provisionalPatientId === command.patientId) {
+      throw new ConflictError();
+    }
+    const patients = this.db.collection(PATIENT_COLLECTIONS.patients);
+    const provisionalId = command.provisionalPatientId;
+    const archivedId = command.patientId;
+    const provisionalRef = patients.doc(provisionalId);
+    const archivedRef = patients.doc(archivedId);
+    const guards = this.db.collection(COLLECTIONS.patientBookingGuards);
+    const states = this.db.collection(COLLECTIONS.followUpState);
+    const ownedBy = (collection: string, id: string) =>
+      this.db.collection(collection).where('patientId', '==', id);
+
+    return this.db.runTransaction(async (transaction) => {
+      const existingLog = await transaction.get(logRef);
+      const replay = replayResult<PatientIdentityConfirmedResponse>(
+        existingLog,
+        hash
+      );
+      if (replay.found) return replay.result;
+
+      const provisionalSnapshot = await transaction.get(provisionalRef);
+      if (!provisionalSnapshot.exists) throw new NotFoundException();
+      const archivedSnapshot = await transaction.get(archivedRef);
+      const provisional = provisionalSnapshot.data() ?? {};
+      const archived = archivedSnapshot.data() ?? {};
+      // The candidate must still be a listed, archived, un-held, un-retired
+      // record, and the provisional record must still be the flagged active one.
+      if (
+        !archivedSnapshot.exists ||
+        hasArchivedAt(provisional) ||
+        provisional['identityReviewRequired'] !== true ||
+        provisional['legalHold'] === true ||
+        !stringArrayField(provisional, 'pendingArchivedPatientIds').includes(
+          archivedId
+        ) ||
+        archived['legalHold'] === true ||
+        archived['retiredIntoPatientId'] !== undefined
+      ) {
+        throw new ConflictError();
+      }
+      // Throws (409) unless the candidate is still archived and unrestored.
+      planRetention({
+        operation: 'restore',
+        command,
+        requestId,
+        patient: archived
+      });
+
+      // The candidate must still match the lookup key, and no other active
+      // identity may hold it (the existing restore rejection stays intact).
+      const key = validStoredIdentity(provisional);
+      const archivedKey = validStoredIdentity(archived);
+      if (
+        key === undefined ||
+        (archivedKey !== undefined &&
+          (archivedKey.phoneDigits !== key.phoneDigits ||
+            archivedKey.birthMonthDay !== key.birthMonthDay))
+      ) {
+        throw new ConflictError();
+      }
+      const lookupRef = this.db
+        .collection(PATIENT_COLLECTIONS.lookupIndex)
+        .doc(opaqueLookupIdentity(key.phoneDigits, key.birthMonthDay));
+      const lookup = await transaction.get(lookupRef);
+      const indexedIds = [
+        ...new Set(stringArrayField(lookup.data(), 'patientIds'))
+      ];
+      if (
+        !indexedIds.includes(provisionalId) ||
+        !indexedIds.includes(archivedId)
+      ) {
+        throw new ConflictError();
+      }
+      const otherIds = indexedIds.filter(
+        (id) => id !== provisionalId && id !== archivedId
+      );
+      const others =
+        otherIds.length === 0
+          ? []
+          : await transaction.getAll(...otherIds.map((id) => patients.doc(id)));
+      if (
+        others.some((other) => other.exists && isActiveIdentity(other.data()))
+      ) {
+        throw new ConflictError();
+      }
+
+      const provisionalAppointments = await transaction.get(
+        ownedBy(COLLECTIONS.appointments, provisionalId)
+      );
+      const provisionalFollowUps = await transaction.get(
+        ownedBy(COLLECTIONS.followUps, provisionalId)
+      );
+      const archivedAppointments = await transaction.get(
+        ownedBy(COLLECTIONS.appointments, archivedId)
+      );
+      const archivedFollowUps = await transaction.get(
+        ownedBy(COLLECTIONS.followUps, archivedId)
+      );
+      const provisionalGuard = await transaction.get(guards.doc(provisionalId));
+      const archivedGuard = await transaction.get(guards.doc(archivedId));
+      const provisionalState = await transaction.get(states.doc(provisionalId));
+      const archivedState = await transaction.get(states.doc(archivedId));
+
+      // The merged guard must still respect the per-patient booking limit, and
+      // two follow-up states are never merged by guesswork: fail closed.
+      const activeIds = [
+        ...new Set([
+          ...guardAppointmentIds(archivedGuard),
+          ...guardAppointmentIds(provisionalGuard)
+        ])
+      ];
+      if (
+        activeIds.length > ACTIVE_BOOKING_LIMIT ||
+        (provisionalState.exists && archivedState.exists)
+      ) {
+        throw new ConflictError();
+      }
+
+      // Same restore projections as the plain restore. The moved bookings are
+      // this return visit, so they are re-added too (their event ids differ
+      // from the old record's, so the two sets never collide).
+      const archivedInputs = calendarInputs(
+        archivedAppointments,
+        archivedFollowUps
+      );
+      const movedInputs = calendarInputs(
+        provisionalAppointments,
+        provisionalFollowUps
+      );
+      const calendarJobs = planRetentionCalendarProjections({
+        operation: 'restore',
+        requestId,
+        at: command.now,
+        appointments: [
+          ...archivedInputs.appointments,
+          ...movedInputs.appointments
+        ],
+        followUps: [...archivedInputs.followUps, ...movedInputs.followUps]
+      });
+      assertWriteLimit(
+        provisionalAppointments.size +
+          provisionalFollowUps.size +
+          archivedAppointments.size +
+          calendarJobs.length +
+          9
+      );
+
+      const response: PatientIdentityConfirmedResponse = {
+        patientId: archivedId,
+        provisionalPatientId: provisionalId,
+        state: 'active'
+      };
+
+      transaction.update(archivedRef, {
+        archivedAt: FieldValue.delete(),
+        archivedByRef: FieldValue.delete(),
+        restorableUntil: FieldValue.delete(),
+        updatedAt: command.now
+      });
+      for (const appointment of archivedAppointments.docs) {
+        transaction.update(appointment.ref, {
+          patientArchived: FieldValue.delete()
+        });
+      }
+      for (const appointment of provisionalAppointments.docs) {
+        transaction.update(appointment.ref, {
+          patientId: archivedId,
+          identityReviewRequired: FieldValue.delete()
+        });
+      }
+      for (const followUp of provisionalFollowUps.docs) {
+        transaction.update(followUp.ref, { patientId: archivedId });
+      }
+      if (provisionalGuard.exists) {
+        transaction.set(archivedGuard.ref, {
+          activeAppointmentIds: activeIds,
+          updatedAt: command.now
+        });
+        transaction.delete(provisionalGuard.ref);
+      }
+      if (provisionalState.exists) {
+        transaction.set(archivedState.ref, {
+          ...provisionalState.data(),
+          updatedAt: command.now
+        });
+        transaction.delete(provisionalState.ref);
+      }
+      // The provisional record is retired, never deleted: it stays archived so
+      // normal reads, lookups and return sessions ignore it, it points at its
+      // survivor, and it cannot be restored. Its recovery boundary matches the
+      // archive window so a later manual deletion review can still apply.
+      transaction.update(provisionalRef, {
+        archivedAt: command.now,
+        archivedByRef: command.actorRef,
+        restorableUntil: new Date(
+          Date.parse(command.now) +
+            command.policy.retention.recoverableDays * 24 * 60 * 60 * 1000
+        ).toISOString(),
+        retiredIntoPatientId: archivedId,
+        identityReviewRequired: FieldValue.delete(),
+        pendingArchivedPatientIds: FieldValue.delete(),
+        updatedAt: command.now
+      });
+      transaction.update(lookupRef, {
+        patientIds: indexedIds.filter((id) => id !== provisionalId),
+        updatedAt: command.now
+      });
+      writeCalendarJobs(transaction, this.db, calendarJobs);
+      writeLog(transaction, logRef, {
+        action,
+        patientId: archivedId,
+        actorRef: command.actorRef,
+        at: command.now,
+        requestHash: hash,
+        reasonCode: command.reasonCode,
         result: response
       });
       return response;
