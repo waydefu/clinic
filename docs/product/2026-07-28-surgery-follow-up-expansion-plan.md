@@ -39,7 +39,7 @@ Phase 1 release scope，也不延後原預約平台的 Stage 2～6，除非業�
 - 管理者可刪除符合限定理由的**預約紀錄**；audit 永久、append-only，任何角色
   都不能刪除 audit evidence。
 - D-006 全部核准：全員 MFA、自管帳號 TOTP、30 分鐘 idle、8 小時 absolute
-  session、停權後下一個 protected request 即拒絕，授權碼雜湊、可個別撤銷並
+  session（2026-10-03 起改為絕對 12 小時、無閒置登出，見 `STAFF-SESSION-12H-2026-10-03`；敏感操作 10 分鐘再驗證不變；此為歷史原文）、停權後下一個 protected request 即拒絕，授權碼雜湊、可個別撤銷並
   限制錯誤嘗試。
 - 任一部分超出正式營業時間的自訂手術時段只允許 `administrator` override，
   且理由必填；不得用櫃檯權限或刪預約授權碼委派。休診日／國定假日是否也可
@@ -310,7 +310,7 @@ S3～S5 是否進同一個 production release，要在 S0 結束時另外做 rel
 | 決策 | 本次輸入 | 尚需回答 |
 | --- | --- | --- |
 | D-004 排程／容量 | 正式時段、多服務；止鼾／醫美實際時長到診後記錄、不寫死；超時段手術限管理者＋理由 | published slot block、容量、多服務占用、緩衝／現場超時 |
-| D-006 身分／RBAC | **已核准** Google＋自管帳號、全員 MFA、自管帳號 TOTP、30m idle／8h absolute、立即停權、角色／委派、永久 audit | Phase 1 無剩餘 policy answer；實作與驗證依 Stage 2 change plan |
+| D-006 身分／RBAC | **已核准** Google＋自管帳號、全員 MFA、自管帳號 TOTP、30m idle／8h absolute（2026-10-03 起改為絕對 12 小時、無閒置登出，見 `STAFF-SESSION-12H-2026-10-03`；敏感操作 10 分鐘再驗證不變；此為歷史原文）、立即停權、角色／委派、永久 audit | Phase 1 無剩餘 policy answer；實作與驗證依 Stage 2 change plan |
 | D-007 個管 | 病患以有效指派的個管／諮詢師為「自己」 | 多重有效指派、改派／代理／離職與 merge |
 | D-008 結算 | 三種角色分帳、實收基礎候選 | 正式公式、規則版本、lock owner、爭議與 adjustment |
 | D-009 Calendar | 需要 production shared calendar 與最小事件 | owner、OAuth／service identity、最小 scope、專用 calendar |
