@@ -650,10 +650,20 @@ export function appointmentPage(
     page: currentPage,
     pageSize: safePageSize,
     totalCount,
+    // 伺服器清單被截斷時，totalCount 只是「已載入且符合」的筆數，不是總數。
+    truncated: state?.appointmentsTruncated === true,
     totalPages,
     startIndex: totalCount === 0 ? 0 : startIndex,
     endIndex: Math.min(startIndex + entries.length, totalCount)
   };
+}
+
+export function appointmentCountSummary(page) {
+  return (
+    `${page.truncated ? '至少' : '共'} ${page.totalCount} 筆結果` +
+    `${page.truncated ? '（還有預約尚未載入）' : ''}，本頁顯示 ${page.ids.length} 筆` +
+    `（第 ${page.page} 頁，共 ${page.totalPages} 頁）`
+  );
 }
 
 export function renderAppointments(
@@ -666,6 +676,11 @@ export function renderAppointments(
   const page = appointmentPage(state, filters, sort, pagination);
   const entries = page.entries;
 
+  if (page.totalCount === 0 && page.truncated)
+    return emptyState(
+      '已載入的預約中沒有符合條件的',
+      '還有預約尚未載入，結果可能不完整；請縮小篩選或稍後再試。'
+    );
   if (page.totalCount === 0)
     return emptyState(
       filters.status === 'today' ? '今日尚無預約' : '沒有符合條件的預約',

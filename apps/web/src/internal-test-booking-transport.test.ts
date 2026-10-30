@@ -4,7 +4,11 @@ import {
   httpTransportError,
   isInternalTestBookingEnabled
 } from '../public/modules/api-client.js';
-import { renderAppointments } from '../public/modules/admin-view.js';
+import {
+  appointmentCountSummary,
+  appointmentPage,
+  renderAppointments
+} from '../public/modules/admin-view.js';
 import { DEFAULT_BLOCKED_TIMES } from '../public/modules/constants.js';
 import { initialState } from '../public/modules/state-schema.js';
 import { CALENDAR_PILOT_SCHEDULE } from '../public/vendor/domain/calendar-sync.js';
@@ -1435,5 +1439,137 @@ describe('applyDeleteContractWrite', () => {
       })
     ).toBe(state);
     expect(state.appointments).toEqual([{ id: 'appointment_001' }]);
+  });
+});
+
+// K7 / C07 (SOL-LIST): the server list is capped at 50 rows per page and says
+// "more" with an x-next-cursor header. The workbench follows it (bounded) and,
+// when rows are still missing, labels its count as a minimum instead of a total.
+describe('staff list follows the continuation cursor', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const bookingRows = (from: number, count: number) =>
+    Array.from({ length: count }, (_, index) => ({
+      appointmentId: `appointment_page_${String(from + index).padStart(3, '0')}`,
+      status: 'confirmed',
+      startsAt: '2030-01-02T04:00:00.000Z',
+      endsAt: '2030-01-02T04:30:00.000Z',
+      bookingKind: 'initial',
+      slotId: `slot_page_${from + index}`,
+      patientId: 'patient_opaque_001'
+    }));
+
+  /** `pages` rows-per-page; every page except the last carries a cursor. */
+  function stateWithBookingPages(pageSizes: number[], neverEnding = false) {
+    vi.stubGlobal('location', { pathname: '/clinic' });
+    vi.stubGlobal('sessionStorage', {
+      getItem: () => null,
+      setItem: () => undefined,
+      removeItem: () => undefined
+    });
+    const bookingUrls: string[] = [];
+    const fetchImpl = vi.fn((url: string) => {
+      if (url === '/v1/slots')
+        return Promise.resolve(Response.json({ slots: [] }));
+      if (url === '/v1/schedule')
+        return Promise.resolve(
+          Response.json({
+            publishedVersion: 1,
+            publishedAt: '2030-01-01T00:00:00.000Z',
+            schedule: initialState().schedule
+          })
+        );
+      if (url.startsWith('/v1/bookings')) {
+        const index = bookingUrls.length;
+        bookingUrls.push(url);
+        const size = pageSizes[Math.min(index, pageSizes.length - 1)] ?? 0;
+        const more = neverEnding || index < pageSizes.length - 1;
+        return Promise.resolve(
+          Response.json(
+            { appointments: bookingRows(index * 50, size) },
+            more ? { headers: { 'x-next-cursor': `cursor_${index}` } } : {}
+          )
+        );
+      }
+      return Promise.resolve(
+        Response.json({ error: { code: 'NOT_FOUND' } }, { status: 404 })
+      );
+    });
+    const state = createInternalTestBookingTransport({
+      local: vi.fn(() => Promise.resolve({ version: 8, slots: [] })),
+      toError: httpTransportError,
+      fetchImpl
+    })('/state');
+    return { state: state as Promise<any>, bookingUrls };
+  }
+
+  it('merges every page without omissions or repeats and does not flag a complete list', async () => {
+    const { state, bookingUrls } = stateWithBookingPages([50, 50, 20]);
+
+    const loaded = await state;
+
+    expect(bookingUrls).toEqual([
+      '/v1/bookings',
+      '/v1/bookings?cursor=cursor_0',
+      '/v1/bookings?cursor=cursor_1'
+    ]);
+    expect(loaded.appointments.map((item: any) => item.id)).toEqual(
+      bookingRows(0, 120).map((row) => row.appointmentId)
+    );
+    expect(loaded).not.toHaveProperty('appointmentsTruncated');
+  });
+
+  it('stops after five pages and marks the list truncated', async () => {
+    const { state, bookingUrls } = stateWithBookingPages([50], true);
+
+    const loaded = await state;
+
+    expect(bookingUrls).toHaveLength(5);
+    expect(loaded.appointments).toHaveLength(250);
+    expect(loaded.appointmentsTruncated).toBe(true);
+  });
+
+  it('counts a truncated list as a minimum, never as the total', async () => {
+    const { state } = stateWithBookingPages([50], true);
+    const loaded = await state;
+    const render: any = initialState();
+    render.appointments = loaded.appointments;
+    render.appointmentsTruncated = loaded.appointmentsTruncated;
+
+    const page = appointmentPage(render, {
+      status: 'all',
+      kind: 'all',
+      query: ''
+    });
+
+    expect(page.truncated).toBe(true);
+    expect(appointmentCountSummary(page)).toMatch(
+      /^至少 250 筆結果（還有預約尚未載入）/
+    );
+    expect(page.totalCount).toBe(250);
+  });
+
+  it('keeps the plain total when nothing is truncated, and says so when a filter finds nothing in a truncated list', () => {
+    const complete: any = initialState();
+    const completePage = appointmentPage(complete, {
+      status: 'all',
+      kind: 'all',
+      query: ''
+    });
+    expect(completePage.truncated).toBe(false);
+    expect(appointmentCountSummary(completePage)).toMatch(/^共 0 筆結果，/);
+    expect(
+      renderAppointments(complete, { status: 'all', kind: 'all', query: '' })
+    ).toContain('沒有符合條件的預約');
+
+    const cut: any = initialState();
+    cut.appointmentsTruncated = true;
+    const html = renderAppointments(cut, {
+      status: 'all',
+      kind: 'all',
+      query: ''
+    });
+    expect(html).toContain('已載入的預約中沒有符合條件的');
+    expect(html).not.toContain('沒有符合條件的預約');
   });
 });

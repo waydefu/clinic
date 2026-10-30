@@ -2,6 +2,7 @@
 import { assertRenderable } from './modules/trusted-html.js';
 
 import {
+  appointmentCountSummary,
   appointmentPage,
   DEFAULT_APPOINTMENT_PAGE_SIZE,
   DEFAULT_APPOINTMENT_SORT,
@@ -623,8 +624,7 @@ function renderAppointmentList() {
     })
   );
   elements['appointment-result-summary'].textContent =
-    `共 ${page.totalCount} 筆結果，本頁顯示 ${page.ids.length} 筆` +
-    `（第 ${page.page} 頁，共 ${page.totalPages} 頁）`;
+    appointmentCountSummary(page);
   elements['appointment-pagination'].hidden = page.totalCount === 0;
   elements['appointment-page-status'].textContent =
     `第 ${page.page} 頁，共 ${page.totalPages} 頁`;
