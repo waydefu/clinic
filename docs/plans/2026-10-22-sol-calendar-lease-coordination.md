@@ -1,6 +1,6 @@
 # SOL-CALENDAR-LEASE：嚴格零派送的協調設計候選
 
-日期：2026-10-22；更新：2026-10-29（Asia/Taipei）。狀態：**GATE-1-AUTHORIZED／PROOF-INCOMPLETE；GATE-2-BLOCKED-OWNER＋BLOCKED-EXTERNAL**。
+日期：2026-10-22；更新：2026-10-30（Asia/Taipei）。狀態：**GATE-1-AUTHORIZED／合成來源項目已補齊、待 exact-head CI 與 Sol 審查（PROOF-INCOMPLETE）；GATE-2-BLOCKED-OWNER＋BLOCKED-EXTERNAL**。
 Packet：SOL-CALENDAR-LEASE；findingIDs：D-05、D-12。原始研究 base：`37c10796d5e8f05a2d7b63b4bda7b7d7e99c6746`。
 依據：[#268 保守方向](https://github.com/waydefu/clinic/pull/268#issuecomment-6322342715)、登記 PR #281，
 [ADR-0002](../adr/0002-calendar-is-a-projection-not-the-lock.md)、AGENTS Safety Floor 第 3 條。
@@ -23,8 +23,8 @@ Gate 1 沿用現有
 | 跨 lease／兩個 worker 競爭 | 直接測試 `serializes two synthetic workers through one coordinator during handoff`：兩個合成 worker 共用同一 coordinator，交錯舊 worker 的在途／未開始工作與 successor；排空前不生效，交接後拒絕舊 handle，successor 的在途工作不被舊重播誤清除 | 保留外來 handle／複製 permit 的拒絕案例；此合成排序不等於真實跨程序的唯一 egress／隔離證明 |
 | 到期後零新派送、無 progress／success | 已有測試供給的硬 deadline／clock；相等即到期、回退／不明時間與 quarantine 都拒絕新派送或成功回傳。新增五種在途結果回傳時的 clock fault，恢復 clock 也不能重新啟動 pending stub。未建模實際同步 cursor | 保留直接穿越 hard expiry、stub 零新開始、到期結果拒絕與 handoff 不前進的斷言；不得當成實際 provider 或同步進度證明 |
 | 續租與 source binding | 已區分 worker deadline／不可延長的 configuration hard deadline；明確 binding 的同步提案及合成 ack 等待／錯配／回覆失敗均有直接測試。`renewing` 期間不准新派送／交接，未知結果保持隔離；未接外部續租或 registry 來源切換 | 保留目前 issued handle、兩個 deadline、ack 的 owner／generation／token／binding 及 closed phase 的拒絕案例；合成回覆不是實際來源 authority 或恢復證明，不用假成功續租解鎖 |
-| 大量 future bookings 有界搬移 | 只有 segment ID，沒有大量項目、分段 cursor 或 copy／cleanup／replay 流程 | 測試提供批次上限與合成未來項目，正常同步、copy、cleanup、replay 全部經同一邊界；每段有限、只收同 binding／generation 的 receipts，失 lease 不推進 cursor |
-| 中斷後恢復與冪等重播 | quarantine 沒有已證明的恢復路徑；不能清掉 pending 或重建 instance 當復原 | 在 admission、派送後未知結果、receipt／cursor 寫入前後插入中斷；保留未決工作，以穩定 identity 查證／重播，只有合成排空／隔離證據完整才可接續 |
+| 大量 future bookings 有界搬移 | 已建模 `beginMigration`／`migrateBatch`：測試提供合成項目與批次上限，copy 全部完成後才進 cleanup，每批經同一 `admit`／`dispatch` 邊界；只在 receipt 的 binding、generation、batchKey 與項目完全相符時推進 cursor。未建模跨兩個 binding 的來源切換、cursor 持久化 | 保留批次上限、copy→cleanup 順序、失 lease／到期／不符 receipt 不推進 cursor 的斷言 |
+| 中斷後恢復與冪等重播 | 已建模：未收到合法 receipt 的批次留在原 cursor，下次以同一 `batchKey`（每次嘗試另有唯一 segmentId）重播，successor 在交接後可接續；quarantine 仍黏著，沒有無證據的恢復路徑，不重建 instance 當復原 | 保留 receipt 前後中斷、交接後接續、quarantine 後不接續、同批不重複寫入（合成 sink 以 batchKey 去重）的斷言 |
 
 以上時間、批次與故障都是測試輸入，不設定 production TTL、safe margin、batch 預設值或新的接管政策。
 stub 的開始計數只證明合成呼叫排序，不證明封包撤回、實際 Calendar 寫入停止或跨程序隔離。
@@ -44,6 +44,15 @@ Gate 1 只有在上述正例與拒絕／衝突案例都有 exact-head 合成執�
 - `renewWith(lease, sourceBinding, syntheticRenewal)` 只接受合成 promise。等待 ack 時維持 `renewing`，拒絕新 admission、派送、續租及交接；原已在途工作仍只能在原租約期限內結算，結算不會解鎖續租等待。
 - ack 必須符合目前 owner／generation／token／binding；共享既有期限驗證，確認舊租約仍有效且未被隔離後，才更新 worker deadline 並回到 active。錯配、回覆失敗或等待中被隔離都不能延長期限、清掉保留工作或自行恢復。原始錯誤與 sticky quarantine reason 保留。
 - ack 增量先確認既有 52 例通過／新增 14 例因缺少介面失敗，再實作至本機 66／66 通過。這只證明受控合成 promise 的等待與結算，不證明實際續租取得／遺失回覆偵測、來源 registry 切換、transport 隔離或恢復；其餘 Gate 1 oracle 仍須補齊，不升格成完整協調或 Gate 2 授權。
+
+### 合成有界搬移 cursor 與中斷後接續（Gate 1 最後的來源項目）
+
+- `beginMigration(lease, sourceBinding, migrationId, itemIds, batchLimit)`：僅 bound 模式、active 階段、目前 issued handle 與一致 binding；項目須為非空、不重複的字串，批次上限為正整數；每個 coordinator 只有一個搬移。項目被複製並凍結，不保留呼叫者陣列。
+- `migrateBatch(lease, sourceBinding, syntheticEffect)`：取 cursor 起至多 `batchLimit` 筆為一批，經現有 `admit`／`dispatch`；因此 draining、renewing、quarantine、到期、舊／複製 handle 都沿用原有拒絕。同一時間只允許一批執行。階段為 copy，全部完成後才進 cleanup，最後 done。
+- 穩定身分：批次為 `migrationId:stage:cursor`；每次嘗試的 admission segmentId 另加嘗試序號，因此重播不違反「segmentId 不可重複」。合成 effect 須對 `batchKey` 冪等，測試的 sink 以此去重。
+- cursor 只在 receipt 的 binding、generation、batchKey 與項目順序都與該批完全一致，且 admission 的 handle 仍是目前 handle 時才推進。逾時、失 lease、effect 丟錯、receipt 缺漏或不符都留在原 cursor，批次維持未決；與 commit 搶先的 receipt 不採信，交由 successor 重播。
+- 中斷模型：effect 寫入後、回覆前丟錯（結果不明）；回覆於到期後才回來；交接時留有未決批次，successor 用新 generation 同一 `batchKey` 接續，舊 handle 被拒。quarantine 是黏著的，沒有補救方法，故 quarantine 後不接續。
+- 明確不證明：實際 Calendar 寫入、跨 binding 的來源切換（copy 目的與 cleanup 來源是兩個 binding）、程序重啟後的 cursor 持久化、跨程序隔離，以及 Gate 2 的任何 runtime 接入。這是 in-memory 合成排序，不是嚴格零派送的實際證明。
 
 ## 現有證據與未關閉的窗口
 
@@ -111,7 +120,8 @@ Gate 1 的 admission／排空模型已授權；把相應狀態、操作能力接
 文件檢查與 stub 測試都不會提升成實際零派送 runtime proof。本機重型測試 NOT_RUN（依執行電腦限制交 CI）；
 provider／cloud／IAM／migration／部署 NOT_RUN（未授權）。
 
-Gate 1 不再等待選方向，續作上表的最小純合成證明；目前仍是 PROOF-INCOMPLETE。
+Gate 1 不再等待選方向。上表來源項目（有界 cursor、接續）已補齊於合成模型；仍須 exact-head CI 與 Sol 審查，才可稱 Gate 1 完成，目前仍是 PROOF-INCOMPLETE。
+剩餘 Gate 1 項目：跨兩個 binding 的來源切換（registry 來源變更）、cursor 持久化與程序重啟的中斷點、正常同步與搬移批次交錯的合成案例；這些不在本次已證明範圍。
 Gate 2 仍等待負責人核准真實 runtime 接入及具體隔離／恢復機制，不以 Gate 1 的完成代替其授權。
 若要降低未知狀態停止的可用性取捨，須另提政策選擇；不得由代理降低零派送承諾。
 D-05／D-12 不改 approved，SOL-CALENDAR-LEASE 尚未整包完成；原有修復及 activation receipts 保留，不倒退也不誇大。
