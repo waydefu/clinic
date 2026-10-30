@@ -1,5 +1,9 @@
 import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
-import { getFirestore, type Firestore } from 'firebase-admin/firestore';
+import {
+  getFirestore,
+  Timestamp,
+  type Firestore
+} from 'firebase-admin/firestore';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
@@ -218,5 +222,45 @@ describe('patient contact storage on the Firestore emulator', () => {
       nextId('unused')
     );
     expect((await ref.get()).data()?.['phoneDigits']).toBe('0900000999');
+  });
+});
+
+// A05 (SOL-TTL): a new return session carries a Timestamp `purgeAt` 24 hours
+// after its expiry, which a Firestore TTL policy can act on; the string
+// `expiresAt` stays the field the service checks.
+describe('return session purge time on the Firestore emulator', () => {
+  it('stores a Timestamp purgeAt beside the unchanged string expiresAt', async () => {
+    const directory = new FirestorePatientDirectory(db);
+    const phone = '0900000977';
+    const patientId = await directory.resolveFromIntake(
+      intake(phone, '合成患者戊'),
+      NOW,
+      nextId('patient_v2_purge')
+    );
+    // lookupReturn only opens a session for a patient owed a follow-up.
+    await db
+      .collection(PATIENT_COLLECTIONS.followUpState)
+      .doc(patientId)
+      .set({ required: true });
+
+    const result = await directory.lookupReturn(
+      phone,
+      '--02-29',
+      NOW,
+      nextId('purge')
+    );
+
+    expect(result).toBeDefined();
+    const stored = (
+      await db
+        .collection(PATIENT_COLLECTIONS.returnSessions)
+        .doc(result!.sessionId)
+        .get()
+    ).data();
+    expect(stored?.['expiresAt']).toBe(result!.expiresAt);
+    expect(stored?.['purgeAt']).toBeInstanceOf(Timestamp);
+    expect((stored?.['purgeAt'] as Timestamp).toMillis()).toBe(
+      Date.parse(result!.expiresAt) + 24 * 60 * 60 * 1000
+    );
   });
 });

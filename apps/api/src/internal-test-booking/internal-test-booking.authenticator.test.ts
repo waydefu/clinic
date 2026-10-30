@@ -231,6 +231,55 @@ describe('InternalTestBookingAuthenticator', () => {
     expect(auth.verifyIdToken).not.toHaveBeenCalled();
   });
 
+  // NEW-05 (SOL-TTL): the header is bounded to an opaque ID before any lookup,
+  // so text that is not one never reaches the directory or a document path.
+  it.each([
+    '../patients/patient_opaque_001',
+    'a/b',
+    'x'.repeat(129),
+    'é',
+    'a b',
+    'rs_1;DROP'
+  ])(
+    'rejects the non-opaque return session %j before the directory is read',
+    async (returnSession) => {
+      const readReturnSession = vi.fn(() => Promise.resolve('patient_other'));
+      const patients: Pick<PatientDirectoryPort, 'readReturnSession'> = {
+        readReturnSession
+      };
+      const authenticator = new InternalTestBookingAuthenticator(
+        { authenticate: vi.fn() } as unknown as CalendarPilotSessionService,
+        { verifyIdToken: vi.fn() } as unknown as Auth,
+        patients as PatientDirectoryPort
+      );
+
+      await expect(
+        authenticator.authenticate(
+          request({ headers: { 'x-return-session': returnSession } })
+        )
+      ).rejects.toBeInstanceOf(AuthenticationRequiredError);
+      expect(readReturnSession).not.toHaveBeenCalled();
+    }
+  );
+
+  it('rejects a repeated return-session header instead of picking one', async () => {
+    const readReturnSession = vi.fn(() => Promise.resolve('patient_other'));
+    const authenticator = new InternalTestBookingAuthenticator(
+      { authenticate: vi.fn() } as unknown as CalendarPilotSessionService,
+      { verifyIdToken: vi.fn() } as unknown as Auth,
+      { readReturnSession } as unknown as PatientDirectoryPort
+    );
+
+    await expect(
+      authenticator.authenticate(
+        request({
+          headers: { 'x-return-session': ['return_a', 'return_b'] }
+        })
+      )
+    ).rejects.toBeInstanceOf(AuthenticationRequiredError);
+    expect(readReturnSession).not.toHaveBeenCalled();
+  });
+
   it('fails closed when a return session is supplied without a patient directory', async () => {
     const sessions = { authenticate: vi.fn() };
     const auth = { verifyIdToken: vi.fn() };

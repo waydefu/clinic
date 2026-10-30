@@ -1,6 +1,11 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { RATE_LIMIT_POLICIES } from '@beauessence/domain';
+import { Timestamp } from 'firebase-admin/firestore';
+import {
+  planDurableRateLimit,
+  type DurableRateLimitRecord
+} from '../platform/runtime/durable-rate-limit-store.js';
 import { FirestoreDurableRateLimitStore } from './rate-limit.repository.js';
 
 // Serial transaction seam with rollback and read-before-write checks. This is
@@ -135,5 +140,69 @@ describe('durable full-key quota and conservative legacy cutover', () => {
         )
       ).allowed
     ).toBe(false);
+  });
+});
+
+// B-04 (SOL-TTL): each limiter document carries a Timestamp `purgeAt` that is
+// never earlier than the end of its active window or lock, so a TTL policy on
+// that field can never purge a live lock. Enforcement still reads the stored
+// counters, never the TTL, so 429 timing is unchanged.
+describe('rate limiter documents carry a typed purgeAt (B-04)', () => {
+  it('writes a Timestamp purgeAt at or after the window end', async () => {
+    const { store, rows } = database();
+
+    await store.consume('opaque:ttl-window', policy, NOW);
+
+    const purgeAt = rows.get(hashed('opaque:ttl-window'))?.['purgeAt'];
+    expect(purgeAt).toBeInstanceOf(Timestamp);
+    expect((purgeAt as Timestamp).toMillis()).toBeGreaterThanOrEqual(
+      NOW + policy.windowMs
+    );
+  });
+
+  it('never sets purgeAt before an active lock ends', async () => {
+    const { store, rows } = database();
+    const key = 'opaque:ttl-lock';
+
+    for (let call = 0; call <= policy.limit; call += 1)
+      await store.consume(key, policy, NOW + call);
+
+    const row = rows.get(hashed(key));
+    const lockedUntilMs = row?.['lockedUntilMs'] as number;
+    expect(lockedUntilMs).toBeGreaterThanOrEqual(NOW + policy.windowMs);
+    expect((row?.['purgeAt'] as Timestamp).toMillis()).toBeGreaterThanOrEqual(
+      lockedUntilMs
+    );
+  });
+
+  it('keeps the allow/deny decisions and retry timing the pure plan gives', async () => {
+    const { store } = database();
+    let planned: DurableRateLimitRecord | undefined;
+    const offsets = [
+      0,
+      1_000,
+      ...Array.from({ length: policy.limit }, (_, index) => 2_000 + index),
+      policy.windowMs + policy.lockMs + 1
+    ];
+    for (const offset of offsets) {
+      const expected = planDurableRateLimit(planned, policy, NOW + offset);
+      planned = expected.record;
+      await expect(
+        store.consume('opaque:ttl-timing', policy, NOW + offset)
+      ).resolves.toEqual(expected.result);
+    }
+  });
+
+  it('leaves a legacy row untouched and writes purgeAt only on the new document', async () => {
+    const { store, rows } = database();
+    const key = 'opaque:ttl-legacy';
+    const old = { count: 1, windowStartMs: NOW, lockedUntilMs: null };
+    rows.set(legacy(key), old);
+
+    await store.consume(key, policy, NOW + 1);
+
+    expect(rows.get(legacy(key))).toEqual(old);
+    expect(rows.get(legacy(key))).not.toHaveProperty('purgeAt');
+    expect(rows.get(hashed(key))?.['purgeAt']).toBeInstanceOf(Timestamp);
   });
 });
