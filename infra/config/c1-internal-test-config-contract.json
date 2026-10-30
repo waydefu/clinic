@@ -243,6 +243,139 @@
       "class": "FORBIDDEN_TO_STORE_IN_REPO",
       "requiredFor": [],
       "cloudRequired": false
+    },
+    {
+      "name": "ALLOW_UNAUTHENTICATED_ROUTES",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": ["api"],
+      "cloudRequired": false,
+      "notes": "Local-only switch read by apps/api main.ts: while it is true the API refuses a non-loopback bind. Nothing sets it and it is not cloud configuration."
+    },
+    {
+      "name": "BOOK_PILOT_ENABLED",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": [],
+      "cloudRequired": false,
+      "notes": "Isolated BOOK-PILOT module switch (apps/api/src/book-pilot); AppModule does not import that module. Not part of the C1 required set; listed so every environment read in apps/api and apps/worker has a class (B-45)."
+    },
+    {
+      "name": "BOOK_PILOT_EXPIRES_AT_UTC",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": [],
+      "cloudRequired": false,
+      "notes": "Expiry for the isolated BOOK-PILOT module. Not part of the C1 required set; listed so every environment read in apps/api and apps/worker has a class (B-45)."
+    },
+    {
+      "name": "CALENDAR_PILOT_RUNTIME_MODE",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": [],
+      "cloudRequired": false,
+      "notes": "CAL-PILOT worker runtime mode (apps/worker calendar-pilot-runtime). Not part of the C1 required set; listed so every environment read in apps/api and apps/worker has a class (B-45)."
+    },
+    {
+      "name": "CALENDAR_PILOT_PSEUDONYM_KEY",
+      "class": "FORBIDDEN_TO_STORE_IN_REPO",
+      "requiredFor": [],
+      "cloudRequired": false,
+      "notes": "CAL-PILOT pseudonym key; the value never goes in the repo. Not part of the C1 required set; listed so every environment read in apps/api and apps/worker has a class (B-45)."
+    },
+    {
+      "name": "CALENDAR_PILOT_READER_SERVICE_ACCOUNT_JSON",
+      "class": "FORBIDDEN_TO_STORE_IN_REPO",
+      "requiredFor": [],
+      "cloudRequired": false,
+      "notes": "CAL-PILOT reader credential; the value never goes in the repo. Not part of the C1 required set; listed so every environment read in apps/api and apps/worker has a class (B-45)."
+    },
+    {
+      "name": "CALENDAR_PILOT_WRITER_SERVICE_ACCOUNT_JSON",
+      "class": "FORBIDDEN_TO_STORE_IN_REPO",
+      "requiredFor": [],
+      "cloudRequired": false,
+      "notes": "CAL-PILOT writer credential; the value never goes in the repo. Not part of the C1 required set; listed so every environment read in apps/api and apps/worker has a class (B-45)."
+    },
+    {
+      "name": "CALENDAR_PILOT_SOURCE_MAP_JSON",
+      "class": "FORBIDDEN_TO_STORE_IN_REPO",
+      "requiredFor": [],
+      "cloudRequired": false,
+      "notes": "CAL-PILOT source calendar map (calendar identifiers); the value never goes in the repo. Not part of the C1 required set; listed so every environment read in apps/api and apps/worker has a class (B-45)."
+    },
+    {
+      "name": "CAL_PILOT_MAX_EVENTS",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": [],
+      "cloudRequired": false,
+      "notes": "Legacy CAL-PILOT import CLI limit (apps/worker/src/pilot/pilot-import.ts). Not part of the C1 required set; listed so every environment read in apps/api and apps/worker has a class (B-45)."
+    },
+    {
+      "name": "CAL_PILOT_WINDOW_DAYS",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": [],
+      "cloudRequired": false,
+      "notes": "Legacy CAL-PILOT import CLI window (apps/worker/src/pilot/pilot-import.ts). Not part of the C1 required set; listed so every environment read in apps/api and apps/worker has a class (B-45)."
+    },
+    {
+      "name": "CAL_PILOT_SOURCE_CALENDAR_ID",
+      "class": "FORBIDDEN_TO_STORE_IN_REPO",
+      "requiredFor": [],
+      "cloudRequired": false,
+      "notes": "Legacy CAL-PILOT import CLI input; a real calendar identifier never goes in the repo. Not part of the C1 required set; listed so every environment read in apps/api and apps/worker has a class (B-45)."
+    },
+    {
+      "name": "CAL_PILOT_TEST_CALENDAR_ID",
+      "class": "FORBIDDEN_TO_STORE_IN_REPO",
+      "requiredFor": [],
+      "cloudRequired": false,
+      "notes": "Legacy CAL-PILOT import CLI input; the value never goes in the repo. Not part of the C1 required set; listed so every environment read in apps/api and apps/worker has a class (B-45)."
+    },
+    {
+      "name": "CAL_PILOT_PSEUDONYM_KEY",
+      "class": "FORBIDDEN_TO_STORE_IN_REPO",
+      "requiredFor": [],
+      "cloudRequired": false,
+      "notes": "Legacy CAL-PILOT import CLI key; the value never goes in the repo. Not part of the C1 required set; listed so every environment read in apps/api and apps/worker has a class (B-45)."
+    },
+    {
+      "name": "CAL_PILOT_SOURCE_KEY_FILE",
+      "class": "FORBIDDEN_TO_STORE_IN_REPO",
+      "requiredFor": [],
+      "cloudRequired": false,
+      "notes": "Legacy CAL-PILOT import CLI path to a key file; no key file is stored in the repo. Not part of the C1 required set; listed so every environment read in apps/api and apps/worker has a class (B-45)."
+    },
+    {
+      "name": "CAL_PILOT_WRITER_KEY_FILE",
+      "class": "FORBIDDEN_TO_STORE_IN_REPO",
+      "requiredFor": [],
+      "cloudRequired": false,
+      "notes": "Legacy CAL-PILOT import CLI path to a key file; no key file is stored in the repo. Not part of the C1 required set; listed so every environment read in apps/api and apps/worker has a class (B-45)."
+    },
+    {
+      "name": "GCLOUD_PROJECT",
+      "class": "RUNTIME_DERIVED",
+      "requiredFor": ["api", "worker"],
+      "cloudRequired": false,
+      "notes": "Platform alias of GOOGLE_CLOUD_PROJECT read as a fallback by apps/api and apps/worker."
+    },
+    {
+      "name": "GCLOUD_PROJECT_ID",
+      "class": "RUNTIME_DERIVED",
+      "requiredFor": ["api", "worker"],
+      "cloudRequired": false,
+      "notes": "Platform alias of GOOGLE_CLOUD_PROJECT read as a fallback by apps/api and apps/worker."
+    },
+    {
+      "name": "GOOGLE_APPLICATION_CREDENTIALS",
+      "class": "FORBIDDEN_TO_STORE_IN_REPO",
+      "requiredFor": ["worker"],
+      "cloudRequired": false,
+      "notes": "Path to a key file. GOOGLE_CALENDAR_AUTH=CLOUD_ADC rejects it; no key file is stored in the repo."
+    },
+    {
+      "name": "VITEST",
+      "class": "RUNTIME_DERIVED",
+      "requiredFor": ["api"],
+      "cloudRequired": false,
+      "notes": "Set by the test runner; apps/api reads it only to detect a test run."
     }
   ]
 }
