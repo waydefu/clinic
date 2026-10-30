@@ -30,6 +30,33 @@ export type CalendarPilotSyntheticCoordinatorPhase =
   | 'committed'
   | 'quarantined';
 
+export type CalendarPilotSyntheticMigrationStage = 'copy' | 'cleanup' | 'done';
+
+export interface CalendarPilotSyntheticMigrationBatch {
+  readonly batchKey: string;
+  readonly stage: 'copy' | 'cleanup';
+  readonly itemIds: readonly string[];
+  readonly sourceBinding: string;
+  readonly generation: number;
+}
+
+/** Synthetic receipt; it is accepted only if it echoes the batch exactly. */
+export interface CalendarPilotSyntheticMigrationReceipt {
+  readonly batchKey: string;
+  readonly sourceBinding: string;
+  readonly generation: number;
+  readonly itemIds: readonly string[];
+}
+
+export interface CalendarPilotSyntheticMigrationSnapshot {
+  readonly id: string;
+  readonly stage: CalendarPilotSyntheticMigrationStage;
+  readonly cursor: number;
+  readonly total: number;
+  readonly batchLimit: number;
+  readonly attempts: number;
+}
+
 export interface CalendarPilotSyntheticCoordinatorSnapshot {
   readonly phase: CalendarPilotSyntheticCoordinatorPhase;
   readonly lease: CalendarPilotSyntheticLease;
@@ -40,6 +67,17 @@ export interface CalendarPilotSyntheticCoordinatorSnapshot {
   readonly syntheticDispatchStarts: number;
   readonly intentId?: string;
   readonly quarantineReason?: CalendarPilotSyntheticQuarantineReason;
+  readonly migration?: CalendarPilotSyntheticMigrationSnapshot;
+}
+
+interface MigrationState {
+  readonly id: string;
+  readonly itemIds: readonly string[];
+  readonly batchLimit: number;
+  stage: CalendarPilotSyntheticMigrationStage;
+  cursor: number;
+  attempts: number;
+  busy: boolean;
 }
 
 interface ChangeIntent {
@@ -86,6 +124,7 @@ export class CalendarPilotSyntheticLeaseCoordinator {
   private readonly admissions = new Map<string, AdmissionRecord>();
   private readonly segmentIds = new Set<string>();
   private readonly intentIds = new Set<string>();
+  private migration: MigrationState | undefined;
 
   public constructor(
     owner: string,
@@ -143,7 +182,120 @@ export class CalendarPilotSyntheticLeaseCoordinator {
       ...(this.intent === undefined ? {} : { intentId: this.intent.id }),
       ...(this.quarantineReason === undefined
         ? {}
-        : { quarantineReason: this.quarantineReason })
+        : { quarantineReason: this.quarantineReason }),
+      ...(this.migration === undefined
+        ? {}
+        : { migration: this.migrationView(this.migration) })
+    });
+  }
+
+  /** Bound mode only; one synthetic migration per coordinator. Items are test input. */
+  public beginMigration(
+    lease: CalendarPilotSyntheticLease,
+    sourceBinding: string,
+    migrationId: string,
+    itemIds: readonly string[],
+    batchLimit: number
+  ): void {
+    if (this.phase !== 'active')
+      throw new Error('Calendar migration cannot start in this phase.');
+    this.assertBoundLease(lease, sourceBinding);
+    if (
+      this.migration !== undefined ||
+      migrationId.trim() === '' ||
+      itemIds.length === 0 ||
+      itemIds.some((id) => typeof id !== 'string' || id.trim() === '') ||
+      new Set(itemIds).size !== itemIds.length ||
+      !Number.isSafeInteger(batchLimit) ||
+      batchLimit < 1
+    )
+      throw new Error('Synthetic Calendar migration input is invalid.');
+    this.migration = {
+      id: migrationId,
+      itemIds: Object.freeze([...itemIds]),
+      batchLimit,
+      stage: 'copy',
+      cursor: 0,
+      attempts: 0,
+      busy: false
+    };
+  }
+
+  /**
+   * Runs the batch at the cursor through admit/dispatch, the same boundary as
+   * any other synthetic dispatch. The cursor moves only after an exact receipt
+   * for this binding, generation and batch; any other outcome leaves the batch
+   * pending, so calling again replays the same stable batchKey (the effect must
+   * be idempotent on it). Copy finishes before cleanup starts.
+   */
+  public async migrateBatch(
+    lease: CalendarPilotSyntheticLease,
+    sourceBinding: string,
+    syntheticEffect: (
+      batch: CalendarPilotSyntheticMigrationBatch
+    ) =>
+      | CalendarPilotSyntheticMigrationReceipt
+      | Promise<CalendarPilotSyntheticMigrationReceipt>
+  ): Promise<CalendarPilotSyntheticMigrationSnapshot> {
+    const migration = this.migration;
+    if (migration === undefined || migration.stage === 'done')
+      throw new Error('Calendar migration is not pending.');
+    if (migration.busy)
+      throw new Error('Calendar migration batch is already running.');
+    migration.busy = true;
+    try {
+      const { stage, cursor } = migration;
+      const batchKey = `${migration.id}:${stage}:${cursor}`;
+      const admission = this.admit(
+        lease,
+        `${batchKey}#${migration.attempts + 1}`,
+        sourceBinding
+      );
+      migration.attempts += 1;
+      const batch: CalendarPilotSyntheticMigrationBatch = Object.freeze({
+        batchKey,
+        stage: stage === 'copy' ? 'copy' : 'cleanup',
+        itemIds: Object.freeze(
+          migration.itemIds.slice(cursor, cursor + migration.batchLimit)
+        ),
+        sourceBinding,
+        generation: admission.generation
+      });
+      const receipt = await this.dispatch(admission, () =>
+        syntheticEffect(batch)
+      );
+      // A receipt that lost a race with commit is replayed by the successor, not trusted.
+      if (
+        !sameLease(admission, this.lease) ||
+        receipt?.batchKey !== batchKey ||
+        receipt.sourceBinding !== sourceBinding ||
+        receipt.generation !== batch.generation ||
+        receipt.itemIds?.length !== batch.itemIds.length ||
+        receipt.itemIds.some((id, i) => id !== batch.itemIds[i])
+      )
+        throw new CalendarPilotLeaseLostError();
+      migration.cursor += batch.itemIds.length;
+      migration.attempts = 0;
+      if (migration.cursor === migration.itemIds.length) {
+        migration.cursor = 0;
+        migration.stage = stage === 'copy' ? 'cleanup' : 'done';
+      }
+      return this.migrationView(migration);
+    } finally {
+      migration.busy = false;
+    }
+  }
+
+  private migrationView(
+    migration: MigrationState
+  ): CalendarPilotSyntheticMigrationSnapshot {
+    return Object.freeze({
+      id: migration.id,
+      stage: migration.stage,
+      cursor: migration.cursor,
+      total: migration.itemIds.length,
+      batchLimit: migration.batchLimit,
+      attempts: migration.attempts
     });
   }
 

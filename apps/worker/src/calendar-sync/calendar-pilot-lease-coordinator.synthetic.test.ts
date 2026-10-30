@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { CalendarPilotLeaseLostError } from './calendar-pilot-worker-lease.js';
-import { CalendarPilotSyntheticLeaseCoordinator } from './calendar-pilot-lease-coordinator.synthetic.js';
+import {
+  CalendarPilotSyntheticLeaseCoordinator,
+  type CalendarPilotSyntheticMigrationBatch
+} from './calendar-pilot-lease-coordinator.synthetic.js';
 
 function deferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
@@ -1213,5 +1216,409 @@ describe('synthetic Calendar lease coordination model', () => {
       sourceBinding: binding,
       phase: 'quarantined'
     });
+  });
+});
+
+describe('synthetic bounded future-booking migration cursor', () => {
+  const binding = 'a'.repeat(64);
+  const items = ['b1', 'b2', 'b3', 'b4', 'b5'];
+
+  function fixture(limit = 2) {
+    let now = 1;
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      100,
+      () => now,
+      { sourceBinding: binding, expiresAtMillis: 50 }
+    );
+    coordinator.beginMigration(
+      coordinator.currentLease,
+      binding,
+      'mig',
+      items,
+      limit
+    );
+    // Idempotent synthetic sink: one entry per stable batchKey, plus a call log.
+    const applied = new Map<string, readonly string[]>();
+    const calls: string[] = [];
+    const receipt = (batch: CalendarPilotSyntheticMigrationBatch) => ({
+      batchKey: batch.batchKey,
+      sourceBinding: batch.sourceBinding,
+      generation: batch.generation,
+      itemIds: batch.itemIds
+    });
+    const effect = (batch: CalendarPilotSyntheticMigrationBatch) => {
+      calls.push(batch.batchKey);
+      applied.set(batch.batchKey, batch.itemIds);
+      return receipt(batch);
+    };
+    return {
+      coordinator,
+      applied,
+      calls,
+      effect,
+      receipt,
+      setNow: (value: number) => {
+        now = value;
+      }
+    };
+  }
+
+  it('moves copy then cleanup in bounded batches through the same dispatch boundary', async () => {
+    const { coordinator, applied, calls, effect } = fixture();
+    const sizes: number[] = [];
+    for (let i = 0; i < 6; i += 1) {
+      await coordinator.migrateBatch(
+        coordinator.currentLease,
+        binding,
+        (batch) => {
+          sizes.push(batch.itemIds.length);
+          return effect(batch);
+        }
+      );
+    }
+    expect(calls).toEqual([
+      'mig:copy:0',
+      'mig:copy:2',
+      'mig:copy:4',
+      'mig:cleanup:0',
+      'mig:cleanup:2',
+      'mig:cleanup:4'
+    ]);
+    expect(sizes).toEqual([2, 2, 1, 2, 2, 1]);
+    expect(applied.get('mig:cleanup:4')).toEqual(['b5']);
+    expect(coordinator.snapshot()).toMatchObject({
+      syntheticDispatchStarts: 6,
+      migration: { stage: 'done', total: 5, batchLimit: 2 }
+    });
+    await expect(
+      coordinator.migrateBatch(coordinator.currentLease, binding, effect)
+    ).rejects.toThrow('not pending');
+  });
+
+  it.each([
+    ['empty items', [], 2],
+    ['blank item', ['b1', ' '], 2],
+    ['duplicate item', ['b1', 'b1'], 2],
+    ['zero limit', ['b1'], 0],
+    ['fractional limit', ['b1'], 1.5],
+    ['NaN limit', ['b1'], Number.NaN]
+  ])('rejects invalid migration input: %s', (_name, input, limit) => {
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      100,
+      () => 1,
+      { sourceBinding: binding, expiresAtMillis: 50 }
+    );
+    expect(() =>
+      coordinator.beginMigration(
+        coordinator.currentLease,
+        binding,
+        'mig',
+        input,
+        limit
+      )
+    ).toThrow('migration input is invalid');
+    expect(coordinator.snapshot().migration).toBeUndefined();
+  });
+
+  it('allows one migration, only in bound mode with the right binding', () => {
+    const { coordinator } = fixture();
+    expect(() =>
+      coordinator.beginMigration(
+        coordinator.currentLease,
+        binding,
+        'again',
+        ['x'],
+        1
+      )
+    ).toThrow('migration input is invalid');
+    const unbound = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      100,
+      () => 1
+    );
+    expect(() =>
+      unbound.beginMigration(unbound.currentLease, binding, 'mig', ['x'], 1)
+    ).toThrow(CalendarPilotLeaseLostError);
+    const bound = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      100,
+      () => 1,
+      { sourceBinding: binding, expiresAtMillis: 50 }
+    );
+    expect(() =>
+      bound.beginMigration(bound.currentLease, 'b'.repeat(64), 'mig', ['x'], 1)
+    ).toThrow(CalendarPilotLeaseLostError);
+    expect(() =>
+      bound.beginMigration(coordinator.currentLease, binding, 'mig', ['x'], 1)
+    ).toThrow(CalendarPilotLeaseLostError);
+  });
+
+  it('copies caller items and hands the effect a frozen batch', async () => {
+    const source = ['b1', 'b2'];
+    const coordinator = new CalendarPilotSyntheticLeaseCoordinator(
+      'worker_a',
+      0,
+      100,
+      () => 1,
+      { sourceBinding: binding, expiresAtMillis: 50 }
+    );
+    coordinator.beginMigration(
+      coordinator.currentLease,
+      binding,
+      'mig',
+      source,
+      2
+    );
+    source[0] = 'tampered';
+    await coordinator.migrateBatch(
+      coordinator.currentLease,
+      binding,
+      (batch) => {
+        expect(batch.itemIds).toEqual(['b1', 'b2']);
+        expect(() => (batch.itemIds as string[]).push('b3')).toThrow(TypeError);
+        return { ...batch };
+      }
+    );
+    expect(coordinator.snapshot().migration).toMatchObject({
+      stage: 'cleanup',
+      cursor: 0,
+      attempts: 0
+    });
+  });
+
+  it('does not start or advance once the lease expires, and stays stopped', async () => {
+    const { coordinator, effect, setNow } = fixture();
+    await coordinator.migrateBatch(coordinator.currentLease, binding, effect);
+    setNow(50);
+    const stub = vi.fn(effect);
+    await expect(
+      coordinator.migrateBatch(coordinator.currentLease, binding, stub)
+    ).rejects.toThrow(CalendarPilotLeaseLostError);
+    expect(stub).not.toHaveBeenCalled();
+    setNow(1);
+    await expect(
+      coordinator.migrateBatch(coordinator.currentLease, binding, stub)
+    ).rejects.toThrow('admission is closed');
+    expect(stub).not.toHaveBeenCalled();
+    expect(coordinator.snapshot()).toMatchObject({
+      phase: 'quarantined',
+      syntheticDispatchStarts: 1,
+      migration: { stage: 'copy', cursor: 2 }
+    });
+  });
+
+  it('does not advance when the receipt returns after expiry', async () => {
+    const { coordinator, applied, receipt, setNow } = fixture();
+    await expect(
+      coordinator.migrateBatch(coordinator.currentLease, binding, (batch) => {
+        applied.set(batch.batchKey, batch.itemIds);
+        setNow(50);
+        return receipt(batch);
+      })
+    ).rejects.toThrow(CalendarPilotLeaseLostError);
+    expect(coordinator.snapshot()).toMatchObject({
+      phase: 'quarantined',
+      migration: { stage: 'copy', cursor: 0, attempts: 1 }
+    });
+  });
+
+  it('replays an unknown result under the same batchKey without duplicating it', async () => {
+    const { coordinator, applied, calls, effect } = fixture();
+    await expect(
+      coordinator.migrateBatch(coordinator.currentLease, binding, (batch) => {
+        applied.set(batch.batchKey, batch.itemIds);
+        calls.push(batch.batchKey);
+        throw new Error('reply lost');
+      })
+    ).rejects.toThrow('reply lost');
+    expect(coordinator.snapshot()).toMatchObject({
+      phase: 'active',
+      pendingAdmissions: 0,
+      migration: { stage: 'copy', cursor: 0, attempts: 1 }
+    });
+    await coordinator.migrateBatch(coordinator.currentLease, binding, effect);
+    expect(calls).toEqual(['mig:copy:0', 'mig:copy:0']);
+    expect([...applied.keys()]).toEqual(['mig:copy:0']);
+    expect(coordinator.snapshot().migration).toMatchObject({
+      cursor: 2,
+      attempts: 0
+    });
+  });
+
+  it.each([
+    ['wrong binding', { sourceBinding: 'b'.repeat(64) }],
+    ['stale generation', { generation: 99 }],
+    ['other batch', { batchKey: 'mig:copy:2' }],
+    ['short items', { itemIds: ['b1'] }],
+    ['extra items', { itemIds: ['b1', 'b2', 'b3'] }],
+    ['reordered items', { itemIds: ['b2', 'b1'] }]
+  ])('does not accept a receipt with %s', async (_name, patch) => {
+    const { coordinator, effect, receipt } = fixture();
+    await expect(
+      coordinator.migrateBatch(coordinator.currentLease, binding, (batch) => ({
+        ...receipt(batch),
+        ...patch
+      }))
+    ).rejects.toThrow(CalendarPilotLeaseLostError);
+    expect(coordinator.snapshot().migration).toMatchObject({
+      cursor: 0,
+      attempts: 1
+    });
+    await coordinator.migrateBatch(coordinator.currentLease, binding, effect);
+    expect(coordinator.snapshot().migration).toMatchObject({ cursor: 2 });
+  });
+
+  it('does not accept a missing receipt', async () => {
+    const { coordinator } = fixture();
+    await expect(
+      coordinator.migrateBatch(
+        coordinator.currentLease,
+        binding,
+        (() => undefined) as never
+      )
+    ).rejects.toThrow(CalendarPilotLeaseLostError);
+    expect(coordinator.snapshot().migration).toMatchObject({ cursor: 0 });
+  });
+
+  it('resumes the unfinished batch under a successor after handoff', async () => {
+    const { coordinator, applied, calls, effect } = fixture();
+    const oldLease = coordinator.currentLease;
+    await coordinator.migrateBatch(oldLease, binding, effect);
+    await expect(
+      coordinator.migrateBatch(oldLease, binding, (batch) => {
+        applied.set(batch.batchKey, batch.itemIds);
+        calls.push(batch.batchKey);
+        throw new Error('crashed after write');
+      })
+    ).rejects.toThrow('crashed after write');
+
+    coordinator.beginChange('handoff', 'worker_b');
+    expect(coordinator.snapshot().phase).toBe('quiescent');
+    coordinator.commit();
+    const successor = coordinator.activate();
+    const staleEffect = vi.fn(effect);
+    await expect(
+      coordinator.migrateBatch(oldLease, binding, staleEffect)
+    ).rejects.toThrow(CalendarPilotLeaseLostError);
+    expect(staleEffect).not.toHaveBeenCalled();
+    expect(coordinator.snapshot().migration).toMatchObject({
+      stage: 'copy',
+      cursor: 2,
+      attempts: 1
+    });
+
+    const generations: number[] = [];
+    for (let i = 0; i < 5; i += 1) {
+      await coordinator.migrateBatch(successor, binding, (batch) => {
+        generations.push(batch.generation);
+        return effect(batch);
+      });
+    }
+    expect(generations).toEqual([1, 1, 1, 1, 1]);
+    expect(calls).toEqual([
+      'mig:copy:0',
+      'mig:copy:2',
+      'mig:copy:2',
+      'mig:copy:4',
+      'mig:cleanup:0',
+      'mig:cleanup:2',
+      'mig:cleanup:4'
+    ]);
+    expect([...applied.keys()]).toHaveLength(6);
+    expect(coordinator.snapshot().migration).toMatchObject({ stage: 'done' });
+  });
+
+  it('refuses a second concurrent batch and holds a draining handoff until the batch settles', async () => {
+    const { coordinator, effect, receipt } = fixture();
+    const completion = deferred<void>();
+    const running = coordinator.migrateBatch(
+      coordinator.currentLease,
+      binding,
+      async (batch) => {
+        await completion.promise;
+        return receipt(batch);
+      }
+    );
+    await expect(
+      coordinator.migrateBatch(coordinator.currentLease, binding, effect)
+    ).rejects.toThrow('already running');
+
+    coordinator.beginChange('handoff', 'worker_b');
+    expect(coordinator.snapshot()).toMatchObject({
+      phase: 'draining',
+      inFlight: 1
+    });
+    expect(() => coordinator.commit()).toThrow('before quiescence');
+    completion.resolve();
+    await running;
+    expect(coordinator.snapshot()).toMatchObject({
+      phase: 'quiescent',
+      migration: { cursor: 2 }
+    });
+  });
+
+  it('refuses new batches while draining, renewing or quarantined', async () => {
+    const draining = fixture();
+    draining.coordinator.beginChange('handoff', 'worker_b');
+    const quarantined = fixture();
+    quarantined.coordinator.quarantine('unknown_in_flight');
+    for (const { coordinator, effect } of [draining, quarantined]) {
+      const stub = vi.fn(effect);
+      await expect(
+        coordinator.migrateBatch(coordinator.currentLease, binding, stub)
+      ).rejects.toThrow();
+      expect(stub).not.toHaveBeenCalled();
+      expect(coordinator.snapshot().migration).toMatchObject({
+        cursor: 0,
+        attempts: 0
+      });
+    }
+
+    const renewing = fixture();
+    const ack = deferred<{
+      owner: string;
+      generation: number;
+      token: string;
+      sourceBinding: string;
+      expiresAtMillis: number;
+    }>();
+    const renewal = renewing.coordinator.renewWith(
+      renewing.coordinator.currentLease,
+      binding,
+      () => ack.promise
+    );
+    const stub = vi.fn(renewing.effect);
+    await expect(
+      renewing.coordinator.migrateBatch(
+        renewing.coordinator.currentLease,
+        binding,
+        stub
+      )
+    ).rejects.toThrow('admission is closed');
+    expect(stub).not.toHaveBeenCalled();
+    ack.resolve({
+      ...renewing.coordinator.currentLease,
+      sourceBinding: binding,
+      expiresAtMillis: 60
+    });
+    await renewal;
+  });
+
+  it('rejects cloned handles and wrong bindings without running the effect', async () => {
+    const { coordinator, effect } = fixture();
+    const stub = vi.fn(effect);
+    await expect(
+      coordinator.migrateBatch({ ...coordinator.currentLease }, binding, stub)
+    ).rejects.toThrow(CalendarPilotLeaseLostError);
+    await expect(
+      coordinator.migrateBatch(coordinator.currentLease, 'b'.repeat(64), stub)
+    ).rejects.toThrow(CalendarPilotLeaseLostError);
+    expect(stub).not.toHaveBeenCalled();
   });
 });
