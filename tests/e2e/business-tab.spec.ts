@@ -953,6 +953,75 @@ test.describe('商務與驗收工作區', () => {
     }
   });
 
+  test('confirms an archived identity for a flagged record without re-authentication', async ({
+    page
+  }) => {
+    await enableServerSession(page);
+    const writes = [];
+    const lookups = [];
+    await page.route('**/v1/business-delivery/**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      const path = url.pathname;
+      if (path.endsWith('/monthly-usage')) return json(route, MONTHLY_USAGE);
+      if (path.endsWith('/milestones')) return json(route, INITIAL_MILESTONES);
+      if (path.endsWith('/pending-deletion'))
+        return json(route, { patients: [] });
+      if (path.endsWith('/identity-candidates')) {
+        lookups.push(url.searchParams.get('patientId'));
+        return json(route, {
+          patientId: url.searchParams.get('patientId'),
+          candidates: [
+            {
+              patientId: 'patient_test_candidate_001',
+              archivedAt: '2026-09-01T00:00:00.000Z',
+              legalHold: false
+            }
+          ]
+        });
+      }
+      if (request.method() === 'POST' && path.endsWith('/confirm-identity')) {
+        const body = request.postDataJSON();
+        writes.push({ path, body, headers: request.headers() });
+        return json(route, {
+          patientId: body.archivedPatientId,
+          provisionalPatientId: body.provisionalPatientId,
+          state: 'active'
+        });
+      }
+      return json(route, { error: { message: '找不到指定的資料。' } }, 404);
+    });
+
+    await page.goto('/staff#business-section');
+    await page
+      .getByLabel('待確認新紀錄 ID')
+      .fill('patient_test_provisional_001');
+    await page.getByRole('button', { name: '查詢候選封存身分' }).click();
+    await expect(page.locator('#business-section')).toContainText(
+      'patient_test_candidate_001'
+    );
+    await expect(page.locator('#business-section')).not.toContainText('王小明');
+    await page.getByRole('button', { name: '選用此候選' }).click();
+    await expect(page.getByLabel('候選封存紀錄 ID')).toHaveValue(
+      'patient_test_candidate_001'
+    );
+    await page.getByLabel('確認原因').selectOption('duplicate_record');
+    await expect(
+      page.getByLabel('確認原因').locator('option[value="retention_expired"]')
+    ).toHaveCount(0);
+    await page.getByRole('button', { name: '確認為同一人並復原' }).click();
+    await expect(page.locator('#business-section')).toContainText('身分已確認');
+    expect(lookups).toEqual(['patient_test_provisional_001']);
+    expect(writes).toHaveLength(1);
+    expect(writes[0].body).toMatchObject({
+      provisionalPatientId: 'patient_test_provisional_001',
+      archivedPatientId: 'patient_test_candidate_001',
+      reasonCode: 'duplicate_record'
+    });
+    expect(writes[0].headers['x-csrf-token']).toBe('csrf_synthetic_test');
+    expect(writes[0].headers['x-reauth-id-token']).toBeUndefined();
+  });
+
   test('records attributed termination receipts and sends close to manual review', async ({
     page
   }) => {
