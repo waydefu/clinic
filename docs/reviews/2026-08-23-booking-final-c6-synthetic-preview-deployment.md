@@ -65,7 +65,7 @@ the deployed commit, never the URL, when checking which candidate is live.
 - The docs-only authority commit recorded the exact SHA, the C5 rejection, the
   owner's one additional authorization, operator and prohibitions before
   deployment. It was not deployed.
-- Operator was `wayde.fu@gmail.com`; Firebase CLI `15.18.0`.
+- Operator was `診所負責人的 Google 帳號（依 Q3 隱去個人信箱）`; Firebase CLI `15.18.0`.
 
 ## Exact-C6 build and deployment
 

@@ -159,7 +159,7 @@ Calendar 與 DR secondary。** Firestore 只可在後續 C5/C6 的獨立獲准 s
 3. 依
    [Stage 2 身分與 Cloud change plan](../architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md)
    啟用核准的 IdP，以合成 staff 驗證 Google＋自管帳號、全員 MFA、自管帳號
-   TOTP、30 分鐘 idle／8 小時 absolute session 與停權撤銷。
+   TOTP、30 分鐘 idle／8 小時 absolute session（2026-10-03 起改為絕對 12 小時、無閒置登出，見 `STAFF-SESSION-12H-2026-10-03`；敏感操作 10 分鐘再驗證不變；此為歷史原文） 與停權撤銷。
 4. 完成 API auth/authz middleware 與 application services。
 5. 路由 staff-only booking/transition/reschedule endpoints。
 6. Web 的 role switch 改為登入；`stagingRequest` 換 `api-client`。

@@ -18,7 +18,7 @@
 | Firebase project | `beauessence-clinic-staging` |
 | Hosting channel | `synthetic-review` |
 | 到期 | `2026-09-30T12:00:19.673634532Z`（2026-09-30 20:00:19 Asia/Taipei） |
-| Operator | `wayde.fu@gmail.com` |
+| Operator | `診所負責人的 Google 帳號（依 Q3 隱去個人信箱）` |
 | Hosting release | `1788824248670000` |
 | Hosting version | `832dfc10068e6f34` |
 | Release time | `2026-09-07T23:37:28.670Z`（2026-09-08 07:37:28 Asia/Taipei） |

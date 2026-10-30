@@ -33,7 +33,7 @@ owner refinement 的新部署紀錄，
   after build/deploy/verification. Repository lockfile and installed pnpm lock
   both had SHA-256
   `7B0721E132B0A54DB574A35CF4D2C23B49E728BB012075B66B018E1F2CBB6E36`.
-- Operator was `wayde.fu@gmail.com`; Firebase CLI `15.18.0` confirmed project
+- Operator was `診所負責人的 Google 帳號（依 Q3 隱去個人信箱）`; Firebase CLI `15.18.0` confirmed project
   number `781119800251`. Only process-scoped `CI=true` was set.
 - Canonical predeploy remained enabled, reconciled dependencies, built the
   workspaces, synchronized 18 domain vendor files and created 76 web files / 52
