@@ -365,6 +365,8 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       .collection(COLLECTIONS.patients)
       .where('enabled', '==', true)
       .orderBy('__name__', 'asc')
+      // Only the document ID is used, so read no stored fields (D-16).
+      .select()
       .get();
     return documents.docs.map((document) =>
       parseCalendarPilotRecord(SyntheticPatientSummarySchema, {

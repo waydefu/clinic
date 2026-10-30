@@ -124,7 +124,7 @@ internal pre-production」未達成。這是工程／部署缺口，不是 go-li
   `PUBLIC_PRODUCTION_ROUTE_NOT_AUTHORIZED` 分離。任何工作包都不得開放 public
   production 路由、接真實資料、動 live Hosting、DNS 或 production Calendar。
 - **D-006（approved）** 已涵蓋：重複失敗需產生稽核；稽核 append-only、任何角色不可刪；
-  停用帳號後下一個受保護請求即拒絕；idle 30 分鐘、absolute 8 小時。F-04、F-12 可引用
+  停用帳號後下一個受保護請求即拒絕；idle 30 分鐘、absolute 8 小時（2026-10-03 起改為絕對 12 小時、無閒置登出，見 `STAFF-SESSION-12H-2026-10-03`；敏感操作 10 分鐘再驗證不變；此為歷史原文）。F-04、F-12 可引用
   D-006。register 同段也寫明「durable audit storage」尚無證據。
 - **D-002 pending：** 不得實作稽核、日誌或預約資料的刪除、TTL、保存期限自動化。
 - **`CLAUDE.md`「Working tree」：** 不得對含他人變更的工作樹執行 `reset --hard`、
