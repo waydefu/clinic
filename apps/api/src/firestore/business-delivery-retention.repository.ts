@@ -40,6 +40,20 @@ import {
   PATIENT_COLLECTIONS
 } from '../patients/patient-directory.js';
 
+/** Rows per page of the pending-deletion list: the default and the most. */
+export const PENDING_DELETION_PAGE_SIZE = 100;
+
+/** Where a page stopped: the last record returned, by (restorableUntil, ID). */
+export interface PendingDeletionPosition {
+  readonly restorableUntil: string;
+  readonly patientId: string;
+}
+
+export interface PendingDeletionPage extends PendingPatientDeletionResponse {
+  /** Present only when more records follow this page. */
+  readonly next?: PendingDeletionPosition;
+}
+
 export const RETENTION_COLLECTIONS = {
   log: 'bd_retention_log'
 } as const;
@@ -1028,14 +1042,34 @@ export class FirestoreBusinessRetentionRepository {
     });
   }
 
+  /**
+   * One page of the manual-review list, ordered by `restorableUntil` then
+   * patient ID (`__name__`, the implicit tail of the single-field index, so no
+   * index is added) and read with `limit + 1` so "exactly one full page" is not
+   * reported as cut. Nothing here deletes or reads a patient's name.
+   */
   public async pendingDeletion(
-    now: string
-  ): Promise<PendingPatientDeletionResponse> {
-    const snapshot = await this.db
+    now: string,
+    page: {
+      readonly limit?: number;
+      readonly after?: PendingDeletionPosition;
+    } = {}
+  ): Promise<PendingDeletionPage> {
+    const limit = page.limit ?? PENDING_DELETION_PAGE_SIZE;
+    const ordered = this.db
       .collection(PATIENT_COLLECTIONS.patients)
       .where('restorableUntil', '<=', now)
+      .orderBy('restorableUntil', 'asc')
+      .orderBy('__name__', 'asc');
+    const snapshot = await (
+      page.after === undefined
+        ? ordered
+        : ordered.startAfter(page.after.restorableUntil, page.after.patientId)
+    )
+      .limit(limit + 1)
       .get();
-    const patients = snapshot.docs.flatMap((document) => {
+    const pageDocs = snapshot.docs.slice(0, limit);
+    const patients = pageDocs.flatMap((document) => {
       const data = document.data();
       const archivedAt = stringField(data, 'archivedAt');
       const restorableUntil = stringField(data, 'restorableUntil');
@@ -1055,11 +1089,15 @@ export class FirestoreBusinessRetentionRepository {
         }
       ];
     });
-    patients.sort(
-      (left, right) =>
-        left.archivedAt.localeCompare(right.archivedAt) ||
-        left.patientId.localeCompare(right.patientId)
-    );
-    return { patients };
+    const last = pageDocs.at(-1);
+    const lastRestorableUntil = stringField(last?.data(), 'restorableUntil');
+    return snapshot.docs.length > limit &&
+      last !== undefined &&
+      lastRestorableUntil !== undefined
+      ? {
+          patients,
+          next: { restorableUntil: lastRestorableUntil, patientId: last.id }
+        }
+      : { patients };
   }
 }

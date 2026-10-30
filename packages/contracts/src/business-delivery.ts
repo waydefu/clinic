@@ -436,6 +436,21 @@ export const PendingPatientDeletionResponseSchema = z
   .object({ patients: z.array(PendingPatientDeletionSchema) })
   .strict();
 
+/**
+ * `cursor` is the opaque `x-next-cursor` response header of the previous page;
+ * the body stays `{ patients }`. It only positions the read.
+ */
+export const PendingPatientDeletionQuerySchema = z
+  .object({
+    limit: z.coerce.number().int().min(1).max(100).optional(),
+    cursor: z
+      .string()
+      .max(256)
+      .regex(/^[A-Za-z0-9_-]+$/)
+      .optional()
+  })
+  .strict();
+
 export type RetentionReasonCode = z.infer<typeof RetentionReasonCodeSchema>;
 export type RetentionPatientRequest = z.infer<
   typeof RetentionPatientRequestSchema
@@ -469,4 +484,7 @@ export type PatientLegalHoldResponse = z.infer<
 >;
 export type PendingPatientDeletionResponse = z.infer<
   typeof PendingPatientDeletionResponseSchema
+>;
+export type PendingPatientDeletionQuery = z.infer<
+  typeof PendingPatientDeletionQuerySchema
 >;

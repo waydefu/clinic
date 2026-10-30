@@ -747,3 +747,113 @@ describe('idempotency and transaction bounds', () => {
     ).toBeUndefined();
   });
 });
+
+// A03 (SOL-RETENTION): the pending-deletion list is read in bounded pages that
+// continue after the last record returned, ordered by (restorableUntil, ID),
+// so records with the same time are neither skipped nor repeated.
+describe('pending-deletion list paging (A03)', () => {
+  async function seedArchived(
+    id: string,
+    restorableUntil: string,
+    extra: Record<string, unknown> = {}
+  ): Promise<void> {
+    await db
+      .collection(PATIENT_COLLECTIONS.patients)
+      .doc(id)
+      .set({
+        patientId: id,
+        name: '合成患者甲',
+        archivedAt: ARCHIVE_NOW,
+        archivedByRef: ACTOR_REF,
+        restorableUntil,
+        ...extra
+      });
+  }
+
+  async function pageThrough(limit: number) {
+    const pages: string[][] = [];
+    let after: { restorableUntil: string; patientId: string } | undefined;
+    for (let guard = 0; guard < 10; guard += 1) {
+      const page = await repository.pendingDeletion(NOW, {
+        limit,
+        ...(after === undefined ? {} : { after })
+      });
+      pages.push(page.patients.map((patient) => patient.patientId));
+      if (page.next === undefined) break;
+      after = page.next;
+    }
+    return pages;
+  }
+
+  it('pages equal restorableUntil values without omissions or repeats and keeps the hold flag', async () => {
+    // Five records share one time; one is later; one is not yet expired and one
+    // was never archived, so neither is listed.
+    for (const id of ['patient_pd_a', 'patient_pd_b', 'patient_pd_c'])
+      await seedArchived(id, '2030-10-10T00:00:00.000Z');
+    await seedArchived('patient_pd_d', '2030-10-10T00:00:00.000Z', {
+      legalHold: true
+    });
+    await seedArchived('patient_pd_e', '2030-10-10T00:00:00.000Z');
+    await seedArchived('patient_pd_f', '2030-10-15T00:00:00.000Z');
+    await seedArchived('patient_pd_future', '2030-12-01T00:00:00.000Z');
+    await db
+      .collection(PATIENT_COLLECTIONS.patients)
+      .doc('patient_pd_active')
+      .set({ patientId: 'patient_pd_active', name: '合成患者乙' });
+
+    const pages = await pageThrough(2);
+
+    expect(pages).toEqual([
+      ['patient_pd_a', 'patient_pd_b'],
+      ['patient_pd_c', 'patient_pd_d'],
+      ['patient_pd_e', 'patient_pd_f']
+    ]);
+    const all = await repository.pendingDeletion(NOW);
+    expect(all.next).toBeUndefined();
+    expect(
+      all.patients.find((patient) => patient.patientId === 'patient_pd_d')
+    ).toMatchObject({ legalHold: true });
+    expect(
+      all.patients.find((patient) => patient.patientId === 'patient_pd_a')
+    ).toMatchObject({ legalHold: false });
+    expect(JSON.stringify(all)).not.toContain('合成患者');
+  });
+
+  it('reports no continuation for exactly one full page, and one for one more record', async () => {
+    for (const id of ['patient_pd_a', 'patient_pd_b'])
+      await seedArchived(id, '2030-10-10T00:00:00.000Z');
+
+    const exact = await repository.pendingDeletion(NOW, { limit: 2 });
+    expect(exact.patients).toHaveLength(2);
+    expect(exact.next).toBeUndefined();
+
+    await seedArchived('patient_pd_c', '2030-10-10T00:00:00.000Z');
+    const more = await repository.pendingDeletion(NOW, { limit: 2 });
+    expect(more.patients).toHaveLength(2);
+    expect(more.next).toEqual({
+      restorableUntil: '2030-10-10T00:00:00.000Z',
+      patientId: 'patient_pd_b'
+    });
+  });
+
+  it('never deletes or changes what it lists', async () => {
+    await seedArchived('patient_pd_a', '2030-10-10T00:00:00.000Z');
+    const before = (
+      await db
+        .collection(PATIENT_COLLECTIONS.patients)
+        .doc('patient_pd_a')
+        .get()
+    ).data();
+
+    await repository.pendingDeletion(NOW, { limit: 1 });
+
+    expect(
+      (
+        await db
+          .collection(PATIENT_COLLECTIONS.patients)
+          .doc('patient_pd_a')
+          .get()
+      ).data()
+    ).toEqual(before);
+  });
+});
