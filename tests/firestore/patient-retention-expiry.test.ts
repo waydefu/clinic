@@ -254,6 +254,11 @@ describe('synthetic automatic patient-retention expiry', () => {
 
     const jobs = await ownOutboxJobs();
     expect(jobs).toHaveLength(1);
+    // The automatic archive removes the event; its marker is the archive date.
+    expect(jobs[0]).toMatchObject({
+      retentionOperation: 'archive',
+      retentionArchivedAt: (await patientState())?.['archivedAt']
+    });
     const serializedJobs = JSON.stringify(jobs);
     for (const value of [PATIENT_ID, SYNTHETIC_NAME, PHONE, BIRTH_MONTH_DAY]) {
       expect(serializedJobs).not.toContain(value);
@@ -312,7 +317,8 @@ describe('synthetic automatic patient-retention expiry', () => {
     expect((await patientState())?.['archivedByRef']).toBeUndefined();
     expect((await appointmentState())[0]).not.toHaveProperty('patientArchived');
     expect(await ownLogs()).toHaveLength(2);
-    expect(await ownOutboxJobs()).toHaveLength(2);
+    // The old visit is not rebuilt on the calendar by the restore.
+    expect(await ownOutboxJobs()).toEqual(originalJobs);
   });
 
   it('does not treat a manual operation log as system authority for the same key', async () => {
