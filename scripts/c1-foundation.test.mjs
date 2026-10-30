@@ -125,4 +125,29 @@ describe('C1 isolated foundation Terraform source', () => {
     );
     expect(read('firebase.json')).not.toContain('beauessence-clinic-stg-');
   });
+
+  it('pins the WIF trust to immutable numeric ids and approved refs, required before apply (B-02)', () => {
+    expect(main).toContain(
+      "assertion.repository_id == '${var.github_repository_id}'"
+    );
+    expect(main).toContain(
+      "assertion.repository_owner_id == '${var.github_repository_owner_id}'"
+    );
+    expect(main).toContain('assertion.ref in [');
+    expect(main).toContain('var.github_allowed_refs');
+    expect(main).toContain(
+      'attribute.repository_id/${var.github_repository_id}'
+    );
+    expect(main).not.toContain('attribute.repository/${var.github_repository}');
+    for (const id of ['github_repository_id', 'github_repository_owner_id']) {
+      const block = variables.slice(variables.indexOf(`variable "${id}"`));
+      expect(block).toContain('default     = "not_granted"');
+    }
+    expect(variables).toContain('refs/heads/main');
+    // An exact ref list: a wildcard or quote would widen or break the CEL condition.
+    expect(variables).toContain('^refs/(heads|tags)/[A-Za-z0-9._/-]+$');
+    expect(
+      read('infra/terraform/c1-foundation/terraform.tfvars.example')
+    ).toContain('github_repository_id        = "not_granted"');
+  });
 });
