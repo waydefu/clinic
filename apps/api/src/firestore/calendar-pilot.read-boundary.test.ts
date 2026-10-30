@@ -30,7 +30,7 @@ function store(
     orderBy: () => ({ limit: () => query }),
     where: () => ({
       get: query.get,
-      orderBy: () => ({ ...query, limit: () => query }),
+      orderBy: () => ({ ...query, select: () => query, limit: () => query }),
       count: () => ({
         get: () => Promise.resolve({ data: () => ({ count: 0 }) })
       })
@@ -215,6 +215,33 @@ describe('CAL-PILOT API stored read boundary', () => {
     ]);
     expect(patient).toEqual(before);
     expect(runTransaction).not.toHaveBeenCalled();
+  });
+
+  it('reads enabled patients by ID only, with no stored fields (D-16)', async () => {
+    const data = vi.fn(() => {
+      throw new Error('Patient fields must not be consumed.');
+    });
+    const get = vi.fn().mockResolvedValue({ docs: [{ id: 'A17', data }] });
+    const select = vi.fn(() => ({ get }));
+    const orderBy = vi.fn(() => ({ select, get }));
+    const where = vi.fn(() => ({ orderBy, select, get }));
+    const collection = vi.fn(() => ({ where }));
+    const repository = new FirestoreCalendarPilotRepository({
+      collection
+    } as unknown as Firestore);
+
+    await expect(repository.listSyntheticPatients()).resolves.toEqual([
+      { patientCode: 'A17' }
+    ]);
+
+    expect(collection).toHaveBeenCalledExactlyOnceWith(
+      'calendar_pilot_patients'
+    );
+    expect(where).toHaveBeenCalledExactlyOnceWith('enabled', '==', true);
+    expect(orderBy).toHaveBeenCalledExactlyOnceWith('__name__', 'asc');
+    expect(select).toHaveBeenCalledExactlyOnceWith();
+    expect(get).toHaveBeenCalledOnce();
+    expect(data).not.toHaveBeenCalled();
   });
 
   it.each(['A00', 'A31', 'synthetic_patient'])(
