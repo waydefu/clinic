@@ -250,11 +250,12 @@ describe('planRetentionCalendarProjections', () => {
     { appointmentId: 'appt_none', decision: 'not_required', dueAt: null }
   ];
 
-  it('re-projects every appointment and dated reminder on archive', () => {
+  it('removes every appointment event and dated reminder on archive, tied to the archive episode', () => {
     const jobs = planRetentionCalendarProjections({
       operation: 'archive',
       requestId: 'retention_abc',
       at,
+      archivedAt: at,
       appointments,
       followUps
     });
@@ -263,17 +264,93 @@ describe('planRetentionCalendarProjections', () => {
     ).toEqual([
       ['appt_done', 'completed'],
       ['appt_gone', 'cancelled'],
-      ['appt_done', 'follow_up_required']
+      ['appt_done', 'follow_up_not_required']
     ]);
     expect(jobs[0]?.idempotencyKey).toBe(
       calendarEventIdForAppointment('appt_done')
     );
     expect(jobs[2]).toMatchObject({
       followUpSourceId: 'appt_done',
-      startsAt: '2030-02-01T02:00:00.000Z',
       idempotencyKey: calendarEventIdForFollowUp('appt_done')
     });
+    expect(jobs[2]).not.toHaveProperty('startsAt');
+    for (const job of jobs) {
+      expect(job).toMatchObject({
+        retentionOperation: 'archive',
+        retentionArchivedAt: at
+      });
+    }
     expect(new Set(jobs.map((job) => job.id)).size).toBe(jobs.length);
+  });
+
+  it('refuses an archive plan without its episode marker', () => {
+    expect(() =>
+      planRetentionCalendarProjections({
+        operation: 'archive',
+        requestId: 'retention_abc',
+        at,
+        appointments,
+        followUps
+      })
+    ).toThrow(DomainError);
+  });
+
+  it('re-adds only open future appointments and still-due reminders on restore', () => {
+    const jobs = planRetentionCalendarProjections({
+      operation: 'restore',
+      requestId: 'retention_abc',
+      at,
+      appointments: [
+        // Old history from before the archive is never rebuilt.
+        {
+          id: 'appt_old',
+          status: 'completed',
+          startsAt: '2027-01-01T02:00:00.000Z'
+        },
+        {
+          id: 'appt_old_open',
+          status: 'confirmed',
+          startsAt: '2027-01-01T02:00:00.000Z'
+        },
+        {
+          id: 'appt_cancelled',
+          status: 'cancelled',
+          startsAt: '2030-03-01T02:00:00.000Z'
+        },
+        { id: 'appt_no_date', status: 'confirmed' },
+        { id: 'appt_bad_date', status: 'confirmed', startsAt: 'soon' },
+        {
+          id: 'appt_new',
+          status: 'confirmed',
+          startsAt: '2030-03-01T02:00:00.000Z'
+        },
+        { id: 'appt_now', status: 'arrived', startsAt: at }
+      ],
+      followUps: [
+        {
+          appointmentId: 'appt_late',
+          decision: 'required',
+          dueAt: '2030-02-01T02:00:00.000Z'
+        },
+        {
+          appointmentId: 'appt_lapsed',
+          decision: 'required',
+          dueAt: '2029-12-31T23:59:59.999Z'
+        }
+      ]
+    });
+    expect(
+      jobs.map((job) => [job.appointmentId, job.appointmentStatus])
+    ).toEqual([
+      ['appt_new', 'confirmed'],
+      ['appt_now', 'arrived'],
+      ['appt_late', 'follow_up_required']
+    ]);
+    for (const job of jobs) {
+      expect(job).toMatchObject({ retentionOperation: 'restore' });
+      expect(job).not.toHaveProperty('retentionArchivedAt');
+    }
+    expect(jobs[2]).toMatchObject({ startsAt: '2030-02-01T02:00:00.000Z' });
   });
 
   it('cancels every appointment event and dated reminder on permanent delete', () => {
@@ -297,6 +374,7 @@ describe('planRetentionCalendarProjections', () => {
       operation: 'archive',
       requestId: 'retention_abc',
       at,
+      archivedAt: at,
       appointments,
       followUps
     });
@@ -304,7 +382,14 @@ describe('planRetentionCalendarProjections', () => {
       operation: 'restore',
       requestId: 'retention_abc',
       at,
-      appointments,
+      appointments: [
+        ...appointments,
+        {
+          id: 'appt_next',
+          status: 'confirmed',
+          startsAt: '2030-03-01T02:00:00.000Z'
+        }
+      ],
       followUps
     });
     for (const job of [...archive, ...restore]) {
@@ -331,6 +416,7 @@ describe('planRetentionCalendarProjections', () => {
         operation: 'archive',
         requestId: 'retention_abc',
         at,
+        archivedAt: at,
         appointments: [{ id: 'bad/id', status: 'confirmed' }],
         followUps: []
       })

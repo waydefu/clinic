@@ -5,10 +5,16 @@ import {
   type Firestore
 } from 'firebase-admin/firestore';
 import {
+  calendarEventIdForAppointment,
   resolveApprovedBusinessDeliveryPolicy,
   type BookingRequest
 } from '@beauessence/domain';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+
+import { InMemoryCalendar } from '../../apps/worker/src/calendar-port.js';
+import { FirestoreCalendarTitleSource } from '../../apps/worker/src/calendar-title-source.js';
+import { OutboxProcessor } from '../../apps/worker/src/outbox-processor.js';
+import { FirestoreBusinessExportRepository } from '../../apps/api/src/firestore/business-delivery-export.repository.js';
 
 import {
   COLLECTIONS,
@@ -343,6 +349,14 @@ describe('manager-confirmed archived identity restore and relink', () => {
     );
     expect(outbox).not.toContain(OLD_ID);
     expect(outbox).not.toContain(PENDING_ID);
+    // Only the booking of this return is re-added; the old history is not.
+    const restoreJobs = (await db.collection(COLLECTIONS.outboxJobs).get()).docs
+      .filter((document) => document.id.includes('_ret_restore_'))
+      .map((document) => document.data());
+    expect(restoreJobs.map((job) => job['appointmentId'])).toEqual([
+      NEW_APPOINTMENT_ID
+    ]);
+    expect(restoreJobs[0]).toMatchObject({ retentionOperation: 'restore' });
 
     // Staff list and patient-side reads follow the restored record only.
     const listed = await directory.listClinic(10);
@@ -806,6 +820,118 @@ describe('races around the confirmation', () => {
       retention.pendingDeletion('2030-02-01T00:00:00.000Z')
     ).resolves.toMatchObject({
       patients: [{ patientId: PENDING_ID, legalHold: false }]
+    });
+  });
+});
+
+// Stage 3 isolation matrix: an archived patient and a record retired by a
+// confirmation stay out of workbench lists, return lookup, export and Calendar.
+describe('isolation of archived and retired records', () => {
+  const STRAY_ID = 'appointment_relink_stray';
+  const WORKER_NOW = '2029-12-21T00:00:00.000Z';
+
+  it('keeps the retired record out of lists, return lookup, export and Calendar', async () => {
+    await seedFlagged();
+    await retention.confirmArchivedIdentity(confirmCommand());
+    // Workbench list and patient-side reads follow the restored record only.
+    expect(
+      (await directory.listClinic(10)).every((row) => row.patientId === OLD_ID)
+    ).toBe(true);
+    expect(await directory.listByPatient(PENDING_ID, 10)).toEqual([]);
+    await db.collection(COLLECTIONS.followUpState).doc(OLD_ID).set({
+      required: true
+    });
+    const lookup = await directory.lookupReturn(
+      PHONE,
+      identity.birthDate,
+      CONFIRM_NOW,
+      () => 'session_relink_matrix'
+    );
+    expect(lookup?.patientId).toBe(OLD_ID);
+
+    // A booking row that still points at the retired record, without the flag.
+    await db.collection(COLLECTIONS.appointments).doc(STRAY_ID).set({
+      patientId: PENDING_ID,
+      slotId: 'slot_stray',
+      bookingKind: 'initial',
+      status: 'confirmed',
+      startsAt: '2030-01-02T05:00:00.000Z'
+    });
+
+    // Export: the retired record's row is never written.
+    const exported = await new FirestoreBusinessExportRepository(db).create({
+      idempotencyKey: 'relink-matrix-export-01',
+      from: '2030-01-02',
+      to: '2030-01-02',
+      startAt: '2030-01-01T16:00:00.000Z',
+      endAt: '2030-01-02T16:00:00.000Z',
+      actorRef: MANAGER_REF,
+      now: CONFIRM_NOW,
+      policy: POLICY
+    });
+    expect(exported.rowCount).toBe(1);
+
+    // Calendar: no title for the retired record, and the worker, running every
+    // queued job, leaves only the restored patient's new booking on the
+    // calendar. Nothing from the old history and nothing for the retired row.
+    const titles = new FirestoreCalendarTitleSource(db);
+    await expect(titles.titleFor(STRAY_ID)).resolves.toBeUndefined();
+    await db
+      .collection(COLLECTIONS.outboxJobs)
+      .doc('outbox_relink_stray')
+      .set({
+        appointmentId: STRAY_ID,
+        correlationId: 'corr_relink_stray',
+        causationId: 'audit_relink_stray',
+        idempotencyKey: calendarEventIdForAppointment(STRAY_ID),
+        type: 'calendar_projection_requested',
+        status: 'pending',
+        attempts: 0,
+        nextAttemptAt: CONFIRM_NOW
+      });
+    const calendar = new InMemoryCalendar();
+    await new OutboxProcessor(db, calendar).processDue(WORKER_NOW);
+    expect([...calendar.events.keys()]).toEqual([
+      calendarEventIdForAppointment(NEW_APPOINTMENT_ID)
+    ]);
+  });
+
+  it('keeps an archived record off the calendar even for a job queued before the archive', async () => {
+    await seedArchivedOld();
+    const calendar = new InMemoryCalendar();
+    await calendar.project({
+      idempotencyKey: calendarEventIdForAppointment(OLD_APPOINTMENT_ID),
+      action: 'upsert',
+      appointmentId: OLD_APPOINTMENT_ID,
+      correlationId: 'corr_relink_old',
+      causationId: 'audit_relink_old',
+      appointmentStatus: 'completed',
+      startsAt: '2028-12-01T04:00:00.000Z',
+      endsAt: '2028-12-01T05:00:00.000Z',
+      bookingKind: 'initial',
+      colorId: '10'
+    });
+    // A job written before the archive, still waiting in the queue.
+    await db
+      .collection(COLLECTIONS.outboxJobs)
+      .doc('outbox_relink_queued_before_archive')
+      .set({
+        appointmentId: OLD_APPOINTMENT_ID,
+        correlationId: 'corr_relink_queued',
+        causationId: 'audit_relink_queued',
+        idempotencyKey: calendarEventIdForAppointment(OLD_APPOINTMENT_ID),
+        type: 'calendar_projection_requested',
+        status: 'pending',
+        attempts: 0,
+        nextAttemptAt: ARCHIVE_AT
+      });
+
+    await new OutboxProcessor(db, calendar).processDue(WORKER_NOW);
+
+    expect(calendar.events.size).toBe(0);
+    // The operational record and its archive stay in the database.
+    expect(await appointmentData(OLD_APPOINTMENT_ID)).toMatchObject({
+      patientArchived: true
     });
   });
 });

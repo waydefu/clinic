@@ -254,6 +254,11 @@ describe('synthetic automatic patient-retention expiry', () => {
 
     const jobs = await ownOutboxJobs();
     expect(jobs).toHaveLength(1);
+    // The automatic archive removes the event; its marker is the archive date.
+    expect(jobs[0]).toMatchObject({
+      retentionOperation: 'archive',
+      retentionArchivedAt: (await patientState())?.['archivedAt']
+    });
     const serializedJobs = JSON.stringify(jobs);
     for (const value of [PATIENT_ID, SYNTHETIC_NAME, PHONE, BIRTH_MONTH_DAY]) {
       expect(serializedJobs).not.toContain(value);

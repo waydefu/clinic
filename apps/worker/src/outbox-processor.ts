@@ -30,6 +30,7 @@ import {
   NO_CALENDAR_TITLE,
   type CalendarTitleSource
 } from './calendar-title-source.js';
+import { decideRetentionProjection } from './retention-projection-gate.js';
 import {
   NOOP_WORKER_METRICS,
   type WorkerMetricsPort
@@ -41,6 +42,7 @@ import {
 
 export const OUTBOX_COLLECTION = 'outbox_jobs';
 export const APPOINTMENTS_COLLECTION = 'appointments';
+export const PATIENTS_COLLECTION = 'patients';
 /** Latest stored follow-up decision, keyed by the completed source visit. */
 export const FOLLOW_UPS_COLLECTION = 'follow_ups';
 
@@ -385,6 +387,17 @@ export class OutboxProcessor {
     return undefined;
   }
 
+  /** Latest stored patient data, or undefined when there is no such patient. */
+  private async readPatient(
+    patientId: string
+  ): Promise<Readonly<Record<string, unknown>> | undefined> {
+    const snapshot = await this.db
+      .collection(PATIENTS_COLLECTION)
+      .doc(patientId)
+      .get();
+    return snapshot.exists ? snapshot.data() : undefined;
+  }
+
   private async settle(
     job: ClaimedOutboxJob,
     outcome: AttemptOutcome,
@@ -510,10 +523,25 @@ export class OutboxProcessor {
       let outcome: AttemptOutcome;
       let action: CalendarAction | undefined;
       try {
+        // An archived patient is "no longer used": re-read the latest archive
+        // state and delete (never upsert) their events, and let a job from a
+        // finished archive episode do nothing. Read inside the try so a
+        // transient read failure is retried like any other attempt.
+        const patientId =
+          typeof recorded?.['patientId'] === 'string'
+            ? recorded['patientId']
+            : undefined;
+        const gate = decideRetentionProjection(job, {
+          appointment: appointment.exists ? recorded : undefined,
+          patient:
+            patientId === undefined
+              ? undefined
+              : await this.readPatient(patientId)
+        });
         // A reminder decision job only says "re-project this reminder": what to
-        // do is decided by the latest stored decision (AUD-05). Read inside the
-        // try so a transient read failure is retried like any other attempt.
+        // do is decided by the latest stored decision (AUD-05).
         if (
+          gate === 'proceed' &&
           job.followUpSourceId !== undefined &&
           FOLLOW_UP_DECISION_JOB_STATUSES.has(job.appointmentStatus ?? '')
         ) {
@@ -525,7 +553,14 @@ export class OutboxProcessor {
             decision.exists ? decision.data() : undefined
           ));
         }
-        action = actionForStatus(projectionStatus);
+        if (gate === 'remove') {
+          projectionStatus = isFollowUpProjection
+            ? 'follow_up_not_required'
+            : 'deleted';
+          startsAt = '';
+        }
+        // A stale retention job touches nothing: no status read, no Calendar.
+        if (gate !== 'skip') action = actionForStatus(projectionStatus);
         assertOutboxTraceContext(job);
         const projectionStartedAt = at();
         const projectionTimeoutMs =
@@ -546,6 +581,7 @@ export class OutboxProcessor {
         // Only the dedicated C1 appointment calendar receives the approved
         // title fields; source errors preserve the existing minimal summary.
         if (
+          action !== undefined &&
           shouldProjectFollowUpReminder({
             isFollowUpProjection,
             action,
@@ -588,6 +624,38 @@ export class OutboxProcessor {
             },
             projectionOptions
           );
+          // The patient may have been archived while the upsert was in flight;
+          // the archive's own delete could already have run. Re-read and take
+          // the event back so a late upsert never outlives the archive.
+          if (
+            action === 'upsert' &&
+            patientId !== undefined &&
+            decideRetentionProjection(
+              {},
+              {
+                appointment: recorded,
+                patient: await this.readPatient(patientId)
+              }
+            ) === 'remove'
+          ) {
+            await this.calendar.project(
+              {
+                idempotencyKey: job.idempotencyKey,
+                action: 'cancel',
+                appointmentId: job.appointmentId,
+                correlationId: job.correlationId,
+                causationId: job.causationId,
+                appointmentStatus: isFollowUpProjection
+                  ? 'follow_up_not_required'
+                  : 'deleted',
+                startsAt: '',
+                endsAt: '',
+                colorId: CLINIC_EVENT_COLOR_ID,
+                bookingKind
+              },
+              projectionOptions
+            );
+          }
         }
         outcome = { kind: 'succeeded' };
       } catch (error) {

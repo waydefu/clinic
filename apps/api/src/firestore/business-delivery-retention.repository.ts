@@ -159,7 +159,8 @@ function calendarInputs(
   return {
     appointments: appointments.docs.map((appointment) => ({
       id: appointment.id,
-      status: stringField(appointment.data(), 'status') ?? 'unknown'
+      status: stringField(appointment.data(), 'status') ?? 'unknown',
+      startsAt: stringField(appointment.data(), 'startsAt')
     })),
     followUps: followUps.docs.map((followUp) => {
       const data: Record<string, unknown> = followUp.data() ?? {};
@@ -399,11 +400,15 @@ export class FirestoreBusinessRetentionRepository {
       };
       if (wasArchived) return response;
       const followUps = await transaction.get(followUpsQuery);
-      // Rebuild every titled event from the archived record (minimal summary).
+      // An archived patient is no longer used: the worker removes every
+      // appointment and reminder event, but only while this archive episode
+      // (`archivedAt`) is still the current one.
+      if (plan.archivedAt === null) throw new ConflictError();
       const calendarJobs = planRetentionCalendarProjections({
         operation: 'archive',
         requestId,
         at: command.now,
+        archivedAt: plan.archivedAt,
         ...calendarInputs(appointments, followUps)
       });
       assertWriteLimit(appointments.size + calendarJobs.length + 2);
@@ -514,7 +519,7 @@ export class FirestoreBusinessRetentionRepository {
         patientId: command.patientId,
         state: 'active'
       };
-      // Restore the approved titles that archive stripped.
+      // Re-add only the events this return still needs, not the old history.
       const calendarJobs = planRetentionCalendarProjections({
         operation: 'restore',
         requestId,
@@ -736,12 +741,26 @@ export class FirestoreBusinessRetentionRepository {
         throw new ConflictError();
       }
 
-      // Same restore projections as the plain restore, for the old record only.
+      // Same restore projections as the plain restore. The moved bookings are
+      // this return visit, so they are re-added too (their event ids differ
+      // from the old record's, so the two sets never collide).
+      const archivedInputs = calendarInputs(
+        archivedAppointments,
+        archivedFollowUps
+      );
+      const movedInputs = calendarInputs(
+        provisionalAppointments,
+        provisionalFollowUps
+      );
       const calendarJobs = planRetentionCalendarProjections({
         operation: 'restore',
         requestId,
         at: command.now,
-        ...calendarInputs(archivedAppointments, archivedFollowUps)
+        appointments: [
+          ...archivedInputs.appointments,
+          ...movedInputs.appointments
+        ],
+        followUps: [...archivedInputs.followUps, ...movedInputs.followUps]
       });
       assertWriteLimit(
         provisionalAppointments.size +
