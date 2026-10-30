@@ -544,6 +544,10 @@ allow = authenticated
      && policy conditions satisfied
 ```
 
+> 2026-10-30 註記：上方 `idle age < 30 minutes`、`absolute age < 8 hours` 是
+> 2026-07-23 原稿。現行為 `absolute age < 12 hours`、不再有 idle 條件
+> （`STAFF-SESSION-12H-2026-10-03`）；敏感操作 10 分鐘 fresh Google＋TOTP 再驗證不變。
+
 D-006 已核准 Phase 1 staff baseline：
 
 - `administrator`；
@@ -555,7 +559,7 @@ expansion 與 service-account action scopes 依 D-007／D-008／D-014／D-015 �
 Stage 2 technical review。未列 action 預設拒絕。
 
 所有 staff 強制 MFA，自管帳號使用 TOTP。Session 同時執行 30 分鐘 idle 與
-8 小時 absolute 上限；停用帳號完成後的下一個 protected request 必須檢查
+8 小時 absolute 上限（2026-10-03 起改為絕對 12 小時、無閒置登出，見 `STAFF-SESSION-12H-2026-10-03`；敏感操作 10 分鐘再驗證不變；此為歷史原文）；停用帳號完成後的下一個 protected request 必須檢查
 active/revoked state 並拒絕。授權碼只存安全 KDF 結果、可個別撤銷且限制錯誤
 嘗試。完整切片見
 [Stage 2 identity/cloud change plan](stage-2-identity-and-cloud-change-plan-2026-07-28.md)。
