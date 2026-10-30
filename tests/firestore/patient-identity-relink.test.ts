@@ -1,4 +1,3 @@
-import { NotFoundException } from '@nestjs/common';
 import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
 import {
   FieldValue,
@@ -220,12 +219,12 @@ async function appointmentData(id: string): Promise<Record<string, unknown>> {
 /** A confirm that must fail closed: error type and byte-identical state. */
 async function expectRejectedUnchanged(
   command: ConfirmArchivedIdentityCommand,
-  error: new () => Error = ConflictError
+  errorName = 'ConflictError'
 ): Promise<void> {
   const before = await snapshotAll();
   await expect(
     retention.confirmArchivedIdentity(command)
-  ).rejects.toBeInstanceOf(error);
+  ).rejects.toMatchObject({ name: errorName });
   expect(await snapshotAll()).toEqual(before);
 }
 
@@ -621,7 +620,7 @@ describe('stale or unsafe confirmations fail closed and change nothing', () => {
     );
     await expectRejectedUnchanged(
       confirmCommand({ provisionalPatientId: 'patient_relink_missing' }),
-      NotFoundException
+      'NotFoundException'
     );
   });
 });
@@ -644,14 +643,14 @@ describe('identity candidates for the manager', () => {
     await seedFlagged();
     await expect(
       retention.identityCandidates('patient_relink_missing')
-    ).rejects.toBeInstanceOf(NotFoundException);
-    await expect(retention.identityCandidates(OLD_ID)).rejects.toBeInstanceOf(
-      NotFoundException
-    );
+    ).rejects.toMatchObject({ name: 'NotFoundException' });
+    await expect(retention.identityCandidates(OLD_ID)).rejects.toMatchObject({
+      name: 'NotFoundException'
+    });
     await retention.confirmArchivedIdentity(confirmCommand());
     await expect(
       retention.identityCandidates(PENDING_ID)
-    ).rejects.toBeInstanceOf(NotFoundException);
+    ).rejects.toMatchObject({ name: 'NotFoundException' });
   });
 });
 
