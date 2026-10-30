@@ -250,7 +250,7 @@ export function isCalendarPilotAppointmentSlot(
   startsAt: string,
   bookingKind: CalendarBookingKind
 ): boolean {
-  if (Number.isNaN(Date.parse(startsAt))) return false;
+  if (!isUtcIsoTimestamp(startsAt)) return false;
   return planSlots(CALENDAR_PILOT_SCHEDULE, [], {
     startDate: taipeiDate(startsAt),
     dayCount: 1

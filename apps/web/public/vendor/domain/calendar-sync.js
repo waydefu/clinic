@@ -157,7 +157,7 @@ function taipeiDate(iso) {
         .slice(0, 10);
 }
 export function isCalendarPilotAppointmentSlot(startsAt, bookingKind) {
-    if (Number.isNaN(Date.parse(startsAt)))
+    if (!isUtcIsoTimestamp(startsAt))
         return false;
     return planSlots(CALENDAR_PILOT_SCHEDULE, [], {
         startDate: taipeiDate(startsAt),
