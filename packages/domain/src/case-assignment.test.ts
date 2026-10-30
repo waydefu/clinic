@@ -124,6 +124,21 @@ describe('planCaseAssignment', () => {
     ).toThrowError(/after the period it supersedes/);
   });
 
+  it.each(['Jul 25 2026 Z', 'not-a-date'])(
+    'rejects a stored current.activeFrom that is not a UTC timestamp (%s)',
+    (activeFrom) => {
+      expect(() =>
+        planCaseAssignment(request({ managerId: 'manager_beta' }), {
+          id: 'case_existing',
+          patientId: 'patient_001',
+          managerId: 'manager_alpha',
+          activeFrom,
+          activeUntil: null
+        })
+      ).toThrowError(/current.activeFrom/);
+    }
+  );
+
   it('rejects a patient mismatch and an already-closed current period', () => {
     expect(() =>
       planCaseAssignment(request({ managerId: 'manager_beta' }), {

@@ -274,6 +274,34 @@ describe('payroll period close and adjustment', () => {
     );
   });
 
+  it.each(['Jul 25 2026 Z', 'not-a-date'])(
+    'rejects an adjustment against a close whose closedAt is %s',
+    (closedAt) => {
+      const closed = planPayrollPeriodClose(
+        closeRequest(),
+        [creditFor('patient-001')],
+        undefined
+      ).snapshot;
+      expect(() =>
+        planPayrollAdjustment(
+          {
+            managerId: 'manager-001',
+            payrollPeriod: '2026-08',
+            delta: 1,
+            audit: { ...CLOSE_AUDIT, reasonCode: 'late_completion' },
+            requestedAt: '2026-09-05T00:00:00.000Z',
+            idempotency: { ...CLOSE_IDEMPOTENCY, scope: 'payroll:adjust' }
+          },
+          { ...closed, closedAt }
+        )
+      ).toThrow(
+        expect.objectContaining<Partial<DomainError>>({
+          code: 'INVALID_TIMESTAMP'
+        })
+      );
+    }
+  );
+
   it('records an adjustment as a ledger entry and leaves the snapshot untouched', () => {
     const closed = planPayrollPeriodClose(
       closeRequest(),
