@@ -12,6 +12,8 @@ import {
   WP_B4_IMMEDIATE_ALERTS
 } from '@beauessence/domain';
 
+import { isDirectRun } from './direct-run.mjs';
+
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 
 export function loadWpB4Definitions(readFile = readFileSync) {
@@ -170,7 +172,7 @@ export function inspectWpB4AlertDefinitions(readFile = readFileSync) {
   };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isDirectRun(import.meta.url)) {
   const result = inspectWpB4AlertDefinitions();
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   process.exitCode = result.ok ? 0 : 1;

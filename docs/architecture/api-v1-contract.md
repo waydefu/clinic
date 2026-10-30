@@ -31,7 +31,7 @@ production booking route.
 | `GET` | `/v1/health/ready` | `HealthResponseSchema` | 200 when the process can take traffic; 503 when Firestore is unavailable or required config is missing. Dead-letter and Calendar lag stay ready. |
 | `GET` | `/v1/health/operational` | `OperationalHealthResponseSchema` | Always 200. Body distinguishes `healthy` / `degraded` / `unhealthy`. See [Stage E monitoring](stage-e-monitoring.md). |
 | CAL-PILOT session / calendar | `/v1/calendar-session/*`, `/v1/calendar/*` | CAL-PILOT contracts in `@beauessence/contracts` | Decision Register synthetic-only sub-scope: Google+TOTP, closed synthetic fields, expiry and exclusions in the register. Not production D-009/D-016, not public production booking. |
-| IP-001 internal-test booking | `POST /v1/bookings`, `GET /v1/bookings/:id`, `POST /v1/bookings/:id/cancel`, `POST /v1/bookings/:id/reschedule`, `POST /v1/bookings/:id/complete`, `POST /v1/bookings/:id/no-show`, `POST /v1/bookings/:id/follow-up`, `POST /v1/bookings/:id/delete` | Appointment command/query schemas, `RecordFollowUpRequestSchema` / `RecordFollowUpResponseSchema`, and `DeleteAppointmentRequestSchema` / `DeleteAppointmentResponseSchema` | Fail-closed isolated-test reads/writes. Default 503. Follow-up is scheduling-only (`required` / `not_required` + target time); clinical notes, certificate count and case-manager assignment stay off this command. Delete is administrator record hygiene with a closed `reasonCode` list; the appointment row is removed and the audit event survives. Front-desk delegated codes stay unrouted. Patient-initiated erasure is not this endpoint. Not public production. |
+| IP-001 internal-test booking | `POST /v1/bookings`, `GET /v1/bookings` (list, see below), `GET /v1/bookings/:id`, `POST /v1/bookings/:id/cancel`, `POST /v1/bookings/:id/reschedule`, `POST /v1/bookings/:id/complete`, `POST /v1/bookings/:id/no-show`, `POST /v1/bookings/:id/follow-up`, `POST /v1/bookings/:id/delete` | Appointment command/query schemas, `RecordFollowUpRequestSchema` / `RecordFollowUpResponseSchema`, and `DeleteAppointmentRequestSchema` / `DeleteAppointmentResponseSchema` | Fail-closed isolated-test reads/writes. Default 503. Follow-up is scheduling-only (`required` / `not_required` + target time); clinical notes, certificate count and case-manager assignment stay off this command. Delete is administrator record hygiene with a closed `reasonCode` list; the appointment row is removed and the audit event survives. Front-desk delegated codes stay unrouted. Patient-initiated erasure is not this endpoint. Not public production. |
 | IP-001 internal-test schedule | `GET /v1/slots`, `GET /v1/schedule`, `POST /v1/schedule/publish` | `ListSlotsResponseSchema`, `GetPublishedScheduleResponseSchema`, `PublishScheduleRequestSchema` / `PublishScheduleResponseSchema` | Fail-closed published grid. Slot occupancy is lazy. Default 503. Not public production. |
 
 ## Reserved booking contracts
@@ -88,6 +88,23 @@ The application service maps create and reschedule onto
 `CreateAppointmentResponseSchema` / `RescheduleAppointmentResponseSchema`
 (`appointmentId`, `status: 'confirmed'`, `startsAt`, `endsAt`). Idempotent
 replay is an internal repository flag and is **not** returned on the wire.
+
+`GET /v1/bookings` (the list, `ListAppointmentsQuerySchema` /
+`ListAppointmentsResponseSchema`) returns at most 50 rows per call (`limit`
+1–50, default 50) from 7 days before now to 31 days after it, ordered by
+`startsAt` then ID, with archived-patient rows skipped. Scope is `mine` for a
+patient and `clinic` for staff. The body stays `{ appointments }` (a strict
+schema, so no field is added to it). When rows remain after the page, the
+response carries an `x-next-cursor` header; sending it back as `?cursor=`
+continues after the last row returned, so rows that share a start time are
+neither skipped nor repeated. The cursor is only a position: scope and window
+are applied on every page, and a malformed cursor is a 400. This is cursor
+continuation, **not** numbered pagination: the API has no page number and no
+total count. The staff workbench's "第 N 頁，共 M 頁" is client-side paging of
+the rows it loaded; one load follows the cursor for at most five pages (250
+rows), and if the server still has more it labels its count "至少 N 筆" rather
+than showing the loaded count as the total. Known limit: a run of more than
+1,000 consecutive archived rows ends a page without a cursor.
 
 The patient booking page and staff workbench stay on the local synthetic
 store unless the operator opts in with `?internalTestBooking=1` on a host

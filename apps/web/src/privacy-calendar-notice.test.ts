@@ -41,3 +41,27 @@ describe('privacy notice calendar sentence matches the real event title', () => 
     expect(notice).not.toContain('僅包含診所名稱、掛號別與時間');
   });
 });
+
+// Owner decision 2026-10-30 (BD-POLICY §2 as amended in the decision register):
+// bookings are kept two years after the visit, then archived (never auto-deleted)
+// when there is no later appointment and no legal hold; audit/security logs three
+// years; return_sessions 24 hours after expiry. The notice must say that, not the
+// older "deleted when the period ends" claim.
+describe('privacy notice retention sentence matches the archive policy', () => {
+  it('says what the system does with each kind of record', () => {
+    for (const wording of [
+      '自蒐集之日起至該次看診後兩年',
+      '期滿且無新預約、無須依法保留者封存並停止一般使用，不自動刪除',
+      '再預約經診所核對確認可取回',
+      '稽核與安全紀錄保存三年',
+      '回診查詢暫存紀錄過期後24小時移除'
+    ])
+      expect(notice).toContain(wording);
+  });
+
+  it('no longer claims data is deleted when the period ends', () => {
+    expect(notice).not.toContain('期滿後刪除');
+    // The security section used to leave the audit retention open.
+    expect(notice).not.toContain('稽核保存期限仍在確認中');
+  });
+});
