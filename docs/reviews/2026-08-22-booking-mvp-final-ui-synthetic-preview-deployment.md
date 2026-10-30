@@ -31,7 +31,7 @@
 - exact-C3 authority 先以 docs-only commit `9b0e934` 記錄 owner 本輪一次性授權、
   project、channel、expiry、operator、Hosting-only／no-real-data 邊界；該 commit 的 run
   `32553336099` 亦 11/11 綠。authority commit 本身沒有被部署。
-- Operator 為 `wayde.fu@gmail.com`；Firebase CLI `15.18.0` 確認 staging project active。
+- Operator 為 `診所負責人的 Google 帳號（依 Q3 隱去個人信箱）`；Firebase CLI `15.18.0` 確認 staging project active。
 
 ## Exact-C3 build 與部署
 

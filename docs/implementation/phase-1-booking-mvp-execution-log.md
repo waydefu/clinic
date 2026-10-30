@@ -789,7 +789,7 @@
 - **Requested Expiry:** `7d`。
 - **Purpose:** website Vendor + Owner synthetic preview evaluation／UI/UX acceptance。
 - **Approver:** project owner；本 session於 2026-08-20明確授權一次 expiring synthetic Hosting preview deployment。
-- **Operator:** `wayde.fu@gmail.com`；Firebase CLI `15.18.0` 的 `firebase login:list`於本次確認登入，`firebase projects:list`確認 operator可見 exact staging project。
+- **Operator:** `診所負責人的 Google 帳號（依 Q3 隱去個人信箱）`；Firebase CLI `15.18.0` 的 `firebase login:list`於本次確認登入，`firebase projects:list`確認 operator可見 exact staging project。
 - **Canonical Command:** `firebase hosting:channel:deploy synthetic-review --expires 7d --project beauessence-clinic-staging`。
 - **Permitted Resource:** **Firebase Hosting preview channel ONLY**。
 - **Prohibited:** live Hosting、Firestore、Functions、Storage、Cloud Run、Authentication activation、Calendar、LINE／Meta／NAS、production backend、real data。
@@ -808,7 +808,7 @@
 - **Attempted At:** 2026-08-20 16:02 +08:00 (Asia/Taipei)。
 - **Exact Source:** clean detached worktree at candidate C `7e0add8079b37da2e1c11ef4f59660554b9b66d8`；`git status --short` empty。
 - **Dependency Proof:** reused an existing pnpm 11.9.0 installation whose repository lockfile and `node_modules/.pnpm/lock.yaml` both equal candidate lock SHA-256 `7B0721E132B0A54DB574A35CF4D2C23B49E728BB012075B66B018E1F2CBB6E36`；TypeScript/ESLint resolved and the previously blocked axe LICENSE exists。沒有使用 PR #22 source或 dist。
-- **Operator/Target Proof:** Firebase CLI `15.18.0`，operator `wayde.fu@gmail.com`；`firebase login:list`／`projects:list`確認 exact project `beauessence-clinic-staging`（number `781119800251`）。
+- **Operator/Target Proof:** Firebase CLI `15.18.0`，operator `診所負責人的 Google 帳號（依 Q3 隱去個人信箱）`；`firebase login:list`／`projects:list`確認 exact project `beauessence-clinic-staging`（number `781119800251`）。
 - **Command:** canonical `firebase hosting:channel:deploy synthetic-review --expires 7d --project beauessence-clinic-staging`；只指定 Hosting preview channel。
 - **Failure:** canonical `firebase.json` predeploy `corepack pnpm run build`在 build/upload前以 `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`中止；detached junction的 absolute pnpm virtual-store path不被接受，pnpm要求 purge/install。依 owner low-resource-host policy，未設 `CI=true`、未關 `confirmModulesPurge`、未 purge／install／repair、未移除 predeploy，且未重試相同 deploy command。
 - **Remote Effect Audit:** `firebase hosting:channel:list --json`顯示 C **沒有**新 release；channel仍指向 2026-08-19 release/version `4e3488c61dc64188`。Firebase在 predeploy失敗前把既有 `synthetic-review` channel metadata的 `updateTime`／`expireTime`更新為 `2026-08-20T08:02:43.287030164Z`／`2026-08-27T08:02:43.287030164Z`。這是已獲准 preview channel的 expiry metadata partial effect；不是 C content、不是 live或 backend deploy。
@@ -829,7 +829,7 @@
 - **Resolution Authority:** owner於 2026-08-20完成前次 blocker review，確認 candidate C未被拒絕，並只針對 exact-C non-interactive deploy／canonical predeploy明確授權一次 process-scoped `CI=true` retry；未授權 `confirmModulesPurge=false`或任何 repository config/source/history變更。
 - **Previous Status Preserved:** Attempt 1 的 `BLOCKED — ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`與 expiry-only partial effect保留如上；本紀錄不把先前正確 stop改寫成成功。
 - **Exact Source:** clean detached worktree @ `7e0add8079b37da2e1c11ef4f59660554b9b66d8`（C）；retry前、canonical build後與 `verify:preview`後 `git status --short`均無 tracked modification。未部署 PR HEAD、D、main或 PR #22。
-- **Operator / Target:** `wayde.fu@gmail.com`；project `beauessence-clinic-staging`（number `781119800251`）；Hosting preview channel `synthetic-review`；requested expiry `7d`。
+- **Operator / Target:** `診所負責人的 Google 帳號（依 Q3 隱去個人信箱）`；project `beauessence-clinic-staging`（number `781119800251`）；Hosting preview channel `synthetic-review`；requested expiry `7d`。
 - **Execution:** 只在 deployment process設定 `CI=true`，執行 unchanged canonical `firebase hosting:channel:deploy synthetic-review --expires 7d --project beauessence-clinic-staging`。`firebase.json` predeploy `corepack pnpm run build`保持啟用，完成 dependency reconciliation、workspace build、18 domain vendor file sync與 76-file hashed web dist；沒有跳過 predeploy、替換 dist、修改 lockfile／package／Firebase config或持久化環境設定。
 - **Result:** **PASS — EXACT C CONTENT UPLOADED AND RELEASED**。Release `1787215117437000`，version `461a8ca164840843`（`FINALIZED`），release time `2026-08-20T08:38:37.437Z`（16:38:37 Asia/Taipei）。Firebase Authentication channel-domain sync warning另行記錄；Authentication不在 authority內且未啟用，Hosting release本身完成。
 - **Preview:** <https://beauessence-clinic-staging--synthetic-review-xvqa68cx.web.app>；absolute expiry `2026-08-27T08:37:05.942064109Z`（16:37:05 Asia/Taipei）。同一 channel URL先前指向舊 release；本次只在新 release/version與 embedded exact-C marker均被查證後才成為 current delivery URL。
@@ -990,7 +990,7 @@
   online verification 前後 `git status --short` 無 tracked modification。Source lockfile
   與 reused installed pnpm lock SHA-256 均為
   `7B0721E132B0A54DB574A35CF4D2C23B49E728BB012075B66B018E1F2CBB6E36`。
-- **Operator / Target:** `wayde.fu@gmail.com`；Firebase CLI `15.18.0`；project
+- **Operator / Target:** `診所負責人的 Google 帳號（依 Q3 隱去個人信箱）`；Firebase CLI `15.18.0`；project
   `beauessence-clinic-staging` (number `781119800251`)；Hosting preview channel
   `synthetic-review`；requested expiry `7d`。
 - **Execution:** 只在 deployment process 設定 `CI=true`，執行 unchanged canonical
@@ -1145,7 +1145,7 @@
   preview，目的只限 final owner acceptance 與 website vendor `/booking` evaluation。
 - **Exact Target:** Firebase project `beauessence-clinic-staging`（project number
   `781119800251`）；Hosting preview channel `synthetic-review`；requested expiry `7d`。
-- **Operator:** Firebase CLI `firebase login:list` 確認為 `wayde.fu@gmail.com`；project
+- **Operator:** Firebase CLI `firebase login:list` 確認為 `診所負責人的 Google 帳號（依 Q3 隱去個人信箱）`；project
   inventory 確認 target 是 active 的 BeauEssence Clinic Staging 專案。
 - **Allowed Action:** 只能從 clean detached worktree 的 exact C3 執行未修改的 canonical
   predeploy，再執行
@@ -1178,7 +1178,7 @@
 - **Canonical Predeploy:** `firebase.json` 未改，保留 `corepack pnpm run build`；frozen-lock
   dependency reconciliation、workspace build、18 domain vendor files sync 與 web build 完成，
   結果為 77 files／53 content-hashed files。
-- **Execution:** operator `wayde.fu@gmail.com`，Firebase CLI `15.18.0`；只在 process scope
+- **Execution:** operator `診所負責人的 Google 帳號（依 Q3 隱去個人信箱）`，Firebase CLI `15.18.0`；只在 process scope
   設定 `CI=true` 並執行
   `firebase hosting:channel:deploy synthetic-review --expires 7d --project beauessence-clinic-staging`。
 - **Hosting Result:** **PASS**。Release `1787375393029000`，version
@@ -1340,7 +1340,7 @@
   `781119800251`，state `ACTIVE`）；Hosting preview channel `synthetic-review`；requested
   expiry `7d`。
 - **Operator:** Firebase CLI `15.18.0`；`firebase login:list` 確認為
-  `wayde.fu@gmail.com`。
+  `診所負責人的 Google 帳號（依 Q3 隱去個人信箱）`。
 - **Allowed Action:** 只能從 clean detached worktree 的 exact C4 執行 repository canonical
   predeploy，再執行
   `firebase hosting:channel:deploy synthetic-review --expires 7d --project beauessence-clinic-staging`。
@@ -1378,7 +1378,7 @@
   沒有改 repository／lock／gate。
 - **Canonical Predeploy:** 未修改 `firebase.json`，canonical `corepack pnpm run build` 仍
   執行 workspace builds、18 vendored domain file sync，產生 77 files／53 content-hashed。
-- **Execution:** operator `wayde.fu@gmail.com`，Firebase CLI `15.18.0`；只在 process
+- **Execution:** operator `診所負責人的 Google 帳號（依 Q3 隱去個人信箱）`，Firebase CLI `15.18.0`；只在 process
   scope 設 `CI=true` 並執行
   `firebase hosting:channel:deploy synthetic-review --expires 7d --project beauessence-clinic-staging`。
 - **Hosting Result:** **PASS**。Release `1787386261863000`，version
@@ -1449,7 +1449,7 @@
   `781119800251`）；Hosting preview channel `synthetic-review`；requested expiry
   `7d`。
 - **Operator:** Firebase CLI `15.18.0`；`firebase login:list` 確認為
-  `wayde.fu@gmail.com`。
+  `診所負責人的 Google 帳號（依 Q3 隱去個人信箱）`。
 - **Allowed Action:** 只能從 clean detached worktree 的 exact C5 執行 repository
   canonical predeploy，再執行
   `firebase hosting:channel:deploy synthetic-review --expires 7d --project beauessence-clinic-staging`。
@@ -1514,7 +1514,7 @@
   已用盡的單次額度，**僅限**本段所述的單一 exact C6 preview，不含任何重複部署。
 - **Exact Target:** Firebase project `beauessence-clinic-staging`（`781119800251`）；
   Hosting preview channel `synthetic-review`；requested expiry `7d`。
-- **Operator:** Firebase CLI `15.18.0`；`wayde.fu@gmail.com`。
+- **Operator:** Firebase CLI `15.18.0`；`診所負責人的 Google 帳號（依 Q3 隱去個人信箱）`。
 - **Allowed Action:** 只能從 clean detached worktree 的 exact C6 執行 canonical
   predeploy 再 `firebase hosting:channel:deploy synthetic-review --expires 7d
   --project beauessence-clinic-staging`。
