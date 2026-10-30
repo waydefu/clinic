@@ -513,6 +513,9 @@ export function createInternalTestBookingTransport({
           bookingKind: item.bookingKind,
           status: item.status,
           intakeNationality: item.intakeNationality,
+          ...(item.identityReviewRequired === true
+            ? { identityReviewRequired: true }
+            : {}),
           // 患者在預約表單自填的備註（BOOKING-NOTE-STORAGE-2026-09-29）：
           // 伺服器只在櫃台清單回傳；這裡不帶，工作臺就永遠看不到它。
           ...(typeof item.patientNote === 'string' && item.patientNote !== ''

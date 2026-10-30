@@ -162,12 +162,12 @@ export class FirestoreBusinessExportRepository {
       }
 
       const appointments = await transaction.get(appointmentsQuery);
-      const exportableAppointments = appointments.docs.filter(
+      const unflaggedAppointments = appointments.docs.filter(
         (document) => document.data()['patientArchived'] !== true
       );
       const patientIds = [
         ...new Set(
-          exportableAppointments
+          unflaggedAppointments
             .map((document) => stringField(document.data(), 'patientId'))
             .filter((id): id is string => id !== undefined && id !== '')
         )
@@ -182,6 +182,18 @@ export class FirestoreBusinessExportRepository {
             );
       const patientById = new Map(
         patients.map((snapshot) => [snapshot.id, snapshot.data()])
+      );
+
+      // The appointment flag is set with the archive, but the patient record is
+      // the source of truth: an archived or retired patient is never exported,
+      // whatever the appointment says.
+      const exportableAppointments = unflaggedAppointments.filter(
+        (document) => {
+          const archivedAt: unknown = patientById.get(
+            stringField(document.data(), 'patientId') ?? ''
+          )?.['archivedAt'];
+          return archivedAt === undefined || archivedAt === null;
+        }
       );
 
       const rows = exportableAppointments.map((document) => {

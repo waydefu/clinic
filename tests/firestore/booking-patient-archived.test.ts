@@ -22,9 +22,13 @@ import {
 } from '../../apps/api/src/idempotency/appointment-idempotency.js';
 import {
   FirestorePatientDirectory,
+  opaqueLookupIdentity,
   PATIENT_COLLECTIONS
 } from '../../apps/api/src/patients/patient-directory.js';
-import { ConflictError } from '../../apps/api/src/platform/errors/api-error.js';
+import {
+  ConflictError,
+  ServiceUnavailableError
+} from '../../apps/api/src/platform/errors/api-error.js';
 import {
   LOCAL_FIREBASE_PROJECT_ID,
   requireLocalFirestoreEmulatorTarget
@@ -347,6 +351,249 @@ describe('booking create against an archived patient (AUD-07, partial)', () => {
         expect(appointment.data()['patientArchived']).toBe(true);
       }
     }
+  });
+});
+
+describe('archive identity-review attention before explicit relink', () => {
+  const phone = '0900000501';
+  const oldId = 'patient_identity_archived_old';
+  const pendingId = 'patient_identity_pending_new';
+  const newAppointmentId = 'appointment_identity_pending_new';
+  const identity = intake(phone, '合成患者甲');
+
+  async function seedArchivedIdentity() {
+    await directory.resolveFromIntake(
+      identity,
+      '2027-12-10T09:00:00.000Z',
+      () => oldId
+    );
+    await retention.archive({
+      ...archiveCommand(oldId, 'archive-identity-old-001'),
+      now: '2029-12-10T09:00:00.000Z'
+    });
+    const snapshot = await db
+      .collection(PATIENT_COLLECTIONS.patients)
+      .doc(oldId)
+      .get();
+    expect(snapshot.data()).toHaveProperty(
+      'archivedAt',
+      '2029-12-10T09:00:00.000Z'
+    );
+    return snapshot.data();
+  }
+
+  async function preparePending() {
+    return directory.prepareIntake(identity, REQUESTED_AT, () => pendingId);
+  }
+
+  function pendingRequest() {
+    return bookingRequest({
+      patientId: pendingId,
+      appointmentId: newAppointmentId,
+      idempotencyKey: 'booking-identity-pending-001'
+    });
+  }
+
+  it('keeps preparation read-only, flags the committed new booking and never restores or exposes the old archive', async () => {
+    const oldSnapshot = await seedArchivedIdentity();
+    const prepared = await preparePending();
+    expect(prepared.patientId).toBe(pendingId);
+    expect(prepared).not.toHaveProperty('pendingArchivedPatientIds');
+    const pendingRef = db
+      .collection(PATIENT_COLLECTIONS.patients)
+      .doc(pendingId);
+    expect((await pendingRef.get()).exists).toBe(false);
+
+    const request = pendingRequest();
+    await expect(bookings.reserve(request, prepared)).resolves.toMatchObject({
+      replayed: false
+    });
+    expect((await pendingRef.get()).data()).toMatchObject({
+      identityReviewRequired: true,
+      pendingArchivedPatientIds: [oldId]
+    });
+    const appointment = (
+      await db.collection(COLLECTIONS.appointments).doc(newAppointmentId).get()
+    ).data();
+    expect(appointment).toMatchObject({
+      patientId: pendingId,
+      identityReviewRequired: true
+    });
+    expect(appointment).not.toHaveProperty('pendingArchivedPatientIds');
+    expect(
+      (
+        await db.collection(PATIENT_COLLECTIONS.patients).doc(oldId).get()
+      ).data()
+    ).toEqual(oldSnapshot);
+    const listed = await directory.listClinic(10);
+    expect(listed).toHaveLength(1);
+    expect(listed[0]).toHaveProperty('identityReviewRequired', true);
+    expect(JSON.stringify(listed)).not.toContain(oldId);
+    expect(
+      JSON.stringify(
+        (await db.collection(COLLECTIONS.outboxJobs).get()).docs.map((doc) =>
+          doc.data()
+        )
+      )
+    ).not.toContain(oldId);
+
+    await expect(bookings.reserve(request, prepared)).resolves.toMatchObject({
+      replayed: true
+    });
+    expect((await db.collection(COLLECTIONS.appointments).get()).size).toBe(1);
+    expect((await db.collection(COLLECTIONS.auditEvents).get()).size).toBe(1);
+    expect(
+      (await pendingRef.get()).data()?.['pendingArchivedPatientIds']
+    ).toEqual([oldId]);
+  });
+
+  it('marks a legacy active match when the same lookup key also contains an archive', async () => {
+    const oldSnapshot = await seedArchivedIdentity();
+    const activeRef = db
+      .collection(PATIENT_COLLECTIONS.patients)
+      .doc(pendingId);
+    await activeRef.create({
+      patientId: pendingId,
+      name: identity.name,
+      phoneDigits: phone,
+      birthMonthDay: identity.birthDate,
+      createdAt: REQUESTED_AT,
+      updatedAt: REQUESTED_AT
+    });
+    await db
+      .collection(PATIENT_COLLECTIONS.lookupIndex)
+      .doc(opaqueLookupIdentity(phone, identity.birthDate))
+      .update({ patientIds: [oldId, pendingId] });
+    const prepared = await preparePending();
+    expect(prepared.patientId).toBe(pendingId);
+    expect((await activeRef.get()).data()).not.toHaveProperty(
+      'identityReviewRequired'
+    );
+    await bookings.reserve(pendingRequest(), prepared);
+    expect((await activeRef.get()).data()).toMatchObject({
+      identityReviewRequired: true,
+      pendingArchivedPatientIds: [oldId]
+    });
+    expect(
+      (
+        await db
+          .collection(COLLECTIONS.appointments)
+          .doc(newAppointmentId)
+          .get()
+      ).data()
+    ).toHaveProperty('identityReviewRequired', true);
+    expect(
+      (
+        await db.collection(PATIENT_COLLECTIONS.patients).doc(oldId).get()
+      ).data()
+    ).toEqual(oldSnapshot);
+  });
+
+  it('reuses the active pending record without losing private review metadata or reviving the archive', async () => {
+    const oldSnapshot = await seedArchivedIdentity();
+    const pending = await directory.resolveFromIntake(
+      identity,
+      REQUESTED_AT,
+      () => pendingId
+    );
+    expect(pending).toBe(pendingId);
+    const reused = await directory.resolveFromIntake(
+      identity,
+      REQUESTED_AT,
+      () => {
+        throw new Error('must not allocate another identity');
+      }
+    );
+    expect(reused).toBe(pendingId);
+    expect(
+      (
+        await db.collection(PATIENT_COLLECTIONS.patients).doc(pendingId).get()
+      ).data()
+    ).toMatchObject({
+      identityReviewRequired: true,
+      pendingArchivedPatientIds: [oldId]
+    });
+    expect(
+      (
+        await db.collection(PATIENT_COLLECTIONS.patients).doc(oldId).get()
+      ).data()
+    ).toEqual(oldSnapshot);
+    // A trusted server association without a fresh intake must keep attention.
+    await bookings.reserve(pendingRequest());
+    expect(
+      (
+        await db
+          .collection(COLLECTIONS.appointments)
+          .doc(newAppointmentId)
+          .get()
+      ).data()
+    ).toHaveProperty('identityReviewRequired', true);
+  });
+
+  it('re-reads archive candidates in the write transaction when the read-only preparation saw none', async () => {
+    const prepared = await preparePending();
+    expect(
+      (await db.collection(PATIENT_COLLECTIONS.lookupIndex).get()).size
+    ).toBe(0);
+    const oldSnapshot = await seedArchivedIdentity();
+    await bookings.reserve(pendingRequest(), prepared);
+    expect(
+      (
+        await db.collection(PATIENT_COLLECTIONS.patients).doc(pendingId).get()
+      ).data()
+    ).toMatchObject({
+      identityReviewRequired: true,
+      pendingArchivedPatientIds: [oldId]
+    });
+    expect(
+      (
+        await db
+          .collection(COLLECTIONS.appointments)
+          .doc(newAppointmentId)
+          .get()
+      ).data()
+    ).toHaveProperty('identityReviewRequired', true);
+    expect(
+      (
+        await db.collection(PATIENT_COLLECTIONS.patients).doc(oldId).get()
+      ).data()
+    ).toEqual(oldSnapshot);
+  });
+
+  it('refuses a stale prepared identity after a manager restore and creates no provisional duplicate', async () => {
+    await seedArchivedIdentity();
+    const prepared = await preparePending();
+    await retention.restore({
+      ...restoreCommand(oldId, 'restore-identity-old-001'),
+      now: REQUESTED_AT
+    });
+    const before = await snapshotBookingState();
+    await expect(
+      bookings.reserve(pendingRequest(), prepared)
+    ).rejects.toBeInstanceOf(ServiceUnavailableError);
+    expect(await snapshotBookingState()).toEqual(before);
+    expect(
+      (await db.collection(PATIENT_COLLECTIONS.patients).doc(pendingId).get())
+        .exists
+    ).toBe(false);
+    const fresh = await preparePending();
+    expect(fresh.patientId).toBe(oldId);
+    await bookings.reserve(
+      bookingRequest({
+        patientId: oldId,
+        appointmentId: newAppointmentId,
+        idempotencyKey: 'booking-identity-pending-001'
+      }),
+      fresh
+    );
+    expect(
+      (
+        await db
+          .collection(COLLECTIONS.appointments)
+          .doc(newAppointmentId)
+          .get()
+      ).data()
+    ).not.toHaveProperty('identityReviewRequired');
   });
 });
 

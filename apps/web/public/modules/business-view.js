@@ -284,11 +284,12 @@ function input(type, name, options = {}) {
   return node;
 }
 
-function reasonSelect(name) {
+function reasonSelect(name, omit = []) {
   const select = document.createElement('select');
   select.name = name;
   select.required = true;
   for (const [value, label] of RETENTION_REASONS) {
+    if (omit.includes(value)) continue;
     const option = element('option', '', label);
     option.value = value;
     select.append(option);
@@ -572,7 +573,7 @@ export function initializeBusinessView({
     element(
       'p',
       'section-description',
-      '清單不含姓名。封存與永久刪除需要重新登入；30 天內可復原，有 legal hold 時不能永久刪除。'
+      '清單不含姓名。未永久刪除的封存資料，管理者皆可復原，不限 30 天；系統不會自動永久刪除。手動封存與永久刪除須重新登入，有 legal hold 時不能永久刪除。'
     )
   );
   const retentionForms = element('div', 'card-list');
@@ -955,7 +956,7 @@ export function initializeBusinessView({
           reauthenticate: true,
           refresh: true,
           responseLabel: (result) =>
-            `已封存，可復原至 ${dateLabel(result.restorableUntil)}。`
+            `已封存。資料不會自動刪除，管理者可復原；${dateLabel(result.restorableUntil)} 起列入人工審理清單。`
         }
       )
     )
@@ -1073,7 +1074,109 @@ export function initializeBusinessView({
     }
   });
 
-  retentionForms.append(archiveForm, restoreForm, holdForm, deleteForm);
+  // 待櫃台確認身分：管理者核對後，把新預約重新連回原封存病患。
+  const identityForm = document.createElement('form');
+  identityForm.className = 'filter-bar';
+  const identityProvisionalId = patientField('provisionalPatientId');
+  const identityArchivedId = patientField('archivedPatientId');
+  const identityReason = reasonSelect('reasonCode', ['retention_expired']);
+  const identityLookup = button('查詢候選封存身分');
+  const identitySubmit = button(
+    '確認為同一人並復原',
+    'button button-secondary',
+    'submit'
+  );
+  const identityOutput = element('div', 'card-list');
+  identityForm.append(
+    makeField('待確認新紀錄 ID', identityProvisionalId),
+    makeField('候選封存紀錄 ID', identityArchivedId),
+    makeField('確認原因', identityReason),
+    identityLookup,
+    identitySubmit
+  );
+  identityLookup.addEventListener('click', async () => {
+    identityOutput.replaceChildren();
+    if (identityProvisionalId.value === '') {
+      setStatus('請先輸入待確認新紀錄 ID。', 'error');
+      identityProvisionalId.focus();
+      return;
+    }
+    identityLookup.disabled = true;
+    try {
+      const data = await api(
+        `/v1/business-delivery/retention/identity-candidates?patientId=${encodeURIComponent(identityProvisionalId.value)}`
+      );
+      if (disposed) return;
+      identityOutput.append(
+        element(
+          'p',
+          'result-summary',
+          `${data.candidates.length} 筆候選封存身分。`
+        )
+      );
+      for (const candidate of data.candidates) {
+        const item = element('article', 'event-panel');
+        item.append(
+          element('strong', '', candidate.patientId),
+          element('p', '', `封存時間：${dateLabel(candidate.archivedAt)}`),
+          element(
+            'p',
+            '',
+            candidate.legalHold ? 'legal hold：已設定' : 'legal hold：未設定'
+          )
+        );
+        const useCandidate = button('選用此候選');
+        useCandidate.addEventListener('click', () => {
+          identityArchivedId.value = candidate.patientId;
+          identitySubmit.focus();
+        });
+        item.append(useCandidate);
+        identityOutput.append(item);
+      }
+    } catch (error) {
+      if (!disposed) setStatus(reportError(error), 'error');
+    } finally {
+      identityLookup.disabled = false;
+    }
+  });
+  identityForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (
+      await runWrite(
+        identitySubmit,
+        'retention-confirm-identity',
+        '/v1/business-delivery/retention/confirm-identity',
+        {
+          provisionalPatientId: identityProvisionalId.value,
+          archivedPatientId: identityArchivedId.value,
+          reasonCode: identityReason.value
+        },
+        {
+          refresh: true,
+          responseLabel: () =>
+            '身分已確認：封存資料已復原，新預約已連回原紀錄。'
+        }
+      )
+    ) {
+      identityProvisionalId.value = '';
+      identityArchivedId.value = '';
+      identityOutput.replaceChildren();
+    }
+  });
+
+  retentionForms.append(
+    archiveForm,
+    restoreForm,
+    holdForm,
+    deleteForm,
+    element(
+      'p',
+      'section-description',
+      '預約被標示「待櫃台確認」時，請先核對本人，再查詢候選並確認；確認後原封存資料復原、新預約連回原紀錄，新建的暫時紀錄會封存保留，不會刪除。'
+    ),
+    identityForm,
+    identityOutput
+  );
 
   async function loadPendingDeletion() {
     refreshPending.disabled = true;
@@ -1090,7 +1193,11 @@ export function initializeBusinessView({
         item.append(
           element('strong', '', patient.patientId),
           element('p', '', `封存時間：${dateLabel(patient.archivedAt)}`),
-          element('p', '', `可復原期限：${dateLabel(patient.restorableUntil)}`),
+          element(
+            'p',
+            '',
+            `可送人工刪除審理日：${dateLabel(patient.restorableUntil)}`
+          ),
           element(
             'p',
             '',
