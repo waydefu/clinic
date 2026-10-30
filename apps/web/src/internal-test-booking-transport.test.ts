@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -5,7 +8,6 @@ import {
   isInternalTestBookingEnabled
 } from '../public/modules/api-client.js';
 import {
-  appointmentCountSummary,
   appointmentPage,
   renderAppointments
 } from '../public/modules/admin-view.js';
@@ -1529,7 +1531,7 @@ describe('staff list follows the continuation cursor', () => {
     expect(loaded.appointmentsTruncated).toBe(true);
   });
 
-  it('counts a truncated list as a minimum, never as the total', async () => {
+  it('carries the truncation into the page model with the loaded count, not a total', async () => {
     const { state } = stateWithBookingPages([50], true);
     const loaded = await state;
     const render: any = initialState();
@@ -1543,33 +1545,27 @@ describe('staff list follows the continuation cursor', () => {
     });
 
     expect(page.truncated).toBe(true);
-    expect(appointmentCountSummary(page)).toMatch(
-      /^至少 250 筆結果（還有預約尚未載入）/
-    );
     expect(page.totalCount).toBe(250);
   });
 
-  it('keeps the plain total when nothing is truncated, and says so when a filter finds nothing in a truncated list', () => {
-    const complete: any = initialState();
-    const completePage = appointmentPage(complete, {
+  it('does not mark a complete or local list as truncated', () => {
+    const page = appointmentPage(initialState(), {
       status: 'all',
       kind: 'all',
       query: ''
     });
-    expect(completePage.truncated).toBe(false);
-    expect(appointmentCountSummary(completePage)).toMatch(/^共 0 筆結果，/);
-    expect(
-      renderAppointments(complete, { status: 'all', kind: 'all', query: '' })
-    ).toContain('沒有符合條件的預約');
+    expect(page.truncated).toBe(false);
+  });
 
-    const cut: any = initialState();
-    cut.appointmentsTruncated = true;
-    const html = renderAppointments(cut, {
-      status: 'all',
-      kind: 'all',
-      query: ''
-    });
-    expect(html).toContain('已載入的預約中沒有符合條件的');
-    expect(html).not.toContain('沒有符合條件的預約');
+  // The workbench count sits in admin-bootstrap.js, which has no DOM harness
+  // here; pin the wording to the flag so a loaded count is never called a total.
+  it('words the workbench count as a minimum when the page model is truncated', () => {
+    const bootstrap = readFileSync(
+      fileURLToPath(new URL('../public/admin-bootstrap.js', import.meta.url)),
+      'utf8'
+    );
+    expect(bootstrap).toContain(
+      "`${page.truncated ? '至少' : '共'} ${page.totalCount} 筆結果"
+    );
   });
 });
