@@ -36,6 +36,7 @@ export function planCaseAssignment(request, current) {
         if (current.activeUntil !== null) {
             throw new DomainError('INVALID_ASSIGNMENT', 'The current assignment is already closed; there is nothing to supersede.');
         }
+        assertUtcTimestamp(current.activeFrom, 'current.activeFrom');
         if (Date.parse(request.requestedAt) <= Date.parse(current.activeFrom)) {
             throw new DomainError('INVALID_ASSIGNMENT', 'A reassignment must take effect after the period it supersedes begins.');
         }
