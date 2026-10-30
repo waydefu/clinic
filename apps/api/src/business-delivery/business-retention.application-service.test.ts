@@ -31,6 +31,10 @@ import {
 import type { BusinessDeliveryConfig } from './business-delivery.config.js';
 import { BusinessRetentionApplicationService } from './business-retention.application-service.js';
 import type { BusinessRetentionRepositoryPort } from './business-retention.application-service.js';
+import {
+  decodePendingDeletionCursor,
+  encodePendingDeletionCursor
+} from './pending-deletion-cursor.js';
 
 const POLICY = resolveApprovedBusinessDeliveryPolicy(
   'BD-POLICY-2026-09-29',
@@ -383,5 +387,83 @@ describe('BusinessRetentionApplicationService operations', () => {
     );
     expect(calls.pendingDeletion).toEqual([NOW]);
     expect(JSON.stringify(PENDING)).not.toContain('name');
+  });
+});
+
+// A03 (SOL-RETENTION): the manual-review list read every expired archived
+// patient in one unbounded query. Auto-archive keeps archiving and nothing is
+// auto-deleted, so that list only grows. It now pages, with the cursor in the
+// x-next-cursor header and the body left as { patients }.
+describe('BusinessRetentionApplicationService pending-deletion paging', () => {
+  const NEXT = {
+    restorableUntil: '2030-10-31T00:00:00.000Z',
+    patientId: PATIENT_ID
+  };
+
+  it('asks the repository for one bounded page and turns its position into a cursor', async () => {
+    const { service, repository } = setup();
+    vi.mocked(repository.pendingDeletion).mockResolvedValueOnce({
+      patients: PENDING.patients,
+      next: NEXT
+    });
+
+    const page = await service.pendingDeletionPage(staff(MANAGER), {
+      limit: '2'
+    });
+
+    expect(repository.pendingDeletion).toHaveBeenCalledWith(NOW, { limit: 2 });
+    expect(page.response).toEqual(PENDING);
+    expect(Object.keys(page.response)).toEqual(['patients']);
+    expect(decodePendingDeletionCursor(page.nextCursor as string)).toEqual(
+      NEXT
+    );
+  });
+
+  it('continues after a cursor and reports no cursor on the last page', async () => {
+    const { service, repository } = setup();
+
+    const page = await service.pendingDeletionPage(staff(MANAGER), {
+      cursor: encodePendingDeletionCursor(NEXT)
+    });
+
+    expect(repository.pendingDeletion).toHaveBeenCalledWith(NOW, {
+      after: NEXT
+    });
+    expect(page.nextCursor).toBeUndefined();
+    expect(page.response).toEqual(PENDING);
+  });
+
+  it('refuses a bad limit, cursor or extra field before reading', async () => {
+    const { service, repository } = setup();
+
+    for (const query of [
+      { limit: '0' },
+      { limit: '101' },
+      { limit: 'many' },
+      { cursor: 'a/b' },
+      { patientId: PATIENT_ID }
+    ])
+      await expect(
+        service.pendingDeletionPage(staff(MANAGER), query)
+      ).rejects.toBeInstanceOf(ZodError);
+    // Well-formed text that is not a position this service issued.
+    await expect(
+      service.pendingDeletionPage(staff(MANAGER), { cursor: 'e30' })
+    ).rejects.toMatchObject({ code: 'INVALID_VALUE' });
+    expect(repository.pendingDeletion).not.toHaveBeenCalled();
+  });
+
+  it('checks the feature and the role before it looks at the cursor', async () => {
+    const off = setup({ enabled: false });
+    await expect(
+      off.service.pendingDeletionPage(staff(MANAGER), { cursor: 'a/b' })
+    ).rejects.toBeInstanceOf(NotFoundException);
+    const denied = setup();
+    const nonManager = ROLES.find((role) => !managers.includes(role)) ?? '';
+    await expect(
+      denied.service.pendingDeletionPage(staff(nonManager), { cursor: 'a/b' })
+    ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+    expect(off.repository.pendingDeletion).not.toHaveBeenCalled();
+    expect(denied.repository.pendingDeletion).not.toHaveBeenCalled();
   });
 });

@@ -107,6 +107,52 @@ describe('planBusinessTerminationOperation', () => {
     });
   });
 
+  // D-36: a return cannot be recorded as completed after the server time that
+  // records it. No skew has been approved, so none is allowed; nothing here
+  // approves a backdating window either.
+  it('refuses a returnCompletedAt later than the server time and accepts one at or before it', () => {
+    const input = {
+      operation: 'record_return' as const,
+      terminationId: 'termination_001',
+      requestId: 'request_030',
+      state: 'termination_pending' as const,
+      nowAt: '2030-02-01T00:00:00.000Z',
+      noticeStartedAt: '2030-01-01T00:00:00.000Z',
+      noticeDueAt: '2030-01-31T00:00:00.000Z',
+      returnManifestReference: 'manifest_030',
+      recipientConfirmationReference: 'recipient_030',
+      policy,
+      proof: { ...proof, requestId: 'request_030' }
+    };
+    for (const returnCompletedAt of [
+      '2030-02-01T00:00:00.001Z',
+      '2030-02-02T00:00:00.000Z',
+      '2031-01-01T00:00:00.000Z'
+    ])
+      expect(() =>
+        planBusinessTerminationOperation({ ...input, returnCompletedAt })
+      ).toThrow(
+        expect.objectContaining({
+          code: 'INVALID_TIMESTAMP',
+          message: expect.stringMatching(/later than/)
+        })
+      );
+    for (const returnCompletedAt of [
+      '2030-02-01T00:00:00.000Z',
+      '2030-01-31T12:00:00.000Z',
+      undefined
+    ])
+      expect(
+        planBusinessTerminationOperation({
+          ...input,
+          ...(returnCompletedAt === undefined ? {} : { returnCompletedAt })
+        })
+      ).toMatchObject({
+        resultingState: 'returned',
+        returnCompletedAt: returnCompletedAt ?? '2030-02-01T00:00:00.000Z'
+      });
+  });
+
   it('starts controlled retention once and never moves the original expiry', () => {
     const input = {
       operation: 'start_controlled_retention' as const,
