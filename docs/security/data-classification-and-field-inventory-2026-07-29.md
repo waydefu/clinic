@@ -178,7 +178,7 @@ not by itself close the privacy packet.
 | Break-glass credential | `S` | Separate approved design, dual control, time-bound activation and post-use review | **NOT PROVISIONED**; remain fail closed |
 
 Expiry terms must not be conflated: D-006 approved 30 minutes idle and 8 hours
-absolute for a staff **session**. It did not approve password expiry or a fixed
+absolute for a staff **session** (since 2026-10-03: absolute 12 h, no idle timeout, per `STAFF-SESSION-12H-2026-10-03`; 10-minute reauth for sensitive operations unchanged; original text kept as history). It did not approve password expiry or a fixed
 delegation-code lifetime. Those credential/code parameters remain proposed
 until named technical/security review; individual delegation-code revocation is
 already approved.
