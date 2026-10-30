@@ -317,7 +317,8 @@ describe('synthetic automatic patient-retention expiry', () => {
     expect((await patientState())?.['archivedByRef']).toBeUndefined();
     expect((await appointmentState())[0]).not.toHaveProperty('patientArchived');
     expect(await ownLogs()).toHaveLength(2);
-    expect(await ownOutboxJobs()).toHaveLength(2);
+    // The old visit is not rebuilt on the calendar by the restore.
+    expect(await ownOutboxJobs()).toEqual(originalJobs);
   });
 
   it('does not treat a manual operation log as system authority for the same key', async () => {
