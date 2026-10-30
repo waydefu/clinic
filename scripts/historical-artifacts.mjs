@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
+import { isDirectRun } from './direct-run.mjs';
+
 /**
  * WP-B6 historical inspect artifacts from the 2026-09-14 complete review.
  * These hashes identify the originals. New files must not reuse the names.
@@ -155,7 +157,7 @@ export function historicalDispositionForCompleteness(result) {
   };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isDirectRun(import.meta.url)) {
   const result = evaluateHistoricalArtifacts();
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   process.exitCode = result.ok ? 0 : 1;
