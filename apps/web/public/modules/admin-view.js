@@ -650,8 +650,6 @@ export function appointmentPage(
     page: currentPage,
     pageSize: safePageSize,
     totalCount,
-    // 伺服器清單被截斷時，totalCount 只是「已載入且符合」的筆數，不是總數。
-    truncated: state?.appointmentsTruncated === true,
     totalPages,
     startIndex: totalCount === 0 ? 0 : startIndex,
     endIndex: Math.min(startIndex + entries.length, totalCount)

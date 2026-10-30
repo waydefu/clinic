@@ -1531,12 +1531,11 @@ describe('staff list follows the continuation cursor', () => {
     expect(loaded.appointmentsTruncated).toBe(true);
   });
 
-  it('carries the truncation into the page model with the loaded count, not a total', async () => {
+  it('keeps the loaded count a count of loaded rows when the list is truncated', async () => {
     const { state } = stateWithBookingPages([50], true);
     const loaded = await state;
     const render: any = initialState();
     render.appointments = loaded.appointments;
-    render.appointmentsTruncated = loaded.appointmentsTruncated;
 
     const page = appointmentPage(render, {
       status: 'all',
@@ -1544,28 +1543,19 @@ describe('staff list follows the continuation cursor', () => {
       query: ''
     });
 
-    expect(page.truncated).toBe(true);
+    expect(loaded.appointmentsTruncated).toBe(true);
     expect(page.totalCount).toBe(250);
-  });
-
-  it('does not mark a complete or local list as truncated', () => {
-    const page = appointmentPage(initialState(), {
-      status: 'all',
-      kind: 'all',
-      query: ''
-    });
-    expect(page.truncated).toBe(false);
   });
 
   // The workbench count sits in admin-bootstrap.js, which has no DOM harness
   // here; pin the wording to the flag so a loaded count is never called a total.
-  it('words the workbench count as a minimum when the page model is truncated', () => {
+  it('words the workbench count as a minimum when the state is truncated', () => {
     const bootstrap = readFileSync(
       fileURLToPath(new URL('../public/admin-bootstrap.js', import.meta.url)),
       'utf8'
     );
     expect(bootstrap).toContain(
-      "`${page.truncated ? '至少' : '共'} ${page.totalCount} 筆結果"
+      "`${state.appointmentsTruncated ? '至少' : '共'} ${page.totalCount} 筆結果"
     );
   });
 });
