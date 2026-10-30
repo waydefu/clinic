@@ -23,6 +23,13 @@ First apply uses human ADC (JIT ≤8h). The module then creates WIF +
 `c1-terraform-ci` for later CI. No Owner/Editor, no `datastore.user`,
 no secret versions.
 
+The WIF trust is pinned to the repository name, the immutable numeric
+`github_repository_id` and `github_repository_owner_id`, and the exact
+`github_allowed_refs` (default `refs/heads/main`). Both ids default to
+`not_granted`; a named apply SHA is rejected until the owner reads the
+numeric ids from GitHub and passes them in uncommitted tfvars. Source only;
+the live WIF provider is not changed by this module until that apply.
+
 See [c0-engineering-recommendations](../../../docs/architecture/c0-engineering-recommendations.md)
 and the local packet
 [c1-local-execution-packet.md](../../../docs/runbooks/c1-local-execution-packet.md).

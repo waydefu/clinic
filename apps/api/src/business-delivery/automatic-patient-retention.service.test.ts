@@ -52,6 +52,9 @@ describe('source-only automatic patient retention capability', () => {
     expect(service).not.toHaveProperty('restore');
     expect(service).not.toHaveProperty('permanentlyDelete');
     expect(service).not.toHaveProperty('setLegalHold');
+    // Identity confirmation is manager-only; the system actor never gets it.
+    expect(service).not.toHaveProperty('confirmArchivedIdentity');
+    expect(service).not.toHaveProperty('identityCandidates');
   });
 
   it.each<BusinessDeliveryConfig>([
