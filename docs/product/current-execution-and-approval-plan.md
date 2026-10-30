@@ -176,7 +176,7 @@ operator、approver、兩階段 plan/apply gate 與逐資源 rollback。
 | --- | --- | --- | --- |
 | C1 | 建立隔離 staging 地基、短期 CI 身分、空 secret 容器、基本 log／monitoring／budget | C0 approved＋C1 request＋deployment authority＋apply approval | 不建 Firestore、Identity Platform、API runtime、Calendar、DR secondary 或 production |
 | C2 | 合成員工 Google／自管帳號、email verification、MFA 與 recovery | C1 證據＋IdP 成本／recovery 核准＋C2 authority | 不接患者登入 |
-| C3 | 安全 cookie、CSRF、30 分鐘 idle、8 小時 absolute session | C2 證據＋threat-model review＋C3 authority | 不信任瀏覽器角色或計時器 |
+| C3 | 安全 cookie、CSRF、30 分鐘 idle、8 小時 absolute session（2026-10-03 起改為絕對 12 小時、無閒置登出，見 `STAFF-SESSION-12H-2026-10-03`；敏感操作 10 分鐘再驗證不變；此為歷史原文） | C2 證據＋threat-model review＋C3 authority | 不信任瀏覽器角色或計時器 |
 | C4 | server-side RBAC、停權／撤銷、授權碼 KDF 與限流 | C3 證據＋角色／action fixture＋安全參數核准＋C4 authority | 不用 UI 隱藏代替 API 403 |
 | C5 | append-only audit、查閱投影、容量告警與 deletion deny | C4 證據＋D-002 access／export 對齊＋C5 authority | 不允許一般管理者修改／刪除 audit |
 | C6 | staff-only 合成 staging API、Web 與端到端驗證 | C1～C5 證據＋C6 authority | 不開 public booking、不放真資料 |

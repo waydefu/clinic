@@ -84,15 +84,28 @@ rows summarise purpose and handling; current explicit write paths and unknown
 boundaries are listed below. The per-field production approval worksheet in
 section 5 is still required.
 
+**Second source refresh: 2026-10-30, base `eced19a69b390ca01024462f8b84d0431564fd5c`
+(E3-05).** It adds what ADR-0007 (identity review) and the two-year automatic
+archive work (PRs #348–#352: automatic archive, identity review and relink,
+calendar projection gate) put on the `patients`, `appointments`, `outbox_jobs`
+and `bd_retention_log` rows below. The automatic archive entry
+(`AutomaticPatientRetentionService.archiveIfExpired`) is source-only: it is not
+registered in a module, controller or worker, and no scheduler, cloud resource or
+credential exists for it. Nothing is deleted automatically: the archive keeps the
+patient document, flags it and removes calendar events, and a manager restores
+or relinks it. The ADR-0009 export collections were already covered by the
+2026-10-28 refresh and are unchanged by it.
+
 | Collection/contract | Observed fields / purpose | Tier | Important boundary |
 | --- | --- | --- | --- |
 | `slots` | slot ID, kind, start time, optional reservation ID | `P1`/`P2` | Reservation ID makes the row linkable; D-004 still owns capacity and occupancy |
 | `appointments` | appointment, patient and slot IDs; start time; booking kind; one item ID; status; timestamps | `P3` | Historical one-item baseline, not a current contract acceptance; D-004 reconciliation is separate |
+| `appointments` (additional keys, 2026-10-30) | `patientNote` (patient free text, at most 120 characters, staff-visible list only); `patientArchived` (true while the owning patient is archived); `identityReviewRequired` (true when a new booking matched an archived patient; staff-only attention flag) | `P3` | Free text is `P3` and also the ADR-0002 calendar title note. The two flags are state markers: they carry no archive identity, and the private candidate patient IDs stay on the patient record, never on the appointment |
 | `patient_booking_guards` | active appointment ID, status, update time; document keyed by patient ID | `P2` | Concurrency guard only, not a patient profile or authentication record |
 | `audit_events` | narrow Audit v2 envelope: actor/resource/trace IDs, action, time, result, reason code, policy version and allowlisted state | `P2` | No names, contacts, identifiers or notes; do not add generic payload/free-text fields |
-| `outbox_jobs` | job/appointment/event/trace IDs, projection status, timing, attempts, error and lease metadata | `P2` | No patient profile; errors must stay generic/redacted |
+| `outbox_jobs` | job/appointment/event/trace IDs, projection status, timing, attempts, error and lease metadata; for patient-retention jobs `retentionOperation` (`archive` or `restore`) and `retentionArchivedAt` (the archive episode) | `P2` | No patient profile; errors must stay generic/redacted. The retention keys only tell the worker whether a delayed job is still current; an `archive` job without `retentionArchivedAt` is refused |
 | `idempotency_keys` | actor/scope/request hash, resource reference, recorded time | `P2` | Request hash is not a place to store a raw request or direct identifier |
-| `patients` | `name`, `phoneDigits`, `birthMonthDay`, timestamps and retention state; patient matching and approved contact/export support | `P3` | Current writes use birthday `--MM-DD`, never a year; storage is server-side and contacts stay out of usage/audit/log payloads. Calendar is only the ADR-0002 exception below |
+| `patients` | `name`, `phoneDigits`, `birthMonthDay`, timestamps and retention state (`archivedAt`, `archivedByRef`, `restorableUntil`, legal hold); identity-review state: `identityReviewRequired`, `pendingArchivedPatientIds` (private references to archived candidates), `retiredIntoPatientId` (a retired provisional record points at its survivor); patient matching and approved contact/export support | `P3` | Current writes use birthday `--MM-DD`, never a year; storage is server-side and contacts stay out of usage/audit/log payloads. Calendar is only the ADR-0002 exception below |
 | `patient_lookup_index` | legacy phone/full-birth-date hash lookup | `P2` | Registered as legacy; current directory neither reads nor writes it. No migration, backfill or inference from old hashes is authorised here |
 | `patient_lookup_index_v2` | phone/month-day hash key, `patientIds` and update time; candidate matching | `P2` | A one-way lookup hash remains linkable, not anonymous; ambiguity must not select a patient arbitrarily |
 | `return_sessions` | `patientId`, `createdAt`, `expiresAt`; short-lived return-booking lookup bridge | `P3` | Application expiry is not evidence of deployed Firestore TTL; no profile copy or new authentication authority |
@@ -103,7 +116,7 @@ section 5 is still required.
 | `bd_export_jobs` | export ID/range, row/byte/chunk counts, hash, creator reference, expiry/download/revocation state and policy version | `P3` | Describes a restricted export; metadata does not authorise a download or a production data flow |
 | `bd_export_chunks` | `exportId`, `index`, CSV `content`, `purgeAt`; bounded export-file storage | `P3` | Content can include direct contact fields; it is not an opaque-ID-only collection. Download, revocation and retention controls remain separate |
 | `bd_export_log` | export/action/actor references and time; export operation trail | `P2` | No CSV content or patient contact values in log entries |
-| `bd_retention_log` | action, patient/actor references, time, request hash, result and optional reason code | `P3` | Patient-linked retention/legal-hold evidence; no arbitrary free-text reason or new retention period is approved here |
+| `bd_retention_log` | action (archive, restore, legal hold, permanent deletion, `confirm_identity`), patient/actor references, time, request hash, result and optional reason code (`retention_expired` for the automatic archive, whose actor is the fixed system reference `system_retention_expiry`) | `P3` | Patient-linked retention/legal-hold/identity-confirmation evidence; no arbitrary free-text reason or new retention period is approved here. The automatic archive records no human actor |
 | `bd_terminations` | state/version, notice and retention times, receipt/evidence references, creator and policy version | `P3` | Contract-termination/return workflow; this inventory does not approve deletion, backup disposition or evidence retention |
 | `bd_termination_log` | termination/action/actor references, time, request/idempotency hashes, version and result | `P3` | Replay/audit trail can retain receipt-linked state; keep it restricted and do not copy exported CSV into it |
 | `bd_termination_export_receipts` | termination/export references, acknowledgement, hash and export-coverage facts | `P3` | Return-of-data evidence, not a copy of the export; receipt presence alone does not prove delivery or legal acceptance |
@@ -119,7 +132,9 @@ collection row above supplies purpose and proposed handling, not production
 approval. Source-local interfaces are not runtime validation or proof that
 historical documents contain no other fields.
 
-- `patients` — `FirestorePatientDirectory.planIntakeWithin` writes `patientId`, `name`, `phoneDigits`, `birthMonthDay`, `createdAt` and `updatedAt`. `FirestoreBusinessRetentionRepository.archive`, `restore` and `setLegalHold` additionally write or remove `archivedAt`, `archivedByRef`, `restorableUntil`, `legalHold`, `legalHoldReasonCode`, `legalHoldUpdatedAt` and `legalHoldUpdatedByRef`. Permanent deletion removes the whole document. Partial updates preserve unmentioned fields, so any additional historical keys are **UNKNOWN**, not silently inventoried or authorised.
+- `patients` — `FirestorePatientDirectory.planIntakeWithin` writes `patientId`, `name`, `phoneDigits`, `birthMonthDay`, `createdAt` and `updatedAt`. `FirestoreBusinessRetentionRepository.archive`, `restore` and `setLegalHold` additionally write or remove `archivedAt`, `archivedByRef`, `restorableUntil`, `legalHold`, `legalHoldReasonCode`, `legalHoldUpdatedAt` and `legalHoldUpdatedByRef`. The automatic archive (`archiveExpiredPatient`) writes the same archive keys with the system actor reference and reason code `retention_expired`, only when the latest appointment is at least two years old and there is no legal hold. `FirestorePatientDirectory` adds `identityReviewRequired` and `pendingArchivedPatientIds` when a new intake matches an archived record (it never revives or copies the archived record), and `confirmArchivedIdentity` restores the archived record, writes `retiredIntoPatientId` on the provisional record and removes `identityReviewRequired` and `pendingArchivedPatientIds`. Permanent deletion removes the whole document. Partial updates preserve unmentioned fields, so any additional historical keys are **UNKNOWN**, not silently inventoried or authorised.
+- `appointments` (2026-10-30 additions) — archive writes `patientArchived: true` on every appointment of the patient and restore removes it; the booking writer sets `identityReviewRequired: true` on a booking that matched an archived patient and identity confirmation removes it and re-points `patientId`; `patientNote` is written by the appointment command. The base appointment keys are the historical baseline above.
+- `outbox_jobs` (2026-10-30 additions) — archive and restore write `retentionOperation` (`archive` or `restore`) and, for archive, `retentionArchivedAt` through `planRetentionCalendarProjections`. The worker (`decideRetentionProjection`) re-reads the patient and decides `proceed`, `remove` or `skip`; it does not copy patient fields into the job.
 - `patient_lookup_index` — only the legacy registry entry is observed in the directory; it has no current directory read/write path. Stored field names, types and historical contents are **UNKNOWN**. Do not infer them from the legacy hash comment or authorise a migration.
 - `patient_lookup_index_v2` — directory candidate binding reads `patientIds` and writes `patientIds`, `createdAt`, `updatedAt`. Existing index data is spread into writes, so other historical keys remain **UNKNOWN**. The lookup hash is the document key, not a copied phone or birthday field.
 - `return_sessions` — directory `lookupReturn` writes `patientId`, `createdAt` and `expiresAt`; application lookup checks expiry. This is not evidence of a deployed TTL policy or authority for a new session flow.
@@ -130,7 +145,7 @@ historical documents contain no other fields.
 - `bd_export_jobs` — `StoredExportJob` and `create` / `download` / `revoke` cover `schemaVersion`, `exportId`, `format`, `from`, `to`, `rowCount`, `byteLength`, `sha256`, `chunkCount`, `createdAt`, `createdByRef`, `downloadExpiresAt`, `maxDownloads`, `downloadCount`, `purgeAt`, `revokedAt`, `idempotencyKey`, `requestHash`, optional `revokeIdempotencyKey`, `policyVersion`. `purgeAt` is a Firestore `Timestamp`; returned `status` is computed, not a field in the create literal.
 - `bd_export_chunks` — export creation writes `exportId`, `index`, `content`, `purgeAt`; the literal has no `schemaVersion`. `content` is CSV text, not a nested record with only opaque identifiers. It is removed on revocation; a source delete/TTL field is not deployment or deletion evidence.
 - `bd_export_log` — `appendLog` writes `schemaVersion`, `exportId`, `action`, `actorRef`, `at`, without copying CSV content.
-- `bd_retention_log` — `writeLog` writes `schemaVersion`, `action`, `patientId`, `actorRef`, `at`, `requestHash`, `result`, optional `reasonCode`. Result variants: archive has `patientId`, `state`, `restorableUntil`; restore has `patientId`, `state`; legal hold has `patientId`, `legalHold`; permanent deletion has `patientId`, `state`, `layers`. The last variant's layer-count keys are `patients`, `appointments`, `patient_booking_guards`, `patient_follow_up_states`, `return_sessions`, `follow_ups`, `patient_lookup_index_v2`; these are counts in the log, not copies or a refreshed inventory of those collections.
+- `bd_retention_log` — `writeLog` writes `schemaVersion`, `action`, `patientId`, `actorRef`, `at`, `requestHash`, `result`, optional `reasonCode`. Result variants: archive has `patientId`, `state`, `restorableUntil`; restore has `patientId`, `state`; `confirm_identity` has `patientId`, `provisionalPatientId`, `state` (its log entry carries a non-expiry `reasonCode`); legal hold has `patientId`, `legalHold`; permanent deletion has `patientId`, `state`, `layers`. The last variant's layer-count keys are `patients`, `appointments`, `patient_booking_guards`, `patient_follow_up_states`, `return_sessions`, `follow_ups`, `patient_lookup_index_v2`; these are counts in the log, not copies or a refreshed inventory of those collections.
 - `bd_terminations` — `StoredTermination` covers `schemaVersion`, `terminationId`, `state`, `noticeDate`, `noticeStartedAt`, `noticeDueAt`, `noticeExceptionReference`, `returnManifestReference`, `recipientConfirmationReference`, `returnCompletedAt`, `controlledRetentionUntil`, `receipts`, `version`, `createdAt`, `createdByRef`, `updatedAt`, `closeReviewRequestedAt`, `policyVersion`, `scope`. Receipt variants use `receipts[].receiptKind`, `.actorRef`, `.acknowledgedAt`, and variant/legacy-dependent `.exportId`, `.evidenceRef`, `.sha256`, `.from`, `.to`, `.rowCount`, `.byteLength`.
 - `bd_termination_log` — `writeOperationLog` stores `schemaVersion`, `terminationId`, `action`, `actorRef`, `at`, `idempotencyKeyHash`, `version`, `requestHash`, `result`. `result` is the `view` response: `terminationId`, `state`, `noticeDate`, `noticeStartedAt`, `noticeDueAt`, `controlledRetentionUntil`, `version`, `receipts` (the variants above), `closeReadiness.ready`, `closeReadiness.missingSteps`, optional `replayed`; it is not a raw termination-document copy.
 - `bd_termination_export_receipts` — the data-return acknowledgement writes `schemaVersion`, `exportId`, `terminationId`, `actorRef`, `acknowledgedAt`, `sha256`, `from`, `to`, `rowCount`, `byteLength`. Older embedded receipt variants can omit coverage; that does not establish delivery or legal acceptance.
@@ -145,10 +160,12 @@ passthrough historical fields require owner review; their contents must not be
 assumed harmless. The new acknowledgement-log row deliberately leaves its
 classification, field access and retention unapproved instead of guessing.
 
-This refresh adds no field, collection, permission, retention duration or legal
-basis. It does not re-verify all UI/API fields, historical data, deployed
-access controls or data-subject-rights workflows, and does not by itself close
-E3-05 or the privacy packet.
+These refreshes add no field, collection, permission, retention duration or legal
+basis; they only record what the source already writes. They do not re-verify all
+UI/API fields, historical data, deployed access controls or data-subject-rights
+workflows. The 2026-10-30 refresh closes the E3-05 gap named above (fields and
+collections added by ADR-0007, ADR-0009 and the two-year archive work) and does
+not by itself close the privacy packet.
 
 ## 4. Secrets and authentication material
 
@@ -161,7 +178,7 @@ E3-05 or the privacy packet.
 | Break-glass credential | `S` | Separate approved design, dual control, time-bound activation and post-use review | **NOT PROVISIONED**; remain fail closed |
 
 Expiry terms must not be conflated: D-006 approved 30 minutes idle and 8 hours
-absolute for a staff **session**. It did not approve password expiry or a fixed
+absolute for a staff **session** (since 2026-10-03: absolute 12 h, no idle timeout, per `STAFF-SESSION-12H-2026-10-03`; 10-minute reauth for sensitive operations unchanged; original text kept as history). It did not approve password expiry or a fixed
 delegation-code lifetime. Those credential/code parameters remain proposed
 until named technical/security review; individual delegation-code revocation is
 already approved.

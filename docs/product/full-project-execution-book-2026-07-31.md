@@ -317,7 +317,7 @@ apply approval、真實資料或 production 授權。官方基準與控制來源
 3. staging 用量估算、容量、查價日期、月預算、50%／80%／100% 行動（預算金額由業主
    決定，見業主清單第 37–39 題）；
 4. DR 方案：備援專案與地點、複製頻率、切換方式、完整性驗證、failback owner；
-5. 身分安全參數（8 小時／30 分鐘維持 D-006；另由 security owner 決定是否加入抗釣魚
+5. 身分安全參數（8 小時／30 分鐘維持 D-006（2026-10-03 起改為絕對 12 小時、無閒置登出，見 `STAFF-SESSION-12H-2026-10-03`；敏感操作 10 分鐘再驗證不變；此為歷史原文）；另由 security owner 決定是否加入抗釣魚
    驗證選項，或明列不宣稱完整 NIST AAL2 對齊，見規劃書 §4.1）；
 6. 告警主要與備援接收者。
 
@@ -415,7 +415,7 @@ IAM、公開 Firestore／route 或 destructive change；secret 進入 state／lo
 - **前置**：C2 G5、threat model 與 C3 獨立授權完成；測試仍只用合成 staff。
 - **動作**：session secret 由伺服器簽發與驗證；cookie 設 `Secure`、`HttpOnly`、
   `SameSite=Lax`／`Strict`、最小 domain／path，可行時 `__Host-`；POST／PUT 驗證 CSRF。
-  伺服器強制 30 分鐘 idle、8 小時 absolute、logout、停權／撤銷後下一個 protected request
+  伺服器強制 30 分鐘 idle、8 小時 absolute（2026-10-03 起改為絕對 12 小時、無閒置登出，見 `STAFF-SESSION-12H-2026-10-03`；敏感操作 10 分鐘再驗證不變；此為歷史原文）、logout、停權／撤銷後下一個 protected request
   拒絕；session secret 不進 URL 或 `localStorage`，登入後換發 session ID。
 - **驗收證據**：記錄 ASVS `v5.0.0` requirement ID 與結果；29:59／30:00、7:59:59／
   8:00:00 邊界；logout、上一頁、重放、CSRF、cookie flags、session fixation、IdP session

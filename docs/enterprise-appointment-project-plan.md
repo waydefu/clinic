@@ -335,7 +335,7 @@ Google Calendar 呼叫絕不放在 Transaction 內。Firestore Transaction 可�
 
 - 病患端：HTTPS、Content Security Policy、HTTP security headers、速率限制、人機驗證、App Check、短效取消 token。
 - 後台：Google federated＋診所自管帳號、全員 MFA（自管帳號 TOTP）、30 分鐘
-  idle／8 小時 absolute session、停權後下一個 protected request 即拒絕、角色權限
+  idle／8 小時 absolute session（2026-10-03 起改為絕對 12 小時、無閒置登出，見 `STAFF-SESSION-12H-2026-10-03`；敏感操作 10 分鐘再驗證不變；此為歷史原文）、停權後下一個 protected request 即拒絕、角色權限
   （櫃台／醫師／管理者）與永久 append-only audit。實作依 D-006 核准值與 Stage 2
   change plan，不以目前 role simulator 代替。
 - API：驗證 Firebase ID token、後端角色授權、Zod 欄位白名單、輸入驗證、重放防護與 per-IP/per-account 限流。

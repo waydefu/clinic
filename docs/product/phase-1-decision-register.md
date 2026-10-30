@@ -1898,9 +1898,12 @@ temporary privacy-contact input below uses the clinic phone.
   owner of Cloud projects; administrator and developer roles hold governed IAM
   access; the primary region is `asia-east1`; RPO is one hour and RTO is four
   hours, including whole-project and regional failures. Incident contact:
-  wayde.fu@gmail.com / 0983317651. This approval requires the Stage 2 design to
-  close the current single-region/cross-project recovery gap; it is not evidence
-  that backups, failover, alerts or a restore drill already exist.
+  the 診所負責人, through the clinic phone 02-2577-1314 / 0800-000-913 (no email
+  yet; 2026-10-30: Q3 replaced the owner's personal email and mobile with this
+  role information; git history is not rewritten). This approval requires the
+  Stage 2 design to close the current single-region/cross-project recovery gap;
+  it is not evidence that backups, failover, alerts or a restore drill already
+  exist.
 - ~~**D-011: an English version is required** (Beau Essence Clinic)~~, and a
   phone number must stay visible for people who do not book online.
   **Superseded 2026-08-16: no English version is required.** The visible manual
