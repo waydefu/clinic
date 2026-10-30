@@ -56,7 +56,7 @@ docs commit.
 ### A.2 Isolated C1 actual deployment (read-only)
 
 Project `beauessence-clinic-stg-c1a01` (`270910958856`), region `asia-east1`,
-operator account `wayde.fu@gmail.com`. Forbidden project
+operator account `診所負責人的 Google 帳號（依 Q3 隱去個人信箱）`. Forbidden project
 `beauessence-clinic-staging` was **not** targeted.
 
 | Surface | Fresh status |

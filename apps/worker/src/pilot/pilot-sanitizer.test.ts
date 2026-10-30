@@ -174,6 +174,29 @@ describe('假名', () => {
     expect(displayLabelFor(firstPilotId)).toBe(displayLabelFor(secondPilotId));
   });
 
+  // D-30：標籤只有 24 個字母 × 100 個數字 = 2,400 種，所以 2,401 個不同來源 ID
+  // 之間一定有兩個撞標籤（鴿籠原理）。從真正的消毒器走一遍，撞標籤的兩筆事件
+  // 仍必須帶著不同的 pilotId。
+  it('消毒器輸出的標籤相撞時，兩筆事件仍有不同 pilotId', () => {
+    const seen = new Map<string, { id: string; pilotId: string }>();
+    for (let index = 0; index <= 2400; index += 1) {
+      const id = `synthetic_collision_${index}`;
+      const result = sanitizeSourceEvent(sourceEvent({ id }), WINDOW);
+      if (!result.ok) throw new Error('synthetic event was rejected');
+      const earlier = seen.get(result.event.displayLabel);
+      if (earlier !== undefined) {
+        expect(earlier.id).not.toBe(id);
+        expect(earlier.pilotId).not.toBe(result.event.pilotId);
+        return;
+      }
+      seen.set(result.event.displayLabel, {
+        id,
+        pilotId: result.event.pilotId
+      });
+    }
+    throw new Error('2,401 ids must collide within 2,400 labels');
+  });
+
   // 換金鑰就全部斷開，所以銷毀金鑰本身就是一種消滅連結性的手段。
   it('換一把金鑰 → 完全不同的結果', () => {
     expect(pilotIdFor('event_a', KEY)).not.toBe(
