@@ -30,13 +30,18 @@ export type CalendarPilotSyntheticCoordinatorPhase =
   | 'committed'
   | 'quarantined';
 
-export type CalendarPilotSyntheticMigrationStage = 'copy' | 'cleanup' | 'done';
+/** `switch` exists only for a two-binding migration: copy is done, the registry source is not yet switched. */
+export type CalendarPilotSyntheticMigrationStage =
+  'copy' | 'switch' | 'cleanup' | 'done';
 
 export interface CalendarPilotSyntheticMigrationBatch {
   readonly batchKey: string;
   readonly stage: 'copy' | 'cleanup';
   readonly itemIds: readonly string[];
+  /** The binding the lease authorizes this batch under. */
   readonly sourceBinding: string;
+  /** Two-binding migration only: copy writes to the new binding, cleanup removes from the old one. */
+  readonly targetBinding?: string;
   readonly generation: number;
 }
 
@@ -44,8 +49,32 @@ export interface CalendarPilotSyntheticMigrationBatch {
 export interface CalendarPilotSyntheticMigrationReceipt {
   readonly batchKey: string;
   readonly sourceBinding: string;
+  readonly targetBinding?: string;
   readonly generation: number;
   readonly itemIds: readonly string[];
+}
+
+/** What a fake durable store keeps; the cursor is saved only after an exact receipt. */
+export interface CalendarPilotSyntheticMigrationRecord {
+  readonly id: string;
+  readonly itemIds: readonly string[];
+  readonly batchLimit: number;
+  readonly fromBinding: string;
+  readonly toBinding?: string;
+  readonly stage: CalendarPilotSyntheticMigrationStage;
+  readonly cursor: number;
+  readonly generation: number;
+}
+
+/**
+ * Synchronous on purpose. save() must throw for a record that does not advance
+ * the stored one (lower generation, or same generation with less progress), so
+ * a stale instance cannot roll the cursor back. Real durability, async races
+ * and compare-and-set are Gate 2 evidence.
+ */
+export interface CalendarPilotSyntheticMigrationStore {
+  load(): CalendarPilotSyntheticMigrationRecord | undefined;
+  save(record: CalendarPilotSyntheticMigrationRecord): void;
 }
 
 export interface CalendarPilotSyntheticMigrationSnapshot {
@@ -55,6 +84,7 @@ export interface CalendarPilotSyntheticMigrationSnapshot {
   readonly total: number;
   readonly batchLimit: number;
   readonly attempts: number;
+  readonly toBinding?: string;
 }
 
 export interface CalendarPilotSyntheticCoordinatorSnapshot {
@@ -74,6 +104,9 @@ interface MigrationState {
   readonly id: string;
   readonly itemIds: readonly string[];
   readonly batchLimit: number;
+  readonly fromBinding: string;
+  readonly toBinding: string | undefined;
+  readonly store: CalendarPilotSyntheticMigrationStore | undefined;
   stage: CalendarPilotSyntheticMigrationStage;
   cursor: number;
   attempts: number;
@@ -83,6 +116,7 @@ interface MigrationState {
 interface ChangeIntent {
   readonly id: string;
   readonly nextOwner: string;
+  readonly nextBinding: string | undefined;
 }
 
 interface AdmissionRecord {
@@ -120,7 +154,7 @@ export class CalendarPilotSyntheticLeaseCoordinator {
   private syntheticDispatchStarts = 0;
   private lastClock = -Infinity;
   private leaseExpiresAtMillis: number;
-  private readonly sourceBinding: string | undefined;
+  private sourceBinding: string | undefined;
   private readonly admissions = new Map<string, AdmissionRecord>();
   private readonly segmentIds = new Set<string>();
   private readonly intentIds = new Set<string>();
@@ -189,36 +223,138 @@ export class CalendarPilotSyntheticLeaseCoordinator {
     });
   }
 
-  /** Bound mode only; one synthetic migration per coordinator. Items are test input. */
+  /**
+   * Bound mode only; one synthetic migration per coordinator. Items are test
+   * input. With options.toBinding the migration spans two bindings: copy (under
+   * the current lease) writes to toBinding, then a source switch to toBinding
+   * (beginChange/commit) must happen before cleanup removes from this binding.
+   */
   public beginMigration(
     lease: CalendarPilotSyntheticLease,
     sourceBinding: string,
     migrationId: string,
     itemIds: readonly string[],
-    batchLimit: number
+    batchLimit: number,
+    options: {
+      readonly toBinding?: string;
+      readonly store?: CalendarPilotSyntheticMigrationStore;
+    } = {}
   ): void {
     if (this.phase !== 'active')
       throw new Error('Calendar migration cannot start in this phase.');
     this.assertBoundLease(lease, sourceBinding);
-    if (
-      this.migration !== undefined ||
-      migrationId.trim() === '' ||
-      itemIds.length === 0 ||
-      itemIds.some((id) => typeof id !== 'string' || id.trim() === '') ||
-      new Set(itemIds).size !== itemIds.length ||
-      !Number.isSafeInteger(batchLimit) ||
-      batchLimit < 1
-    )
+    this.assertMigrationInput(
+      migrationId,
+      itemIds,
+      batchLimit,
+      sourceBinding,
+      options.toBinding
+    );
+    if (this.migration !== undefined)
       throw new Error('Synthetic Calendar migration input is invalid.');
+    if (options.store?.load() !== undefined)
+      throw new Error(
+        'Calendar migration store already holds a cursor; resume it.'
+      );
     this.migration = {
       id: migrationId,
       itemIds: Object.freeze([...itemIds]),
       batchLimit,
+      fromBinding: sourceBinding,
+      toBinding: options.toBinding,
+      store: options.store,
       stage: 'copy',
       cursor: 0,
       attempts: 0,
       busy: false
     };
+  }
+
+  /**
+   * Simulated process restart: a new coordinator picks the migration up from the
+   * store. It needs a strictly newer generation than the record (a restart is
+   * not proof the old process stopped, so it must come through a fresh lease),
+   * and the registry binding it was built with decides which side of a source
+   * switch it is on. Batches are replayed from the saved cursor by batchKey.
+   */
+  public resumeMigration(
+    lease: CalendarPilotSyntheticLease,
+    sourceBinding: string,
+    migrationId: string,
+    store: CalendarPilotSyntheticMigrationStore
+  ): void {
+    if (this.phase !== 'active')
+      throw new Error('Calendar migration cannot start in this phase.');
+    this.assertBoundLease(lease, sourceBinding);
+    const record = store.load();
+    if (this.migration !== undefined || record === undefined)
+      throw new Error('Synthetic Calendar migration cannot be resumed.');
+    this.assertMigrationInput(
+      record.id,
+      record.itemIds,
+      record.batchLimit,
+      record.fromBinding,
+      record.toBinding
+    );
+    const { stage, toBinding } = record;
+    const onOldSide = sourceBinding === record.fromBinding;
+    const onNewSide = toBinding !== undefined && sourceBinding === toBinding;
+    const bindingFits =
+      toBinding === undefined || stage === 'copy'
+        ? onOldSide
+        : stage === 'switch'
+          ? onOldSide || onNewSide
+          : onNewSide;
+    if (
+      record.id !== migrationId ||
+      record.generation >= this.lease.generation ||
+      !['copy', 'switch', 'cleanup', 'done'].includes(stage) ||
+      (stage === 'switch' && toBinding === undefined) ||
+      !Number.isSafeInteger(record.cursor) ||
+      record.cursor < 0 ||
+      record.cursor >= record.itemIds.length ||
+      (stage === 'done' && record.cursor !== 0) ||
+      !bindingFits
+    )
+      throw new Error(
+        'Synthetic Calendar migration record does not match this lease.'
+      );
+    // Registry already points at the new binding: the switch happened, cleanup starts at 0.
+    const switched = stage === 'switch' && onNewSide;
+    this.migration = {
+      id: record.id,
+      itemIds: Object.freeze([...record.itemIds]),
+      batchLimit: record.batchLimit,
+      fromBinding: record.fromBinding,
+      toBinding,
+      store,
+      stage: switched ? 'cleanup' : stage,
+      cursor: switched ? 0 : record.cursor,
+      attempts: 0,
+      busy: false
+    };
+  }
+
+  private assertMigrationInput(
+    migrationId: string,
+    itemIds: readonly string[],
+    batchLimit: number,
+    fromBinding: string,
+    toBinding: string | undefined
+  ): void {
+    if (
+      migrationId.trim() === '' ||
+      itemIds.length === 0 ||
+      itemIds.some((id) => typeof id !== 'string' || id.trim() === '') ||
+      new Set(itemIds).size !== itemIds.length ||
+      !Number.isSafeInteger(batchLimit) ||
+      batchLimit < 1 ||
+      (toBinding !== undefined &&
+        (typeof toBinding !== 'string' ||
+          toBinding.trim() === '' ||
+          toBinding === fromBinding))
+    )
+      throw new Error('Synthetic Calendar migration input is invalid.');
   }
 
   /**
@@ -240,11 +376,20 @@ export class CalendarPilotSyntheticLeaseCoordinator {
     const migration = this.migration;
     if (migration === undefined || migration.stage === 'done')
       throw new Error('Calendar migration is not pending.');
+    if (migration.stage === 'switch')
+      throw new Error('Calendar migration awaits a source switch.');
     if (migration.busy)
       throw new Error('Calendar migration batch is already running.');
     migration.busy = true;
     try {
-      const { stage, cursor } = migration;
+      const stage = migration.stage;
+      const cursor = migration.cursor;
+      const targetBinding =
+        migration.toBinding === undefined
+          ? undefined
+          : stage === 'copy'
+            ? migration.toBinding
+            : migration.fromBinding;
       const batchKey = `${migration.id}:${stage}:${cursor}`;
       const admission = this.admit(
         lease,
@@ -259,6 +404,7 @@ export class CalendarPilotSyntheticLeaseCoordinator {
           migration.itemIds.slice(cursor, cursor + migration.batchLimit)
         ),
         sourceBinding,
+        ...(targetBinding === undefined ? {} : { targetBinding }),
         generation: admission.generation
       });
       const receipt = await this.dispatch(admission, () =>
@@ -269,17 +415,41 @@ export class CalendarPilotSyntheticLeaseCoordinator {
         !sameLease(admission, this.lease) ||
         receipt?.batchKey !== batchKey ||
         receipt.sourceBinding !== sourceBinding ||
+        receipt.targetBinding !== batch.targetBinding ||
         receipt.generation !== batch.generation ||
         receipt.itemIds?.length !== batch.itemIds.length ||
         receipt.itemIds.some((id, i) => id !== batch.itemIds[i])
       )
         throw new CalendarPilotLeaseLostError();
-      migration.cursor += batch.itemIds.length;
-      migration.attempts = 0;
-      if (migration.cursor === migration.itemIds.length) {
-        migration.cursor = 0;
-        migration.stage = stage === 'copy' ? 'cleanup' : 'done';
+      let nextCursor = cursor + batch.itemIds.length;
+      let nextStage: CalendarPilotSyntheticMigrationStage = stage;
+      if (nextCursor === migration.itemIds.length) {
+        nextCursor = 0;
+        nextStage =
+          stage === 'cleanup'
+            ? 'done'
+            : migration.toBinding === undefined
+              ? 'cleanup'
+              : 'switch';
       }
+      // Save first: if the store refuses, memory stays at the old cursor and the batch replays.
+      migration.store?.save(
+        Object.freeze({
+          id: migration.id,
+          itemIds: migration.itemIds,
+          batchLimit: migration.batchLimit,
+          fromBinding: migration.fromBinding,
+          ...(migration.toBinding === undefined
+            ? {}
+            : { toBinding: migration.toBinding }),
+          stage: nextStage,
+          cursor: nextCursor,
+          generation: batch.generation
+        })
+      );
+      migration.cursor = nextCursor;
+      migration.stage = nextStage;
+      migration.attempts = 0;
       return this.migrationView(migration);
     } finally {
       migration.busy = false;
@@ -295,7 +465,10 @@ export class CalendarPilotSyntheticLeaseCoordinator {
       cursor: migration.cursor,
       total: migration.itemIds.length,
       batchLimit: migration.batchLimit,
-      attempts: migration.attempts
+      attempts: migration.attempts,
+      ...(migration.toBinding === undefined
+        ? {}
+        : { toBinding: migration.toBinding })
     });
   }
 
@@ -367,7 +540,16 @@ export class CalendarPilotSyntheticLeaseCoordinator {
     return admission;
   }
 
-  public beginChange(intentId: string, nextOwner: string): void {
+  /**
+   * nextSourceBinding is a registry source change: bound mode only, a different
+   * binding, and with an unfinished migration only to its toBinding once copy is
+   * done. It takes effect at commit, together with the new generation.
+   */
+  public beginChange(
+    intentId: string,
+    nextOwner: string,
+    nextSourceBinding?: string
+  ): void {
     if (this.phase !== 'active')
       throw new Error('Calendar lease change cannot start in this phase.');
     if (!this.hasLiveLeaseTime()) throw new CalendarPilotLeaseLostError();
@@ -375,12 +557,25 @@ export class CalendarPilotSyntheticLeaseCoordinator {
       intentId.trim() === '' ||
       nextOwner.trim() === '' ||
       nextOwner === this.lease.owner ||
-      this.intentIds.has(intentId)
+      this.intentIds.has(intentId) ||
+      (nextSourceBinding !== undefined &&
+        (this.sourceBinding === undefined ||
+          typeof nextSourceBinding !== 'string' ||
+          nextSourceBinding.trim() === '' ||
+          nextSourceBinding === this.sourceBinding))
     )
       throw new Error('Synthetic Calendar lease change intent is invalid.');
+    const pending = this.migration;
+    if (
+      nextSourceBinding !== undefined &&
+      pending !== undefined &&
+      pending.stage !== 'done' &&
+      !(pending.stage === 'switch' && pending.toBinding === nextSourceBinding)
+    )
+      throw new Error('Calendar source switch does not fit the migration.');
 
     this.intentIds.add(intentId);
-    this.intent = { id: intentId, nextOwner };
+    this.intent = { id: intentId, nextOwner, nextBinding: nextSourceBinding };
     this.phase = 'draining';
     this.advanceQuiescence();
   }
@@ -446,6 +641,15 @@ export class CalendarPilotSyntheticLeaseCoordinator {
       throw new Error('Synthetic Calendar generation cannot be advanced.');
 
     this.lease = this.newLease(this.intent.nextOwner, generation);
+    if (this.intent.nextBinding !== undefined) {
+      this.sourceBinding = this.intent.nextBinding;
+      const migration = this.migration;
+      if (migration?.stage === 'switch') {
+        migration.stage = 'cleanup';
+        migration.cursor = 0;
+        migration.attempts = 0;
+      }
+    }
     this.phase = 'committed';
     return this.currentLease;
   }
