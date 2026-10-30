@@ -53,10 +53,20 @@ import {
   type AppointmentListWindow,
   type PatientDirectoryPort
 } from '../patients/patient-directory.js';
+import type { AppointmentRecord } from './appointment.repository-port.js';
+import { decodeListCursor, encodeListCursor } from './list-cursor.js';
 
 /** The lists show appointments from a week before now to 31 days after it. */
 const LIST_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
 const LIST_HORIZON_MS = 31 * 24 * 60 * 60 * 1000;
+/** Rows per list page: the default and the most a caller may ask for. */
+export const LIST_PAGE_SIZE = 50;
+
+export interface AppointmentListPage {
+  readonly response: ListAppointmentsResponse;
+  /** Present only when rows remain after this page. */
+  readonly nextCursor?: string;
+}
 
 export interface AppointmentIdGenerator {
   next(): string;
@@ -452,32 +462,71 @@ export class AppointmentApplicationService {
     scope: 'mine' | 'clinic',
     authentication: AuthenticationContext
   ): Promise<ListAppointmentsResponse> {
+    return (await this.listPage(scope, authentication)).response;
+  }
+
+  /**
+   * One page of the list plus, when more rows follow, the cursor for the next
+   * call. The response body stays `{ appointments }` (its schema is strict);
+   * the cursor travels beside it. The directory is asked for one row more than
+   * the page so "exactly one full page" is not reported as truncated.
+   */
+  public async listPage(
+    scope: 'mine' | 'clinic',
+    authentication: AuthenticationContext,
+    query: {
+      readonly limit?: number | undefined;
+      readonly cursor?: string | undefined;
+    } = {}
+  ): Promise<AppointmentListPage> {
     if (this.patients === undefined) {
       throw new DomainError(
         'APPOINTMENT_NOT_FOUND',
         'The appointment does not exist.'
       );
     }
+    let patientId: string | undefined;
     if (scope === 'clinic') {
       await this.authorization.assertCanQuery(authentication, {});
-      const records = await this.patients.listClinic(50, this.listWindow());
-      return {
-        appointments: records.flatMap((record) => this.toListItem(record))
-      };
+    } else {
+      patientId = authentication.verifiedPatientId;
+      if (patientId === undefined) throw new AuthenticationRequiredError();
+      await this.authorization.assertCanQuery(authentication, {
+        appointmentPatientId: patientId
+      });
     }
-    const patientId = authentication.verifiedPatientId;
-    if (patientId === undefined) throw new AuthenticationRequiredError();
-    await this.authorization.assertCanQuery(authentication, {
-      appointmentPatientId: patientId
-    });
-    const records = await this.patients.listByPatient(
-      patientId,
-      50,
-      this.listWindow()
-    );
-    return {
-      appointments: records.flatMap((record) => this.toListItem(record, true))
+    const limit = query.limit ?? LIST_PAGE_SIZE;
+    if (!Number.isInteger(limit) || limit < 1 || limit > LIST_PAGE_SIZE) {
+      throw new DomainError('INVALID_VALUE', 'The list limit is not valid.');
+    }
+    const after =
+      query.cursor === undefined ? undefined : decodeListCursor(query.cursor);
+    const window = this.listWindow();
+    const fetched =
+      patientId === undefined
+        ? await this.patients.listClinic(limit + 1, window, after)
+        : await this.patients.listByPatient(
+            patientId,
+            limit + 1,
+            window,
+            after
+          );
+    const records = fetched.slice(0, limit);
+    const response = {
+      appointments: records.flatMap((record) =>
+        this.toListItem(record, scope === 'mine')
+      )
     };
+    const last = records.at(-1);
+    return fetched.length > limit && last?.startsAt !== undefined
+      ? {
+          response,
+          nextCursor: encodeListCursor({
+            startsAt: last.startsAt,
+            appointmentId: last.appointmentId
+          })
+        }
+      : { response };
   }
 
   public async lookupReturn(
@@ -535,7 +584,7 @@ export class AppointmentApplicationService {
   }
 
   private toListItem(
-    record: import('./appointment.repository-port.js').AppointmentRecord,
+    record: AppointmentRecord,
     patientScope = false
   ): GetAppointmentResponse[] {
     if (record.startsAt === undefined) return [];

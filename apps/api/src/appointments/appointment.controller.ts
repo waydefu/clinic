@@ -7,7 +7,8 @@ import {
   Param,
   Post,
   Query,
-  Req
+  Req,
+  Res
 } from '@nestjs/common';
 import {
   CancelAppointmentRequestSchema,
@@ -29,6 +30,7 @@ import {
 
 import type { AuthenticationContext } from '../auth/authentication-context.js';
 import { AppointmentApplicationService } from './appointment.application-service.js';
+import { LIST_NEXT_CURSOR_HEADER } from './list-cursor.js';
 import {
   assertInternalTestBookingWritable,
   type InternalTestBookingSettings
@@ -48,6 +50,10 @@ import {
 export const APPOINTMENT_AUTHENTICATOR = 'AppointmentAuthenticator';
 export const APPOINTMENT_AUTHORIZATION = 'AppointmentAuthorizationPolicy';
 export const APPOINTMENT_APPLICATION = 'AppointmentApplicationService';
+
+interface HeaderReply {
+  header(name: string, value: string): void;
+}
 
 export interface AuthenticatableRequest {
   readonly headers: Record<string, unknown>;
@@ -133,7 +139,8 @@ export class AppointmentController {
   @Get()
   public async list(
     @Query() query: Record<string, unknown>,
-    @Req() request: AuthenticatableRequest
+    @Req() request: AuthenticatableRequest,
+    @Res({ passthrough: true }) reply: HeaderReply
   ) {
     this.assertInternalTestGate();
     const authentication = await this.authenticateAndLimit(request, false);
@@ -141,10 +148,13 @@ export class AppointmentController {
     const scope =
       parsed.scope ??
       (authentication.actorRole === 'patient' ? 'mine' : 'clinic');
-    return admitResponse(
-      ListAppointmentsResponseSchema,
-      await this.appointments.list(scope, authentication)
-    );
+    const page = await this.appointments.listPage(scope, authentication, {
+      limit: parsed.limit,
+      cursor: parsed.cursor
+    });
+    if (page.nextCursor !== undefined)
+      reply.header(LIST_NEXT_CURSOR_HEADER, page.nextCursor);
+    return admitResponse(ListAppointmentsResponseSchema, page.response);
   }
 
   @Get(':appointmentId')
