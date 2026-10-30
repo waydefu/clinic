@@ -1,9 +1,13 @@
 import { NotFoundException } from '@nestjs/common';
 import {
+  ConfirmArchivedIdentityRequestSchema,
+  OpaqueIdentifierSchema,
   PermanentDeletePatientRequestSchema,
   RetentionPatientRequestSchema,
   SetPatientLegalHoldRequestSchema,
   type PatientArchivedResponse,
+  type PatientIdentityCandidatesResponse,
+  type PatientIdentityConfirmedResponse,
   type PatientLegalHoldResponse,
   type PatientPermanentlyDeletedResponse,
   type PatientRestoredResponse,
@@ -23,6 +27,8 @@ export type BusinessRetentionRepositoryPort = Pick<
   FirestoreBusinessRetentionRepository,
   | 'archive'
   | 'restore'
+  | 'confirmArchivedIdentity'
+  | 'identityCandidates'
   | 'permanentlyDelete'
   | 'setLegalHold'
   | 'pendingDeletion'
@@ -89,6 +95,41 @@ export class BusinessRetentionApplicationService {
     const request = RetentionPatientRequestSchema.parse(body);
     return this.repository.restore({
       ...request,
+      actorRef: actorRefForUid(authentication.actorId),
+      now: this.nowUtc(),
+      scope: config.scope,
+      policy: config.policy
+    });
+  }
+
+  /** Manager-only; lists opaque archive candidates for a flagged record. */
+  public async identityCandidates(
+    patientId: unknown,
+    authentication: AuthenticationContext
+  ): Promise<PatientIdentityCandidatesResponse> {
+    this.enabledConfig();
+    authorizeRetention(authentication);
+    return this.repository.identityCandidates(
+      OpaqueIdentifierSchema.parse(patientId)
+    );
+  }
+
+  /**
+   * Manager-only restore-and-relink. Like the plain restore it needs no fresh
+   * re-authentication; the actor and reason are recorded in the retention log.
+   */
+  public async confirmArchivedIdentity(
+    body: unknown,
+    authentication: AuthenticationContext
+  ): Promise<PatientIdentityConfirmedResponse> {
+    const config = this.enabledConfig();
+    authorizeRetention(authentication);
+    const request = ConfirmArchivedIdentityRequestSchema.parse(body);
+    return this.repository.confirmArchivedIdentity({
+      idempotencyKey: request.idempotencyKey,
+      patientId: request.archivedPatientId,
+      provisionalPatientId: request.provisionalPatientId,
+      reasonCode: request.reasonCode,
       actorRef: actorRefForUid(authentication.actorId),
       now: this.nowUtc(),
       scope: config.scope,

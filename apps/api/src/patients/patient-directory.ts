@@ -100,6 +100,13 @@ export interface PreparedPatientIntake {
   readonly intake: PatientIntake;
 }
 
+/** Transaction-local metadata; preparation must not make it authoritative. */
+interface PatientIntakePlan {
+  readonly patientId: string;
+  readonly identityReviewRequired?: true;
+  apply(): void;
+}
+
 export interface PatientDirectoryPort {
   prepareIntake(
     intake: PatientIntake,
@@ -273,6 +280,9 @@ export function toListRecord(
       ? { startsAt: data['startsAt'] }
       : {}),
     ...(intakeNationality === undefined ? {} : { intakeNationality }),
+    ...(data?.['identityReviewRequired'] === true
+      ? { identityReviewRequired: true as const }
+      : {}),
     ...(typeof data?.['patientNote'] === 'string' &&
     data['patientNote'] !== '' &&
     data['patientNote'].length <= 120
@@ -322,7 +332,7 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
     intake: PatientIntake,
     nowUtc: string,
     allocateId: () => string
-  ) {
+  ): Promise<PatientIntakePlan> {
     const identity = normalisePatientIdentity(intake);
     const lookupKey = opaqueLookupIdentity(identity.phone, identity.birthDate);
     const lookupRef = this.db
@@ -341,6 +351,17 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
               this.db.collection(PATIENT_COLLECTIONS.patients).doc(id)
             )
           );
+    // Archive candidates stay private. A new intake may raise staff attention,
+    // but must not revive an archive or disclose its identity/history.
+    const pendingArchivedPatientIds = snapshots
+      .filter(
+        (snapshot) => snapshot.exists && isArchivedPatient(snapshot.data())
+      )
+      .map((snapshot) => snapshot.id);
+    const pendingReview =
+      pendingArchivedPatientIds.length > 0
+        ? { identityReviewRequired: true as const }
+        : {};
     const candidates: PatientCandidate[] = snapshots.flatMap((snapshot, i) => {
       const data = snapshot.data();
       if (!snapshot.exists || isArchivedPatient(data)) return [];
@@ -354,27 +375,46 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
     const decision = resolveIntakeCandidate(candidates, identity.name);
     const contact = patientContactOf(identity);
     if (decision.kind === 'reuse') {
-      // Same key means the same phone digits and month-day, freshly given in
-      // this booking. Fill them only when missing; nothing is derived from
-      // the hash and no other record is touched (no batch backfill).
+      // Only this freshly matched active record is updated. Archived records
+      // are never revived or copied; old and newly found private refs remain
+      // pending until an explicit identity-confirmation operation.
       const reused = snapshots[ids.indexOf(decision.patientId)];
-      if (
-        reused?.exists === true &&
-        stringField(reused.data(), 'phoneDigits') === undefined
-      ) {
-        return {
-          patientId: decision.patientId,
-          apply: () => {
-            transaction.update(reused.ref, { ...contact, updatedAt: nowUtc });
+      const pendingIds = [
+        ...new Set([
+          ...stringArrayField(reused?.data(), 'pendingArchivedPatientIds'),
+          ...pendingArchivedPatientIds
+        ])
+      ].filter((id) => id !== decision.patientId);
+      const needsReview =
+        reused?.data()?.['identityReviewRequired'] === true ||
+        pendingIds.length > 0;
+      const review = needsReview
+        ? { identityReviewRequired: true as const }
+        : {};
+      const missingContact =
+        stringField(reused?.data(), 'phoneDigits') === undefined;
+      return {
+        patientId: decision.patientId,
+        ...review,
+        apply: () => {
+          if (reused?.exists === true && (missingContact || needsReview)) {
+            transaction.update(reused.ref, {
+              ...(missingContact ? contact : {}),
+              ...review,
+              ...(pendingIds.length > 0
+                ? { pendingArchivedPatientIds: pendingIds }
+                : {}),
+              updatedAt: nowUtc
+            });
           }
-        };
-      }
-      return { patientId: decision.patientId, apply: () => {} };
+        }
+      };
     }
     if (decision.kind === 'ambiguous') throw ambiguousIdentity();
     const patientId = allocateId();
     return {
       patientId,
+      ...pendingReview,
       apply: () => {
         transaction.set(lookupRef, {
           ...(index.data() ?? {}),
@@ -388,6 +428,10 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
             patientId,
             name: identity.name,
             ...contact,
+            ...pendingReview,
+            ...(pendingArchivedPatientIds.length > 0
+              ? { pendingArchivedPatientIds }
+              : {}),
             createdAt: nowUtc,
             updatedAt: nowUtc
           }

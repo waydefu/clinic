@@ -5,6 +5,7 @@ import {
   Headers,
   Inject,
   Post,
+  Query,
   Req,
   UseGuards
 } from '@nestjs/common';
@@ -43,6 +44,28 @@ export class BusinessRetentionController {
     @Req() request: CalendarPilotAuthenticatedRequest
   ) {
     return this.application.restore(body, request.calendarPilotAuthentication);
+  }
+
+  @Get('identity-candidates')
+  public identityCandidates(
+    @Query('patientId') patientId: unknown,
+    @Req() request: CalendarPilotAuthenticatedRequest
+  ) {
+    return this.application.identityCandidates(
+      patientId,
+      request.calendarPilotAuthentication
+    );
+  }
+
+  @Post('confirm-identity')
+  public confirmArchivedIdentity(
+    @Body() body: unknown,
+    @Req() request: CalendarPilotAuthenticatedRequest
+  ) {
+    return this.application.confirmArchivedIdentity(
+      body,
+      request.calendarPilotAuthentication
+    );
   }
 
   @Post('permanent-delete')
