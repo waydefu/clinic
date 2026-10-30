@@ -3,8 +3,11 @@ import { createHash } from 'node:crypto';
 import {
   assertUtcTimestamp,
   DomainError,
+  planExpiredPatientArchive,
   planRetentionCalendarProjections,
   planRetentionOperation,
+  RETENTION_EXPIRY_REASON_CODE,
+  RETENTION_EXPIRY_SYSTEM_ACTOR_REF,
   type PlannedRetentionCalendarJob,
   type ApprovedBusinessDeliveryPolicy,
   type RetentionOperation
@@ -50,6 +53,13 @@ interface RetentionCommand {
 }
 
 export type ArchivePatientCommand = RetentionCommand;
+/** Internal synthetic capability only; callers cannot choose the audit actor. */
+export type ArchiveExpiredPatientCommand = Omit<
+  RetentionCommand,
+  'actorRef' | 'scope'
+> & {
+  readonly scope: 'internal_synthetic';
+};
 export type RestorePatientCommand = RetentionCommand;
 export interface PermanentlyDeletePatientCommand extends RetentionCommand {
   readonly reasonCode: RetentionReasonCode;
@@ -239,12 +249,48 @@ export class FirestoreBusinessRetentionRepository {
   public async archive(
     command: ArchivePatientCommand
   ): Promise<PatientArchivedResponse> {
+    return this.archivePatient(command, false);
+  }
+
+  /** No route, role grant, scheduler or human re-authentication is created. */
+  public async archiveExpiredPatient(
+    command: ArchiveExpiredPatientCommand
+  ): Promise<PatientArchivedResponse> {
+    if (
+      command.scope !== 'internal_synthetic' ||
+      !command.policy.applicableScopes.includes(command.scope)
+    ) {
+      throw new ConflictError();
+    }
+    return this.archivePatient(
+      { ...command, actorRef: RETENTION_EXPIRY_SYSTEM_ACTOR_REF },
+      true
+    );
+  }
+
+  private async archivePatient(
+    command: ArchivePatientCommand,
+    automatic: boolean
+  ): Promise<PatientArchivedResponse> {
     const action = 'archive';
-    const hash = requestHash([action, command.patientId]);
-    const requestId = `${OPAQUE_REQUEST_PREFIX}${sha256(`${action}:${command.idempotencyKey}`).slice(0, 40)}`;
+    // Automatic requests cannot replay a manually authorized operation's log.
+    const identity = automatic
+      ? `retention_expiry:${command.idempotencyKey}`
+      : command.idempotencyKey;
+    const hash = requestHash(
+      automatic
+        ? [
+            action,
+            command.patientId,
+            RETENTION_EXPIRY_SYSTEM_ACTOR_REF,
+            RETENTION_EXPIRY_REASON_CODE
+          ]
+        : [action, command.patientId]
+    );
+    const requestId = `${OPAQUE_REQUEST_PREFIX}${sha256(`${action}:${identity}`).slice(0, 40)}`;
     const logRef = this.db
       .collection(RETENTION_COLLECTIONS.log)
-      .doc(logId(action, command.idempotencyKey));
+      .doc(logId(action, identity));
     const patientRef = this.db
       .collection(PATIENT_COLLECTIONS.patients)
       .doc(command.patientId);
@@ -263,9 +309,11 @@ export class FirestoreBusinessRetentionRepository {
       const patientSnapshot = await transaction.get(patientRef);
       if (!patientSnapshot.exists) throw new NotFoundException();
       const patient = patientSnapshot.data() ?? {};
-      if (hasArchivedAt(patient)) throw new ConflictError();
+      const wasArchived = hasArchivedAt(patient);
+      if (wasArchived && !automatic) throw new ConflictError();
       const appointments = await transaction.get(appointmentsQuery);
       if (
+        !wasArchived &&
         appointments.docs.some((appointment) => {
           const data = appointment.data();
           if (data['status'] !== 'confirmed' && data['status'] !== 'arrived')
@@ -279,19 +327,43 @@ export class FirestoreBusinessRetentionRepository {
         throw new ConflictError();
       }
 
-      const followUps = await transaction.get(followUpsQuery);
-
-      const plan = planRetention({
-        operation: 'archive',
-        command,
-        requestId,
-        patient
-      });
+      let plan: ReturnType<typeof planRetentionOperation>;
+      try {
+        plan = automatic
+          ? planExpiredPatientArchive({
+              scopeId: command.scope,
+              resourceId: command.patientId,
+              requestId,
+              state: wasArchived ? 'archived' : 'active',
+              archivedAt: stringField(patient, 'archivedAt') ?? null,
+              recoverableUntil: stringField(patient, 'restorableUntil') ?? null,
+              nowAt: command.now,
+              appointmentStartsAt: appointments.docs.map((appointment) => {
+                const data: Record<string, unknown> = appointment.data();
+                return data['startsAt'];
+              }),
+              legalHold: (patient['legalHold'] === undefined
+                ? false
+                : patient['legalHold']) as boolean,
+              policy: command.policy.retention
+            })
+          : planRetention({
+              operation: 'archive',
+              command,
+              requestId,
+              patient
+            });
+      } catch (error) {
+        if (error instanceof DomainError) throw new ConflictError();
+        throw error;
+      }
       const response: PatientArchivedResponse = {
         patientId: command.patientId,
         state: 'archived',
         restorableUntil: plan.recoverableUntil!
       };
+      if (wasArchived) return response;
+      const followUps = await transaction.get(followUpsQuery);
       // Rebuild every titled event from the archived record (minimal summary).
       const calendarJobs = planRetentionCalendarProjections({
         operation: 'archive',
@@ -316,6 +388,7 @@ export class FirestoreBusinessRetentionRepository {
         action,
         patientId: command.patientId,
         actorRef: command.actorRef,
+        ...(automatic ? { reasonCode: RETENTION_EXPIRY_REASON_CODE } : {}),
         at: command.now,
         requestHash: hash,
         result: response

@@ -897,7 +897,15 @@ test.describe('商務與驗收工作區', () => {
       .first()
       .fill('patient_test_archive_001');
     await page.getByRole('button', { name: '重新登入並封存' }).click();
-    await expect(page.locator('#business-section')).toContainText('可復原至');
+    await expect(page.locator('#business-section')).toContainText(
+      '管理者可復原'
+    );
+    await expect(page.locator('#business-section')).toContainText(
+      '不會自動刪除'
+    );
+    await expect(page.locator('#business-section')).not.toContainText(
+      '可復原至'
+    );
     await page
       .getByLabel('患者不透明識別碼')
       .nth(1)

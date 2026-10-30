@@ -71,33 +71,47 @@ describe('planRetentionOperation', () => {
     });
   });
 
-  it('restores before the exact expiry and rejects restoration at expiry', () => {
-    const common = {
-      operation: 'restore' as const,
-      resourceId: 'resource_001',
-      state: 'archived' as const,
-      archivedAt: '2030-01-01T00:00:00.000Z',
-      recoverableUntil: '2030-01-31T00:00:00.000Z',
-      legalHold: false,
-      policy
-    };
-    expect(
-      planRetentionOperation({
-        ...common,
-        requestId: 'request_003',
-        nowAt: '2030-01-30T23:59:59.999Z',
-        proof: { ...proof, requestId: 'request_003' }
-      })
-    ).toMatchObject({ resultingState: 'active', archivedAt: null });
-    expect(() =>
-      planRetentionOperation({
-        ...common,
-        requestId: 'request_004',
-        nowAt: '2030-01-31T00:00:00.000Z',
-        proof: { ...proof, requestId: 'request_004' }
-      })
-    ).toThrow(/expired/);
-  });
+  it.each([
+    {
+      label: 'before expiry',
+      requestId: 'request_003',
+      nowAt: '2030-01-30T23:59:59.999Z'
+    },
+    {
+      label: 'at expiry',
+      requestId: 'request_004',
+      nowAt: '2030-01-31T00:00:00.000Z'
+    },
+    {
+      label: 'after expiry',
+      requestId: 'request_010',
+      nowAt: '2032-01-01T00:00:00.000Z'
+    }
+  ])(
+    'restores to active $label the exact recovery cutoff',
+    ({ requestId, nowAt }: { requestId: string; nowAt: string }) => {
+      expect(
+        planRetentionOperation({
+          operation: 'restore',
+          resourceId: 'resource_001',
+          requestId,
+          state: 'archived',
+          nowAt,
+          archivedAt: '2030-01-01T00:00:00.000Z',
+          recoverableUntil: '2030-01-31T00:00:00.000Z',
+          legalHold: false,
+          policy,
+          proof: { ...proof, requestId }
+        })
+      ).toMatchObject({
+        operation: 'restore',
+        resultingState: 'active',
+        archivedAt: null,
+        recoverableUntil: null,
+        idempotency: 'new_operation'
+      });
+    }
+  );
 
   it('allows restoration without re-authentication while preserving the cutoff', () => {
     expect(
@@ -120,6 +134,38 @@ describe('planRetentionOperation', () => {
         }
       })
     ).toMatchObject({ resultingState: 'active', idempotency: 'new_operation' });
+  });
+
+  it('rejects restoration without authorization', () => {
+    expect(() =>
+      planRetentionOperation({
+        operation: 'restore',
+        resourceId: 'resource_001',
+        requestId: 'request_011',
+        state: 'archived',
+        nowAt: '2030-01-30T00:00:00.000Z',
+        archivedAt: '2030-01-01T00:00:00.000Z',
+        recoverableUntil: '2030-01-31T00:00:00.000Z',
+        legalHold: false,
+        policy,
+        proof: { ...proof, requestId: 'request_011', authorized: false }
+      })
+    ).toThrow(DomainError);
+  });
+
+  it('rejects restoration after permanent deletion', () => {
+    expect(() =>
+      planRetentionOperation({
+        operation: 'restore',
+        resourceId: 'resource_001',
+        requestId: 'request_012',
+        state: 'permanently_deleted',
+        nowAt: '2030-02-01T00:00:00.000Z',
+        legalHold: false,
+        policy,
+        proof: { ...proof, requestId: 'request_012' }
+      })
+    ).toThrow(DomainError);
   });
 
   it('requires the explicit delete gate after the recovery window', () => {

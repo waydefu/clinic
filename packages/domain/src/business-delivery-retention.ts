@@ -16,7 +16,7 @@ export type RetainedResourceState =
 export type RetentionOperation = 'archive' | 'restore' | 'permanent_delete';
 
 export interface RetentionPolicy {
-  /** Approved recoverable period in UTC calendar-day units. */
+  /** Legacy field: UTC days before manual deletion review, not a restore limit. */
   readonly recoverableDays: number;
 }
 
@@ -137,6 +137,136 @@ function assertArchivedWindow(input: {
   assertUtcTimestamp(input.nowAt, 'nowAt');
 }
 
+type ArchiveStateInput = {
+  readonly resourceId: string;
+  readonly requestId: string;
+  readonly state: RetainedResourceState;
+  readonly nowAt: string;
+  readonly archivedAt?: string | null;
+  readonly recoverableUntil?: string | null;
+  readonly policy: RetentionPolicy;
+};
+
+type ArchivePlan = RetentionOperationPlan & { readonly operation: 'archive' };
+
+/** Shared state transition; each entry point validates its own authority first. */
+function planArchiveState(input: ArchiveStateInput): ArchivePlan {
+  if (input.state !== 'active' && input.state !== 'archived') {
+    throw new DomainError(
+      'INVALID_VALUE',
+      'only an active or archived resource may be archived.'
+    );
+  }
+  const base = {
+    operation: 'archive' as const,
+    resourceId: input.resourceId,
+    requestId: input.requestId,
+    resultingState: 'archived' as const,
+    auditRequired: true as const,
+    backupTreatment: 'unchanged_separate_process' as const,
+    dependencyCheck: 'not_required' as const
+  };
+  if (input.state === 'archived') {
+    const original = {
+      archivedAt: input.archivedAt ?? null,
+      recoverableUntil: input.recoverableUntil ?? null,
+      nowAt: input.nowAt,
+      policy: input.policy
+    };
+    assertArchivedWindow(original);
+    return {
+      ...base,
+      archivedAt: original.archivedAt,
+      recoverableUntil: original.recoverableUntil,
+      idempotency: 'already_applied'
+    };
+  }
+  return {
+    ...base,
+    archivedAt: input.nowAt,
+    recoverableUntil: archiveWindow({
+      archivedAt: input.nowAt,
+      policy: input.policy
+    }),
+    idempotency: 'new_operation'
+  };
+}
+
+/** Audit actor reference, not a login role or a grant to restore/delete. */
+export const RETENTION_EXPIRY_SYSTEM_ACTOR_REF = 'system_retention_expiry';
+export const RETENTION_EXPIRY_REASON_CODE = 'retention_expired';
+
+/**
+ * Archive-only system plan for the 2026-10-30 owner decision. Callers must read
+ * all appointment dates, the patient state and legal hold in the same write
+ * transaction. There is no human proof, re-authentication or delete operation.
+ * UTC calendar anniversaries are used; leap day advances conservatively to
+ * March 1 when the target year has no February 29.
+ */
+export function planExpiredPatientArchive(
+  input: ArchiveStateInput & {
+    readonly scopeId: string;
+    readonly appointmentStartsAt: readonly unknown[];
+    readonly legalHold: boolean;
+  }
+): ArchivePlan & {
+  readonly actorRef: typeof RETENTION_EXPIRY_SYSTEM_ACTOR_REF;
+  readonly reasonCode: typeof RETENTION_EXPIRY_REASON_CODE;
+} {
+  assertOpaque(input.scopeId, 'retention.scopeId');
+  assertOpaque(input.resourceId, 'retention.resourceId');
+  assertOpaque(input.requestId, 'retention.requestId');
+  assertUtcTimestamp(input.nowAt, 'nowAt');
+  assertPolicy(input.policy);
+  if (input.state !== 'active' && input.state !== 'archived') {
+    throw new DomainError(
+      'INVALID_VALUE',
+      'only an active or archived resource may be archived.'
+    );
+  }
+  if (input.state === 'active') {
+    if (input.legalHold !== false) {
+      throw new DomainError(
+        'DELEGATION_NOT_AUTHORIZED',
+        'legal hold blocks automatic archive.'
+      );
+    }
+    if (
+      !Array.isArray(input.appointmentStartsAt) ||
+      input.appointmentStartsAt.length === 0
+    ) {
+      throw new DomainError(
+        'INVALID_VALUE',
+        'automatic archive requires appointment history.'
+      );
+    }
+    let latest = Number.NEGATIVE_INFINITY;
+    for (const startsAt of input.appointmentStartsAt) {
+      if (typeof startsAt !== 'string') {
+        throw new DomainError(
+          'INVALID_VALUE',
+          'appointment startsAt must be UTC.'
+        );
+      }
+      assertUtcTimestamp(startsAt, 'appointment.startsAt');
+      latest = Math.max(latest, Date.parse(startsAt));
+    }
+    const expiresAt = new Date(latest);
+    expiresAt.setUTCFullYear(expiresAt.getUTCFullYear() + 2);
+    if (Date.parse(input.nowAt) < expiresAt.getTime()) {
+      throw new DomainError(
+        'INVALID_VALUE',
+        'the latest appointment has not reached two years.'
+      );
+    }
+  }
+  return {
+    ...planArchiveState(input),
+    actorRef: RETENTION_EXPIRY_SYSTEM_ACTOR_REF,
+    reasonCode: RETENTION_EXPIRY_REASON_CODE
+  };
+}
+
 /**
  * Plans one explicit retention operation. No operation is implicit: in
  * particular, an archive never schedules a permanent delete and a repeated
@@ -180,42 +310,7 @@ export function planRetentionOperation(input: {
   };
 
   if (input.operation === 'archive') {
-    if (input.state === 'permanently_deleted') {
-      throw new DomainError(
-        'INVALID_VALUE',
-        'a permanently deleted resource cannot be revived.'
-      );
-    }
-    if (input.state === 'archived') {
-      assertArchivedWindow({
-        archivedAt,
-        recoverableUntil,
-        nowAt: input.nowAt,
-        policy: input.policy
-      });
-      return {
-        ...base,
-        operation: 'archive',
-        resultingState: 'archived',
-        archivedAt,
-        recoverableUntil,
-        dependencyCheck: 'not_required',
-        idempotency: 'already_applied'
-      };
-    }
-    const originalArchivedAt = input.nowAt;
-    return {
-      ...base,
-      operation: 'archive',
-      resultingState: 'archived',
-      archivedAt: originalArchivedAt,
-      recoverableUntil: archiveWindow({
-        archivedAt: originalArchivedAt,
-        policy: input.policy
-      }),
-      dependencyCheck: 'not_required',
-      idempotency: 'new_operation'
-    };
+    return planArchiveState(input);
   }
 
   if (input.state !== 'archived') {
@@ -250,12 +345,8 @@ export function planRetentionOperation(input: {
   const verifiedRecoverableUntil = verifiedArchive.recoverableUntil;
 
   if (input.operation === 'restore') {
-    if (Date.parse(input.nowAt) >= Date.parse(verifiedRecoverableUntil)) {
-      throw new DomainError(
-        'INVALID_VALUE',
-        'the recovery window has expired.'
-      );
-    }
+    // 2026-10-30: the legacy boundary only opens manual deletion review.
+    // An archived resource remains restorable until explicitly deleted.
     return {
       ...base,
       operation: 'restore',

@@ -399,48 +399,52 @@ describe('archive and restore', () => {
     }
   );
 
-  it('restores before the exact cutoff and rejects at the cutoff', async () => {
-    await seedPatient({ archived: true });
-    await db
-      .collection(COLLECTIONS.appointments)
-      .doc('appointment_ret_restore')
-      .set({
+  it.each([
+    '2030-10-30T23:59:59.999Z',
+    RESTORABLE_UNTIL,
+    '2032-01-01T00:00:00.000Z'
+  ])(
+    'restores an undeleted archived patient without a time limit at %s',
+    async (now) => {
+      await seedPatient({ archived: true });
+      await db
+        .collection(COLLECTIONS.appointments)
+        .doc('appointment_ret_restore')
+        .set({
+          patientId: PATIENT_ID,
+          patientArchived: true,
+          status: 'completed'
+        });
+      const command: RestorePatientCommand = {
+        ...baseCommand(),
+        idempotencyKey: 'restore-key-000001',
+        now
+      };
+      await expect(repository.restore(command)).resolves.toEqual({
         patientId: PATIENT_ID,
-        patientArchived: true,
-        status: 'completed'
+        state: 'active'
       });
-    const command: RestorePatientCommand = {
-      ...baseCommand(),
-      idempotencyKey: 'restore-key-000001',
-      now: '2030-10-30T23:59:59.999Z'
-    };
-    await expect(repository.restore(command)).resolves.toEqual({
-      patientId: PATIENT_ID,
-      state: 'active'
-    });
-    expect(
-      (
-        await db.collection(PATIENT_COLLECTIONS.patients).doc(PATIENT_ID).get()
-      ).get('archivedAt')
-    ).toBeUndefined();
-    expect(
-      (
-        await db
-          .collection(COLLECTIONS.appointments)
-          .doc('appointment_ret_restore')
-          .get()
-      ).get('patientArchived')
-    ).toBeUndefined();
+      expect(
+        (
+          await db
+            .collection(PATIENT_COLLECTIONS.patients)
+            .doc(PATIENT_ID)
+            .get()
+        ).get('archivedAt')
+      ).toBeUndefined();
+      expect(
+        (
+          await db
+            .collection(COLLECTIONS.appointments)
+            .doc('appointment_ret_restore')
+            .get()
+        ).get('patientArchived')
+      ).toBeUndefined();
 
-    await seedPatient({ archived: true });
-    await expect(
-      repository.restore({
-        ...command,
-        idempotencyKey: 'restore-key-000002',
-        now: RESTORABLE_UNTIL
-      })
-    ).rejects.toBeInstanceOf(ConflictError);
-  });
+      const replay = await repository.restore(command);
+      expect(replay).toEqual({ patientId: PATIENT_ID, state: 'active' });
+    }
+  );
 
   it('keeps archived IDs in the lookup and refuses restoration after a replacement', async () => {
     await seedPatient({ archived: true });
