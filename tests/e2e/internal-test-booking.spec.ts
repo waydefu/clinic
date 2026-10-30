@@ -1662,7 +1662,7 @@ test.describe('internal-test booking occupancy overlay', () => {
     const privateArchivedPatientId = 'patient_private_archived_001';
     await stubV1(
       page,
-      'closed',
+      { slots: [] },
       'closed',
       {},
       {
