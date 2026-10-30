@@ -158,6 +158,10 @@ export function planBusinessTerminationOperation(input) {
             if (Date.parse(completedAt) < Date.parse(verifiedNotice.noticeStartedAt)) {
                 throw new DomainError('INVALID_TIMESTAMP', 'returnCompletedAt cannot precede noticeStartedAt.');
             }
+            // No clock skew is approved, so "later than the server time" is any later.
+            if (Date.parse(completedAt) > Date.parse(input.nowAt)) {
+                throw new DomainError('INVALID_TIMESTAMP', 'returnCompletedAt cannot be later than the server time.');
+            }
             return basePlan({
                 ...common,
                 operation: 'record_return',
