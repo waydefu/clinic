@@ -566,7 +566,10 @@ export class AppointmentApplicationService {
           : { intakeNationality: record.intakeNationality }),
         ...(patientScope || record.patientNote === undefined
           ? {}
-          : { patientNote: record.patientNote })
+          : { patientNote: record.patientNote }),
+        ...(patientScope || record.identityReviewRequired !== true
+          ? {}
+          : { identityReviewRequired: true as const })
       }
     ];
   }

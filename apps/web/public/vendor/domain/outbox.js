@@ -95,6 +95,21 @@ export function parseOutboxSnapshot(id, data) {
         if (startsAt !== undefined) {
             assertUtcTimestamp(startsAt, 'startsAt');
         }
+        const retentionOperation = optionalString(record, 'retentionOperation');
+        if (retentionOperation !== undefined &&
+            retentionOperation !== 'archive' &&
+            retentionOperation !== 'restore') {
+            throw new Error();
+        }
+        const retentionArchivedAt = optionalString(record, 'retentionArchivedAt');
+        if (retentionArchivedAt !== undefined) {
+            assertUtcTimestamp(retentionArchivedAt, 'retentionArchivedAt');
+        }
+        // An archive job without its episode marker could not be told from a
+        // stale one: refuse it instead of guessing.
+        if (retentionOperation === 'archive' && retentionArchivedAt === undefined) {
+            throw new Error();
+        }
         return {
             id,
             appointmentId,
@@ -107,7 +122,9 @@ export function parseOutboxSnapshot(id, data) {
             ...(followUpSourceId === undefined ? {} : { followUpSourceId }),
             ...(nextAttemptAt === undefined ? {} : { nextAttemptAt }),
             ...(lastError === undefined ? {} : { lastError }),
-            ...(startsAt === undefined ? {} : { startsAt })
+            ...(startsAt === undefined ? {} : { startsAt }),
+            ...(retentionOperation === undefined ? {} : { retentionOperation }),
+            ...(retentionArchivedAt === undefined ? {} : { retentionArchivedAt })
         };
     }
     catch {

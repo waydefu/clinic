@@ -107,7 +107,9 @@ export const GetAppointmentResponseSchema = z
     patientId: OpaqueIdentifierSchema.optional(),
     intakeNationality: NationalitySchema.optional(),
     /** Staff clinic list only, like `intakeNationality`. */
-    patientNote: z.string().max(120).optional()
+    patientNote: z.string().max(120).optional(),
+    /** Staff-only attention flag; private archive candidate IDs stay server-side. */
+    identityReviewRequired: z.literal(true).optional()
   })
   .strict();
 

@@ -182,7 +182,7 @@ beforeEach(async () => {
 });
 
 describe('calendar projection on retention', () => {
-  it('re-projects titled events from the archived record on archive', async () => {
+  it('removes the visit event and the reminder from the calendar on archive', async () => {
     await seedPatient();
     await seedTitledHistory(false);
 
@@ -201,31 +201,67 @@ describe('calendar projection on retention', () => {
         ['appointment_ret_titled', 'completed', null, null],
         [
           'appointment_ret_titled',
-          'follow_up_required',
+          'follow_up_not_required',
           'appointment_ret_titled',
-          '2030-11-02T02:00:00.000Z'
+          null
         ]
       ])
     );
     expect(jobs).toHaveLength(2);
     for (const job of jobs) {
-      expect(job).toMatchObject({ status: 'pending', attempts: 0 });
+      // The archive episode marker is the very value stored on the patient.
+      expect(job).toMatchObject({
+        status: 'pending',
+        attempts: 0,
+        retentionOperation: 'archive',
+        retentionArchivedAt: ARCHIVE_NOW
+      });
     }
+    expect(
+      (
+        await db.collection(PATIENT_COLLECTIONS.patients).doc(PATIENT_ID).get()
+      ).get('archivedAt')
+    ).toBe(ARCHIVE_NOW);
     expectNoPatientFields(jobs);
   });
 
-  it('re-projects the same events on restore so titles come back', async () => {
+  it('re-adds only the reminder this return still needs on restore, not the old visit', async () => {
     await seedPatient({ archived: true });
     await seedTitledHistory(true);
 
     await repository.restore(baseCommand({ now: '2030-10-10T00:00:00.000Z' }));
 
     const jobs = await retentionJobs();
-    expect(jobs.map((job) => job['appointmentStatus']).sort()).toEqual([
-      'completed',
-      'follow_up_required'
-    ]);
+    expect(
+      jobs.map((job) => [job['appointmentStatus'], job['startsAt'] ?? null])
+    ).toEqual([['follow_up_required', '2030-11-02T02:00:00.000Z']]);
+    expect(jobs[0]).toMatchObject({ retentionOperation: 'restore' });
     expectNoPatientFields(jobs);
+  });
+
+  it('re-adds an open future booking on restore and skips past or closed ones', async () => {
+    await seedPatient({ archived: true });
+    await seedTitledHistory(true);
+    for (const [id, status, startsAt] of [
+      ['appointment_ret_open', 'confirmed', '2030-12-01T02:00:00.000Z'],
+      ['appointment_ret_closed', 'cancelled', '2030-12-02T02:00:00.000Z'],
+      ['appointment_ret_past', 'confirmed', '2030-10-09T02:00:00.000Z']
+    ] as const) {
+      await db.collection(COLLECTIONS.appointments).doc(id).set({
+        patientId: PATIENT_ID,
+        patientArchived: true,
+        status,
+        startsAt
+      });
+    }
+
+    await repository.restore(baseCommand({ now: '2030-10-10T00:00:00.000Z' }));
+
+    const jobs = await retentionJobs();
+    expect(jobs.map((job) => job['appointmentId']).sort()).toEqual([
+      'appointment_ret_open',
+      'appointment_ret_titled'
+    ]);
   });
 
   it('deletes every calendar event the patient owned on permanent delete', async () => {
@@ -399,48 +435,52 @@ describe('archive and restore', () => {
     }
   );
 
-  it('restores before the exact cutoff and rejects at the cutoff', async () => {
-    await seedPatient({ archived: true });
-    await db
-      .collection(COLLECTIONS.appointments)
-      .doc('appointment_ret_restore')
-      .set({
+  it.each([
+    '2030-10-30T23:59:59.999Z',
+    RESTORABLE_UNTIL,
+    '2032-01-01T00:00:00.000Z'
+  ])(
+    'restores an undeleted archived patient without a time limit at %s',
+    async (now) => {
+      await seedPatient({ archived: true });
+      await db
+        .collection(COLLECTIONS.appointments)
+        .doc('appointment_ret_restore')
+        .set({
+          patientId: PATIENT_ID,
+          patientArchived: true,
+          status: 'completed'
+        });
+      const command: RestorePatientCommand = {
+        ...baseCommand(),
+        idempotencyKey: 'restore-key-000001',
+        now
+      };
+      await expect(repository.restore(command)).resolves.toEqual({
         patientId: PATIENT_ID,
-        patientArchived: true,
-        status: 'completed'
+        state: 'active'
       });
-    const command: RestorePatientCommand = {
-      ...baseCommand(),
-      idempotencyKey: 'restore-key-000001',
-      now: '2030-10-30T23:59:59.999Z'
-    };
-    await expect(repository.restore(command)).resolves.toEqual({
-      patientId: PATIENT_ID,
-      state: 'active'
-    });
-    expect(
-      (
-        await db.collection(PATIENT_COLLECTIONS.patients).doc(PATIENT_ID).get()
-      ).get('archivedAt')
-    ).toBeUndefined();
-    expect(
-      (
-        await db
-          .collection(COLLECTIONS.appointments)
-          .doc('appointment_ret_restore')
-          .get()
-      ).get('patientArchived')
-    ).toBeUndefined();
+      expect(
+        (
+          await db
+            .collection(PATIENT_COLLECTIONS.patients)
+            .doc(PATIENT_ID)
+            .get()
+        ).get('archivedAt')
+      ).toBeUndefined();
+      expect(
+        (
+          await db
+            .collection(COLLECTIONS.appointments)
+            .doc('appointment_ret_restore')
+            .get()
+        ).get('patientArchived')
+      ).toBeUndefined();
 
-    await seedPatient({ archived: true });
-    await expect(
-      repository.restore({
-        ...command,
-        idempotencyKey: 'restore-key-000002',
-        now: RESTORABLE_UNTIL
-      })
-    ).rejects.toBeInstanceOf(ConflictError);
-  });
+      const replay = await repository.restore(command);
+      expect(replay).toEqual({ patientId: PATIENT_ID, state: 'active' });
+    }
+  );
 
   it('keeps archived IDs in the lookup and refuses restoration after a replacement', async () => {
     await seedPatient({ archived: true });
@@ -620,6 +660,38 @@ describe('permanent deletion', () => {
       policy: POLICY
     });
     expect(job.rowCount).toBe(0);
+  });
+
+  it('excludes an archived patient from exports even when the appointment flag is missing', async () => {
+    await seedPatient({ archived: true });
+    for (const [id, patientId] of [
+      ['appointment_ret_export_unflagged', PATIENT_ID],
+      ['appointment_ret_export_active', 'patient_ret_export_active']
+    ] as const) {
+      await db.collection(COLLECTIONS.appointments).doc(id).set({
+        patientId,
+        startsAt: '2030-10-02T04:00:00.000Z',
+        bookingKind: 'initial',
+        itemId: 'service_snoring',
+        status: 'completed'
+      });
+    }
+    await db
+      .collection(PATIENT_COLLECTIONS.patients)
+      .doc('patient_ret_export_active')
+      .set({ patientId: 'patient_ret_export_active', name: '合成患者丁' });
+    const job = await exportRepository.create({
+      idempotencyKey: 'retention-export-key-02',
+      from: '2030-10-01',
+      to: '2030-10-31',
+      startAt: '2030-09-30T16:00:00.000Z',
+      endAt: '2030-10-31T16:00:00.000Z',
+      actorRef: ACTOR_REF,
+      now: NOW,
+      policy: POLICY
+    });
+    // Only the active patient's row is exported.
+    expect(job.rowCount).toBe(1);
   });
 });
 
