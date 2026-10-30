@@ -1,3 +1,5 @@
+import { isDirectRun } from './direct-run.mjs';
+
 export const STAGE_F_ACCEPTANCE_CASES = Object.freeze([
   {
     id: 'general_booking_page_create_reload',
@@ -132,7 +134,7 @@ export function evaluateStageFAcceptanceMatrix(snapshot = {}) {
   };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isDirectRun(import.meta.url)) {
   const result = evaluateStageFAcceptanceMatrix();
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   process.exitCode = result.ok ? 0 : 1;
