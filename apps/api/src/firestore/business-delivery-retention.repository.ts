@@ -30,6 +30,7 @@ import {
   type DocumentReference,
   type DocumentSnapshot,
   type Firestore,
+  type QueryDocumentSnapshot,
   type Transaction
 } from 'firebase-admin/firestore';
 
@@ -1043,10 +1044,13 @@ export class FirestoreBusinessRetentionRepository {
   }
 
   /**
-   * One page of the manual-review list, ordered by `restorableUntil` then
-   * patient ID (`__name__`, the implicit tail of the single-field index, so no
-   * index is added) and read with `limit + 1` so "exactly one full page" is not
-   * reported as cut. Nothing here deletes or reads a patient's name.
+   * One page of the manual-review list, ordered by `restorableUntil` and, for
+   * records that share it, by patient ID (the order every Firestore index ends
+   * with), and read with `limit + 1` so "exactly one full page" is not
+   * reported as cut. The query stays on the one field `restorableUntil`, which
+   * the automatic single-field index serves, so no index is added: a position
+   * restarts the range at its time and skips the records of that time already
+   * returned. Nothing here deletes or reads a patient's name.
    */
   public async pendingDeletion(
     now: string,
@@ -1056,19 +1060,38 @@ export class FirestoreBusinessRetentionRepository {
     } = {}
   ): Promise<PendingDeletionPage> {
     const limit = page.limit ?? PENDING_DELETION_PAGE_SIZE;
-    const ordered = this.db
+    const after = page.after;
+    let expired = this.db
       .collection(PATIENT_COLLECTIONS.patients)
-      .where('restorableUntil', '<=', now)
-      .orderBy('restorableUntil', 'asc')
-      .orderBy('__name__', 'asc');
-    const snapshot = await (
-      page.after === undefined
-        ? ordered
-        : ordered.startAfter(page.after.restorableUntil, page.after.patientId)
-    )
-      .limit(limit + 1)
-      .get();
-    const pageDocs = snapshot.docs.slice(0, limit);
+      .where('restorableUntil', '<=', now);
+    if (after !== undefined)
+      expired = expired.where('restorableUntil', '>=', after.restorableUntil);
+    const ordered = expired.orderBy('restorableUntil', 'asc');
+    const found: QueryDocumentSnapshot[] = [];
+    let cursor: QueryDocumentSnapshot | undefined;
+    let exhausted = false;
+    while (found.length <= limit && !exhausted) {
+      const snapshot = await (
+        cursor === undefined ? ordered : ordered.startAfter(cursor)
+      )
+        .limit(limit + 1)
+        .get();
+      for (const document of snapshot.docs) {
+        cursor = document;
+        // Already returned on an earlier page: same time, ID not after it.
+        if (
+          after !== undefined &&
+          stringField(document.data(), 'restorableUntil') ===
+            after.restorableUntil &&
+          document.id <= after.patientId
+        )
+          continue;
+        found.push(document);
+        if (found.length > limit) break;
+      }
+      exhausted = snapshot.size < limit + 1;
+    }
+    const pageDocs = found.slice(0, limit);
     const patients = pageDocs.flatMap((document) => {
       const data = document.data();
       const archivedAt = stringField(data, 'archivedAt');
@@ -1091,7 +1114,7 @@ export class FirestoreBusinessRetentionRepository {
     });
     const last = pageDocs.at(-1);
     const lastRestorableUntil = stringField(last?.data(), 'restorableUntil');
-    return snapshot.docs.length > limit &&
+    return found.length > limit &&
       last !== undefined &&
       lastRestorableUntil !== undefined
       ? {
