@@ -154,7 +154,7 @@
         {
           "kind": "decision",
           "id": "D-002",
-          "description": "BD-POLICY-2026-09-29 只核准 C1 internal_synthetic；production 資料存取與保存仍待 D-002 與專業隱私／法律審閱。",
+          "description": "BD-POLICY-2026-09-29 只核准 C1 internal_synthetic；production 資料存取與保存仍待 D-002 與負責人依官方現行法條查核後的 production 核准。",
           "blocks": "public_production_route"
         }
       ],
@@ -167,7 +167,7 @@
         {
           "kind": "decision",
           "id": "D-002",
-          "description": "BD-POLICY-2026-09-29 與 OWNER-BATCH-2026-09-29B 只核准 C1 合成環境的 CSV 匯出；production 的資料存取與匯出仍待 D-002 與專業隱私／法律審閱。",
+          "description": "BD-POLICY-2026-09-29 與 OWNER-BATCH-2026-09-29B 只核准 C1 合成環境的 CSV 匯出；production 的資料存取與匯出仍待 D-002 與負責人依官方現行法條查核後的 production 核准。",
           "blocks": "public_production_route"
         }
       ],
@@ -180,11 +180,11 @@
         {
           "kind": "decision",
           "id": "D-002",
-          "description": "BD-POLICY-2026-09-29 只核准 C1 internal_synthetic；production 的保存與刪除仍待 D-002 與專業隱私／法律審閱。",
+          "description": "BD-POLICY-2026-09-29 只核准 C1 internal_synthetic；production 的保存與刪除仍待 D-002 與負責人依官方現行法條查核後的 production 核准。",
           "blocks": "public_production_route"
         }
       ],
-      "note": "CP-05：只限 manager；封存可復原 30 天，逾期僅列待永久刪除；永久刪除需重新驗證、無 legal hold 並逐層清除。"
+      "note": "CP-05：人工操作只限 manager；未永久刪除的封存病患可不限期復原，30 天只開啟人工刪除審理，不會自動永久刪除；永久刪除仍需重新驗證、無 legal hold 並逐層清除。2026-10-30 的系統入口只能封存，不取得復原或刪除權。"
     },
     "business_delivery_termination": {
       "permissions": ["manage_business_termination"],
@@ -193,7 +193,7 @@
         {
           "kind": "decision",
           "id": "D-002",
-          "description": "BD-POLICY-2026-09-29 只核准 C1 internal_synthetic；production 終止、資料返還與保存仍待 D-002 與專業隱私／法律審閱。",
+          "description": "BD-POLICY-2026-09-29 只核准 C1 internal_synthetic；production 終止、資料返還與保存仍待 D-002 與負責人依官方現行法條查核後的 production 核准。",
           "blocks": "public_production_route"
         }
       ],
@@ -201,6 +201,18 @@
     }
   },
   "unrouted": {
+    "src/business-delivery/automatic-patient-retention.service.ts": {
+      "approvedPolicyDependencies": ["D-006"],
+      "remainingBlockers": [
+        {
+          "kind": "decision",
+          "id": "D-002",
+          "description": "production 的資料處理仍受 D-002 與獨立部署授權限制；2026-10-30 只施工 source 與 synthetic tests，不接線任何 scheduler、module、controller 或雲端資源。",
+          "blocks": "public_production_route"
+        }
+      ],
+      "note": "2026-10-30 已決滿兩年且無更晚預約、無 legal hold 才自動封存；此未接線入口只接受 internal_synthetic，在交易內重讀資格，以固定 system actor 與 retention_expired 稽核，不偽造 human re-auth，不提供復原或刪除能力。後續身分待確認／重連與 Calendar 停止投影仍須完成；不代表整包或 production 可用。"
+    },
     "src/platform/authorization/delegated-authorization-crypto.ts": {
       "approvedPolicyDependencies": ["D-006"],
       "remainingBlockers": [

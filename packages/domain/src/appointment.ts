@@ -1,6 +1,9 @@
 import { isSlotOccupied } from './appointment-rules.js';
 import { DomainError } from './errors.js';
+import { COMPLETION_ACTOR_ROLES, type CompletionActorRole } from './roles.js';
 import { assertUtcTimestamp } from './timestamp.js';
+
+export type { CompletionActorRole } from './roles.js';
 
 export type AppointmentStatus =
   | 'confirmed'
@@ -9,8 +12,6 @@ export type AppointmentStatus =
   | 'cancelled'
   | 'completed'
   | 'no_show';
-
-export type CompletionActorRole = 'clinic_admin' | 'front_desk' | 'system';
 
 export interface Appointment {
   readonly id: string;
@@ -98,7 +99,7 @@ export function markAppointmentCompleted(
     );
   }
 
-  if (!['clinic_admin', 'front_desk', 'system'].includes(actorRole)) {
+  if (!COMPLETION_ACTOR_ROLES.includes(actorRole)) {
     throw new DomainError(
       'COMPLETION_NOT_AUTHORIZED',
       'The actor role cannot mark an appointment as completed.'

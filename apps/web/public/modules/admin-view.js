@@ -91,9 +91,14 @@ function patientDetail(state, appointment) {
   const nationality =
     NATIONALITY_LABELS[appointment.intakeNationality ?? record?.nationality];
   const shownNationality = nationality && `國籍：${nationality}`;
-  // 沒有病患紀錄時，代碼已經印在上一行標籤裡，這裡有國籍就只印國籍。
+  const identityReview =
+    appointment.identityReviewRequired === true ? '待櫃台確認' : undefined;
+  // API 不帶舊病患資料；只顯示注意旗標，不讓工作臺自動取用封存身分。
   if (record === undefined)
-    return shownNationality || escapeHtml(appointment.patientId);
+    return (
+      [shownNationality, identityReview].filter(Boolean).join(' · ') ||
+      escapeHtml(appointment.patientId)
+    );
   // 新預約的生日只有月日（`--05-20`，BOOKING-MINIMIZATION-2026-09-22）。直接印
   // 出來櫃台會看到兩個減號，像是資料壞掉；換成「5/20」。舊紀錄可能帶年份。
   const birth = birthDateHasYear(record.birthDate)
@@ -104,6 +109,7 @@ function patientDetail(state, appointment) {
     escapeHtml(record.phone),
     escapeHtml(birth),
     shownNationality,
+    identityReview,
     // 證件與「預計攜帶健保卡」只存在於舊紀錄；新資料不再收集。
     (record.nationalId || record.passportNumber) &&
       escapeHtml(maskIdentityDocument(record)),

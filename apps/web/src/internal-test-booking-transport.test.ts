@@ -1137,7 +1137,10 @@ describe('createInternalTestBookingTransport', () => {
     const SYNTHETIC_NOTE = '合成備註：想問術後照護';
     const HOSTILE_NOTE = '<img src=x onerror=alert(1)>合成備註';
 
-    function stateWithListedNotes(notes: Array<string | undefined>) {
+    function stateWithListedNotes(
+      notes: Array<string | undefined>,
+      identityReviewValues: unknown[] = []
+    ) {
       const local = vi.fn(() => Promise.resolve({ version: 8, slots: [] }));
       const fetchImpl = vi.fn((url) => {
         if (url === '/v1/slots') {
@@ -1170,7 +1173,17 @@ describe('createInternalTestBookingTransport', () => {
                   bookingKind: 'initial',
                   slotId: `slot_20300102_120${index}`,
                   patientId: `patient_opaque_00${index + 1}`,
-                  ...(patientNote === undefined ? {} : { patientNote })
+                  ...(patientNote === undefined ? {} : { patientNote }),
+                  ...(identityReviewValues[index] === undefined
+                    ? {}
+                    : { identityReviewRequired: identityReviewValues[index] }),
+                  ...(identityReviewValues[index] === true
+                    ? {
+                        pendingArchivedPatientIds: [
+                          'patient_private_archived_001'
+                        ]
+                      }
+                    : {})
                 }))
               })
           });
@@ -1213,6 +1226,34 @@ describe('createInternalTestBookingTransport', () => {
         '患者：&lt;img src=x onerror=alert(1)&gt;合成備註'
       );
       expect(html).not.toContain('<img');
+    });
+
+    it('maps and renders only a true identity review flag, not private archived refs', async () => {
+      const state: any = await stateWithListedNotes(
+        [undefined, undefined, undefined, undefined],
+        [true, undefined, false, ' true']
+      );
+      expect(state.appointments[0]).toMatchObject({
+        id: 'appointment_api_001',
+        patientId: 'patient_opaque_001',
+        identityReviewRequired: true
+      });
+      for (const appointment of state.appointments.slice(1)) {
+        expect(appointment).not.toHaveProperty('identityReviewRequired');
+      }
+      expect(state.appointments[0]).not.toHaveProperty(
+        'pendingArchivedPatientIds'
+      );
+
+      const render: any = initialState();
+      render.appointments = state.appointments;
+      const html = renderAppointments(render, {
+        status: 'all',
+        kind: 'all',
+        query: ''
+      });
+      expect(html.match(/待櫃台確認/g)).toHaveLength(1);
+      expect(html).not.toContain('patient_private_archived_001');
     });
   });
 });
