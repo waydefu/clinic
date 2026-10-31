@@ -24,8 +24,8 @@ export class StaticMaintenanceGate implements MaintenanceGate {
 }
 
 export interface MaintenanceControlPort {
-  read(): Promise<unknown>;
-  write(underMaintenance: boolean): Promise<void>;
+  read: () => Promise<unknown>;
+  write: (underMaintenance: boolean) => Promise<void>;
 }
 
 /** Source-only control readback is not worker drain or permission to restore. */
