@@ -70,6 +70,11 @@ describe('argv command runner (E2-07)', () => {
     expect(JSON.parse(runCommand([...echoArgs, ...tricky]))).toEqual(tricky);
   });
 
+  it('preserves empty args at start/middle/end and whitespace-only args', () => {
+    const args = ['', 'middle', '', '  ', ''];
+    expect(JSON.parse(runCommand([...echoArgs, ...args]))).toEqual(args);
+  });
+
   it('returns an empty string for a missing command or a non-zero exit', () => {
     expect(runCommand(['definitely-not-a-real-cli-name', 'x'])).toBe('');
     expect(runCommand([process.execPath, '-e', 'process.exit(3)'])).toBe('');
