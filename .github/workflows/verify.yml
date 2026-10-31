@@ -55,7 +55,29 @@ jobs:
           pwsh -NoLogo -NoProfile -NonInteractive
           -Command "'{}' | ConvertFrom-Json | ConvertTo-Json -Compress | Out-Null"
 
+      - name: Install Terraform CLI 1.9.8
+        run: |
+          set -euo pipefail
+          version='1.9.8'
+          archive="terraform_${version}_linux_amd64.zip"
+          base_url="https://releases.hashicorp.com/terraform/${version}"
+          mkdir -p "$RUNNER_TEMP/terraform-cli"
+          cd "$RUNNER_TEMP/terraform-cli"
+          curl -fsSLo "$archive" "${base_url}/${archive}"
+          curl -fsSLo "terraform_${version}_SHA256SUMS" "${base_url}/terraform_${version}_SHA256SUMS"
+          grep -F "  ${archive}" "terraform_${version}_SHA256SUMS" | sha256sum -c -
+          unzip -q "$archive" terraform
+          sudo install -m 0755 terraform /usr/local/bin/terraform
+          terraform version
+
       - run: pnpm verify
+
+      - name: Run credential-free Terraform mock/noop tests
+        env:
+          TF_PLUGIN_CACHE_DIR: ${{ runner.temp }}/terraform-plugin-cache
+        run: |
+          mkdir -p "$TF_PLUGIN_CACHE_DIR"
+          node scripts/terraform-ci.mjs
 
   rules:
     name: Firestore Emulator（交易、冪等、outbox、預設拒絕）
