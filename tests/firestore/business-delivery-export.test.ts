@@ -211,6 +211,36 @@ describe('export creation', () => {
   });
 });
 
+describe('stored job version admission', () => {
+  it('rejects an unknown version across reads without changing stored state', async () => {
+    const job = await repository.create(command());
+    const record = db.collection(EXPORT_COLLECTIONS.jobs).doc(job.exportId);
+    await record.update({ schemaVersion: 2 });
+    const before = (await record.get()).data();
+    const logsBefore = (await db.collection(EXPORT_COLLECTIONS.log).get()).size;
+    const chunksBefore = await chunkCount();
+
+    await expect(repository.create(command())).rejects.toBeInstanceOf(
+      ConflictError
+    );
+    await expect(repository.get(job.exportId, NOW)).rejects.toBeInstanceOf(
+      ConflictError
+    );
+    await expect(
+      repository.download(job.exportId, ACTOR, NOW)
+    ).rejects.toBeInstanceOf(ConflictError);
+    await expect(
+      repository.revoke(job.exportId, 'revoke-version-0001', ACTOR, NOW)
+    ).rejects.toBeInstanceOf(ConflictError);
+
+    expect((await record.get()).data()).toEqual(before);
+    expect((await db.collection(EXPORT_COLLECTIONS.log).get()).size).toBe(
+      logsBefore
+    );
+    expect(await chunkCount()).toBe(chunksBefore);
+  });
+});
+
 describe('download limits', () => {
   it('allows three downloads and then refuses', async () => {
     const job = await repository.create(command());
