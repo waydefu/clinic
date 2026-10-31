@@ -221,6 +221,7 @@ test.describe('患者線上預約', () => {
       const pageErrors: string[] = [];
       page.on('pageerror', (error) => pageErrors.push(error.message));
       await page.clock.setFixedTime(new Date('2030-10-30T09:00:00+08:00'));
+      await login(page);
       await page.evaluate(
         ({ key, remainingStartsAt }) => {
           const snapshot = JSON.parse(localStorage.getItem(key)!);
@@ -241,7 +242,7 @@ test.describe('患者線上預約', () => {
         },
         { key: STORAGE_KEY, remainingStartsAt }
       );
-      await page.reload();
+      await page.goto('/booking');
       await page.locator('[data-booking-type="initial"]').click();
       await page.locator('#patient-services [data-service]').first().click();
       await expect(
@@ -268,7 +269,9 @@ test.describe('患者線上預約', () => {
           page.locator('#patient-slot-dates [aria-selected="true"]')
         ).toHaveAttribute('data-slot-date', '2030-11-01');
       } else {
-        await expect(page.locator('#patient-slot-months button')).toHaveCount(0);
+        await expect(page.locator('#patient-slot-months button')).toHaveCount(
+          0
+        );
         await expect(page.locator('#active-slot-date-label')).toHaveText(
           '目前沒有可預約日期'
         );
