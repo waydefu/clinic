@@ -147,6 +147,16 @@ export const CalendarPilotCandidateRecordSchema =
     appointmentStartsAtAtDetection: UtcIsoTimestampSchema.optional()
   }).passthrough();
 
+// Sync reads partial legacy candidates before regenerating them.
+export const CalendarPilotCandidateSyncRecordSchema = z
+  .object({
+    ...unversioned,
+    status: CalendarChangeCandidateSchema.shape.status.optional(),
+    expectedEtag: z.string().nullish(),
+    supersededReason: z.string().nullish()
+  })
+  .passthrough();
+
 export const CalendarPilotAppointmentRecordSchema =
   SyntheticAppointmentSchema.extend({
     ...unversioned,
