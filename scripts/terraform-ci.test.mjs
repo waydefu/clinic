@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -59,7 +60,7 @@ describe('Terraform mock tests are part of required verify CI', () => {
     const output = [];
     const expectedPassed = TERRAFORM_MODULES.length * 4;
     const result = runTerraformMockTests({
-      root,
+      cwd: root,
       spawn: (_command, args) => {
         calls.push(args);
         return args.includes('init')
@@ -120,6 +121,42 @@ describe('Terraform mock tests are part of required verify CI', () => {
     expect(output.join('')).toContain('mock assertion failed');
   });
 
+  it.each([
+    ['missing summary', ''],
+    ['zero tests', 'Success! 0 passed, 0 failed.\n'],
+    ['failed assertion', 'Success! 2 passed, 1 failed.\n'],
+    [
+      'ambiguous summary',
+      'Success! 2 passed, 0 failed.\nSuccess! 2 passed, 0 failed.\n'
+    ]
+  ])('rejects a false-green Terraform result: %s', (_name, stdout) => {
+    expect(() =>
+      runTerraformMockTests({
+        cwd: root,
+        spawn: (_command, args) => ({
+          status: 0,
+          stdout: args.includes('init') ? '' : stdout,
+          stderr: ''
+        }),
+        write: () => {},
+        writeError: () => {}
+      })
+    ).toThrow(/terraform test/);
+  });
+
+  it('returns a failing CLI status when Terraform cannot start', () => {
+    // This exercises the actual entry point without resolving any Terraform
+    // executable, provider, backend or credential outside the test process.
+    const result = spawnSync(process.execPath, ['scripts/terraform-ci.mjs'], {
+      cwd: root,
+      encoding: 'utf8',
+      env: { ...process.env, PATH: '' }
+    });
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(1);
+    expect(result.stderr).toMatch(/terraform init.*failed/);
+  });
+
   it('installs a fixed, checksum-verified CLI and runs inside the existing required job', () => {
     const workflow = read('.github/workflows/verify.yml');
     const verifyJob = workflow.slice(
@@ -129,7 +166,9 @@ describe('Terraform mock tests are part of required verify CI', () => {
 
     expect(verifyJob).toContain('Install Terraform CLI 1.9.8');
     expect(verifyJob).toContain("version='1.9.8'");
-    expect(verifyJob).toContain('terraform_${version}_SHA256SUMS');
+    expect(verifyJob).toContain(
+      "checksum='186e0145f5e5f2eb97cbd785bc78f21bae4ef15119349f6ad4fa535b83b10df8'"
+    );
     expect(verifyJob).toContain('sha256sum -c -');
     expect(verifyJob).toContain('node scripts/terraform-ci.mjs');
     expect(verifyJob).not.toContain('continue-on-error');

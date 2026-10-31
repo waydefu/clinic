@@ -64,8 +64,9 @@ jobs:
           mkdir -p "$RUNNER_TEMP/terraform-cli"
           cd "$RUNNER_TEMP/terraform-cli"
           curl -fsSLo "$archive" "${base_url}/${archive}"
-          curl -fsSLo "terraform_${version}_SHA256SUMS" "${base_url}/terraform_${version}_SHA256SUMS"
-          grep -F "  ${archive}" "terraform_${version}_SHA256SUMS" | sha256sum -c -
+          # HashiCorp 1.9.8 SHA256SUMS, pinned for linux_amd64.
+          checksum='186e0145f5e5f2eb97cbd785bc78f21bae4ef15119349f6ad4fa535b83b10df8'
+          printf '%s  %s\n' "$checksum" "$archive" | sha256sum -c -
           unzip -q "$archive" terraform
           sudo install -m 0755 terraform /usr/local/bin/terraform
           terraform version

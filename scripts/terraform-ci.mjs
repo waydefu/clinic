@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { dirname, join } from 'node:path';
+import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const TERRAFORM_MODULES = Object.freeze([
@@ -40,8 +40,13 @@ function parseTestSummary(output, module) {
 
   const passed = Number(summaries[0][1]);
   const failed = Number(summaries[0][2]);
+  if (passed === 0) {
+    throw new Error(`terraform test for ${module} executed no mock tests.`);
+  }
   if (failed !== 0) {
-    throw new Error(`terraform test for ${module} reported ${failed} failures.`);
+    throw new Error(
+      `terraform test for ${module} reported ${failed} failures.`
+    );
   }
   return { passed, failed };
 }
