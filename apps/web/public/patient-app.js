@@ -577,7 +577,9 @@ function renderSlots() {
   const months = [...new Set(groups.map((group) => group.key.slice(0, 7)))];
   if (!months.includes(activeSlotMonth)) {
     const selectedMonth = activeSlotDate?.slice(0, 7);
-    activeSlotMonth = months.includes(selectedMonth) ? selectedMonth : months[0];
+    activeSlotMonth = months.includes(selectedMonth)
+      ? selectedMonth
+      : months[0];
   }
   const monthGroups = groups.filter((group) =>
     group.key.startsWith(activeSlotMonth)
