@@ -215,6 +215,71 @@ test.describe('患者線上預約', () => {
     await expect(page.locator('[data-booking-step="4"]')).toHaveCount(0);
   });
 
+  for (const remainingStartsAt of ['2030-11-01T09:00:00.000Z', undefined]) {
+    const scenario = remainingStartsAt ? '轉下月' : '無時段';
+    test(`月末最後時段：${scenario}，仍完成預約`, async ({ page }) => {
+      const pageErrors: string[] = [];
+      page.on('pageerror', (error) => pageErrors.push(error.message));
+      await page.clock.setFixedTime(new Date('2030-10-30T09:00:00+08:00'));
+      await login(page);
+      await page.evaluate(
+        ({ key, remainingStartsAt }) => {
+          const snapshot = JSON.parse(localStorage.getItem(key)!);
+          const template = snapshot.slots.find(
+            (slot: { kind: string }) => slot.kind === 'initial'
+          );
+          snapshot.appointments = [];
+          snapshot.slots = [
+            '2030-10-31T09:00:00.000Z',
+            ...(remainingStartsAt ? [remainingStartsAt] : [])
+          ].map((startsAt, index) => ({
+            ...template,
+            id: `slot_month_fallback_${index}`,
+            startsAt,
+            endsAt: new Date(Date.parse(startsAt) + 30 * 60_000).toISOString()
+          }));
+          localStorage.setItem(key, JSON.stringify(snapshot));
+        },
+        { key: STORAGE_KEY, remainingStartsAt }
+      );
+      await page.goto('/booking');
+      await page.locator('[data-booking-type="initial"]').click();
+      await page.locator('#patient-services [data-service]').first().click();
+      await expect(
+        page.locator('#patient-slot-months [aria-selected="true"]')
+      ).toHaveAttribute('data-slot-month', '2030-10');
+      await page.locator('[data-patient-slot]').first().click();
+      await page.locator('#patient-name').fill('月份回歸合成患者');
+      await page.locator('#patient-phone').fill('0977000555');
+      await fillBirthDate(page, { month: '05', day: '20' });
+      await chooseNationality(page);
+      await page.locator('#privacy-consent').check();
+      await page.locator('#synthetic-confirmation').check();
+      await submitBooking(page);
+      await expect(page.locator('[data-booking-result]')).toBeVisible();
+      await expect(page.locator('body')).toHaveAttribute(
+        'data-booking-flow-step',
+        'result'
+      );
+      if (remainingStartsAt) {
+        await expect(
+          page.locator('#patient-slot-months [aria-selected="true"]')
+        ).toHaveAttribute('data-slot-month', '2030-11');
+        await expect(
+          page.locator('#patient-slot-dates [aria-selected="true"]')
+        ).toHaveAttribute('data-slot-date', '2030-11-01');
+      } else {
+        await expect(page.locator('#patient-slot-months button')).toHaveCount(
+          0
+        );
+        await expect(page.locator('#active-slot-date-label')).toHaveText(
+          '目前沒有可預約日期'
+        );
+      }
+      expect(pageErrors).toEqual([]);
+    });
+  }
+
   test('步驟三可重新開始並清除已選內容', async ({ page }) => {
     await page.locator('[data-booking-type="initial"]').click();
     const service = page.locator('#patient-services [data-service]').first();
