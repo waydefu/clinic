@@ -35,13 +35,13 @@ API 5xx、預約寫入失敗、Firestore transaction 失敗、備份失敗、out
 
 不新建 Firestore outbox：告警事件的佇列就是 Pub/Sub 本身，避免第二套佇列。
 
-| 環節 | 提案 | 狀態 |
-| --- | --- | --- |
-| publisher | Cloud Monitoring 服務代理（`service-<project number>@gcp-sa-monitoring.iam.gserviceaccount.com`，與 budget topic 同一模式），只對 `c1-application-alerts` 一個 topic 授 `roles/pubsub.publisher` | **未確認**：須有權者在隔離專案確認實際身分。確認前不寫 Terraform、不猜 principal、不給其他 topic 或身分任何權限 |
-| subscription | 一個 pull subscription，只授權單一 worker service account 為 subscriber；browser 與 API 無權讀取 | 提案，未建立 |
-| consumer | worker 內的 [alert-notification-consumer](../../apps/worker/src/alert-notification-consumer.ts)：解析、白名單投影、去重、呼叫 sender port | 來源已寫，只接 fake |
-| DLQ | 另一個 dead-letter topic（暫名 `c1-application-alerts-dlq`）與對應 subscription，僅供人工檢視 | 提案，名稱未核准 |
-| human email | 沿用既有 `human_email` channel，與 Pub/Sub 路徑並行，不經 worker | 已存在（未部署） |
+| 環節         | 提案                                                                                                                                                    | 狀態                                                                                                                                                        |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| publisher    | 隔離專案內**待有權操作者確認的 Cloud Monitoring notification publisher**；確認後只提案對 `c1-application-alerts` 一個 topic 授 `roles/pubsub.publisher` | **未確認**：不能從 budget topic 推定 principal，也不把服務代理的名稱模式當成已確認身分。確認前不寫 Terraform、不猜 principal、不給其他 topic 或身分任何權限 |
+| subscription | 一個 pull subscription，只授權單一 worker service account 為 subscriber；browser 與 API 無權讀取                                                        | 提案，未建立                                                                                                                                                |
+| consumer     | worker 內的 [alert-notification-consumer](../../apps/worker/src/alert-notification-consumer.ts)：解析、白名單投影、去重、呼叫 sender port               | 來源已寫，只接 fake                                                                                                                                         |
+| DLQ          | 另一個 dead-letter topic（暫名 `c1-application-alerts-dlq`）與對應 subscription，僅供人工檢視                                                           | 提案，名稱未核准                                                                                                                                            |
+| human email  | 沿用既有 `human_email` channel，與 Pub/Sub 路徑並行，不經 worker                                                                                        | 已存在（未部署）                                                                                                                                            |
 
 worker 只有一條職責：把告警轉成給維運人員的通知。實際 sender（任何簡訊、LINE、email provider）
 沒有核准，程式只有 `AlertSenderPort` 介面。
@@ -54,8 +54,10 @@ worker 只有一條職責：把告警轉成給維運人員的通知。實際 sen
 - 送出失敗：先 `release` 去重鍵再回 `retry`（nack），由 subscription 的 exponential backoff 重送；
   不在 consumer 內自旋、不加 timer。
 - 不可重試的錯誤（`AlertSendError(false)`）與格式錯誤：不重送，直接當 dead-letter 處理。
-- subscription 建議 `max_delivery_attempts` 與 backoff 區間沿用 outbox 精神
-  （`MAX_ATTEMPTS = 6`、30 秒起、上限 3600 秒）；實際數值於 operator packet 核定，不在此猜。
+- subscription 的 `max_delivery_attempts`、retention、ack deadline 與 backoff 必須在
+  operator packet 明寫，不沿用 provider 預設值。outbox 的 3600 秒上限**不能直接套用**：
+  [Pub/Sub exponential backoff](https://docs.cloud.google.com/pubsub/docs/subscription-retry-policy)
+  的可設定範圍是 0～600 秒；這是技術限制，不是本提案已核定的營運數值。
 - 失敗保留不丟：DLQ 有訊息時沿用既有 `outbox dead-letter` 類告警思路另行提案，不在本 PR。
 
 ## 4. 刻意不送的內容
@@ -80,13 +82,39 @@ worker 只有一條職責：把告警轉成給維運人員的通知。實際 sen
 （[test](../../apps/worker/src/alert-notification-consumer.test.ts)），涵蓋投影、去重、
 open/closed 區分、可重試失敗釋放去重、不可重試與格式錯誤不重送。
 
-| 項目 | 狀態 |
-| --- | --- |
-| 事件範圍、消費路徑、冪等/重試、不送內容、PII 防護的設計 | **來源完成**（本文與測試），待負責人審閱 |
-| consumer 決策邏輯（fake） | **來源完成** |
-| publisher IAM 綁定、subscription、retry/DLQ 資源 | **外部未完成**：須先由有權者在隔離專案確認身分；Terraform 與部署另行逐項授權 |
-| 去重鍵持久儲存與保留期 | **外部/後續**：需另一個來源 PR 與保留期核定 |
-| 實際 sender 與送達、重送、重試、DLQ 的 operator 證據 | **外部未核准**；mock 與 CI 不能當送達證明 |
+| 項目                                                    | 狀態                                                                         |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| 事件範圍、消費路徑、冪等/重試、不送內容、PII 防護的設計 | **來源完成**（本文與測試），待負責人審閱                                     |
+| consumer 決策邏輯（fake）                               | **來源完成**                                                                 |
+| publisher IAM 綁定、subscription、retry/DLQ 資源        | **外部未完成**：須先由有權者在隔離專案確認身分；Terraform 與部署另行逐項授權 |
+| 去重鍵持久儲存與保留期                                  | **外部/後續**：需另一個來源 PR 與保留期核定                                  |
+| 實際 sender 與送達、重送、重試、DLQ 的 operator 證據    | **外部未核准**；mock 與 CI 不能當送達證明                                    |
 
 B-08 因此**不標 DONE、不標 FIXED**：runtime 證明（`runtimeProofRequired`）尚未取得，
 `HUMAN_NOTIFICATION_PATH_IMPLEMENTED_NOT_DEPLOYED` 標籤維持不變。
+
+## 7. 不含 secret 的來源配對清單（2026-11-01）
+
+這是供負責人審閱的 source proposal，不是雲端 inventory，也不把「程式有資源宣告」
+寫成「資源已建立」。實測 SHA 由操作者填當天 main；目標只用登記簿已核准的隔離專案
+`beauessence-clinic-stg-c1a01`，任何實際建立、IAM、訂閱、送信仍要新的精確授權。
+
+| 環節                 | repo 的來源事實                                                                                                                                             | 配對提案與缺項                                                                                                                                              |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| application topic    | WP-B4 `google_pubsub_topic.application_alerts`，名稱 `c1-application-alerts`                                                                                | notification channel 的 `topic` 已引用它；default SHA `not_granted` 時不建立                                                                                |
+| Monitoring publisher | WP-B4 **沒有**此 topic 的 publisher IAM declaration                                                                                                         | 實際 principal 未確認；不能借用 budget topic 身分，也不能把 channel 存在當成功送達                                                                          |
+| pull subscription    | WP-B4 尚無 subscription declaration                                                                                                                         | 提案只訂閱 application topic，明列 ack deadline、retention、retry 與 dead-letter policy；不開 browser 或 API 的讀取權限                                     |
+| worker               | [C1 runtime](../../infra/terraform/c1-internal-test-run/main.tf) 宣告 `google_service_account.worker`，`account_id = internal-test-outbox`；與 API 身分分開 | 可審閱是否沿用這個 worker 身分，但這不是實際已部署身分的確認。若採用，只在該 subscription 授 subscriber；不把 Calendar outbox 當告警佇列，不修改它的 writer |
+| consumer             | `consumeAlertMessage` 只回決策，使用 fake sender/dedupe；沒有 Pub/Sub transport                                                                             | 未接 pull/ack/nack，不啟動 timer、排程或 sender；不能把 `sent` 決策當真人已收到                                                                             |
+| dead letter          | 尚無 DLQ topic/subscription declaration                                                                                                                     | 暫名 `c1-application-alerts-dlq`，只供另行核准的人工檢視者；不自動把 raw payload 轉寄收件者                                                                 |
+| human email          | WP-B4 `google_monitoring_notification_channel.human_email`，收件值由未提交的設定提供                                                                        | 與 worker 路徑分開驗收；不在 Git 記錄收件者或連線設定                                                                                                       |
+
+後續 transport 的必要條件：成功或已完成的重送才 ack；可重試失敗 nack；
+格式錯誤或永久失敗必須先有持久的隔離／DLQ 記錄才 ack。DLQ 寫入失敗不能 ack 丟訊息。
+這些是待實作接線的驗收條件，現有純 consumer **沒有執行** ack、nack 或 DLQ 寫入。
+
+外部驗收仍照[測試單 §2](2026-10-25-external-acceptance-runsheet.md)：操作者先確認
+publisher 與 topic 的精確配對及 subscription/worker/DLQ，再用合成事件記錄送達、重送、
+重試與隔離。未知 principal、缺 publisher binding、未核准收件者、provider 失敗或缺 DLQ
+記錄一律不能報 delivered；只保留去識別結果與必要的資源名稱，不提供 token、cookie、
+raw payload、PII 或私有 log。未確認身分前的 IAM source 缺口仍存在，不改標 SOURCE-DONE。
