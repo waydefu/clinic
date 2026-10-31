@@ -10,7 +10,8 @@
 [逐包來源與 finding manifest](2026-10-06-sol00-safe-manifest.json)、
 [Stage F 精確授權模板](../templates/stage-f-exact-sha-authority-packet.md)。
 Sol v2 四項決定已逐字登記在 [#268](https://github.com/waydefu/clinic/pull/268#issuecomment-6384695242)，
-登記 PR [#294](https://github.com/waydefu/clinic/pull/294) 尚待負責人合併；本單不倒推它已在 main。
+並已收入 main 的決定登記簿；另依 2026-10-29／2026-10-30 已決事項修正下列準備清單。
+既有來源 PR 的合併不是本單任何實際操作的授權。
 
 ## 1. 操作日前置：缺一項就不執行
 
@@ -36,8 +37,8 @@ Sol v2 四項決定已逐字登記在 [#268](https://github.com/waydefu/clinic/p
 | 包 | 可追溯來源 | 不可省略的前置／未證明內容 |
 | --- | --- | --- |
 | INGRESS／B-03 | [client-ip](../../apps/api/src/platform/runtime/client-ip.ts)、[internal-test gate](../../apps/api/src/internal-test-booking/internal-test-booking.gate.ts)、#278／#285／#292 | 已合來源不代表 live Hosting／direct Run 路徑已驗證；exact host、直連目標與操作時窗須新鮮核准 |
-| NOTIFICATION／B-08 | [WP-B4 main](../../infra/terraform/wp-b4-alerting/main.tf)、[variables](../../infra/terraform/wp-b4-alerting/variables.tf)、[README](../../infra/terraform/wp-b4-alerting/README.md) | application topic 的 publisher／worker consumer／subscription／retry／DLQ 配對未由所查來源完整表達；先確認技術契約及來源，必要 IAM／部署另外逐項核准，不能只列「待實測」 |
-| MAINTENANCE／E3-07 | [maintenance gate](../../apps/api/src/platform/runtime/maintenance-gate.ts)、[還原 runbook](../runbooks/backup-and-restore.md)、[事件應變](../runbooks/incident-response.md) | `StaticMaintenanceGate` 是邊界，不是全域停寫控制；共用 operational control、所有實際寫入路徑、多實例／worker 與在途工作證據仍須補齊 |
+| NOTIFICATION／B-08 | [WP-B4 main](../../infra/terraform/wp-b4-alerting/main.tf)、[設計](2026-10-30-sol-notification-design.md)、[consumer](../../apps/worker/src/alert-notification-consumer.ts)、#357 | 純 consumer 的 allowlist／dedupe／retry／dead-letter 合成測試已合；application topic 的 publisher binding、subscription／DLQ 與實際 worker 接線仍缺，不能只列「待實測」 |
+| MAINTENANCE／E3-07 | [maintenance gate](../../apps/api/src/platform/runtime/maintenance-gate.ts)、[AppModule](../../apps/api/src/app.module.ts)、[還原 runbook](../runbooks/backup-and-restore.md)、[事件應變](../runbooks/incident-response.md) | `ReadThroughMaintenanceGate` 只建立讀取邊界；AppModule 仍注入 `StaticMaintenanceGate(false)`，不是全域停寫控制。共用 operational control 的設計／接線、worker 與在途工作控制仍須先核定，不能當純外驗缺項 |
 | LEASE／D-05、D-12 | [runtime](../../apps/worker/src/calendar-sync/calendar-pilot-runtime.ts)、[協調設計](2026-10-22-sol-calendar-lease-coordination.md)、#287 | 合成協調測試不證明實際唯一 egress、舊 worker 終止／隔離與 provider 在途工作排空；未知必須 quarantine |
 | SECRETS／B-31、B-55 | [.claude source policy](../../.claude/settings.json)、[upload exclusion](../../.gcloudignore)、[tracked exclusions](../../.gitignore)、#277／#291 | Claude source deny 不自動涵蓋 Hermes、Codex 或其他工具；每個實際工具與 upload 路徑要各自驗證 admission-before-read |
 
@@ -73,8 +74,8 @@ Sol v2 四項決定已逐字登記在 [#268](https://github.com/waydefu/clinic/p
 | application topic | `c1-application-alerts`，由 WP-B4 定義 | 有 topic 來源不等於已建立、已有 publish grant 或已有 subscriber |
 | application channel | `google_monitoring_notification_channel.application_pubsub`，指向上述 topic | 所查 WP-B4 無此 topic 的明確 publisher binding；不能把 budget topic 的 binding 當成它的 |
 | application publisher | 未由所查 WP-B4 來源綁定 | 需要確認實際 principal、topic 與來源差異；不猜 service agent、不新增權限 |
-| application subscription／worker consumer | 所查 Terraform 未列出已綁定的 subscription／worker consumer | 需要來源與核准技術清單；不虛構 subscription、service 或 DLQ 名稱 |
-| retry／DLQ | 所查 WP-B4 未列出對應 subscription 的 retry／DLQ 配置 | 需要來源證據及對應 consumer；不能以 domain outbox 的測試代替 Pub/Sub 配置 |
+| application subscription／worker consumer | [consumer 來源](../../apps/worker/src/alert-notification-consumer.ts) 只有 ports；Terraform 未列出已綁定的 subscription | #357 的合成案例不證明 subscriber 或 transport 已接線；不虛構 subscription、service 或 DLQ 名稱 |
+| retry／DLQ | consumer 已有重試／dead-letter 決策及合成測試；WP-B4 未列出相應 subscription 的 retry／DLQ 資源 | source decision 不等於實際 queue 行為；仍需 subscription、consumer 與 DLQ 的核准配對 |
 | human channel | `human_email`；收件值來自 `alert_email_address`，不入 Git | 不記錄私人信箱；正式收件目標由當次有權者核准，測試不得投到未核准者 |
 | 預設開關 | `exact_apply_authority_sha = not_granted`，WP-B4 預設零資源 | 輸入一個 SHA 不構成 apply 授權；目前來源標籤是 `HUMAN_NOTIFICATION_PATH_IMPLEMENTED_NOT_DEPLOYED` |
 | 既有 budget topic | `c1-budget-notifications`，位於 [c1-foundation](../../infra/terraform/c1-foundation/main.tf) | 不得刪除、覆寫或拿它的投遞成功替 application 路徑驗收 |
@@ -180,25 +181,19 @@ Sol v2 四項決定已逐字登記在 [#268](https://github.com/waydefu/clinic/p
 | LEASE D-05、D-12 | 待填 | 待填 | NOT_RUN | 待填 |
 | SECRETS B-31、B-55 | 待填 | 待填 | NOT_RUN | 待填 |
 
-## 9. 轉交診所：告知原文草稿與一次確認清單
+## 9. 轉交診所：只確認正式文案，不重問已決政策
 
-**草稿，未經診所審定；不是正式告知，不發布到正式頁面。**
-下列方括號都尚未核定，不得自動用實作現況、測試值或工程預設補上。
+正式草稿以 [privacy-policy-draft](../legal/privacy-policy-draft.md) 及
+[現有隱私頁](../../apps/web/public/privacy.html) 為準；兩者仍保留草稿／待核准界線。
+本單不另寫一份告知原文，不把來源測試或工程負責人核工程方案當成診所正式審定。
 
-> 本診所為［待確認的實際用途］，擬蒐集［待確認的實際資料欄位］，
-> 由［待確認的可接觸人員／受託者與範圍］在必要範圍處理。
-> 資料保存期間與刪除方式為［待確認］；涉及第三方服務、利用地區與資料項目為［待確認］。
-> 關於查詢、更正、停止利用及其他依法得行使權利的方式，請洽［待核准的公開角色信箱／聯絡方式］。
-> 完整正式告知、是否提供資料及其影響，須由診所確認後另行定稿。
+以下均已在決定登記簿與 BD-POLICY 定案，不再列為問答或使用待填佔位符：
 
-| 請診所一次確認 | 為什麼要問 |
-| --- | --- |
-| 實際會收哪些資料？必填與選填各是什麼？ | 工程不能把測試欄位或畫面上有的欄位都當成正式核准蒐集。 |
-| 每類資料拿來做什麼？ | 預約、通知、身分核對等用途須用診所確認的話說清楚，不能由程式名稱代答。 |
-| 每類資料保留多久、何時刪除，哪些不能自動刪？ | 不自行發明保存數值或把未啟用的 TTL 寫成已生效政策。 |
-| 誰可以看、哪些第三方受託處理、利用地區為何？ | 實際接觸權限與對外承諾須一致；未上線的整合不能寫成正在使用。 |
-| 要公開的診所角色信箱／聯絡窗口是哪一個？ | 不使用工程師私人信箱、猜測的信箱或測試地址替代對外窗口。 |
-| 誰代表診所確認正式原文與權利申請方式？ | 工程核工程方案；對外法律與營運承諾要由具相應權限者確認。 |
+- 看診兩年後封存，不自動永久刪除；回診者先標「待櫃台確認」。
+- 稽核／安全紀錄三年，`return_sessions` 24 小時；已決保存設計不表示雲端 TTL 已啟用。
+- 隱私聯絡窗口使用診所電話，暫無 email；不要求工程師提供私人信箱。
+- 告知由診所負責人署名，由工程負責人代為轉達確認；法務不列待辦。
 
-收到確認前保留現行正式內容，不替換頁面、D-series、保存政策或公開聯絡值。
-本附件只協助工程負責人一次轉問，不代表 SOL-PRIVACY、GOVERNANCE 或其他包已完成。
+尚需轉達的只有：請有權代表診所的人確認正式告知的最終版本與生效安排。
+在此之前保留現行內容，不自行發布、代簽、變更 D-series、保存政策或公開聯絡值。
+這項文案等待不代替其他來源缺口、實測或生產上線授權。
