@@ -18,6 +18,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
+. "$PSScriptRoot/pinned-secret-bindings.ps1"
 $projectId = 'beauessence-clinic-staging'
 $region = 'asia-east1'
 $channel = 'cal-pilot'
@@ -68,14 +69,16 @@ function Assert-SecretVersions {
     throw 'Secret version manifest must contain exactly the six approved containers.'
   }
   foreach ($secretName in $approvedSecrets) {
-    if (-not $manifest.ContainsKey($secretName) -or [string]$manifest[$secretName] -notmatch '^\d+$') {
+    if ($manifest.Keys -cnotcontains $secretName) {
       throw "Secret version manifest is invalid for $secretName."
     }
+    $version = Assert-PinnedSecretVersion $manifest[$secretName]
     $enabledVersions = @(gcloud secrets versions list $secretName --project $projectId --filter 'state=ENABLED' --format 'value(name)' | ForEach-Object { ($_ -split '/')[-1] })
-    if ($enabledVersions.Count -ne 1 -or [string]$enabledVersions[0] -ne [string]$manifest[$secretName]) {
+    if ($enabledVersions.Count -ne 1 -or [string]$enabledVersions[0] -ne $version) {
       throw "$secretName enabled version drifted from the approved manifest."
     }
   }
+  return $manifest
 }
 
 function Assert-PreviousState {
@@ -95,7 +98,7 @@ function Assert-PreviousState {
   if ($scheduler.state -ne $expectedSchedulerState -or $scheduler.schedule -ne '*/5 * * * *' -or $scheduler.attemptDeadline -ne '240s') {
     throw 'The five-minute Scheduler boundary drifted.'
   }
-  Assert-SecretVersions
+  return (Assert-SecretVersions)
 }
 
 function Set-MigrationEnvironment([string]$Mode) {
@@ -126,7 +129,17 @@ if (-not (Test-Path -LiteralPath $WriterKeyPath -PathType Leaf)) {
   throw 'Writer smoke key was not found.'
 }
 
-Assert-PreviousState
+$approvedSecretVersions = Assert-PreviousState
+$apiSecretBindings = Get-PinnedSecretBindings $approvedSecretVersions @(
+  'CALENDAR_PILOT_MANAGER_EMAILS=cal-pilot-manager-allowlist',
+  'CALENDAR_PILOT_FIREBASE_WEB_API_KEY=cal-pilot-firebase-web-api-key'
+)
+$workerSecretBindings = Get-PinnedSecretBindings $approvedSecretVersions @(
+  'CALENDAR_PILOT_READER_SERVICE_ACCOUNT_JSON=cal-pilot-reader-service-account',
+  'CALENDAR_PILOT_WRITER_SERVICE_ACCOUNT_JSON=cal-pilot-writer-service-account',
+  'CALENDAR_PILOT_SOURCE_MAP_JSON=cal-pilot-source-map',
+  'CALENDAR_PILOT_PSEUDONYM_KEY=cal-pilot-pseudonym-key'
+)
 Set-MigrationEnvironment 'plan'
 $env:CALENDAR_PILOT_REQUIRED_SWITCH_STATE = if ($ResumeSafeStoppedAttempt) { 'disabled' } else { 'enabled' }
 try { node scripts/migrate-cal-pilot-legacy-candidates.mjs }
@@ -172,8 +185,8 @@ try {
     }
   }
 
-  gcloud run deploy cal-pilot-api --project $projectId --region $region --image $ApiImage --service-account "cal-pilot-api@$projectId.iam.gserviceaccount.com" --tag cal-pilot-smoke --no-traffic --min-instances 0 --max-instances 3 --cpu 1 --memory 512Mi --timeout 60 --concurrency 40 --set-env-vars "GOOGLE_CLOUD_PROJECT=$projectId,CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN=$projectId.firebaseapp.com" --set-secrets 'CALENDAR_PILOT_MANAGER_EMAILS=cal-pilot-manager-allowlist:latest,CALENDAR_PILOT_FIREBASE_WEB_API_KEY=cal-pilot-firebase-web-api-key:latest' --quiet
-  gcloud run deploy cal-pilot-worker --project $projectId --region $region --image $WorkerImage --service-account "cal-pilot-worker@$projectId.iam.gserviceaccount.com" --tag cal-pilot-smoke --no-traffic --no-allow-unauthenticated --min-instances 0 --max-instances 1 --cpu 1 --memory 512Mi --timeout 240 --concurrency 1 --set-env-vars "GOOGLE_CLOUD_PROJECT=$projectId" --set-secrets 'CALENDAR_PILOT_READER_SERVICE_ACCOUNT_JSON=cal-pilot-reader-service-account:latest,CALENDAR_PILOT_WRITER_SERVICE_ACCOUNT_JSON=cal-pilot-writer-service-account:latest,CALENDAR_PILOT_SOURCE_MAP_JSON=cal-pilot-source-map:latest,CALENDAR_PILOT_PSEUDONYM_KEY=cal-pilot-pseudonym-key:latest' --quiet
+  gcloud run deploy cal-pilot-api --project $projectId --region $region --image $ApiImage --service-account "cal-pilot-api@$projectId.iam.gserviceaccount.com" --tag cal-pilot-smoke --no-traffic --min-instances 0 --max-instances 3 --cpu 1 --memory 512Mi --timeout 60 --concurrency 40 --set-env-vars "GOOGLE_CLOUD_PROJECT=$projectId,CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN=$projectId.firebaseapp.com" --set-secrets $apiSecretBindings --quiet
+  gcloud run deploy cal-pilot-worker --project $projectId --region $region --image $WorkerImage --service-account "cal-pilot-worker@$projectId.iam.gserviceaccount.com" --tag cal-pilot-smoke --no-traffic --no-allow-unauthenticated --min-instances 0 --max-instances 1 --cpu 1 --memory 512Mi --timeout 240 --concurrency 1 --set-env-vars "GOOGLE_CLOUD_PROJECT=$projectId" --set-secrets $workerSecretBindings --quiet
 
   $apiService = gcloud run services describe cal-pilot-api --project $projectId --region $region --format json | ConvertFrom-Json
   $workerService = gcloud run services describe cal-pilot-worker --project $projectId --region $region --format json | ConvertFrom-Json
@@ -216,7 +229,7 @@ try {
   $previewUrl = [string]$hostingChannel.url
   if ([string]::IsNullOrWhiteSpace($previewUrl)) { throw 'Hosting preview URL was not returned.' }
 
-  Assert-SecretVersions
+  $null = Assert-SecretVersions
   $postApi = Get-ActiveRunState 'cal-pilot-api'
   $postWorker = Get-ActiveRunState 'cal-pilot-worker'
   if ($postApi.revision -ne $apiRevision -or $postApi.image -ne $ApiImage -or $postWorker.revision -ne $workerRevision -or $postWorker.image -ne $WorkerImage) {
