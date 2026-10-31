@@ -103,6 +103,13 @@ MAINTENANCE_WRITE_QUIESCENCE = RUNTIME_PROOF_REQUIRED
 **BLOCKED**：不得跳過停寫前置，也不得開始 restore、切換連線或宣稱已止血。
 本 source／單元測試不提供這份 runtime 證據，亦不授予任何 cloud 操作權限。
 
+`MaintenanceControlPort`／`setMaintenanceControl` 是只含來源的共用控制提案：
+先讀取明確布林狀態、寫入，再讀回確認；未知值、讀寫失敗或不相符均拒絕，
+寫入回覆遺失時不盲目回寫。提案沒有建立 store、操作入口或 API／worker 接線，
+AppModule 仍注入 `StaticMaintenanceGate(false)`；合成 gate／在途工作測試不是
+分散式鎖或所有工作已排空的證據。實際 store 的權限、並行寫入控制與接線仍須
+C0 審查及另行核准的 C1 操作包；控制讀回成功也不得解鎖 §4.3。
+
 ### 4.3 還原
 
 **一律還原到新的 database，不要覆蓋現有的。** 覆蓋會把「事故現場」也一起銷毀，

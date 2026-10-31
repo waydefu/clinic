@@ -24,6 +24,7 @@ import {
   type NestFastifyApplication
 } from '@nestjs/platform-fastify';
 import { CreateAppointmentRequestSchema } from '@beauessence/contracts';
+import { ROLES } from '@beauessence/domain';
 
 import { HealthController } from '../../health.controller.js';
 import {
@@ -35,7 +36,9 @@ import { ApiExceptionFilter } from '../errors/api-exception.filter.js';
 import {
   MAINTENANCE_GATE,
   ReadThroughMaintenanceGate,
+  setMaintenanceControl,
   StaticMaintenanceGate,
+  type MaintenanceControlPort,
   type MaintenanceGate
 } from './maintenance-gate.js';
 import { MaintenanceGuard } from './maintenance.guard.js';
@@ -252,6 +255,44 @@ describe('synthetic Nest/Fastify maintenance admission', () => {
     }
     expect(calls.gate).toBe(4);
     expect(calls.handler).toBe(0);
+  });
+
+  it('writes and reads back the source-only control through HTTP admission', async () => {
+    let value: unknown = false;
+    const control: MaintenanceControlPort = {
+      read: () => Promise.resolve(value),
+      write: (next) => {
+        value = next;
+        return Promise.resolve();
+      }
+    };
+    const instance = await boot(
+      false,
+      new ReadThroughMaintenanceGate(control.read)
+    );
+    for (const [paused, expected] of [
+      [true, 503],
+      [false, 201]
+    ] as const) {
+      await setMaintenanceControl(control, paused);
+      const response = await instance.inject({
+        method: 'POST',
+        url: '/v1/fixture/write',
+        headers: { 'x-fixture-role': ROLES[1] },
+        payload: BODY
+      });
+      expect(response.statusCode).toBe(expected);
+      if (paused) {
+        expect(response.headers['cache-control']).toBe('private, no-store');
+      }
+    }
+    const unauthenticated = await instance.inject({
+      method: 'POST',
+      url: '/v1/fixture/write',
+      payload: BODY
+    });
+    expect(unauthenticated.statusCode).toBe(401);
+    expect(calls.handler).toBe(1);
   });
 
   it('maps a failed control read to a no-store 503 without exposing its error', async () => {
