@@ -53,11 +53,10 @@ describe('shared expiring maintenance control', () => {
   );
 
   it('refuses an absent reader, failed read or invalid clock', async () => {
+    const unreadable = () => Promise.reject(new Error('unreadable'));
     const cases = [
       new SharedMaintenanceControl(),
-      new SharedMaintenanceControl(() =>
-        Promise.reject(new Error('unreadable'))
-      ),
+      new SharedMaintenanceControl(unreadable),
       new SharedMaintenanceControl(
         () => Promise.resolve(OPEN),
         () => 'not-utc'
@@ -79,7 +78,7 @@ describe('shared expiring maintenance control', () => {
     await expect(control.assertAvailable()).rejects.toThrow(/Maintenance/);
   });
 
-  it('closes every reader while keeping admitted callbacks visible until drained', async () => {
+  it('drains old work while refusing new admissions', async () => {
     let state: unknown = OPEN;
     const reader = () => Promise.resolve(state);
     const api = new SharedMaintenanceControl(reader, () => NOW);

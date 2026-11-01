@@ -63,7 +63,9 @@ export class ReadThroughMaintenanceGate implements MaintenanceGate {
 }
 
 export class ControlledMaintenanceGate implements MaintenanceGate {
-  public constructor(public readonly control = new SharedMaintenanceControl()) {}
+  public constructor(
+    public readonly control = new SharedMaintenanceControl()
+  ) {}
 
   public async assertAvailable(): Promise<void> {
     try {
