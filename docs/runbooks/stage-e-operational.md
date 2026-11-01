@@ -32,10 +32,12 @@ apply 都要 fresh exact-SHA packet。
 MAINTENANCE_WRITE_QUIESCENCE = RUNTIME_PROOF_REQUIRED
 ```
 
-`StaticMaintenanceGate` 與 HTTP guard 只提供可注入、可合成測試的拒絕邊界；
-AppModule 的預設值是 `false`，並非操作者可開啟的共用旗標。前端維護畫面、
-IP-001 gate 或單一回應 `SERVICE_UNAVAILABLE`，都不能證明所有 API instance
-及 worker 已停止相關寫入。排程暫停也不能代替已在執行工作的排空證據。
+`ControlledMaintenanceGate` 取代 AppModule 的 `StaticMaintenanceGate(false)`，
+預設 reader 未接線時關閉；shared reader 的未知／到期必須拒絕新工作。
+API request hooks、worker／排程同一 run 入口與在途 callback 計數是來源邊界，
+不是全域零寫入證據；HTTP abort／timeout 不代表工作已取消。前端維護畫面、
+IP-001 gate 或單一 `SERVICE_UNAVAILABLE` 都不能代替所有 instance／writer／worker
+的 runtime 停寫、provider 在途排空及安全恢復證據。
 
 shared-flag 控制、實際 routed 路徑及 worker 停寫／排空必須在另行核准的
 exact-SHA isolated 包內驗證。缺少接線、控制或證據時為 **BLOCKED**，

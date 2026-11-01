@@ -1,5 +1,6 @@
 import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
+import { syntheticOpenMaintenanceControl } from '../helpers/synthetic-maintenance.js';
 import {
   afterAll,
   afterEach,
@@ -61,7 +62,13 @@ const now = () => clock;
 const jobRef = () => db.collection(OUTBOX).doc(JOB);
 const configuration = () => db.collection(CONFIG).doc('active');
 const state = async () => (await jobRef().get()).data();
-const tick = () => new CalendarPilotRuntime(db, environment, now).run(clock);
+const tick = () =>
+  new CalendarPilotRuntime(
+    db,
+    environment,
+    now,
+    syntheticOpenMaintenanceControl()
+  ).run(clock);
 
 function record(value: unknown): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value))
@@ -285,7 +292,12 @@ describe('bounded CAL-PILOT source activation', () => {
         })
       };
       await expect(
-        new CalendarPilotRuntime(db, input, now).run(clock)
+        new CalendarPilotRuntime(
+          db,
+          input,
+          now,
+          syntheticOpenMaintenanceControl()
+        ).run(clock)
       ).resolves.toMatchObject({ processedJobs: 0, failedJobs: 1 });
       expect(dispatch).not.toHaveBeenCalled();
       expect(effects).toHaveLength(0);
@@ -692,7 +704,12 @@ describe('bounded CAL-PILOT source activation', () => {
           })
         };
       await expect(
-        new CalendarPilotRuntime(db, input, now).run(clock)
+        new CalendarPilotRuntime(
+          db,
+          input,
+          now,
+          syntheticOpenMaintenanceControl()
+        ).run(clock)
       ).resolves.toMatchObject({ processedJobs: 1, failedJobs: 0 });
       expect((await state())?.['status']).toBe('superseded');
       expect(effects).toHaveLength(0);

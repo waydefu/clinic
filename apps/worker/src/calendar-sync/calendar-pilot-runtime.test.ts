@@ -1,5 +1,6 @@
 import type { DocumentSnapshot, Firestore } from 'firebase-admin/firestore';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { syntheticOpenMaintenanceControl } from '../../../../tests/helpers/synthetic-maintenance.js';
 
 import {
   GoogleCalendarEventReader,
@@ -164,7 +165,12 @@ describe('calendar pilot canonical runtime clock', () => {
     'rejects noncanonical clock %s before lease or job access',
     async (now) => {
       const { db, collection, runTransaction } = setup();
-      const runtime = new CalendarPilotRuntime(db, environment, () => now);
+      const runtime = new CalendarPilotRuntime(
+        db,
+        environment,
+        () => now,
+        syntheticOpenMaintenanceControl()
+      );
       await expect(runtime.run()).rejects.toThrow(/lease/iu);
       await expect(
         claimCalendarPilotJobs(db, 'synthetic_worker', now)
@@ -178,7 +184,12 @@ describe('calendar pilot canonical runtime clock', () => {
     'keeps valid leap-day UTC precision %s',
     async (now) => {
       const { db, collection, runTransaction } = setup();
-      const runtime = new CalendarPilotRuntime(db, environment, () => now);
+      const runtime = new CalendarPilotRuntime(
+        db,
+        environment,
+        () => now,
+        syntheticOpenMaintenanceControl()
+      );
       await expect(runtime.run()).resolves.toEqual({
         acquired: false,
         processedJobs: 0,

@@ -1,3 +1,5 @@
+import { SharedMaintenanceControl } from '@beauessence/domain/maintenance-control.node';
+
 import { ServiceUnavailableError } from '../errors/api-error.js';
 
 export const MAINTENANCE_GATE = 'ApiMaintenanceGate';
@@ -57,5 +59,17 @@ export class ReadThroughMaintenanceGate implements MaintenanceGate {
       // A failed control read is not evidence that writes are safe.
     }
     throw new ServiceUnavailableError();
+  }
+}
+
+export class ControlledMaintenanceGate implements MaintenanceGate {
+  public constructor(public readonly control = new SharedMaintenanceControl()) {}
+
+  public async assertAvailable(): Promise<void> {
+    try {
+      await this.control.assertAvailable();
+    } catch {
+      throw new ServiceUnavailableError();
+    }
   }
 }

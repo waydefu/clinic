@@ -1,4 +1,5 @@
 import { assertUtcTimestamp, isUtcIsoTimestamp } from '@beauessence/domain';
+import { SharedMaintenanceControl } from '@beauessence/domain/maintenance-control.node';
 import type { Firestore } from 'firebase-admin/firestore';
 
 import { InMemoryCalendar, type CalendarPort } from './calendar-port.js';
@@ -36,6 +37,7 @@ export interface InternalTestOutboxInspection {
 }
 
 export interface InternalTestOutboxRuntime {
+  readonly maintenanceControl?: SharedMaintenanceControl;
   readonly calendar: CalendarPort;
   calendarReady(): Promise<void>;
   run(nowUtc?: string): Promise<InternalTestOutboxDrain>;
@@ -49,6 +51,7 @@ export interface InternalTestOutboxRuntimeOptions {
   readonly clock?: () => string;
   readonly random?: () => number;
   readonly titleSource?: CalendarTitleSource;
+  readonly maintenanceControl?: SharedMaintenanceControl;
 }
 
 /**
@@ -71,10 +74,13 @@ export function createInternalTestOutboxRuntime(
     options.titleSource
   );
   let emptyStreak = 0;
+  const maintenanceControl =
+    options.maintenanceControl ?? new SharedMaintenanceControl();
 
-  return {
+  const runtime: InternalTestOutboxRuntime = {
     calendar,
     async calendarReady() {
+      await maintenanceControl.assertAvailable();
       await calendar.ready();
     },
     async inspect(nowUtc = options.clock?.() ?? new Date().toISOString()) {
@@ -114,6 +120,14 @@ export function createInternalTestOutboxRuntime(
           snapshot
         })
       };
+    }
+  };
+  return {
+    ...runtime,
+    maintenanceControl,
+    async run(nowUtc = options.clock?.() ?? new Date().toISOString()) {
+      assertUtcTimestamp(nowUtc, 'nowUtc');
+      return maintenanceControl.run(() => runtime.run(nowUtc));
     }
   };
 }
