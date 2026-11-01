@@ -8,11 +8,13 @@ param(
   [Parameter(Mandatory = $true)][string]$SourceMapPath,
   [Parameter(Mandatory = $true)][string]$ManagerAllowlistPath,
   [Parameter(Mandatory = $true)][string]$FirebaseWebApiKeyPath,
+  [string]$ExpectedPseudonymVersion = '',
   [switch]$ConfirmApply
 )
 
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
+. "$PSScriptRoot/pinned-secret-bindings.ps1"
 $projectId = 'beauessence-clinic-staging'
 $region = 'asia-east1'
 $channel = 'cal-pilot'
@@ -161,19 +163,40 @@ if ((git status --porcelain).Length -ne 0) { throw 'Release requires a clean exa
 Write-Host "Approved release candidate commit: $head"
 Write-Host "Project: $projectId | Region: $region | Expiry: $ExpiresAt"
 
+$secretProjectNumber = [string](gcloud projects describe $projectId --format 'value(projectNumber)')
+if ($secretProjectNumber -cnotmatch '^[1-9][0-9]*\z') { throw 'Exact project number metadata was not returned.' }
+$secretProjects = @($projectId, $secretProjectNumber)
+$existingPseudonymVersion = @(gcloud secrets versions list cal-pilot-pseudonym-key --project $projectId --filter 'state=ENABLED' --format 'value(name)')
+$approvedSecretVersions = @{}
+$existingVersion = Get-ApprovedExistingSecretVersion $existingPseudonymVersion $ExpectedPseudonymVersion 'cal-pilot-pseudonym-key' $secretProjects
+if ($null -ne $existingVersion) { $approvedSecretVersions['cal-pilot-pseudonym-key'] = $existingVersion }
+
 firebase deploy --only "auth,firestore:rules,firestore:indexes" --project $projectId
 
-gcloud secrets versions add cal-pilot-reader-service-account --project $projectId --data-file $ReaderKeyPath | Out-Null
-gcloud secrets versions add cal-pilot-writer-service-account --project $projectId --data-file $WriterKeyPath | Out-Null
-gcloud secrets versions add cal-pilot-source-map --project $projectId --data-file $SourceMapPath | Out-Null
-gcloud secrets versions add cal-pilot-manager-allowlist --project $projectId --data-file $ManagerAllowlistPath | Out-Null
-gcloud secrets versions add cal-pilot-firebase-web-api-key --project $projectId --data-file $FirebaseWebApiKeyPath | Out-Null
-$existingPseudonymVersion = @(gcloud secrets versions list cal-pilot-pseudonym-key --project $projectId --filter 'state=ENABLED' --format 'value(name)' --limit 1)
+$approvedSecretVersions['cal-pilot-reader-service-account'] = ConvertTo-PinnedSecretVersion (gcloud secrets versions add cal-pilot-reader-service-account --project $projectId --data-file $ReaderKeyPath --format 'value(name)') 'cal-pilot-reader-service-account' $secretProjects
+$approvedSecretVersions['cal-pilot-writer-service-account'] = ConvertTo-PinnedSecretVersion (gcloud secrets versions add cal-pilot-writer-service-account --project $projectId --data-file $WriterKeyPath --format 'value(name)') 'cal-pilot-writer-service-account' $secretProjects
+$approvedSecretVersions['cal-pilot-source-map'] = ConvertTo-PinnedSecretVersion (gcloud secrets versions add cal-pilot-source-map --project $projectId --data-file $SourceMapPath --format 'value(name)') 'cal-pilot-source-map' $secretProjects
+$approvedSecretVersions['cal-pilot-manager-allowlist'] = ConvertTo-PinnedSecretVersion (gcloud secrets versions add cal-pilot-manager-allowlist --project $projectId --data-file $ManagerAllowlistPath --format 'value(name)') 'cal-pilot-manager-allowlist' $secretProjects
+$approvedSecretVersions['cal-pilot-firebase-web-api-key'] = ConvertTo-PinnedSecretVersion (gcloud secrets versions add cal-pilot-firebase-web-api-key --project $projectId --data-file $FirebaseWebApiKeyPath --format 'value(name)') 'cal-pilot-firebase-web-api-key' $secretProjects
 if ($existingPseudonymVersion.Count -eq 0) {
   $pseudonymKey = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
-  $pseudonymKey | gcloud secrets versions add cal-pilot-pseudonym-key --project $projectId --data-file=- | Out-Null
-  $pseudonymKey = $null
+  try {
+    $createdPseudonymVersion = $pseudonymKey | gcloud secrets versions add cal-pilot-pseudonym-key --project $projectId --data-file=- --format 'value(name)'
+    $approvedSecretVersions['cal-pilot-pseudonym-key'] = ConvertTo-PinnedSecretVersion $createdPseudonymVersion 'cal-pilot-pseudonym-key' $secretProjects
+  } finally {
+    $pseudonymKey = $null
+  }
 }
+$apiSecretBindings = Get-PinnedSecretBindings $approvedSecretVersions @(
+  'CALENDAR_PILOT_MANAGER_EMAILS=cal-pilot-manager-allowlist',
+  'CALENDAR_PILOT_FIREBASE_WEB_API_KEY=cal-pilot-firebase-web-api-key'
+)
+$workerSecretBindings = Get-PinnedSecretBindings $approvedSecretVersions @(
+  'CALENDAR_PILOT_READER_SERVICE_ACCOUNT_JSON=cal-pilot-reader-service-account',
+  'CALENDAR_PILOT_WRITER_SERVICE_ACCOUNT_JSON=cal-pilot-writer-service-account',
+  'CALENDAR_PILOT_SOURCE_MAP_JSON=cal-pilot-source-map',
+  'CALENDAR_PILOT_PSEUDONYM_KEY=cal-pilot-pseudonym-key'
+)
 
 $existingRunServices = @(gcloud run services list --project $projectId --region $region --platform managed --format 'value(metadata.name)')
 $apiDeployArguments = @(
@@ -182,7 +205,7 @@ $apiDeployArguments = @(
   '--tag', 'cal-pilot-smoke', '--min-instances', '0', '--max-instances', '1',
   '--cpu', '1', '--memory', '512Mi', '--timeout', '60', '--concurrency', '20',
   '--set-env-vars', "GOOGLE_CLOUD_PROJECT=$projectId,CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN=$projectId.firebaseapp.com",
-  '--set-secrets', 'CALENDAR_PILOT_MANAGER_EMAILS=cal-pilot-manager-allowlist:latest,CALENDAR_PILOT_FIREBASE_WEB_API_KEY=cal-pilot-firebase-web-api-key:latest'
+  '--set-secrets', $apiSecretBindings
 )
 if ($existingRunServices -contains 'cal-pilot-api') {
   $apiDeployArguments += @('--no-traffic', '--allow-unauthenticated')
@@ -199,7 +222,7 @@ $workerDeployArguments = @(
   '--tag', 'cal-pilot-smoke', '--no-allow-unauthenticated', '--min-instances', '0',
   '--max-instances', '1', '--cpu', '1', '--memory', '512Mi', '--timeout', '240',
   '--concurrency', '1', '--set-env-vars', "GOOGLE_CLOUD_PROJECT=$projectId",
-  '--set-secrets', 'CALENDAR_PILOT_READER_SERVICE_ACCOUNT_JSON=cal-pilot-reader-service-account:latest,CALENDAR_PILOT_WRITER_SERVICE_ACCOUNT_JSON=cal-pilot-writer-service-account:latest,CALENDAR_PILOT_SOURCE_MAP_JSON=cal-pilot-source-map:latest,CALENDAR_PILOT_PSEUDONYM_KEY=cal-pilot-pseudonym-key:latest'
+  '--set-secrets', $workerSecretBindings
 )
 if ($existingRunServices -contains 'cal-pilot-worker') {
   $workerDeployArguments += '--no-traffic'
