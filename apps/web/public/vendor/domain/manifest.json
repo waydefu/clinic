@@ -30,7 +30,7 @@
     "observability.js": "58007b781e9791c567fe6885cb4bba315e546ec38373cce1451dc7bf3afdb7ca",
     "outbox.js": "ed9349a8234c73f3b0cd4114708e321ea704b3e46c694e651d7bc7028410c57b",
     "patient-identity.js": "6a4203d18ed94dd895c6f8737f3554c347736a3eb3421ecf2c06072f5c08390d",
-    "payroll.js": "2012a3a825ec7739315e4a562758d21b0700a0ac28b262e83162a0fc723afea9",
+    "payroll.js": "8fb21edfb9249a0658f368918fc12ab5346056293ad31409269a674ef5e7512e",
     "published-schedule.js": "eebd0257d4707be7aa7db602340a0d26c5c042d69f0d962c7075e0c3d227a043",
     "rate-limit-parameters.js": "27d623fda7e888e5aca5e3c26ad3b0b0f50f920409d243b3328f1cca20db1add",
     "roles.js": "9fb6ce2a2d5febb52224df1841097b493f7682ccf41db4e66b7f9c47883828db",
