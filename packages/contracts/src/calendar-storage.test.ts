@@ -6,6 +6,7 @@ import {
   CalendarPilotAvailabilityOverlapRecordSchema,
   CalendarPilotAvailabilityRecordSchema,
   CalendarPilotCandidateRecordSchema,
+  CalendarPilotCandidateSyncRecordSchema,
   CalendarPilotEnabledRecordSchema,
   CalendarPilotGuardRecordSchema,
   CalendarPilotHealthRecordSchema,
@@ -219,6 +220,38 @@ it('validates consumed mirror fields without requiring worker metadata', () => {
       ...partial,
       parsed: { ok: true }
     })
+  ).toThrow('Unreadable CAL-PILOT record.');
+});
+
+it.each([
+  {},
+  { status: 'pending', expectedEtag: 'synthetic_etag' },
+  { status: 'pending', expectedEtag: null },
+  {
+    status: 'superseded',
+    supersededReason: 'legacy_candidate_requires_resync'
+  },
+  { status: 'superseded', expectedEtag: '' },
+  { status: 'superseded', expectedEtag: '  ', supersededReason: null }
+])('preserves partial legacy candidate sync fields: %j', (value: unknown) => {
+  expect(
+    parseCalendarPilotRecord(CalendarPilotCandidateSyncRecordSchema, value)
+  ).toEqual(value);
+});
+
+it.each([
+  null,
+  [],
+  { schemaVersion: 1 },
+  { schemaVersion: 2 },
+  { status: 'unknown' },
+  { status: 12 },
+  { expectedEtag: 12 },
+  { expectedEtag: {} },
+  { supersededReason: false }
+])('rejects malformed candidate sync fields: %j', (value: unknown) => {
+  expect(() =>
+    parseCalendarPilotRecord(CalendarPilotCandidateSyncRecordSchema, value)
   ).toThrow('Unreadable CAL-PILOT record.');
 });
 
