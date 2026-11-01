@@ -103,7 +103,10 @@ describe('shared expiring maintenance control', () => {
 
   it('tracks unresolved admissions and makes release idempotent', async () => {
     const read = Promise.withResolvers<unknown>();
-    const control = new SharedMaintenanceControl(() => read.promise, () => NOW);
+    const control = new SharedMaintenanceControl(
+      () => read.promise,
+      () => NOW
+    );
     const admission = control.run(() => Promise.resolve());
     expect(control.inFlightCallbacks).toBe(1);
     read.resolve(undefined);
