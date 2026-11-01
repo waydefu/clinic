@@ -9,11 +9,14 @@
 既有核定原句仍為「先做不依賴 IP 作身分保證的來源方案、HMAC 原始碼及測試；secret、轉換與部署另次逐項核准」。
 
 - 測試期維持 Hosting 入口與方案 A；直連 Run 可達本身不是 B-03 失敗，不能要求所有直連一律在 handler 前拒絕。
-  兩條路徑應依現行來源、授權、limiter 與 gate 規則驗收；來源選取不是身分保證。
+  核准正門正常；直連、偽造最左側 X-Forwarded-For、格式錯誤／多地址及換 IP 仍受既有 WP-B2A 第二桶的同身分限制，
+  換 IP 不能重置鎖定；未核准 host、關閉／逾期 gate 仍拒絕。來源選取不是身分保證，安全控制不依賴 IP 或入口。
   這不判定目前任何端點已公開或封閉，也不授權實際 IAM／ingress 改動。
-- Sol 只更正外部驗收單的判定標準、handler／writer counters 與負向案例，未到驗收日不送請求、不測 C1。
-- 同一來源補件只從 repo 既有 `api_secret_env`／`worker_secret_env` 列 API 三個與 worker 一個掛載名稱、版本輸入欄位；
-  所有實際版本 pin 保持 `UNKNOWN`。不開本機參數檔、不讀 Secret Manager、不回填秘密值或猜版本。
+- Sol 只更正外部驗收單的判定標準、安全計數缺口與負向案例；未找到既有完整觀測就列 `NOT_PROVEN`，
+  不發明 endpoint／工具，未到驗收日不送請求、不測 C1。今天 C1 部署取消，日期由負責人另排。
+- 同一來源補件只從 repo 既有 `api_secret_env`／`worker_secret_env` 列 API 三個與 worker 一個掛載名稱、
+  `variables.tf` 的數字版本必填驗證行號；所有實際版本 pin 保持 `UNKNOWN`。
+  不開本機參數檔、不讀 Secret Manager、不回填秘密值或猜版本。
 - 外部驗收、部署、provider／store 接線與實際秘密操作仍由負責人另排；本更正不把 INGRESS 標完成。
 
 ## 2026-10-31 Sol：四項來源決定及剩餘等待邊界

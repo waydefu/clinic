@@ -5,6 +5,7 @@ const read = (path) =>
   readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const sheet = read('docs/plans/2026-10-25-external-acceptance-runsheet.md');
 const main = read('infra/terraform/c1-internal-test-run/main.tf');
+const variables = read('infra/terraform/c1-internal-test-run/variables.tf');
 
 function bindings(name) {
   const body = main.match(
@@ -39,17 +40,33 @@ describe('external acceptance runsheet source boundaries', () => {
     expect(sheet).toContain('無副作用拒絕');
   });
 
+  it('keeps identity locks and missing-counter evidence explicit', () => {
+    for (const label of [
+      'lookup_identity_failure',
+      '換 IP 不能重置鎖定',
+      '格式錯誤／多地址',
+      '未核准 host',
+      '沒有可對外讀取的身分桶、handler／writer 計數工具',
+      'NOT_PROVEN'
+    ]) {
+      expect(sheet).toContain(label);
+    }
+  });
+
   it.each([
-    ['API', 'api_secret_env', 'api_secret_versions'],
-    ['worker', 'worker_secret_env', 'worker_secret_versions']
+    ['api_secret_env', 'api_secret_versions'],
+    ['worker_secret_env', 'worker_secret_versions']
   ])(
-    'lists only source-declared %s names with unknown version pins',
-    (service, map, input) => {
+    'lists source-declared %s names with exact variable line references',
+    (map, input) => {
       for (const [env, secret] of bindings(map)) {
-        expect(sheet).toContain(
-          `| ${service} | \`${env}\` | \`${secret}\` | \`${input}.${env}\` | UNKNOWN |`
-        );
+        const pattern = new RegExp(`^\\| \`${secret}\` \\| (.+)$`, 'm');
+        const row = sheet.match(pattern)?.[1];
+        expect(row).toBeDefined();
+        const line = Number(row?.match(/variables\.tf:(\d+)/)?.[1]);
+        expect(variables.split('\n')[line - 1]).toContain(`var.${input}.${env}`);
       }
+      expect(sheet).toContain('各項數字版本均為 UNKNOWN');
       expect(sheet).not.toContain('尚未由業主提供名稱');
     }
   );
