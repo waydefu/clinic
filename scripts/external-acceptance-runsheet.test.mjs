@@ -64,7 +64,9 @@ describe('external acceptance runsheet source boundaries', () => {
         const row = sheet.match(pattern)?.[1];
         expect(row).toBeDefined();
         const line = Number(row?.match(/variables\.tf:(\d+)/)?.[1]);
-        expect(variables.split('\n')[line - 1]).toContain(`var.${input}.${env}`);
+        expect(variables.split('\n')[line - 1]).toContain(
+          `var.${input}.${env}`
+        );
       }
       expect(sheet).toContain('各項數字版本均為 UNKNOWN');
       expect(sheet).not.toContain('尚未由業主提供名稱');
