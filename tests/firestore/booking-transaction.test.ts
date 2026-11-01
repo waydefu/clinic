@@ -8,6 +8,7 @@ import {
 } from '../../apps/api/src/firestore/booking.repository.js';
 import {
   createAppointmentIdempotency,
+  deleteAppointmentIdempotency,
   transitionAppointmentIdempotency
 } from '../../apps/api/src/idempotency/appointment-idempotency.js';
 import {
@@ -349,6 +350,96 @@ describe('booking write path in a Firestore transaction', () => {
       schemaVersion: 1
     });
     expect(idempotency.data()).not.toHaveProperty('key');
+  });
+
+  it('persists deletion effects and replays after the appointment row is gone', async () => {
+    await repository.reserve(bookingRequest());
+    const reserved = await db.collection(COLLECTIONS.slots).doc(SLOT_ID).get();
+    const activeGuard = await db
+      .collection(COLLECTIONS.patientBookingGuards)
+      .doc('patient_001')
+      .get();
+    expect(reserved.data()?.reservationId).toBe('appointment_001');
+    expect(activeGuard.exists).toBe(true);
+    const command = {
+      idempotencyKey: 'delete_request_native_0001',
+      reasonCode: 'created_in_error' as const
+    };
+    const audit = { ...bookingRequest().audit, reasonCode: command.reasonCode };
+    const request = {
+      appointmentId: 'appointment_001',
+      audit,
+      requestedAt: REQUESTED_AT,
+      idempotency: deleteAppointmentIdempotency({
+        key: command.idempotencyKey,
+        actorId: audit.actorId,
+        appointmentId: 'appointment_001',
+        reasonCode: command.reasonCode
+      })
+    };
+    const result = await repository.deleteAppointment(request);
+    const [appointment, slot, guard, event, jobs] = await Promise.all([
+      db.collection(COLLECTIONS.appointments).doc('appointment_001').get(),
+      db.collection(COLLECTIONS.slots).doc(SLOT_ID).get(),
+      db.collection(COLLECTIONS.patientBookingGuards).doc('patient_001').get(),
+      db.collection(COLLECTIONS.auditEvents).doc(result.auditEventId).get(),
+      db.collection(COLLECTIONS.outboxJobs).get()
+    ]);
+    expect(result.replayed).toBe(false);
+    expect(appointment.exists).toBe(false);
+    expect(slot.data()?.reservationId).toBeUndefined();
+    expect(guard.exists).toBe(false);
+    expect(event.data()).toMatchObject({
+      action: 'appointment_deleted',
+      reasonCode: command.reasonCode
+    });
+    const createdJob = jobs.docs
+      .find((doc) => doc.data().appointmentStatus === 'confirmed')
+      ?.data();
+    const deletedJob = jobs.docs
+      .find((doc) => doc.data().appointmentStatus === 'deleted')
+      ?.data();
+    expect(createdJob).toBeDefined();
+    expect(deletedJob).toMatchObject({
+      appointmentId: 'appointment_001',
+      appointmentStatus: 'deleted',
+      status: 'pending',
+      idempotencyKey: createdJob?.idempotencyKey
+    });
+
+    const effects = () =>
+      Promise.all(
+        [
+          COLLECTIONS.appointments,
+          COLLECTIONS.slots,
+          COLLECTIONS.patientBookingGuards,
+          COLLECTIONS.auditEvents,
+          COLLECTIONS.outboxJobs,
+          COLLECTIONS.idempotencyKeys
+        ].map(async (name) => {
+          const snapshot = await db.collection(name).get();
+          return snapshot.docs.map((doc) => ({ id: doc.id, data: doc.data() }));
+        })
+      );
+    const before = await effects();
+    await expect(repository.deleteAppointment(request)).resolves.toEqual({
+      ...result,
+      replayed: true
+    });
+    expect(await effects()).toEqual(before);
+
+    await expect(
+      repository.deleteAppointment({
+        ...request,
+        idempotency: deleteAppointmentIdempotency({
+          key: 'delete_request_native_0002',
+          actorId: audit.actorId,
+          appointmentId: 'appointment_001',
+          reasonCode: command.reasonCode
+        })
+      })
+    ).rejects.toMatchObject({ code: 'APPOINTMENT_NOT_FOUND' });
+    expect(await effects()).toEqual(before);
   });
 
   it('allows only one of many concurrent reservations of the same slot', async () => {

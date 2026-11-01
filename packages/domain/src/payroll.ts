@@ -193,20 +193,24 @@ export function taipeiPayrollPeriod(completedAt: string): string {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: TAIPEI_TIME_ZONE,
     year: 'numeric',
-    month: '2-digit'
+    month: '2-digit',
+    era: 'short'
   }).formatToParts(new Date(completedAt));
 
   const year = parts.find((part) => part.type === 'year')?.value;
   const month = parts.find((part) => part.type === 'month')?.value;
+  const era = parts.find((part) => part.type === 'era')?.value;
 
-  if (year === undefined || month === undefined) {
+  if (year === undefined || month === undefined || era === undefined) {
     throw new DomainError(
       'INVALID_TIMESTAMP',
       'Unable to calculate the Asia/Taipei payroll period.'
     );
   }
 
-  return `${year}-${month}`;
+  // Intl years are era-relative; comparisons need the stored YYYY-MM form.
+  const isoYear = era === 'BC' ? 1 - Number(year) : Number(year);
+  return `${String(isoYear).padStart(4, '0')}-${month}`;
 }
 
 function assertAssignmentCoversCompletion(
@@ -505,6 +509,13 @@ export function planPayrollPeriodClose(
     throw new DomainError(
       'PAYROLL_PERIOD_ALREADY_CLOSED',
       `The payroll period ${request.payrollPeriod} is already closed.`
+    );
+  }
+
+  if (taipeiPayrollPeriod(request.requestedAt) <= request.payrollPeriod) {
+    throw new DomainError(
+      'INVALID_VALUE',
+      'The Asia/Taipei payroll month must end before it can be closed.'
     );
   }
 
