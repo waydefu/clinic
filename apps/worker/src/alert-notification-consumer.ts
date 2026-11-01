@@ -50,12 +50,27 @@ export const ALERT_POLICY_ALLOWLIST: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Pub/Sub meaning: sent and duplicate are acked; retry is nacked so the
- * subscription retry policy redelivers; dead_letter and rejected_malformed
- * are acked here and recorded for the operator (or forwarded to the DLQ topic).
+ * Outcomes are decisions only: this module never acknowledges a message.
+ * Permanent/malformed failures require durable quarantine before an adapter
+ * may acknowledge; otherwise nack and let the bounded broker DLQ policy act.
  */
 export type ConsumeOutcome =
   'sent' | 'duplicate' | 'rejected_malformed' | 'retry' | 'dead_letter';
+
+/** Pure transport proposal; no ack/nack, DLQ write, provider or runtime wiring. */
+export function alertAckDecision(
+  outcome: ConsumeOutcome,
+  quarantineRecorded = false
+): 'ack' | 'nack' {
+  if (outcome === 'sent' || outcome === 'duplicate') return 'ack';
+  if (
+    (outcome === 'dead_letter' || outcome === 'rejected_malformed') &&
+    quarantineRecorded === true
+  ) {
+    return 'ack';
+  }
+  return 'nack';
+}
 
 const ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 

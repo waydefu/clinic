@@ -117,4 +117,34 @@ B-08 因此**不標 DONE、不標 FIXED**：runtime 證明（`runtimeProofRequir
 publisher 與 topic 的精確配對及 subscription/worker/DLQ，再用合成事件記錄送達、重送、
 重試與隔離。未知 principal、缺 publisher binding、未核准收件者、provider 失敗或缺 DLQ
 記錄一律不能報 delivered；只保留去識別結果與必要的資源名稱，不提供 token、cookie、
-raw payload、PII 或私有 log。未確認身分前的 IAM source 缺口仍存在，不改標 SOURCE-DONE。
+raw payload、PII 或私有 log。這是 2026-11-01 的來源快照；下節補上 IaC 提案，
+不以此聲稱 principal 已確認、已接線或整包 SOURCE-DONE。
+
+## 8. 2026-11-02 已核准來源施工：配對提案與正反測試
+
+依登記簿最上方「2026-10-31 Sol：四項來源決定及剩餘等待邊界」B-08 列，
+及 [2026-11-02 owner checkpoint](https://github.com/waydefu/clinic/pull/268#issuecomment-6561809243)，
+正常來源 PR 可補 publisher binding、subscription、DLQ 與 worker consumer 配對。
+這取代上節對來源施工的等待；不改實際資源、IAM、worker 接線或部署的未授權狀態。
+
+- [WP-B4 module](../../infra/terraform/wp-b4-alerting/README.md) 新增可選
+  `application_delivery`；預設 null、default SHA no-op。每個新資源沿用原 exact-SHA gate。
+- 明確輸入 Monitoring publisher、Pub/Sub service agent、既有 worker 的 member，
+  只在 application topic／subscription／DLQ 的個別資源授權；沒有 project-wide IAM，
+  不改 budget path、API 身分或 C1 module。
+- 格式與同一輸入 project number 的驗證不是實際身分確認；project number 對 project id
+  的對應、principal 是否存在與真實權限仍待外部證據。測試只用全零合成 project number。
+- 提案的 pull subscription 有明列 ack deadline、retention、backoff 與 broker DLQ；
+  DLQ review subscription 不授權任何 reader，保留後續受權操作者的邊界。
+- `application_delivery_pairing` 明列來源 consumer，`runtime_verified` 永遠 false。
+  沒有 binding 輸入時，即使既有 channel 有宣告也只能報 `UNCONFIGURED`；
+  有輸入也只能報 `SOURCE_ONLY_NOT_DEPLOYED`，不能報 delivered。
+- `alertAckDecision` 只回 ack/nack 建議，不執行 transport。永久／格式錯誤必須先
+  持久隔離才可 ack；隔離未記錄時 nack，避免丟訊息，交 broker 的 retry/DLQ 政策處理。
+  沒有新增 sender、dedupe store、SDK、timer、排程或 entrypoint import。
+- `delivery.tftest.hcl` 涵蓋正常配對、default SHA 零資源、缺 binding 不冒稱就緒、
+  public publisher、API consumer 與跨 project broker 拒絕；由既有 required CI mock job 執行。
+  Worker fake 測試涵蓋 ack/nack、隔離與既有投影／去重，不等於投遞或雲端驗收。
+
+本 PR 的結果與 exact-head CI 證據記在 PR／#268；此節不預先宣告測試成功。
+B-08 的 runtime operator 證據仍缺，整包不給 closure credit，也不安排 C1 部署。

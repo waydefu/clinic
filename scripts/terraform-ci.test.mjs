@@ -14,7 +14,8 @@ const suites = [
   'c5-firestore/noop.tftest.hcl',
   'c6-calendar/noop.tftest.hcl',
   'wp-b4-alerting/noop.tftest.hcl',
-  'wp-b4-alerting/recovery.tftest.hcl'
+  'wp-b4-alerting/recovery.tftest.hcl',
+  'wp-b4-alerting/delivery.tftest.hcl'
 ];
 
 function read(relativePath) {
