@@ -126,6 +126,18 @@ collection, persisted version, writer, role, migration or provider is introduced
 This is one source boundary, not closure of historical DATA-R03, deployed alerting,
 E4-15 in full, or the SOL-CONTRACTS packet.
 
+### E4-15 existing worker candidate transaction read
+
+The sync transaction validates the consumed status, ETag and supersede reason
+before scheduling any writes. Its projection retains the existing unversioned
+partial candidate shape and the missing, null or blank ETag used by legacy
+regeneration. A known legacy supersede reason can still regenerate the candidate;
+unrelated supersedes and existing pending candidates are not overwritten.
+Synthetic codec and transaction tests reject versioned or malformed consumed
+fields before any mirror, candidate, audit or sync-state write. No stored format,
+writer or migration is added. This bounded source guard is not deployed alerting,
+provider acceptance or closure of E4-15 or SOL-CONTRACTS in full.
+
 ## Hard stop
 
 Any Firebase live-channel, production Calendar, or real Calendar/patient

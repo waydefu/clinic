@@ -1,5 +1,30 @@
 # Phase 1 Decision Register
 
+## 2026-10-31 Sol：四項來源決定及剩餘等待邊界
+
+決策人：負責人；Claude 依授權轉達，Sol 依本輪明確指示記錄。
+來源：[最新 CLAUDE-CHECKPOINT](https://github.com/waydefu/clinic/pull/268#issuecomment-6544167115)
+及負責人要求接續來源工作的指示。未另提供 approval ID，不另造。
+本節只記錄 source-only 施工邊界，不是部署、實際 IAM 或外部驗收授權。
+
+| 項目 | 已定案的來源工作 | 仍不得執行 |
+| --- | --- | --- |
+| B-05／LUNA-B09 | 將既有 Terraform mock／noop tests 接入既有 required workflow；不改 permissions、required aggregate 或既有 Action 版本 | 本機執行 Terraform、apply、雲端或憑證操作 |
+| IAM 清理 | 只回滾本次確認建立的 binding；既有 binding 保留，未知或 lost-reply 狀態隔離，不盲刪。role／bucket 只採 repo 既有 IaC 已列範圍，未知項不納入 | 操作實際 binding、金鑰、principal 或擴大權限 |
+| B-08 | 以正常來源 PR 提案並測試 publisher、subscription、DLQ 與 worker consumer 的配對；提案不冒充完成雲端接線 | 建立或修改實際 Pub/Sub、IAM、通知或 worker 接線 |
+| E3-07 | 提出 source-only 共用停寫控制 PR，保留可測的 API／worker 停寫與在途工作邊界 | 建立 store、接 provider、改實際維護控制或部署 |
+
+- #268 等待點 **[B]、[C]、[D]、[G] 已有答案**；來源缺口繼續施工，
+  不再標為 `BLOCKED-OWNER`，也不將等待依賴合併冒充等待新決策。
+- **[E] 維持未核准**；不藉本節啟用該受保護範圍。
+- **[H] 只等診所審告知文字**；保存期間、核准人與公開電話等已有答案不重問。
+- **[I]、[J] 是外部驗收當天的步驟**；來源未完成前不要求提供憑證、
+  操作環境或提前授權，也不將來源／合成測試當成外部驗收證據。
+- #374／#375 已由負責人合併；共同 audit 阻擋依合併後 exact-head CI 已解除。
+  PR 是否可合併仍逐一看自己的 head 與 required aggregate，不沿用舊 run。
+- 逐包終態依 #268 最新 checkpoint 記錄；本節不替任何整包加上 closure credit，
+  不變更 D-001～D-016 整體狀態，也不授權 Sol 合併或做受保護動作。
+
 ## 2026-10-30 Sol：既有答案更正、滿兩年封存與法條自行查核
 
 來源：本輪由 Claude 代負責人轉達的更正與追加決定；以下保留負責人原話。
