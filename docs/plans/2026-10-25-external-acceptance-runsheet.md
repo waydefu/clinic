@@ -46,23 +46,52 @@ Sol v2 四項決定已逐字登記在 [#268](https://github.com/waydefu/clinic/p
 只差本單外部實測的包，才能依登記簿 2026-10-19 第 12 題 B 標
 `BLOCKED-EXTERNAL／SOURCE-DONE／外部驗收未完成`；仍不報 DONE，也未獲逐包來源凍結核准。
 
-## 3. INGRESS：核准路徑與直連拒絕
+### 2.1 既有 mount 名稱：不是值，版本仍 UNKNOWN
+
+只摘錄 [main.tf 的 api_secret_env／worker_secret_env](../../infra/terraform/c1-internal-test-run/main.tf)
+及 [variables.tf 的獨立版本輸入](../../infra/terraform/c1-internal-test-run/variables.tf)，
+沒有讀本機參數檔、Secret Manager 或任何 secret 值；也沒有確認目前已部署的 mount。
+
+| 服務 | env | Secret 名稱 | 版本輸入欄位 | 數字 pin |
+| --- | --- | --- | --- | --- |
+| API | `CALENDAR_PILOT_FIREBASE_WEB_API_KEY` | `c1-staff-firebase-web-api-key` | `api_secret_versions.CALENDAR_PILOT_FIREBASE_WEB_API_KEY` | UNKNOWN |
+| API | `CALENDAR_PILOT_MANAGER_EMAILS` | `c1-staff-manager-allowlist` | `api_secret_versions.CALENDAR_PILOT_MANAGER_EMAILS` | UNKNOWN |
+| API | `CALENDAR_PILOT_FRONT_DESK_EMAILS` | `c1-staff-front-desk-allowlist` | `api_secret_versions.CALENDAR_PILOT_FRONT_DESK_EMAILS` | UNKNOWN |
+| worker | `GOOGLE_CALENDAR_ID` | `c1-synthetic-calendar-id` | `worker_secret_versions.GOOGLE_CALENDAR_ID` | UNKNOWN |
+
+當天由有權操作者另提供各自的數字 pin；不能從描述、舊 fixture 或已退役共享 pin 推定版本。
+`UNKNOWN` 不是已 pin、已掛載或可開始操作的證據。這張名稱表不是 C1 準備或執行授權。
+
+## 3. INGRESS：方案 A 的兩路徑一致性與拒絕對照
 
 - 包／ID：SOL-INGRESS／B-03；既有 K9、K6、E1-04、E1-14、X-C06 的拒絕邊界保持。
 - SHA：執行當天的 main SHA，由操作者填。
-- 目標：登記簿核准的 C1 exact Hosting host 及其確切 direct Run 對照目標。
+- 依據：[登記簿 2026-11-02 來源更正](../product/phase-1-decision-register.md) 及既有 Q5／Q7 方案 A。
+  **直連請求不必一律在 handler 前被拒絕**；可達平台／應用層本身不等於 B-03 失敗。
+  兩條路徑均適用既有來源／授權／limiter／gate 規則，不能藉 direct Run 繞過它們。
+  來源選取不是身分保證；本單不以 repo 的 ingress 宣告推定目前端點公開或封閉。
+- 目標：登記簿核准的 exact Hosting host 及其確切 direct Run 對照目標。
   **需要新的精確授權：兩個目標、UTC 時窗、合成請求上限與允許的測試寫入。** 不猜 host。
 - 資料與允許效果：固定合成來源標記及隔離的合成 booking／lookup 案例；只能產生當次明列的合成紀錄。
 - 人工步驟：
-  1. 確認入口、部署版本與核准的來源選擇方式，先保留不含地址值的原始計數。
-  2. 從核准 Hosting 路徑送一組合成請求，核對 server 選定的 client source，並觀察 limiter 使用同一來源鍵。
-  3. 對核准 direct Run 目標做對照，確認在 unauthenticated lookup／booking handler 執行前就拒絕。
-  4. 重做偽造左側轉送值、格式錯誤／多地址、未核准 host、關閉／逾期 gate 的反例。
-- 成功：核准路徑保存選定來源；直連與反例拒絕，受保護 handler 與寫入計數不增加。
-  不以某個 HTTP 狀態碼單獨推定「handler 未執行」，須有安全計數佐證。
-- 停止／回復：非核准目標成功、來源選錯、handler 提前執行或出現真實資料即停止；
-  依另核准方式關閉合成入口並恢復原設定，保留不含 payload 的拒絕／計數證據，不自行改 ingress 或 IAM。
-- 證據：SHA、兩個授權目標的引用、測試 ID、來源鍵是否一致、handler／寫入前後計數、拒絕碼；不提供原始 IP、header、cookie 或 payload。
+  1. 核對版本、各入口核准的來源選擇及 endpoint 驗證規則，保存不含地址值的 handler counter／writer counter 基準。
+  2. 對 Hosting rewrite 與 direct Run 分別送正常合成請求，記 server 選定來源鍵、limiter 行為與實際 counters；符合所有既有規則才可依 endpoint 契約成功。
+  3. 以偽造左側轉送值、不符核准格式／hop 數、未核准 host、錯誤授權（需要驗證的 endpoint）、關閉／逾期 gate 做兩路徑反例。
+     偽造輸入不能變成可信身分或繞開限流；合法多跳欄位不能只因包含多個地址就判失敗。
+  4. 對來源／授權／gate 驗證失敗的請求核對無副作用拒絕；對合格請求依實際核准效果核對 counters，不預設所有 direct Run 都是零 handler。
+
+| 對照 | 來源／驗證判定 | handler counter／writer counter |
+| --- | --- | --- |
+| Hosting rewrite 正常合成請求 | 按核准來源及現行 endpoint 契約 | 只容許當次明列效果 |
+| direct Run 正常合成請求 | 同樣不能繞過授權／limiter／gate；不只以可達判失敗 | 依實際通過或拒絕結果核對，不預設必為零 |
+| 兩路徑偽造／錯誤來源 | 不可令攻擊者自選可信身分或新的限流桶；不合法則拒絕 | 拒絕時不進受保護 handler／writer |
+| 兩路徑授權失敗或關閉／逾期 gate | 按既有契約拒絕，不能因入口不同繞過 | 受保護 handler／writer 零增量 |
+
+- 成功：兩路徑均符合來源及授權／limiter／gate 規則，合法效果不超出授權，反例無越權／限流繞過或寫入。
+  不以 HTTP 狀態碼單獨推定 handler 未執行；來源鍵只留是否一致，不記錄原始地址。
+- 停止／回復：非核准目標、來源選錯、可繞過既有控制、未授權副作用或真實資料即停止；
+  依另核准方式關閉合成入口並恢復原設定，保留不含 payload 的安全計數，不自行改 ingress 或 IAM。
+- 證據：SHA、兩個授權目標引用、測試 ID、來源鍵是否一致、handler／writer 前後計數及拒絕碼；不提供原始 IP、header、cookie 或 payload。
 - 排程估計：30–45 分鐘；授權與來源缺口處理不包含在內。
 
 ## 4. NOTIFICATION：來源技術清單與實際投遞
