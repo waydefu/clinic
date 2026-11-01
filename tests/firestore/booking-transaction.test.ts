@@ -354,6 +354,13 @@ describe('booking write path in a Firestore transaction', () => {
 
   it('persists deletion effects and replays after the appointment row is gone', async () => {
     await repository.reserve(bookingRequest());
+    const reserved = await db.collection(COLLECTIONS.slots).doc(SLOT_ID).get();
+    const activeGuard = await db
+      .collection(COLLECTIONS.patientBookingGuards)
+      .doc('patient_001')
+      .get();
+    expect(reserved.data()?.reservationId).toBe('appointment_001');
+    expect(activeGuard.exists).toBe(true);
     const command = {
       idempotencyKey: 'delete_request_native_0001',
       reasonCode: 'created_in_error' as const
@@ -372,11 +379,11 @@ describe('booking write path in a Firestore transaction', () => {
     };
     const result = await repository.deleteAppointment(request);
     const [appointment, slot, guard, event, jobs] = await Promise.all([
-      db.doc('appointments/appointment_001').get(),
-      db.doc(`slots/${SLOT_ID}`).get(),
-      db.doc('patientBookingGuards/patient_001').get(),
-      db.doc(`auditEvents/${result.auditEventId}`).get(),
-      db.collection('outboxJobs').get()
+      db.collection(COLLECTIONS.appointments).doc('appointment_001').get(),
+      db.collection(COLLECTIONS.slots).doc(SLOT_ID).get(),
+      db.collection(COLLECTIONS.patientBookingGuards).doc('patient_001').get(),
+      db.collection(COLLECTIONS.auditEvents).doc(result.auditEventId).get(),
+      db.collection(COLLECTIONS.outboxJobs).get()
     ]);
     expect(result.replayed).toBe(false);
     expect(appointment.exists).toBe(false);
@@ -403,12 +410,12 @@ describe('booking write path in a Firestore transaction', () => {
     const effects = () =>
       Promise.all(
         [
-          'appointments',
-          'slots',
-          'patientBookingGuards',
-          'auditEvents',
-          'outboxJobs',
-          'idempotencyKeys'
+          COLLECTIONS.appointments,
+          COLLECTIONS.slots,
+          COLLECTIONS.patientBookingGuards,
+          COLLECTIONS.auditEvents,
+          COLLECTIONS.outboxJobs,
+          COLLECTIONS.idempotencyKeys
         ].map(async (name) => {
           const snapshot = await db.collection(name).get();
           return snapshot.docs.map((doc) => ({ id: doc.id, data: doc.data() }));
