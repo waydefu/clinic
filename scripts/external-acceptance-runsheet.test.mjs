@@ -1,12 +1,15 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+const read = (path) =>
+  readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const sheet = read('docs/plans/2026-10-25-external-acceptance-runsheet.md');
 const main = read('infra/terraform/c1-internal-test-run/main.tf');
 
 function bindings(name) {
-  const body = main.match(new RegExp(`  ${name} = \\{([\\s\\S]*?)\\n  \\}`))?.[1];
+  const body = main.match(
+    new RegExp(`  ${name} = \\{([\\s\\S]*?)\\n  \\}`)
+  )?.[1];
   if (!body) throw new Error(`Missing source map: ${name}`);
   return [...body.matchAll(/^\s*(\w+)\s*=\s*"([^"]+)"/gm)].map(
     ([, env, secret]) => [env, secret]
