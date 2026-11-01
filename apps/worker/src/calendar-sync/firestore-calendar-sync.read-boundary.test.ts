@@ -2,6 +2,7 @@ import type { Firestore } from 'firebase-admin/firestore';
 import { describe, expect, it, vi } from 'vitest';
 
 import { FirestoreCalendarSyncRepository } from './firestore-calendar-sync.repository.js';
+import type { CalendarSyncCommit } from './sync-engine.js';
 
 function repository(value: unknown) {
   const snapshot = {
@@ -208,4 +209,177 @@ describe('CAL-PILOT worker stored read boundary', () => {
     ).rejects.toThrow('Unreadable CAL-PILOT record.');
     expect(store.writes).not.toHaveBeenCalled();
   });
+});
+
+describe('CAL-PILOT candidate transaction read boundary', () => {
+  const createdAt = '2030-01-02T00:00:00Z';
+  const parsed = {
+    ok: true,
+    kind: 'busy',
+    busyReason: 'meeting',
+    displayLabel: 'Synthetic meeting',
+    startsAt: createdAt,
+    endsAt: '2030-01-02T00:30:00Z'
+  } as const;
+  const commit: CalendarSyncCommit = {
+    sourceId: 'synthetic_source',
+    expectedSourceVersion: 1,
+    nextSyncToken: 'synthetic_next_token',
+    completedAt: createdAt,
+    fullSync: false,
+    mutations: [
+      {
+        mirror: {
+          mirrorId: 'synthetic_mirror',
+          sourceId: 'synthetic_source',
+          externalEventId: 'synthetic_event',
+          etag: 'synthetic_etag',
+          externalStatus: 'confirmed',
+          sourceVersion: 1,
+          parsed,
+          localDirty: false,
+          updatedAt: createdAt
+        },
+        candidate: {
+          candidateId: 'synthetic_candidate',
+          mirrorId: 'synthetic_mirror',
+          expectedEtag: 'synthetic_etag',
+          kind: 'create_block',
+          sourceId: 'synthetic_source',
+          sourceVersion: 1,
+          expectedVersion: 0,
+          parsed,
+          validationErrors: [],
+          createdAt
+        }
+      }
+    ]
+  };
+
+  function candidateTransaction(value: unknown) {
+    const writes = vi.fn<(ref: { path: string }, data: unknown) => void>();
+    const transaction = {
+      get: (ref: { id: string; path: string }) =>
+        Promise.resolve({
+          id: ref.id,
+          exists:
+            ref.path === 'calendar_pilot_configuration/active' ||
+            value !== undefined,
+          data: () =>
+            ref.path === 'calendar_pilot_configuration/active'
+              ? configuration
+              : value
+        }),
+      set: writes,
+      create: writes,
+      update: writes
+    };
+    const db = {
+      collection: (name: string) => ({
+        doc: (id: string) => ({ id, path: `${name}/${id}` })
+      }),
+      runTransaction: (operation: (tx: unknown) => Promise<void>) =>
+        operation(transaction)
+    } as unknown as Firestore;
+    return {
+      repository: new FirestoreCalendarSyncRepository(
+        db,
+        'synthetic'.repeat(8)
+      ),
+      writes
+    };
+  }
+
+  const reason = 'legacy_candidate_requires_resync';
+  it.each([
+    { value: undefined, rewrite: true },
+    {
+      value: { status: 'pending', expectedEtag: 'synthetic_etag' },
+      rewrite: false
+    },
+    { value: { status: 'pending' }, rewrite: false },
+    {
+      value: { status: 'superseded', supersededReason: reason },
+      rewrite: true
+    },
+    {
+      value: {
+        status: 'superseded',
+        supersededReason: reason,
+        expectedEtag: null
+      },
+      rewrite: true
+    },
+    {
+      value: {
+        status: 'superseded',
+        supersededReason: reason,
+        expectedEtag: ''
+      },
+      rewrite: true
+    },
+    {
+      value: {
+        status: 'superseded',
+        supersededReason: reason,
+        expectedEtag: '  '
+      },
+      rewrite: true
+    },
+    {
+      value: {
+        status: 'superseded',
+        supersededReason: 'unrelated_operator_action',
+        expectedEtag: null
+      },
+      rewrite: false
+    },
+    {
+      value: {
+        status: 'superseded',
+        supersededReason: reason,
+        expectedEtag: 'synthetic_etag'
+      },
+      rewrite: false
+    }
+  ])(
+    'preserves candidate regeneration decisions: %j',
+    async ({ value, rewrite }: { value: unknown; rewrite: boolean }) => {
+      const store = candidateTransaction(value);
+      await expect(
+        store.repository.commitSync(commit)
+      ).resolves.toBeUndefined();
+      const candidateWrites = store.writes.mock.calls.filter(
+        ([ref]: [{ path: string }, unknown]) =>
+          ref.path === 'calendar_pilot_candidates/synthetic_candidate'
+      );
+      expect(candidateWrites).toHaveLength(rewrite ? 1 : 0);
+      if (rewrite)
+        expect(candidateWrites[0]?.[1]).toMatchObject({
+          status: 'pending',
+          expectedEtag: 'synthetic_etag'
+        });
+    }
+  );
+
+  it.each([
+    null,
+    [],
+    { schemaVersion: 1, status: 'pending' },
+    { schemaVersion: 2, status: 'pending' },
+    { status: 'unknown' },
+    { status: 12 },
+    { status: 'superseded', supersededReason: reason, expectedEtag: 12 },
+    { status: 'pending', expectedEtag: {} },
+    { status: 'superseded', supersededReason: false }
+  ])(
+    'rejects corrupt candidate before any tx write: %j',
+    async (value: unknown) => {
+      const store = candidateTransaction(value);
+      await expect(store.repository.commitSync(commit)).rejects.toThrow(
+        'Unreadable CAL-PILOT record.'
+      );
+      expect(store.writes).not.toHaveBeenCalled();
+    }
+  );
 });

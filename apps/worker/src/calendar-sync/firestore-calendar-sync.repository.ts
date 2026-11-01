@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { Firestore } from 'firebase-admin/firestore';
 import {
   CalendarPilotAppointmentRecordSchema,
+  CalendarPilotCandidateSyncRecordSchema,
   CalendarPilotLeaseConfigurationRecordSchema,
   CalendarPilotMirrorRecordSchema,
   CalendarPilotSourceConfigurationSchema,
@@ -352,7 +353,16 @@ export class FirestoreCalendarSyncRepository
       const existingCandidates = new Map(
         candidateDocuments
           .filter((document) => document.exists)
-          .map((document) => [document.id, document.data()] as const)
+          .map(
+            (document) =>
+              [
+                document.id,
+                parseCalendarPilotRecord(
+                  CalendarPilotCandidateSyncRecordSchema,
+                  document.data()
+                )
+              ] as const
+          )
       );
 
       const suggestionLookupReads = await Promise.all(
