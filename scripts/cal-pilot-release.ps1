@@ -51,6 +51,79 @@ function Read-ServiceAccountKey([string]$Path) {
   return $key
 }
 
+function Invoke-SmokeIamPolicy {
+  param([string]$Service, [string]$ProjectId, [string]$Region, $Policy = $null)
+  $policyPath = $null
+  $global:LASTEXITCODE = 0
+  try {
+    if ($null -eq $Policy) {
+      $response = (& gcloud run services get-iam-policy $Service --project $ProjectId --region $Region --format=json) -join [Environment]::NewLine
+    } else {
+      $policyPath = [IO.Path]::GetTempFileName()
+      [IO.File]::WriteAllText($policyPath, ($Policy | ConvertTo-Json -Depth 100), [Text.UTF8Encoding]::new($false))
+      $response = (& gcloud run services set-iam-policy $Service $policyPath --project $ProjectId --region $Region --format=json --quiet) -join [Environment]::NewLine
+    }
+    if ($LASTEXITCODE -ne 0) { throw 'Smoke IAM result is unknown; do not remove an unconfirmed binding.' }
+    $result = $response | ConvertFrom-Json
+    if ($result.etag -isnot [string] -or [string]::IsNullOrWhiteSpace($result.etag)) { throw 'Smoke IAM policy has no confirmed etag.' }
+    return $result
+  } catch {
+    throw "Smoke IAM result for $Service is unconfirmed; quarantine for manual review and do not remove bindings."
+  } finally {
+    if ($null -ne $policyPath) { [IO.File]::Delete($policyPath) }
+  }
+}
+
+function Enter-SmokeInvokerBinding {
+  param([string]$Service, [string]$Member, [string]$ProjectId, [string]$Region)
+  $original = Invoke-SmokeIamPolicy -Service $Service -ProjectId $ProjectId -Region $Region
+  if ($null -eq $original.PSObject.Properties['bindings']) {
+    $original | Add-Member -NotePropertyName bindings -NotePropertyValue @()
+  }
+  if (@($original.bindings | Where-Object { $_.role -clike '*_withcond_*' }).Count -gt 0) {
+    throw 'Smoke IAM policy has unresolved conditions; no binding changed.'
+  }
+  $bindings = @($original.bindings | Where-Object {
+    $_.role -ceq 'roles/run.invoker' -and ($null -eq $_.PSObject.Properties['condition'] -or $null -eq $_.condition)
+  })
+  if ($bindings.Count -gt 1) { throw 'Smoke IAM ownership is ambiguous; no binding changed.' }
+  if ($bindings.Count -eq 1 -and $bindings[0].members -ccontains $Member) {
+    return [PSCustomObject]@{ Created = $false }
+  }
+  $updated = $original | ConvertTo-Json -Depth 100 | ConvertFrom-Json
+  $target = @($updated.bindings | Where-Object {
+    $_.role -ceq 'roles/run.invoker' -and ($null -eq $_.PSObject.Properties['condition'] -or $null -eq $_.condition)
+  })
+  if ($target.Count -eq 1) {
+    $target[0].members = @($target[0].members) + $Member
+  } else {
+    $updated.bindings = @($updated.bindings) + [PSCustomObject]@{ role = 'roles/run.invoker'; members = @($Member) }
+  }
+  # Compare-and-set both writes: uncertainty or concurrent edits never authorize deletion.
+  $applied = Invoke-SmokeIamPolicy -Service $Service -ProjectId $ProjectId -Region $Region -Policy $updated
+  $confirmed = @($applied.bindings | Where-Object {
+    $_.role -ceq 'roles/run.invoker' -and ($null -eq $_.PSObject.Properties['condition'] -or $null -eq $_.condition) -and $_.members -ccontains $Member
+  })
+  if ($applied.etag -ceq $original.etag -or $confirmed.Count -ne 1) { throw 'Smoke IAM creation was not confirmed; isolate the binding.' }
+  return [PSCustomObject]@{
+    Created = $true
+    Service = $Service
+    ProjectId = $ProjectId
+    Region = $Region
+    OriginalPolicy = $original
+    AppliedEtag = $applied.etag
+  }
+}
+
+function Exit-SmokeInvokerBinding {
+  param($Lease)
+  if ($null -eq $Lease -or -not $Lease.Created) { return }
+  $Policy = $Lease.OriginalPolicy | ConvertTo-Json -Depth 100 | ConvertFrom-Json
+  $Policy.etag = $Lease.AppliedEtag
+  $restored = Invoke-SmokeIamPolicy -Service $Lease.Service -ProjectId $Lease.ProjectId -Region $Lease.Region -Policy $Policy
+  if ($restored.etag -ceq $Lease.AppliedEtag) { throw 'Smoke IAM restoration was not confirmed; isolate the binding.' }
+}
+
 $readerKey = Read-ServiceAccountKey $ReaderKeyPath
 $writerKey = Read-ServiceAccountKey $WriterKeyPath
 if ($readerKey.client_email -eq $writerKey.client_email) {
@@ -170,12 +243,14 @@ $smokeMember = "serviceAccount:$smokeIdentityEmail"
 $smokeConfiguration = "cal-pilot-smoke-$([Guid]::NewGuid().ToString('N').Substring(0, 12))"
 $apiSmokeBindingAdded = $false
 $workerSmokeBindingAdded = $false
+$apiSmokeBindingLease = $null
+$workerSmokeBindingLease = $null
 $smokeConfigurationCreated = $false
 try {
-  gcloud run services add-iam-policy-binding cal-pilot-api --project $projectId --region $region --member $smokeMember --role roles/run.invoker --quiet | Out-Null
-  $apiSmokeBindingAdded = $true
-  gcloud run services add-iam-policy-binding cal-pilot-worker --project $projectId --region $region --member $smokeMember --role roles/run.invoker --quiet | Out-Null
-  $workerSmokeBindingAdded = $true
+  $apiSmokeBindingLease = Enter-SmokeInvokerBinding -Service 'cal-pilot-api' -Member $smokeMember -ProjectId $projectId -Region $region
+  $apiSmokeBindingAdded = $apiSmokeBindingLease.Created
+  $workerSmokeBindingLease = Enter-SmokeInvokerBinding -Service 'cal-pilot-worker' -Member $smokeMember -ProjectId $projectId -Region $region
+  $workerSmokeBindingAdded = $workerSmokeBindingLease.Created
   gcloud config configurations create $smokeConfiguration --no-activate --quiet | Out-Null
   $smokeConfigurationCreated = $true
   gcloud auth activate-service-account --key-file $WriterKeyPath --configuration $smokeConfiguration --quiet | Out-Null
@@ -189,12 +264,12 @@ try {
   # A failed cleanup must not skip the remaining independent cleanup attempts.
   try {
     if ($apiSmokeBindingAdded) {
-      gcloud run services remove-iam-policy-binding cal-pilot-api --project $projectId --region $region --member $smokeMember --role roles/run.invoker --quiet | Out-Null
+      Exit-SmokeInvokerBinding -Lease $apiSmokeBindingLease
     }
   } finally {
     try {
       if ($workerSmokeBindingAdded) {
-        gcloud run services remove-iam-policy-binding cal-pilot-worker --project $projectId --region $region --member $smokeMember --role roles/run.invoker --quiet | Out-Null
+        Exit-SmokeInvokerBinding -Lease $workerSmokeBindingLease
       }
     } finally {
       if ($smokeConfigurationCreated) {

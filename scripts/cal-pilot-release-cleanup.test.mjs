@@ -70,6 +70,11 @@ function gcloud {
   $script:calls.Add($action)
   if ($script:failures -contains $action) { throw 'Synthetic cleanup failure' }
 }
+# Isolate finally ordering; native ownership semantics are covered separately.
+function Exit-SmokeInvokerBinding {
+  param($Lease)
+  gcloud run services remove-iam-policy-binding $Lease.Service
+}
 if ((Get-Command gcloud).CommandType -ne 'Function') { throw 'Fake gcloud is missing' }
 $inputs = ConvertFrom-Json $env:SYNTHETIC_RELEASE_CLEANUP_CASES
 $results = @(foreach ($case in $inputs) {
@@ -77,6 +82,8 @@ $results = @(foreach ($case in $inputs) {
   $script:failures = @($case.failures)
   $apiSmokeBindingAdded = [bool]$case.api
   $workerSmokeBindingAdded = [bool]$case.worker
+  $apiSmokeBindingLease = [PSCustomObject]@{ Service = 'cal-pilot-api' }
+  $workerSmokeBindingLease = [PSCustomObject]@{ Service = 'cal-pilot-worker' }
   $smokeConfigurationCreated = [bool]$case.configuration
   $apiIdentityToken = 'synthetic-only'
   $workerIdentityToken = 'synthetic-only'
