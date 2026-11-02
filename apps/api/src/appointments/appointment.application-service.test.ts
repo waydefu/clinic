@@ -993,6 +993,97 @@ describe('accountless intake, return lookup and follow-up lineage', () => {
     });
   });
 
+  it.each(['authorization', 'reservation'] as const)(
+    'does not persist prepared intake when %s fails (K2)',
+    async (boundary) => {
+      const patients = new InMemoryPatientDirectory();
+      const prepareIntake = vi.spyOn(patients, 'prepareIntake');
+      const resolveFromIntake = vi.spyOn(patients, 'resolveFromIntake');
+      const { assertCanCreate, reserve, service } =
+        createBoundService(patients);
+      const failure = new Error('synthetic create failure');
+      if (boundary === 'authorization') {
+        assertCanCreate.mockRejectedValueOnce(failure);
+      } else {
+        reserve.mockRejectedValueOnce(failure);
+      }
+
+      await expect(
+        service.create({ ...COMMAND, intake: SYNTHETIC_INTAKE }, anonymous)
+      ).rejects.toBe(failure);
+
+      expect(prepareIntake).toHaveBeenCalledTimes(1);
+      expect(resolveFromIntake).not.toHaveBeenCalled();
+      expect(patients.createdPatientCount).toBe(0);
+      expect(patients.patients.size).toBe(0);
+      expect(patients.lookup.size).toBe(0);
+      expect(patients.sessions.size).toBe(0);
+      expect(reserve).toHaveBeenCalledTimes(boundary === 'reservation' ? 1 : 0);
+    }
+  );
+
+  it('retries a failed reservation without an orphan patient or index (K2)', async () => {
+    const patients = new InMemoryPatientDirectory();
+    let n = 0;
+    const { reserve, service } = createBoundService(
+      patients,
+      () => `opaque_${++n}`
+    );
+    const command = { ...COMMAND, intake: SYNTHETIC_INTAKE };
+    const failure = new Error('synthetic reservation failure');
+    reserve.mockRejectedValueOnce(failure);
+
+    await expect(service.create(command, anonymous)).rejects.toBe(failure);
+    expect(patients.patients.size).toBe(0);
+    expect(patients.lookup.size).toBe(0);
+
+    await expect(service.create(command, anonymous)).resolves.toMatchObject({
+      status: 'confirmed'
+    });
+    const patientId = reserve.mock.calls[1]?.[0].patientId;
+    expect(reserve).toHaveBeenCalledTimes(2);
+    expect(patients.createdPatientCount).toBe(1);
+    expect([...patients.patients.keys()]).toEqual([patientId]);
+    expect([...patients.lookup.values()]).toEqual([[patientId]]);
+    expect(patients.sessions.size).toBe(0);
+  });
+
+  it('does not use matching intake as return identity even with entitlement (K2)', async () => {
+    const patients = new InMemoryPatientDirectory();
+    const { assertCanCreate, reserve, service, time } =
+      createBoundService(patients);
+    const patientId = await patients.resolveFromIntake(
+      SYNTHETIC_INTAKE,
+      time.nowUtc,
+      () => 'patient_seed_001'
+    );
+    patients.followUp.set(patientId, {
+      required: true,
+      sourceAppointmentId: 'appointment_source_001',
+      sourceFollowUpId: 'follow_up_001'
+    });
+    const prepareIntake = vi.spyOn(patients, 'prepareIntake');
+    const resolveFromIntake = vi.spyOn(patients, 'resolveFromIntake');
+    const readFollowUpState = vi.spyOn(patients, 'readFollowUpState');
+
+    await expect(
+      service.create(
+        { ...COMMAND, bookingKind: 'follow_up', intake: SYNTHETIC_INTAKE },
+        anonymous
+      )
+    ).rejects.toBeInstanceOf(MissingVerifiedPatientError);
+
+    expect(prepareIntake).not.toHaveBeenCalled();
+    expect(resolveFromIntake).not.toHaveBeenCalled();
+    expect(readFollowUpState).not.toHaveBeenCalled();
+    expect(assertCanCreate).not.toHaveBeenCalled();
+    expect(reserve).not.toHaveBeenCalled();
+    expect(patients.createdPatientCount).toBe(1);
+    expect([...patients.patients.keys()]).toEqual([patientId]);
+    expect([...patients.lookup.values()]).toEqual([[patientId]]);
+    expect(patients.sessions.size).toBe(0);
+  });
+
   it('requires existing verified identity before resolving follow-up intake', async () => {
     const patients = new InMemoryPatientDirectory();
     const resolveFromIntake = vi.spyOn(patients, 'resolveFromIntake');
