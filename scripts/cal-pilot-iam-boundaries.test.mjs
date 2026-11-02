@@ -53,11 +53,7 @@ const grants = [
     'builder'
   ],
   ['google_project_iam_member.api_firestore', 'roles/datastore.user', 'api'],
-  [
-    'google_project_iam_member.api_identity',
-    'roles/firebaseauth.admin',
-    'api'
-  ],
+  ['google_project_iam_member.api_identity', 'roles/firebaseauth.admin', 'api'],
   [
     'google_project_iam_member.worker_firestore',
     'roles/datastore.user',
