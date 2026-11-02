@@ -6,7 +6,11 @@ import { OPERATIONAL_ROLES } from '@beauessence/domain';
 const actorId = 'opaque_authoritative_staff',
   actorRole = OPERATIONAL_ROLES[0];
 type WorkbenchState = {
-  workspace: { authenticated: boolean; accounts: unknown[] };
+  workspace: {
+    authenticated: boolean;
+    currentAccountId?: string | null;
+    accounts: unknown[];
+  };
   session: {
     authenticated: boolean;
     account: { id: string } | null;
@@ -65,7 +69,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe('independent staff bootstraps share authoritative principal regardless of ordering', () => {
-  it('rehydrates when /state finishes before delayed /me', async () => {
+  it('rehydrates after delayed /me and clears authority on denial', async () => {
     const h = harness();
     // Start the exact owning bootstrap while no verified principal exists.
     await h.boot();
@@ -80,5 +84,22 @@ describe('independent staff bootstraps share authoritative principal regardless 
     });
     expect(h.read()?.session.authenticated).toBe(true);
     expect(h.read()?.session.account?.id).toBe(actorId);
+    expect(h.read()?.session.permissions.length).toBeGreaterThan(0);
+    expect(h.read()?.workspace.currentAccountId).toBe(actorId);
+
+    await authority.verifyCalendarPilotClientSession(actorId, {
+      storage: h.storage,
+      fetchImpl: () =>
+        Promise.resolve({ ok: false, json: () => Promise.resolve({}) })
+    });
+    expect(h.storage.getItem('calPilotCsrf')).toBeNull();
+    expect(h.storage.getItem('calPilotRole')).toBeNull();
+    expect(h.read()?.workspace.authenticated).toBe(false);
+    expect(h.read()?.workspace.currentAccountId).toBeNull();
+    expect(h.read()?.session).toEqual({
+      authenticated: false,
+      account: null,
+      permissions: []
+    });
   });
 });
