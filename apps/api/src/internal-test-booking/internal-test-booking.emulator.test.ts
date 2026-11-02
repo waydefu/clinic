@@ -360,7 +360,7 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
         headers: managerHeaders(),
         payload: {
           ...PUBLISH_BODY,
-          idempotencyKey: 'schedule_publish_0011',
+          idempotencyKey: 'schedule-publish-idempotency-0011',
           expectedVersion: 1
         }
       });
