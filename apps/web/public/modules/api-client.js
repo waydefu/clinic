@@ -285,8 +285,7 @@ export const apiClient = createApiClient(stagingRequest, {
   timeoutMs: DEFAULT_TIMEOUT_MS
 });
 
-const C1_INTERNAL_HOST =
-  'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app';
+const C1_INTERNAL_HOST = 'beauessence-clinic-stg-c1a01.web.app';
 export function isInternalTestBookingEnabled(location = globalThis.location) {
   if (location === undefined || location === null) return false;
   const hostname = String(location.hostname ?? '').toLowerCase();

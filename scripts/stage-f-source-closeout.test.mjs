@@ -117,7 +117,7 @@ describe('C1 config contract', () => {
       evaluateRequiredCloudConfig(
         {
           CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN:
-            'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app'
+            'beauessence-clinic-stg-c1a01.web.app'
         },
         'api'
       ).missing
@@ -126,7 +126,7 @@ describe('C1 config contract', () => {
       evaluateRequiredCloudConfig(
         {
           CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN:
-            'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app'
+            'beauessence-clinic-stg-c1a01.web.app'
         },
         'api'
       ).missing

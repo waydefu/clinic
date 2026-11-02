@@ -25,14 +25,12 @@ describe('isolated C1 Firebase authDomain allowlist', () => {
     expect(isAuthorizedC1FirebaseAuthDomain(unauthorized)).toBe(false);
   });
 
-  it('accepts the current internal-preproduction Hosting host', () => {
+  it('accepts only the fixed isolated C1 Hosting host', () => {
     expect(C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS).toEqual([
-      'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app'
+      'beauessence-clinic-stg-c1a01.web.app'
     ]);
     expect(
-      isAuthorizedC1FirebaseAuthDomain(
-        'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app'
-      )
+      isAuthorizedC1FirebaseAuthDomain('beauessence-clinic-stg-c1a01.web.app')
     ).toBe(true);
     expect(isIsolatedC1ProjectId('beauessence-clinic-stg-c1a01')).toBe(true);
   });
@@ -52,16 +50,16 @@ describe('isolated C1 Firebase authDomain allowlist', () => {
     expect(isAuthorizedC1FirebaseAuthDomain('example.com')).toBe(false);
     expect(
       isAuthorizedC1FirebaseAuthDomain(
-        'https://beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app'
+        'https://beauessence-clinic-stg-c1a01.web.app'
       )
     ).toBe(false);
     expect(isIsolatedC1ProjectId('beauessence-clinic-staging')).toBe(false);
   });
 
-  it('rejects path, sibling-suffix, wildcard and unapproved web.app hosts', () => {
-    const host =
-      'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app';
+  it('rejects expired previews, path, sibling-suffix, wildcard and unapproved hosts', () => {
+    const host = 'beauessence-clinic-stg-c1a01.web.app';
     for (const value of [
+      'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app',
       `${host}/__/auth/handler`,
       `${host}.unapproved.example`,
       '*.web.app',

@@ -50,9 +50,33 @@ regexes = [
 ]
 
 [[allowlists]]
-description = "Only the complete synthetic export body or one vendor digest row."
+description = """
+Only the complete synthetic export body, one vendor digest row, or the following
+five complete C1 host line forms. #268 specifies the only approved host:
+beauessence-clinic-stg-c1a01.web.app is a public domain, not a credential.
+
+C1 branches (all anchored, horizontal whitespace only, no extra trailing token):
+1. infra/terraform/c1-internal-test-run/noop.tftest.hcl:
+   firebase_auth_domain = "exact host" (double quotes, no comma).
+2. apps/api/src/auth/calendar-pilot-session.test.ts:
+   authDomain: 'exact host', (single quotes and the existing comma).
+3. infra/terraform/c1-internal-test-run/noop.tftest.hcl:
+   condition = var.firebase_auth_domain == "exact host" (no suffix).
+4. infra/terraform/c1-internal-test-run/variables.tf:373:
+   var.firebase_auth_domain == "exact host" && (only this literal && suffix).
+5. scripts/terraform-sha-gate.test.mjs:
+   '-var=firebase_auth_domain=exact host' (single-quoted flag, no comma).
+
+These finite forms are the #268 Claude clarification, not a path exemption.
+Any additional token, scheme, path, host prefix/suffix or subdomain is refused.
+"""
 regexTarget = "line"
 regexes = [
   '''^\s*body: \{ idempotencyKey: 'synthetic[_]key_\d{10}', format: 'csv' \},\s*$''',
-  '''^\s*"[A-Za-z0-9.-]+\.js": "[a-f0-9]{64}",?\s*$'''
+  '''^\s*"[A-Za-z0-9.-]+\.js": "[a-f0-9]{64}",?\s*$''',
+  '''^[ \t]*firebase_auth_domain[ \t]*=[ \t]*"beauessence-clinic-stg-c1a01\.web\.app"[ \t]*$''',
+  '''^[ \t]*authDomain:[ \t]*'beauessence-clinic-stg-c1a01\.web\.app',[ \t]*$''',
+  '''^[ \t]*condition[ \t]*=[ \t]*var\.firebase_auth_domain[ \t]*==[ \t]*"beauessence-clinic-stg-c1a01\.web\.app"[ \t]*$''',
+  '''^[ \t]*var\.firebase_auth_domain[ \t]*==[ \t]*"beauessence-clinic-stg-c1a01\.web\.app"[ \t]+&&[ \t]*$''',
+  '''^[ \t]*'-var=firebase_auth_domain=beauessence-clinic-stg-c1a01\.web\.app'[ \t]*$'''
 ]

@@ -352,11 +352,10 @@ describe('isolated C1 staff client-config authDomain', () => {
       process.env['CALENDAR_PILOT_FIREBASE_WEB_API_KEY'] = 'synthetic-api-key';
       process.env['GOOGLE_CLOUD_PROJECT'] = 'beauessence-clinic-stg-c1a01';
       process.env['CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN'] =
-        'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app';
+        'beauessence-clinic-stg-c1a01.web.app';
       expect(controller.clientConfig()).toEqual({
         apiKey: 'synthetic-api-key',
-        authDomain:
-          'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app',
+        authDomain: 'beauessence-clinic-stg-c1a01.web.app',
         projectId: 'beauessence-clinic-stg-c1a01'
       });
       process.env['CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN'] =
