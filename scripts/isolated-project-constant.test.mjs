@@ -35,6 +35,7 @@ describe('isolated C1 project constant', () => {
     expect(isIsolatedC1ProjectId(FORBIDDEN_STAGING_PROJECT)).toBe(false);
     expect(isIsolatedC1ProjectId(UNAPPLIED_PLACEHOLDER)).toBe(false);
     expect(ISOLATED_C1_PROJECT_ID).not.toBe(FORBIDDEN_STAGING_PROJECT);
+    // #268 comment 6569852361 fixes one exact host, not a legacy "--" preview.
     expect(ISOLATED_C1_FIREBASE_AUTH_DOMAIN).toBe(
       `${ISOLATED_C1_PROJECT_ID}.web.app`
     );

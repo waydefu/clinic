@@ -8,6 +8,7 @@ import { isInternalTestBookingEnabled } from '../public/modules/api-client.js';
 
 describe('public booking vs staff surfaces', () => {
   it('enables Canonical Booking API on isolated C1 preview without Google login', () => {
+    // #268 comment 6569852361 allows only the fixed host, not legacy previews.
     expect(
       isInternalTestBookingEnabled({
         protocol: 'https:',

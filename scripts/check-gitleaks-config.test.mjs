@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 
+import { fixtureCases } from './gitleaks-fixtures.mjs';
+
 const config = await readFile(new URL('../gitleaks.toml', import.meta.url), {
   encoding: 'utf8'
 });
@@ -71,9 +73,19 @@ describe('gitleaks allowlist', () => {
     );
   });
 
-  it('allowlists only the exact public C1 host capture, not adjoining tokens', () => {
+  it('only allowlists documented C1 host lines, never the secret alone', () => {
     const host = 'beauessence-clinic-stg-c1a01.web.app';
-    expect(matchesAllowlist('', host)).toBe(true);
+    expect(matchesAllowlist('', host)).toBe(false);
+    const hostPatterns = allowlists
+      .filter(({ target }) => target === 'line')
+      .flatMap(({ patterns }) => patterns)
+      .filter(({ source }) => source.includes('beauessence-clinic-stg-c1a01'));
+    expect(hostPatterns).toHaveLength(5);
+    for (const { source } of hostPatterns) {
+      expect(source.startsWith('^')).toBe(true);
+      expect(source.endsWith('$')).toBe(true);
+      expect(source).not.toContain('.*');
+    }
     for (const value of [
       `prefix_${host}`,
       `${host}_suffix`,
@@ -82,8 +94,15 @@ describe('gitleaks allowlist', () => {
       'beauessence-clinic-stg-other.web.app',
       'LEAK_CANARY_COMPANION'
     ]) {
-      const line = `authDomain: '${host}'; probe: '${value}'`;
-      expect(matchesAllowlist(line, value)).toBe(false);
+      expect(matchesAllowlist(`authDomain: '${value}',`, value)).toBe(false);
+    }
+    for (const fixture of fixtureCases()) {
+      if (!fixture.id.startsWith('c1-host-')) continue;
+      // A separate-line canary cannot exempt or invalidate the host's own line.
+      const [line] = fixture.input.split('\n');
+      expect(matchesAllowlist(line, host)).toBe(
+        !fixture.expected.includes('fixture-c1-host')
+      );
     }
   });
 
