@@ -13,8 +13,7 @@ describe('public booking vs staff surfaces', () => {
         protocol: 'https:',
         pathname: '/staff',
         port: '',
-        hostname:
-          'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app',
+        hostname: 'beauessence-clinic-stg-c1a01.web.app',
         search: ''
       })
     ).toBe(true);
@@ -124,8 +123,7 @@ describe('public booking vs staff surfaces', () => {
     for (const pathname of ['/staff', '/booking']) {
       const location = {
         protocol: 'https:',
-        hostname:
-          'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app',
+        hostname: 'beauessence-clinic-stg-c1a01.web.app',
         port: '',
         pathname,
         search: ''

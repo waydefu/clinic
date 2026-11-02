@@ -8,8 +8,7 @@ import { validateSchedule } from './schedule-engine.js';
 import { CALENDAR_PILOT_SCHEDULE } from '../vendor/domain/calendar-sync.js';
 
 const STAGE_F_SCHEDULE_IDEMPOTENCY = 'stagef_c1_schedule_publish_v0';
-const STAGE_F_HOST_PATTERN =
-  /^beauessence-clinic-stg-c1a01--internal-preproduction-[a-z0-9-]+\.web\.app$/i;
+const STAGE_F_HOST_PATTERN = /^beauessence-clinic-stg-c1a01\.web\.app$/i;
 
 export function isStageFM11Enabled(location = globalThis.location) {
   if (location === undefined || location === null) return false;
