@@ -53,8 +53,16 @@ const grants = [
     'builder'
   ],
   ['google_project_iam_member.api_firestore', 'roles/datastore.user', 'api'],
-  ['google_project_iam_member.api_identity', 'roles/firebaseauth.admin', 'api'],
-  ['google_project_iam_member.worker_firestore', 'roles/datastore.user', 'worker'],
+  [
+    'google_project_iam_member.api_identity',
+    'roles/firebaseauth.admin',
+    'api'
+  ],
+  [
+    'google_project_iam_member.worker_firestore',
+    'roles/datastore.user',
+    'worker'
+  ],
   [
     'google_secret_manager_secret_iam_member.api',
     'roles/secretmanager.secretAccessor',
@@ -218,6 +226,35 @@ describe('CAL-PILOT exact IAM source boundary (B-41)', () => {
       )
     ]
   ])('rejects %s without changing real IAM', (_label, candidate) => {
+    expect(candidate).not.toBe(source);
+    expect(() => expectCalPilotBoundary(candidate)).toThrow();
+  });
+
+  it.each(
+    Object.entries({
+      'google_service_account.api': ['project', 'account_id'],
+      'google_service_account.worker': ['project', 'account_id'],
+      'google_service_account.scheduler': ['project', 'account_id'],
+      'google_service_account.builder': ['project', 'account_id'],
+      'google_artifact_registry_repository.images': [
+        'project',
+        'location',
+        'repository_id'
+      ],
+      'google_secret_manager_secret.pilot': ['project', 'for_each', 'secret_id']
+    }).flatMap(([resource, fields]) => fields.map((field) => [resource, field]))
+  )('rejects underlying scope drift: %s.%s', (resource, field) => {
+    const block = findHclBlocks(source).find(
+      ({ type, name }) => `${type}.${name}` === resource
+    );
+    const [expression] = directAttributeExpressions(block.bodyTokens, field);
+    expect(expression.length).toBeGreaterThan(0);
+    const value =
+      field === 'for_each' ? 'local.secret_access.api' : '"synthetic-other"';
+    const candidate =
+      source.slice(0, expression[0].start) +
+      value +
+      source.slice(expression.at(-1).end);
     expect(candidate).not.toBe(source);
     expect(() => expectCalPilotBoundary(candidate)).toThrow();
   });
