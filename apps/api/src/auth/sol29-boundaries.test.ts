@@ -179,6 +179,82 @@ describe('SOL29 session proof and allowlist regressions', () => {
     expect(b.rows.size).toBe(0);
   });
 
+  it.each([
+    'auth/user-disabled',
+    'auth/session-cookie-revoked',
+    'auth/argument-error'
+  ])('denies cookie SDK proof %s before account lookup', async (code) => {
+    const b = fixture();
+    b.auth.verifySessionCookie.mockRejectedValue({
+      code,
+      message: 'opaque_private_message'
+    });
+    const denial = await b.service
+      .authenticate('opaque_cookie', NOW)
+      .catch((error: unknown) => error);
+
+    expect(denial).toBeInstanceOf(AuthenticationRequiredError);
+    expect(denial).toHaveProperty('message', 'Authentication is required.');
+    expect(b.auth.verifySessionCookie).toHaveBeenCalledWith(
+      'opaque_cookie',
+      true
+    );
+    expect(b.auth.getUser).not.toHaveBeenCalled();
+    expect(b.auth.createSessionCookie).not.toHaveBeenCalled();
+    expect(b.update).not.toHaveBeenCalled();
+    expect(b.rows.size).toBe(0);
+  });
+
+  it.each(['create', 'authenticate'] as const)(
+    'denies a newly disabled account after %s proof verification',
+    async (operation) => {
+      const b = fixture();
+      b.auth.getUser.mockResolvedValue({
+        disabled: true,
+        uid: 'opaque_staff',
+        email: EMAIL,
+        emailVerified: true
+      });
+      const denial = await b.service[operation]('opaque_token', NOW).catch(
+        (error: unknown) => error
+      );
+
+      expect(denial).toBeInstanceOf(AuthenticationRequiredError);
+      expect(denial).toHaveProperty('message', 'Authentication is required.');
+      expect(b.auth.getUser).toHaveBeenCalledWith('opaque_staff');
+      expect(b.auth.createSessionCookie).not.toHaveBeenCalled();
+      expect(b.update).not.toHaveBeenCalled();
+      expect(b.rows.size).toBe(0);
+    }
+  );
+
+  it('does not persist when disabled during issuance', async () => {
+    const b = fixture();
+    b.auth.getUser
+      .mockResolvedValueOnce({
+        disabled: false,
+        uid: 'opaque_staff',
+        email: EMAIL,
+        emailVerified: true
+      })
+      .mockResolvedValueOnce({
+        disabled: true,
+        uid: 'opaque_staff',
+        email: EMAIL,
+        emailVerified: true
+      });
+    const denial = await b.service
+      .create('opaque_token', NOW)
+      .catch((error: unknown) => error);
+
+    expect(denial).toBeInstanceOf(AuthenticationRequiredError);
+    expect(denial).toHaveProperty('message', 'Authentication is required.');
+    expect(b.auth.getUser).toHaveBeenCalledTimes(2);
+    expect(b.auth.createSessionCookie).toHaveBeenCalledOnce();
+    expect(b.update).not.toHaveBeenCalled();
+    expect(b.rows.size).toBe(0);
+  });
+
   it('keeps the valid current Google/TOTP account path without redundant same-minute writes or an idle timeout', async () => {
     const b = fixture();
     const issued = await b.service.create('opaque_token', NOW);
