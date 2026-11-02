@@ -999,7 +999,8 @@ describe('accountless intake, return lookup and follow-up lineage', () => {
       const patients = new InMemoryPatientDirectory();
       const prepareIntake = vi.spyOn(patients, 'prepareIntake');
       const resolveFromIntake = vi.spyOn(patients, 'resolveFromIntake');
-      const { assertCanCreate, reserve, service } = createBoundService(patients);
+      const { assertCanCreate, reserve, service } =
+        createBoundService(patients);
       const failure = new Error('synthetic create failure');
       if (boundary === 'authorization') {
         assertCanCreate.mockRejectedValueOnce(failure);
