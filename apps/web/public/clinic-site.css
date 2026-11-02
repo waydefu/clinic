@@ -540,8 +540,14 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   scroll-margin-top: var(--clinic-scroll-anchor-offset);
 }
 
+/* 類名沿用（JS 凍結），2026-11-02 起不再是白色：淡綠漸層底，內文放白色面板。 */
 .clinic-section--white {
-  background: var(--clinic-white);
+  background-color: var(--clinic-sage-50);
+  background-image: linear-gradient(
+    180deg,
+    var(--clinic-sage-50),
+    var(--clinic-sage-100)
+  );
 }
 
 .clinic-service-card,
@@ -1344,12 +1350,17 @@ body:not(:has(.clinic-noscript)) #clinic-main {
 
 .clinic-service-content {
   display: grid;
-  gap: 3rem;
+  gap: 1.5rem;
 }
 
-.clinic-service-content section + section {
-  padding-top: 3rem;
-  border-top: 1px solid var(--clinic-line);
+/* 每段是一塊白色面板（2026-11-02）；只套直接子元素，巢狀的 section 不受影響。 */
+.clinic-service-content > section {
+  /* 左右只留 1.25rem：816px 內文欄裡五張成因卡（5×9rem＋間距）才排得成一列。 */
+  padding: 1.5rem 1.25rem;
+  background: var(--clinic-white);
+  border: 1px solid var(--clinic-line);
+  border-radius: var(--clinic-radius-lg);
+  box-shadow: var(--clinic-elevation-card);
 }
 
 .clinic-service-content p {
@@ -1365,12 +1376,12 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   margin-top: 1.5rem;
 }
 
-/* 醫療提醒是一張柔和的霧綠卡（方向 B），與正文的細線分段區隔開。 */
+/* 醫療提醒是一張霧綠卡（方向 B；2026-11-02 加深一階），與正文的白色面板區隔開。 */
 .clinic-medical-note {
   position: sticky;
   top: 7.5rem;
   padding: 1.5rem;
-  background: var(--clinic-surface-subtle);
+  background: var(--clinic-sage-200);
   border-radius: var(--clinic-radius-lg);
 }
 
@@ -1378,8 +1389,13 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   margin-top: 0;
 }
 
+/* green 在 sage-200 上只有 4.04:1，連結改深一階。 */
+.clinic-medical-note .clinic-text-link {
+  color: var(--clinic-forest);
+}
+
 .clinic-medical-note p:not(.clinic-eyebrow) {
-  color: var(--clinic-muted);
+  color: var(--clinic-ink);
   font-size: var(--clinic-text-body);
 }
 
@@ -3064,6 +3080,7 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   padding: 1.5rem;
   background: var(--clinic-surface-default);
   border-radius: var(--clinic-radius-lg);
+  box-shadow: var(--clinic-elevation-card);
   counter-increment: clinic-step;
 }
 
@@ -3095,8 +3112,8 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   height: 1.5rem;
   background: linear-gradient(
     to right,
-    var(--clinic-sage-200),
-    var(--clinic-sage-400)
+    var(--clinic-sage-400),
+    var(--clinic-green)
   );
   clip-path: polygon(0 35%, 55% 35%, 55% 0, 100% 50%, 55% 100%, 55% 65%, 0 65%);
   content: '';
@@ -3380,11 +3397,13 @@ body:not(:has(.clinic-noscript)) #clinic-main {
    換頁；只用 CSS 與瀏覽器內建的 View Transitions，沒有 WebGL）。
    ========================================================================== */
 
-/* 霧綠底上的白卡改成半透明玻璃：白色八成、邊緣一道亮線，底色透一點上來。 */
+/* 霧綠底上的白卡改成半透明玻璃：白色八成，底色透一點上來。2026-11-02 起邊線改回品牌
+   淡線並補輕陰影（原本的白邊線與底色分不開）。 */
 .clinic-care .clinic-service-card,
 .clinic-team .clinic-doctor-card {
   background: color-mix(in srgb, var(--clinic-white) 80%, transparent);
-  border: 1px solid color-mix(in srgb, var(--clinic-white) 90%, transparent);
+  border: 1px solid var(--clinic-line);
+  box-shadow: var(--clinic-elevation-card);
   backdrop-filter: blur(0.75rem) saturate(1.2);
 }
 
@@ -3527,7 +3546,8 @@ body:not(:has(.clinic-noscript)) #clinic-main {
 /* 純色區塊改成柔和漸層（2026-10-25，負責人：「單色背景看要不做點漸層」）。每區保留
    原本的底色當 background-color，上面疊一層同色系的直向漸層與一處淡白光暈：
    色階只在相鄰的品牌 token 之間移動，不新增顏色，文字對比不受影響（底色最深處仍是
-   原本的 token）。地圖蓋滿的「門診時間與交通」與透明底的 FAQ 不套用。 */
+   原本的 token）。地圖蓋滿的「門診時間與交通」不套用；「看診會怎麼進行」與 FAQ
+   的底色 2026-11-02 再改過，見檔尾那段。 */
 .clinic-space {
   background-color: var(--clinic-cream);
   background-image:
@@ -3550,13 +3570,30 @@ body:not(:has(.clinic-noscript)) #clinic-main {
     linear-gradient(160deg, var(--clinic-surface-subtle), var(--clinic-sage-50));
 }
 
+/* 2026-11-02 淺色系加中間色帶（負責人看過官網：「我目前看起來有點單調，很多地方背景
+   都是白的」；選「在淺色系內加中間色帶，先改療程頁和首頁的底色」，沒有改回深綠，並
+   指示：「好，先改這兩處」）。相鄰區塊底色只差約 1.04:1，所以：「看診會怎麼進行」
+   改霧綠色帶，說明與序號換深一階字色保住對比；FAQ 改奶油底；療程頁內文底改淡綠漸層、
+   段落放白色面板、右側提醒卡加深一階。只用既有 token，不新增顏色。 */
 .clinic-process {
-  background-color: var(--clinic-cream);
+  background-color: var(--clinic-sage-200);
   background-image: linear-gradient(
     180deg,
-    var(--clinic-mist-soft),
-    var(--clinic-cream)
+    var(--clinic-sage-100),
+    var(--clinic-sage-200)
   );
+}
+
+.clinic-process .clinic-home-heading p {
+  color: var(--clinic-ink);
+}
+
+.clinic-process .clinic-home-heading__index {
+  color: var(--clinic-gold-ink);
+}
+
+#clinic-faq {
+  background: var(--clinic-cream);
 }
 
 .clinic-team {

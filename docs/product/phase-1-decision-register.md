@@ -1,5 +1,31 @@
 # Phase 1 Decision Register
 
+## 2026-11-02 官網淺色系加中間色帶（首頁與療程頁底色）
+
+負責人（工程師）看過官網後表示：
+
+> 我目前看起來有點單調，很多地方背景都是白的
+
+審查結果：療程頁首屏以下整片純白，首頁每段底色亮度都在 84～96%，相鄰段色差約 1.04:1，
+白卡放在淺底上沒有邊線與陰影。負責人在選項中選「在淺色系內加中間色帶，先改療程頁和首頁的底色」
+（不是改回深綠），並指示：
+
+> 好，先改這兩處
+
+- 首頁：「看診會怎麼進行」改成霧綠中間色帶（`--clinic-sage-200`），說明字改 `--clinic-ink`、
+  序號改 `--clinic-gold-ink` 以保住對比，步驟卡加輕陰影，箭頭改 `--clinic-sage-400` 到
+  `--clinic-green` 的漸層；服務卡與醫師卡的邊線改 `--clinic-line` 並補 `--clinic-elevation-card`
+  陰影（被選中的服務卡仍是 2px 深綠框）；FAQ 底色改 `--clinic-cream`。
+- 療程頁（`/clinic/nasal/*`）：內文區底色改淡綠漸層（`--clinic-sage-50` 到 `--clinic-sage-100`），
+  每個內文段落改成白色面板（邊線、圓角、輕陰影），段落間距縮為 1.5rem；右側「先評估，再選擇」
+  提醒卡改 `--clinic-sage-200`，文字改 `--clinic-ink`，連結改 `--clinic-forest`（原本的 green 在
+  sage-200 上只有 4.04:1）。類名 `.clinic-section--white` 因 JS 凍結而保留，
+  現在不是白色。
+- 只用 `clinic-site.css` 既有 token，不新增顏色；沒有改回深綠；不動 JS、文案、素材、`clinic-booking.css`。
+  面板內距上下 1.5rem、左右 1.25rem，讓桌機內文欄裡五張成因卡仍排成一列。
+- 依本條再重算 `clinic-site.css` 的凍結基準值。本條不授權部署，預覽頻道另依
+  [合成資料線上預覽操作手冊](../runbooks/synthetic-online-preview.md) 逐次核准。
+
 ## 2026-11-02 Sol：INGRESS 方案 A 的來源驗收單更正
 
 決策人：負責人；Claude 依授權在
