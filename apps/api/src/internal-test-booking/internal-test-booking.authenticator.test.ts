@@ -297,6 +297,99 @@ describe('InternalTestBookingAuthenticator', () => {
     expect(auth.verifyIdToken).not.toHaveBeenCalled();
   });
 
+  it.each([
+    'auth/user-disabled',
+    'auth/id-token-revoked',
+    'auth/argument-error'
+  ])('denies patient SDK proof %s without fallback', async (code) => {
+    const sessions = { authenticate: vi.fn() };
+    const auth = {
+      verifyIdToken: vi.fn().mockRejectedValue({
+        code,
+        message: 'opaque_private_message'
+      }),
+      getUser: vi.fn()
+    };
+    const patients = { readVerifiedPatientId: vi.fn() };
+    const authenticator = new InternalTestBookingAuthenticator(
+      sessions as unknown as CalendarPilotSessionService,
+      auth as unknown as Auth,
+      patients as unknown as PatientDirectoryPort
+    );
+    const denial = await authenticator
+      .authenticate(
+        request({ headers: { authorization: 'Bearer opaque_token' } })
+      )
+      .catch((error: unknown) => error);
+
+    expect(denial).toBeInstanceOf(AuthenticationRequiredError);
+    expect(denial).toHaveProperty('message', 'Authentication is required.');
+    expect(auth.verifyIdToken).toHaveBeenCalledWith('opaque_token', true);
+    expect(auth.getUser).not.toHaveBeenCalled();
+    expect(patients.readVerifiedPatientId).not.toHaveBeenCalled();
+    expect(sessions.authenticate).not.toHaveBeenCalled();
+  });
+
+  it('denies disabled patient before identity mapping', async () => {
+    const sessions = { authenticate: vi.fn() };
+    const auth = {
+      verifyIdToken: vi.fn().mockResolvedValue({
+        uid: 'patient_opaque_001',
+        email_verified: true
+      }),
+      getUser: vi.fn().mockResolvedValue({ disabled: true })
+    };
+    const patients = { readVerifiedPatientId: vi.fn() };
+    const authenticator = new InternalTestBookingAuthenticator(
+      sessions as unknown as CalendarPilotSessionService,
+      auth as unknown as Auth,
+      patients as unknown as PatientDirectoryPort
+    );
+    const denial = await authenticator
+      .authenticate(
+        request({ headers: { authorization: 'Bearer opaque_token' } })
+      )
+      .catch((error: unknown) => error);
+
+    expect(denial).toBeInstanceOf(DisabledAccountError);
+    expect(denial).toHaveProperty('message', 'Authentication is required.');
+    expect(auth.verifyIdToken).toHaveBeenCalledWith('opaque_token', true);
+    expect(auth.getUser).toHaveBeenCalledWith('patient_opaque_001');
+    expect(patients.readVerifiedPatientId).not.toHaveBeenCalled();
+    expect(sessions.authenticate).not.toHaveBeenCalled();
+  });
+
+  it('denies SDK lookup failure before identity mapping', async () => {
+    const sessions = { authenticate: vi.fn() };
+    const auth = {
+      verifyIdToken: vi.fn().mockResolvedValue({
+        uid: 'patient_opaque_001',
+        email_verified: true
+      }),
+      getUser: vi.fn().mockRejectedValue({
+        code: 'auth/internal-error',
+        message: 'opaque_private_message'
+      })
+    };
+    const patients = { readVerifiedPatientId: vi.fn() };
+    const authenticator = new InternalTestBookingAuthenticator(
+      sessions as unknown as CalendarPilotSessionService,
+      auth as unknown as Auth,
+      patients as unknown as PatientDirectoryPort
+    );
+    const denial = await authenticator
+      .authenticate(
+        request({ headers: { authorization: 'Bearer opaque_token' } })
+      )
+      .catch((error: unknown) => error);
+
+    expect(denial).toBeInstanceOf(AuthenticationRequiredError);
+    expect(denial).toHaveProperty('message', 'Authentication is required.');
+    expect(auth.getUser).toHaveBeenCalledWith('patient_opaque_001');
+    expect(patients.readVerifiedPatientId).not.toHaveBeenCalled();
+    expect(sessions.authenticate).not.toHaveBeenCalled();
+  });
+
   it('propagates disabled-account enforcement from the staff session', async () => {
     const authenticator = new InternalTestBookingAuthenticator(
       {
