@@ -12,7 +12,7 @@ function presentEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
   present.INTERNAL_TEST_BOOKING_ENABLED = 'false';
   present.INTERNAL_TEST_SOURCE_SHA = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
   present.CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN =
-    'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app';
+    'beauessence-clinic-stg-c1a01.web.app';
   return { ...present, ...overrides };
 }
 

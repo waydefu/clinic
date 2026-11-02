@@ -175,8 +175,7 @@ describe('return-patient context isolation', () => {
 
 const M11_LOCATION = {
   protocol: 'https:',
-  hostname:
-    'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app',
+  hostname: 'beauessence-clinic-stg-c1a01.web.app',
   pathname: '/staff',
   search: '?internalTestBooking=1&stageFM11=1'
 };
@@ -190,9 +189,9 @@ const EXPECTED_M11_SCHEDULE = {
 };
 
 describe('isInternalTestBookingEnabled', () => {
-  it('rejects default and sibling hosts even with a copied opt-in query', () => {
+  it('rejects expired preview and sibling hosts even with a copied opt-in query', () => {
     for (const hostname of [
-      'beauessence-clinic-stg-c1a01.web.app',
+      'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app',
       'beauessence-clinic-stg-c1a01.firebaseapp.com',
       'beauessence-clinic-stg-c1a01--unapproved-channel.web.app',
       `${M11_LOCATION.hostname}.unapproved.example`,
@@ -230,7 +229,7 @@ describe('isInternalTestBookingEnabled', () => {
     ).toBe(false);
   });
 
-  it('opts in with the explicit query, or automatically on isolated C1 preview', () => {
+  it('opts in with the explicit query, or automatically on the fixed C1 host', () => {
     expect(
       isInternalTestBookingEnabled({
         protocol: 'https:',
@@ -245,8 +244,7 @@ describe('isInternalTestBookingEnabled', () => {
         protocol: 'https:',
         pathname: '/staff',
         port: '',
-        hostname:
-          'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app',
+        hostname: 'beauessence-clinic-stg-c1a01.web.app',
         search: ''
       })
     ).toBe(true);
@@ -262,12 +260,12 @@ describe('isStageFM11Enabled', () => {
       { ...M11_LOCATION, hostname: 'localhost' },
       {
         ...M11_LOCATION,
-        hostname: 'beauessence-clinic-stg-c1a01.web.app'
+        hostname:
+          'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app'
       },
       {
         ...M11_LOCATION,
-        hostname:
-          'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.example.com'
+        hostname: 'beauessence-clinic-stg-c1a01.example.com'
       },
       { ...M11_LOCATION, search: '?internalTestBooking=1' },
       { ...M11_LOCATION, search: '?stageFM11=1' },

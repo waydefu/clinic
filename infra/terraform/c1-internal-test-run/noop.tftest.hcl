@@ -96,7 +96,7 @@ run "named_sha_without_images_is_rejected" {
   variables {
     exact_apply_authority_sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     project_id                = "beauessence-clinic-stg-smoke1"
-    firebase_auth_domain      = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    firebase_auth_domain      = "beauessence-clinic-stg-c1a01.web.app"
     api_secret_versions = {
       CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "1"
       CALENDAR_PILOT_MANAGER_EMAILS       = "1"
@@ -121,7 +121,7 @@ run "named_sha_with_digest_plans_isolated_run" {
     project_id                = "beauessence-clinic-stg-smoke1"
     api_image                 = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     worker_image              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-    firebase_auth_domain      = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    firebase_auth_domain      = "beauessence-clinic-stg-c1a01.web.app"
     api_secret_versions = {
       CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "1"
       CALENDAR_PILOT_MANAGER_EMAILS       = "1"
@@ -171,7 +171,7 @@ run "named_sha_with_digest_plans_isolated_run" {
   }
 
   assert {
-    condition     = var.firebase_auth_domain == "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    condition     = var.firebase_auth_domain == "beauessence-clinic-stg-c1a01.web.app"
     error_message = "C1 apply plan must keep firebase_auth_domain on the authorized isolated preview host."
   }
 
@@ -244,7 +244,7 @@ run "business_delivery_maintenance_prerequisites_create_container_without_mount"
     project_id                                          = "beauessence-clinic-stg-c1a01"
     api_image                                           = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     worker_image                                        = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-    firebase_auth_domain                                = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    firebase_auth_domain                                = "beauessence-clinic-stg-c1a01.web.app"
     business_delivery_enabled                           = false
     business_delivery_maintenance_emails_secret_version = "not_granted"
     business_delivery_maintenance_prerequisites_enabled = true
@@ -293,7 +293,7 @@ run "business_delivery_enable_mounts_only_the_api_with_the_numeric_pin" {
     project_id                                          = "beauessence-clinic-stg-c1a01"
     api_image                                           = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     worker_image                                        = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-    firebase_auth_domain                                = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    firebase_auth_domain                                = "beauessence-clinic-stg-c1a01.web.app"
     business_delivery_enabled                           = true
     business_delivery_policy_version                    = "BD-POLICY-2026-09-29"
     business_delivery_scope                             = "internal_synthetic"
@@ -346,7 +346,7 @@ run "business_delivery_enable_without_a_numeric_maintenance_pin_is_rejected" {
     project_id                                          = "beauessence-clinic-stg-c1a01"
     api_image                                           = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     worker_image                                        = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-    firebase_auth_domain                                = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    firebase_auth_domain                                = "beauessence-clinic-stg-c1a01.web.app"
     business_delivery_enabled                           = true
     business_delivery_policy_version                    = "BD-POLICY-2026-09-29"
     business_delivery_scope                             = "internal_synthetic"
@@ -372,7 +372,7 @@ run "calendar_sync_is_opt_in_keyless_and_paused" {
     project_id                             = "beauessence-clinic-stg-c1a01"
     api_image                              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     worker_image                           = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-    firebase_auth_domain                   = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    firebase_auth_domain                   = "beauessence-clinic-stg-c1a01.web.app"
     calendar_sync_enabled                  = true
     calendar_sync_pseudonym_secret_version = "1"
     api_secret_versions = {
@@ -424,7 +424,7 @@ run "calendar_sync_prerequisites_do_not_start_runtime" {
     project_id                          = "beauessence-clinic-stg-c1a01"
     api_image                           = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     worker_image                        = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-    firebase_auth_domain                = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    firebase_auth_domain                = "beauessence-clinic-stg-c1a01.web.app"
     calendar_sync_prerequisites_enabled = true
     calendar_sync_enabled               = false
     api_secret_versions = {
@@ -466,7 +466,7 @@ run "calendar_sync_refuses_another_staging_project" {
     project_id                             = "beauessence-clinic-stg-smoke1"
     api_image                              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     worker_image                           = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-    firebase_auth_domain                   = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    firebase_auth_domain                   = "beauessence-clinic-stg-c1a01.web.app"
     calendar_sync_enabled                  = true
     calendar_sync_pseudonym_secret_version = "1"
     api_secret_versions = {
@@ -564,6 +564,19 @@ run "named_sha_without_auth_domain_is_rejected" {
   ]
 }
 
+run "expired_preview_auth_domain_is_rejected" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha = "not_granted"
+    firebase_auth_domain      = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+  }
+
+  expect_failures = [
+    var.firebase_auth_domain
+  ]
+}
+
 run "firebaseapp_auth_domain_is_rejected" {
   command = plan
 
@@ -621,7 +634,7 @@ run "auth_domain_with_scheme_is_rejected" {
 
   variables {
     exact_apply_authority_sha = "not_granted"
-    firebase_auth_domain      = "https://beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    firebase_auth_domain      = "https://beauessence-clinic-stg-c1a01.web.app"
   }
 
   expect_failures = [
@@ -637,7 +650,7 @@ run "current_c1_input_pins_calendar_to_explicit_approved_version" {
     project_id                = "beauessence-clinic-stg-smoke1"
     api_image                 = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     worker_image              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-    firebase_auth_domain      = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    firebase_auth_domain      = "beauessence-clinic-stg-c1a01.web.app"
     api_secret_versions = {
       CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "1"
       CALENDAR_PILOT_MANAGER_EMAILS       = "1"
@@ -677,7 +690,7 @@ run "changing_another_pin_cannot_alter_calendar" {
     project_id                = "beauessence-clinic-stg-smoke1"
     api_image                 = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     worker_image              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-    firebase_auth_domain      = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    firebase_auth_domain      = "beauessence-clinic-stg-c1a01.web.app"
     api_secret_versions = {
       CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "4"
       CALENDAR_PILOT_MANAGER_EMAILS       = "5"
@@ -727,7 +740,7 @@ run "future_calendar_pin_follows_explicit_input_only" {
     project_id                = "beauessence-clinic-stg-smoke1"
     api_image                 = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     worker_image              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-    firebase_auth_domain      = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    firebase_auth_domain      = "beauessence-clinic-stg-c1a01.web.app"
     api_secret_versions = {
       CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "1"
       CALENDAR_PILOT_MANAGER_EMAILS       = "1"
@@ -767,7 +780,7 @@ run "retired_shared_pin_cannot_govern_all_mounts" {
     project_id                = "beauessence-clinic-stg-smoke1"
     api_image                 = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     worker_image              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-    firebase_auth_domain      = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    firebase_auth_domain      = "beauessence-clinic-stg-c1a01.web.app"
     secret_resource_version   = "1"
     api_secret_versions = {
       CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "4"
@@ -813,7 +826,7 @@ run "missing_calendar_pin_on_apply_is_rejected" {
     project_id                = "beauessence-clinic-stg-smoke1"
     api_image                 = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     worker_image              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-    firebase_auth_domain      = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    firebase_auth_domain      = "beauessence-clinic-stg-c1a01.web.app"
     api_secret_versions = {
       CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "1"
       CALENDAR_PILOT_MANAGER_EMAILS       = "1"
@@ -840,7 +853,7 @@ run "missing_calendar_sync_pseudonym_pin_is_rejected" {
     project_id                = "beauessence-clinic-stg-c1a01"
     api_image                 = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     worker_image              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-    firebase_auth_domain      = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    firebase_auth_domain      = "beauessence-clinic-stg-c1a01.web.app"
     calendar_sync_enabled     = true
     api_secret_versions = {
       CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "1"
@@ -865,7 +878,7 @@ run "missing_api_pin_on_apply_is_rejected" {
     project_id                = "beauessence-clinic-stg-smoke1"
     api_image                 = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     worker_image              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-    firebase_auth_domain      = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    firebase_auth_domain      = "beauessence-clinic-stg-c1a01.web.app"
     api_secret_versions = {
       CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "not_granted"
       CALENDAR_PILOT_MANAGER_EMAILS       = "1"
@@ -942,7 +955,7 @@ run "source_sha_defaults_to_the_apply_authority" {
     project_id                             = "beauessence-clinic-stg-c1a01"
     api_image                              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     worker_image                           = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-    firebase_auth_domain                   = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    firebase_auth_domain                   = "beauessence-clinic-stg-c1a01.web.app"
     calendar_sync_enabled                  = true
     calendar_sync_pseudonym_secret_version = "1"
     api_secret_versions = {
@@ -981,7 +994,7 @@ run "each_image_reports_the_commit_it_was_built_from" {
     project_id                             = "beauessence-clinic-stg-c1a01"
     api_image                              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     worker_image                           = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-c1a01/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-    firebase_auth_domain                   = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    firebase_auth_domain                   = "beauessence-clinic-stg-c1a01.web.app"
     calendar_sync_enabled                  = true
     calendar_sync_pseudonym_secret_version = "1"
     api_secret_versions = {
@@ -1049,7 +1062,7 @@ run "named_sha_with_worker_image_from_another_project_is_rejected" {
     project_id                = "beauessence-clinic-stg-smoke1"
     api_image                 = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-smoke1/internal-test/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     worker_image              = "asia-east1-docker.pkg.dev/beauessence-clinic-stg-other1/internal-test/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-    firebase_auth_domain      = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+    firebase_auth_domain      = "beauessence-clinic-stg-c1a01.web.app"
     api_secret_versions = {
       CALENDAR_PILOT_FIREBASE_WEB_API_KEY = "1"
       CALENDAR_PILOT_MANAGER_EMAILS       = "1"

@@ -19,7 +19,7 @@ export const ISOLATED_PREVIEW_CONFIG = 'firebase.isolated-preview.json';
 export const ISOLATED_API_PREVIEW_CONFIG = 'firebase.isolated-api-preview.json';
 export const ISOLATED_PREVIEW_CHANNEL = 'internal-preproduction';
 export const ISOLATED_C1_FIREBASE_AUTH_DOMAIN =
-  'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app';
+  'beauessence-clinic-stg-c1a01.web.app';
 export const ISOLATED_C1_FIREBASE_AUTH_HANDLER = `https://${ISOLATED_C1_FIREBASE_AUTH_DOMAIN}/__/auth/handler`;
 export const C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS = Object.freeze([
   ISOLATED_C1_FIREBASE_AUTH_DOMAIN

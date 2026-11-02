@@ -8,13 +8,13 @@ import { isInternalTestBookingEnabled } from '../public/modules/api-client.js';
 
 describe('public booking vs staff surfaces', () => {
   it('enables Canonical Booking API on isolated C1 preview without Google login', () => {
+    // #268 comment 6569852361 allows only the fixed host, not legacy previews.
     expect(
       isInternalTestBookingEnabled({
         protocol: 'https:',
         pathname: '/staff',
         port: '',
-        hostname:
-          'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app',
+        hostname: 'beauessence-clinic-stg-c1a01.web.app',
         search: ''
       })
     ).toBe(true);
@@ -23,7 +23,8 @@ describe('public booking vs staff surfaces', () => {
         protocol: 'https:',
         pathname: '/staff',
         port: '',
-        hostname: 'beauessence-clinic-stg-c1a01.web.app',
+        hostname:
+          'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app',
         search: '?internalTestBooking=1'
       })
     ).toBe(false);
@@ -124,8 +125,7 @@ describe('public booking vs staff surfaces', () => {
     for (const pathname of ['/staff', '/booking']) {
       const location = {
         protocol: 'https:',
-        hostname:
-          'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app',
+        hostname: 'beauessence-clinic-stg-c1a01.web.app',
         port: '',
         pathname,
         search: ''

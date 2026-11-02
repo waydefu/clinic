@@ -255,7 +255,7 @@ resource "google_project_service" "quoted_count_symbols" {
       'infra/terraform/c1-internal-test-run'
     ).join('\n');
     expect(c1Run).toContain(
-      '-var=firebase_auth_domain=beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app'
+      '-var=firebase_auth_domain=beauessence-clinic-stg-c1a01.web.app'
     );
     expect(c1Run).not.toContain('firebaseapp.com');
     expect(c1Run).not.toMatch(/\bapply\b/);

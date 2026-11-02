@@ -10,6 +10,7 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const suites = [
   'c1-foundation/noop.tftest.hcl',
   'c1-internal-test-run/noop.tftest.hcl',
+  'cal-pilot/iam.tftest.hcl',
   'c2-identity/noop.tftest.hcl',
   'c5-firestore/noop.tftest.hcl',
   'c6-calendar/noop.tftest.hcl',
@@ -27,6 +28,7 @@ describe('Terraform mock tests are part of required verify CI', () => {
     expect(TERRAFORM_MODULES).toEqual([
       'c1-foundation',
       'c1-internal-test-run',
+      'cal-pilot',
       'c2-identity',
       'c5-firestore',
       'c6-calendar',
