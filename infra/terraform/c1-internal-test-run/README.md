@@ -75,7 +75,13 @@ gate in production or for real data.
 `exact_apply_authority_sha = not_granted`. Apply requires the exact
 authorized isolated Hosting host (no scheme):
 
-`beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app`
+`beauessence-clinic-stg-c1a01.web.app`
+
+This fixed host replaces the expired preview host under the
+[source-only owner decision](https://github.com/waydefu/clinic/pull/268#issuecomment-6569852361).
+It does not authorize Hosting publication, Firebase Auth domain changes or a
+cloud apply. Keep the existing UTC booking-expiry gate; a fixed URL is not
+an authentication boundary.
 
 Scheme, wildcards, `firebaseapp.com`, `beauessence-clinic-staging`,
 official `beauessence.com.tw` hosts, production domains, and arbitrary
@@ -115,7 +121,7 @@ This source does not mutate the OAuth client
 `clinic-c1-internal-preproduction-staff`. A future, separately
 authorized cloud mutation must add
 
-`https://beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app/__/auth/handler`
+`https://beauessence-clinic-stg-c1a01.web.app/__/auth/handler`
 
 to that client's Authorized Redirect URIs, then apply the env above.
 `CLOUD_MUTATION = NONE` in this directory's source PR.

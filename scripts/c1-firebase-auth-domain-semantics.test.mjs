@@ -50,8 +50,7 @@ const original = readFileSync(
   'utf8'
 );
 const normalizer = "  const host = (value ?? '').trim();";
-const approved =
-  'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app';
+const approved = 'beauessence-clinic-stg-c1a01.web.app';
 if (!original.includes(normalizer))
   throw new Error('Owning fixture shape changed');
 

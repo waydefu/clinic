@@ -28,6 +28,11 @@ secretGroup = 1
 id = "fixture-canary"
 description = "Non-secret companion finding"
 regex = '''LEAK_CANARY_[A-Z0-9_]+'''
+
+[[rules]]
+id = "fixture-c1-host"
+description = "Public C1 host in any context, for full-line boundary probes only"
+regex = '''beauessence-clinic-stg-c1a01\.web\.app'''
 `;
 
 export function fixtureCases() {
@@ -65,8 +70,66 @@ export function fixtureCases() {
   const key = ['synthetic', 'key', '1234567890'].join('_');
   const body = `  body: { idempotencyKey: '${key}', format: 'csv' },`;
   const vendor = `  "auth.js": "${'ab'.repeat(32)}",`;
+  const host = 'beauessence-clinic-stg-c1a01.web.app';
+  const hostLines = [
+    `  firebase_auth_domain = "${host}"`,
+    `  authDomain: '${host}',`,
+    `  condition = var.firebase_auth_domain == "${host}"`,
+    `  var.firebase_auth_domain == "${host}" &&`,
+    `  '-var=firebase_auth_domain=${host}'`
+  ];
+  const hostCases = hostLines.flatMap((line, index) => [
+    {
+      id: `c1-host-${index}-positive`,
+      input: line,
+      control: ['fixture-c1-host'],
+      expected: []
+    },
+    {
+      id: `c1-host-${index}-mixed`,
+      input: `${line} LEAK_CANARY_COMPANION`,
+      control: ['fixture-c1-host', 'fixture-canary'],
+      expected: ['fixture-c1-host', 'fixture-canary']
+    },
+    ...['prefix_', '.example.com'].map((affix) => ({
+      id: `c1-host-${index}-${affix}`,
+      input: line.replace(
+        host,
+        affix === 'prefix_' ? affix + host : host + affix
+      ),
+      control: ['fixture-c1-host'],
+      expected: ['fixture-c1-host']
+    })),
+    {
+      id: `c1-host-${index}-separate-line-canary`,
+      input: `${line}\nLEAK_CANARY_COMPANION`,
+      control: ['fixture-c1-host', 'fixture-canary'],
+      expected: ['fixture-canary']
+    }
+  ]);
+  const deniedHostLines = [
+    `  otherDomain: '${host}',`,
+    `  '${host}';`,
+    `  firebase_auth_domain = "https://${host}"`,
+    `  authDomain: '${host}/path',`,
+    `  authDomain: '*.${host}',`,
+    `  var.firebase_auth_domain == "${host}" && true`
+  ];
   return [
     ...cases,
+    ...hostCases,
+    ...deniedHostLines.map((input, index) => ({
+      id: `c1-host-denied-${index}`,
+      input,
+      control: ['fixture-c1-host'],
+      expected: ['fixture-c1-host']
+    })),
+    {
+      id: 'c1-host-probe-is-not-an-approved-field',
+      input: `probe = '${host}'`,
+      control: ['fixture-c1-host', 'fixture-value'],
+      expected: ['fixture-c1-host', 'fixture-value']
+    },
     {
       id: 'body-positive',
       input: body,
@@ -167,6 +230,8 @@ export function runFixtureProof({
       const directory = path.join(root, fixture.id);
       mkdirSync(directory);
       writeFileSync(path.join(directory, 'fixture.txt'), `${fixture.input}\n`);
+      const hostCase = fixture.control.includes('fixture-c1-host');
+      let controlGeneric = [];
       for (const [mode, configuration] of [
         ['control', control],
         ['candidate', candidate]
@@ -196,13 +261,25 @@ export function runFixtureProof({
         } catch {
           throw new Error(`Fixture report unavailable: ${fixture.id}/${mode}`);
         }
-        const expected =
-          mode === 'control' ? fixture.control : fixture.expected;
-        assessScan(result, findings, expected, {
-          allowGeneric:
-            expected.includes('fixture-value') ||
-            expected.includes('fixture-vendor')
-        });
+        const expected = [
+          ...(mode === 'control' ? fixture.control : fixture.expected)
+        ];
+        if (
+          mode === 'candidate' &&
+          hostCase &&
+          expected.includes('fixture-c1-host')
+        ) {
+          // Denied host lines must retain every generic finding from control.
+          expected.push(...controlGeneric);
+        }
+        const allowGeneric = hostCase
+          ? mode === 'control'
+          : expected.includes('fixture-value') ||
+            expected.includes('fixture-vendor');
+        const actual = assessScan(result, findings, expected, { allowGeneric });
+        if (mode === 'control') {
+          controlGeneric = actual.filter((id) => id === 'generic-api-key');
+        }
       }
       assertions.push({ id: fixture.id, status: 'PASS' });
     }

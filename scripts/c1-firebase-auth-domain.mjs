@@ -156,7 +156,7 @@ function inspectC1FirebaseAuthDomainSourceImpl(repoRoot) {
     );
   }
   if (
-    !/firebase_auth_domain\s*=\s*"beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz\.web\.app"/.test(
+    !/firebase_auth_domain\s*=\s*"beauessence-clinic-stg-c1a01\.web\.app"/.test(
       example
     )
   ) {
