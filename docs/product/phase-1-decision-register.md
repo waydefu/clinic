@@ -1,5 +1,24 @@
 # Phase 1 Decision Register
 
+## 2026-11-02 Sol：INGRESS 方案 A 的來源驗收單更正
+
+決策人：負責人；Claude 依授權在
+[CLAUDE-CHECKPOINT](https://github.com/waydefu/clinic/pull/268#issuecomment-6562141735)
+轉達既定方案 A，Sol 在本輪續跑記錄。沒有另附 approval ID，不另造。
+這是既有 Q5／Q7 選 A 的驗收標準確認，不重開入口選項，也不擴大下節 10-31 的施工授權。
+既有核定原句仍為「先做不依賴 IP 作身分保證的來源方案、HMAC 原始碼及測試；secret、轉換與部署另次逐項核准」。
+
+- 測試期維持 Hosting 入口與方案 A；直連 Run 可達本身不是 B-03 失敗，不能要求所有直連一律在 handler 前拒絕。
+  核准正門正常；直連、偽造最左側 X-Forwarded-For、格式錯誤／多地址及換 IP 仍受既有 WP-B2A 第二桶的同身分限制，
+  換 IP 不能重置鎖定；未核准 host、關閉／逾期 gate 仍拒絕。來源選取不是身分保證，安全控制不依賴 IP 或入口。
+  這不判定目前任何端點已公開或封閉，也不授權實際 IAM／ingress 改動。
+- Sol 只更正外部驗收單的判定標準、安全計數缺口與負向案例；未找到既有完整觀測就列 `NOT_PROVEN`，
+  不發明 endpoint／工具，未到驗收日不送請求、不測 C1。今天 C1 部署取消，日期由負責人另排。
+- 同一來源補件只從 repo 既有 `api_secret_env`／`worker_secret_env` 列 API 三個與 worker 一個掛載名稱、
+  `variables.tf` 的數字版本必填驗證行號；所有實際版本 pin 保持 `UNKNOWN`。
+  不開本機參數檔、不讀 Secret Manager、不回填秘密值或猜版本。
+- 外部驗收、部署、provider／store 接線與實際秘密操作仍由負責人另排；本更正不把 INGRESS 標完成。
+
 ## 2026-10-31 Sol：四項來源決定及剩餘等待邊界
 
 決策人：負責人；Claude 依授權轉達，Sol 依本輪明確指示記錄。

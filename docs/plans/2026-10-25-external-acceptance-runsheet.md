@@ -36,7 +36,7 @@ Sol v2 四項決定已逐字登記在 [#268](https://github.com/waydefu/clinic/p
 
 | 包 | 可追溯來源 | 不可省略的前置／未證明內容 |
 | --- | --- | --- |
-| INGRESS／B-03 | [client-ip](../../apps/api/src/platform/runtime/client-ip.ts)、[internal-test gate](../../apps/api/src/internal-test-booking/internal-test-booking.gate.ts)、#278／#285／#292 | 已合來源不代表 live Hosting／direct Run 路徑已驗證；exact host、直連目標與操作時窗須新鮮核准 |
+| INGRESS／B-03 | [client-ip](../../apps/api/src/platform/runtime/client-ip.ts)、[WP-B2A 身分桶](../../apps/api/src/platform/runtime/wp-b2-rate-limiter.ts)、[internal-test gate](../../apps/api/src/internal-test-booking/internal-test-booking.gate.ts)、#278／#285／#292 | 方案 A 接受直連 run.app 可達；須驗核准正門正常、偽造最左側 X-Forwarded-For／格式錯誤／多地址與換 IP 不能重置身分桶鎖定、未核准 host 及關閉／逾期 gate 拒絕。安全計數取得仍有 §3.1 缺口；exact host、直連目標與操作時窗須新鮮核准 |
 | NOTIFICATION／B-08 | [WP-B4 main](../../infra/terraform/wp-b4-alerting/main.tf)、[設計](2026-10-30-sol-notification-design.md)、[consumer](../../apps/worker/src/alert-notification-consumer.ts)、#357 | 純 consumer 的 allowlist／dedupe／retry／dead-letter 合成測試已合；application topic 的 publisher binding、subscription／DLQ 與實際 worker 接線仍缺，不能只列「待實測」 |
 | MAINTENANCE／E3-07 | [maintenance gate](../../apps/api/src/platform/runtime/maintenance-gate.ts)、[共用來源候選](2026-11-02-sol-maintenance-source-control.md)、[AppModule](../../apps/api/src/app.module.ts)、[還原 runbook](../runbooks/backup-and-restore.md)、[事件應變](../runbooks/incident-response.md) | 10-31 已核准 source-only 施工；預設改為 unknown／到期即拒絕，API／worker／排程准入與在途 callback 可合成測試。實際 reader／store、跨 process 一致性、全部 writer 接線及 provider 排空仍未驗證，不把來源計數當作全域停寫 |
 | LEASE／D-05、D-12 | [runtime](../../apps/worker/src/calendar-sync/calendar-pilot-runtime.ts)、[協調設計](2026-10-22-sol-calendar-lease-coordination.md)、#287 | 合成協調測試不證明實際唯一 egress、舊 worker 終止／隔離與 provider 在途工作排空；未知必須 quarantine |
@@ -46,24 +46,84 @@ Sol v2 四項決定已逐字登記在 [#268](https://github.com/waydefu/clinic/p
 只差本單外部實測的包，才能依登記簿 2026-10-19 第 12 題 B 標
 `BLOCKED-EXTERNAL／SOURCE-DONE／外部驗收未完成`；仍不報 DONE，也未獲逐包來源凍結核准。
 
-## 3. INGRESS：核准路徑與直連拒絕
+### 2.1 C1 Stage 1：數字版本必填清單（僅名稱與 variables.tf 行號）
+
+Stage 1 填入 `exact_apply_authority_sha` 啟用 apply 時，以下 mount 各自需要數字版本；
+API 必填驗證在 `variables.tf:313–326`，worker 在 `variables.tf:344–350`。
+名稱只取自 [main.tf 的 api_secret_env／worker_secret_env](../../infra/terraform/c1-internal-test-run/main.tf)，
+下表連到每項的 [variables.tf](../../infra/terraform/c1-internal-test-run/variables.tf) 必填驗證行。
+
+| Secret 名稱 | variables.tf 行號 |
+| --- | --- |
+| `c1-staff-firebase-web-api-key` | [variables.tf:318](../../infra/terraform/c1-internal-test-run/variables.tf#L318) |
+| `c1-staff-manager-allowlist` | [variables.tf:319](../../infra/terraform/c1-internal-test-run/variables.tf#L319) |
+| `c1-staff-front-desk-allowlist` | [variables.tf:320](../../infra/terraform/c1-internal-test-run/variables.tf#L320) |
+| `c1-synthetic-calendar-id` | [variables.tf:347](../../infra/terraform/c1-internal-test-run/variables.tf#L347) |
+
+各項數字版本均為 UNKNOWN；不從描述、舊 fixture 或已退役共享 pin 猜版本。
+本輪沒有讀本機參數檔、Secret Manager 或 secret 值，也沒有確認部署的 mount。
+這只列 Stage 1 必填名稱；另行啟用功能的條件式版本不自動納入。操作日再以當天 main 重核行號與條件。
+2026-11-02 的 C1 部署已取消，日期另排；本表不是 C1 準備、apply 或秘密操作授權。
+
+## 3. INGRESS：方案 A 的兩路徑一致性與拒絕對照
 
 - 包／ID：SOL-INGRESS／B-03；既有 K9、K6、E1-04、E1-14、X-C06 的拒絕邊界保持。
 - SHA：執行當天的 main SHA，由操作者填。
-- 目標：登記簿核准的 C1 exact Hosting host 及其確切 direct Run 對照目標。
+- 依據：[登記簿 2026-11-02 來源更正](../product/phase-1-decision-register.md)、既有 Q5／Q7 方案 A，
+  及 [負責人取消 C1 與驗收標準](https://github.com/waydefu/clinic/pull/268#issuecomment-6562141735)。
+  測試期接受直連 run.app 可達；**直連請求不必一律在 handler 前被拒絕**。
+  安全控制不依賴 IP 或入口；來源選取不是身分保證，不靠 IP 或轉送 header 保證呼叫者身分。
+  本單不以 repo 的 ingress 宣告推定目前端點公開或封閉。
+- 目標：核准正門的 exact Hosting host 及其確切 direct Run 對照目標。
   **需要新的精確授權：兩個目標、UTC 時窗、合成請求上限與允許的測試寫入。** 不猜 host。
-- 資料與允許效果：固定合成來源標記及隔離的合成 booking／lookup 案例；只能產生當次明列的合成紀錄。
-- 人工步驟：
-  1. 確認入口、部署版本與核准的來源選擇方式，先保留不含地址值的原始計數。
-  2. 從核准 Hosting 路徑送一組合成請求，核對 server 選定的 client source，並觀察 limiter 使用同一來源鍵。
-  3. 對核准 direct Run 目標做對照，確認在 unauthenticated lookup／booking handler 執行前就拒絕。
-  4. 重做偽造左側轉送值、格式錯誤／多地址、未核准 host、關閉／逾期 gate 的反例。
-- 成功：核准路徑保存選定來源；直連與反例拒絕，受保護 handler 與寫入計數不增加。
-  不以某個 HTTP 狀態碼單獨推定「handler 未執行」，須有安全計數佐證。
-- 停止／回復：非核准目標成功、來源選錯、handler 提前執行或出現真實資料即停止；
-  依另核准方式關閉合成入口並恢復原設定，保留不含 payload 的拒絕／計數證據，不自行改 ingress 或 IAM。
-- 證據：SHA、兩個授權目標的引用、測試 ID、來源鍵是否一致、handler／寫入前後計數、拒絕碼；不提供原始 IP、header、cookie 或 payload。
+- 資料與允許效果：只用隔離的合成 booking／lookup 案例，固定合成電話／生日對應的 opaque lookup identity。
+  各測試變更 IP／header／入口時不得換該身分；只產生當次明列的合成紀錄，不公開原始輸入或 opaque key。
+- 人工步驟（§3.1 證據缺口補齊並另核准後才可執行）：
+  1. 核對版本、endpoint 契約與現行限流政策；取得身分桶狀態、handler counter／writer counter 的安全基準。
+  2. 對核准 Hosting rewrite 送正常合成請求，確認正門正常；對 direct Run 做同一契約對照。
+     授權／limiter／gate 不能因入口不同被繞過，不把直連可達當成失敗。
+  3. 固定同一合成身分，交替兩入口、偽造最左側 `X-Forwarded-For`、格式錯誤／多地址欄位及不同來源 IP。
+     按既有 WP-B2A 第二桶 `lookup_identity_failure` 的門檻／窗口累積失敗；確認同一身分桶持續計數。
+     第一桶身分加 IP 的拒絕不能冒充第二桶證據；合法多跳不只因包含多個地址就判失敗。
+  4. 身分桶進入拒絕狀態後，在原窗口／鎖定有效期間再換 IP、轉送值與入口；換 IP 不能重置鎖定，
+     仍須依契約 429 並有有效 `Retry-After`，不能重新取得允許額度。不得調整限流數字或等待窗口自然到期來假裝繞過失敗。
+  5. 另測未核准 host、錯誤授權（需驗證的 endpoint）、關閉／逾期 gate；按既有契約無副作用拒絕。
+     若格式錯誤等請求在 limiter 前已拒絕，分開記拒絕與零副作用，不能宣稱它已證明身分桶持續計數。
+
+| 對照 | 成功條件 | 安全計數／狀態證據 |
+| --- | --- | --- |
+| 核准 Hosting rewrite 正常合成請求 | 正門依 endpoint 契約正常，符合授權／limiter／gate | handler／writer 只增加當次明列效果 |
+| direct Run 正常合成請求 | 同一契約與控制；不只以可達判失敗 | 按實際結果核對，不預設所有 direct Run 都是零 handler |
+| 偽造最左側 X-Forwarded-For、格式錯誤／多地址及換 IP | 同一 opaque lookup identity 仍受第二桶限制，不能以自選來源換桶 | 同桶比較為真、計數前後及拒絕狀態；先拒絕的案例另列 |
+| 身分桶已拒絕後換 IP／入口／header | 換 IP 不能重置鎖定，原有效期間持續拒絕 | 同桶拒絕狀態持續，無新允許額度；429／Retry-After 僅作輔證 |
+| 未核准 host、授權失敗、關閉／逾期 gate | 按既有契約拒絕，不能因入口不同繞過 | 受保護 handler／writer 零增量 |
+
+- 成功：核准正門正常；直連、偽造及格式反例無身分桶繞過，換 IP 不能重置鎖定；
+  未核准 host、關閉／逾期 gate 仍拒絕，合法效果不超出授權，所有結論有 §3.1 證據。
+  不以 HTTP 狀態碼單獨推定同桶鎖定、handler 未執行或沒有寫入。
+- 停止／回復：非核准目標、身分桶可繞過、觀測缺失、未授權副作用或真實資料即停止；
+  依另核准方式關閉合成入口並恢復原設定，保留不含 payload 的安全計數，不自行改 ingress 或 IAM。
+  不建立負載平衡器或 Cloud Armor，不改 `main.tf` 的 ingress／invoker，不改限流數字。
+- 證據：SHA、授權目標引用、非敏感測試 ID、同桶比較結果、計數／鎖定前後狀態、handler／writer 增量及拒絕碼。
+  不提供電話、生日、opaque key、原始 IP／header、cookie、token 或 payload。
 - 排程估計：30–45 分鐘；授權與來源缺口處理不包含在內。
+
+### 3.1 安全計數取得方式與缺口
+
+- **現有來源可查：** [limiter](../../apps/api/src/platform/runtime/wp-b2-rate-limiter.ts) 的第二桶不含 IP；
+  [limiter 合成測試](../../apps/api/src/platform/runtime/wp-b2-rate-limiter.test.ts) 覆蓋換 IP 仍受同身分限制，
+  [routed lookup 合成測試](../../apps/api/src/appointments/appointment.patient-flow.test.ts) 覆蓋持續換 X-Forwarded-For 仍 429。
+  既有測試可把合成 Map 傳入 `InMemoryDurableRateLimitStore`，只在測試程序內核對 key、`count` 與 `lockedUntilMs`；
+  公開只留 assert 結果、測試 ID 與 CI，不輸出 Map／原始 key。這不是讀取 C1 真實狀態的工具。
+- **現有計數不足：** [API metrics](../../apps/api/src/platform/runtime/api-metrics.ts) 的 `returnLookupRateLimited`
+  是單 process、route／status 級的拒絕彙整，不含身分桶鍵／鎖定狀態；不能證明換 IP 前後是同一桶。
+  `trackedKeyCount` 也只是本機 Map 大小，不是 handler／writer 或持久身分桶的前後計數。
+- **外部缺口：** 所查 repo 沒有可對外讀取的身分桶、handler／writer 計數工具，亦沒有本單可直接採用的完整安全匯出流程。
+  不虛構 endpoint、查詢指令、既有 dashboard 或已部署 instrumentation；本 PR 不新增工具或接線。
+  單 process 在途計數也不能替代持久身分桶及完整 writer 的效果證據。
+- **操作日前須另補：** 經核准的 server-side 安全觀測方式，能在同一 SHA／時窗內取得同桶比較、允許／拒絕及鎖定前後狀態，
+  並取得核准範圍所有相關實例的 handler／writer 前後增量。原始識別資料留在受控觀測內，只交上述安全彙整；不開啟完整 header／body log。
+  若當天沒有這種既有且已核准的觀測，或只有 HTTP 429／aggregate metrics，結果記 `NOT_PROVEN`，本項不能排成可執行或填 PASS。
 
 ## 4. NOTIFICATION：來源技術清單與實際投遞
 

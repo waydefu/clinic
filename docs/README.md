@@ -96,7 +96,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [CP-08 全系統回歸 worksheet（2026-10-01）](plans/2026-10-01-cp-08-regression-evidence-worksheet.md) — 88 個既有 ID、84 個適用列與同一 release 的逐列 evidence；目前 CP-08 與人工驗收仍 NOT_RUN。
 - [CP-10 現有專案業主驗收清單（2026-10-01）](plans/2026-10-01-cp-10-current-project-acceptance-checklist.md) — owner review/sign/date 欄與 CP-06-E、policy reconciliation、工程／付款驗收分界；目前 BLOCKED / NOT_SIGNED。
 - [SOL-BUSINESS 可追溯試用調整模型（2026-10-22）](plans/2026-10-22-sol-business-adjustment-design.md) — design-proposed：D-24 重用 milestone state／既有 log，不新增 collection／API；合法輸入、批准來源、撤銷重播與原起點綁定送業主審，未實作不算關帳。
-- [SOL-NOTIFICATION 告警通知 publisher／consumer 提案（2026-10-30）](plans/2026-10-30-sol-notification-design.md) — design-proposed：維運告警走 `c1-application-alerts`，worker 白名單投影＋去重＋fake 測試；publisher IAM、subscription、DLQ 與實際送達仍外部未核准，B-08 不標關帳。
+- [SOL-NOTIFICATION 告警通知 publisher／consumer 提案（2026-10-30）](plans/2026-10-30-sol-notification-design.md) — design-proposed：10-31 已核准來源施工；§8 補 application publisher／subscription／DLQ 配對與 worker fake/mock 用例，真實身分及送達仍待外證，B-08 不標關帳。
 - [正式交付與商務需求的後續程式規劃（2026-09-18）](plans/2026-09-18-business-delivery-follow-up.md) — plan-only：九份本地商務文件的需求對照、BD-00～BD-07 程式工作包與驗收條件；原檔不入庫，不構成政策核准、施工或正式上線授權。
 
 - [ADR-0001 — the domain API is the only write path](adr/0001-domain-api-is-the-only-write-path.md)
@@ -110,6 +110,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [ADR-0009 — business-delivery safe export (CP-04)](adr/0009-business-delivery-export.md)
 - [ADR-0010 — business-delivery patient retention (CP-05)](adr/0010-business-delivery-retention.md)
 - [ADR-0011 — business-delivery termination and data return (CP-07)](adr/0011-business-delivery-termination.md)
+- [ADR-0012 — application alert delivery pairing and quarantine acknowledgement](adr/0012-application-alert-delivery-pairing.md) — proposed/source-only，不是維運或 IAM 核准
 - [Domain boundaries](architecture/domain-boundaries.md) — package ownership and forbidden dependencies
 - [角色權限矩陣 (RBAC matrix)](architecture/rbac-matrix.md) — plan-only convergence of the three incompatible role tables now in the repository, the target permission matrix, resource scopes, the six places every rule must be enforced, and the four questions the owner must answer first
 - [Google Calendar 雙向同步規劃](architecture/calendar-bidirectional-sync-plan.md) — production remains plan-only and blocked by production D-009/D-016; a 2026-09-11 banner records the owner product SLO (watch then `syncToken`, 1–5 minute compensation) without making `events.watch` executable; a 2026-08-30 banner still points to the separately approved synthetic-only five-minute poll
