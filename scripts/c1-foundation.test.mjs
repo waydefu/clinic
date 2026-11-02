@@ -141,7 +141,9 @@ describe('C1 isolated foundation Terraform source', () => {
         .sort()
     ).toEqual([...C1_TERRAFORM_CI_ROLES].sort());
     expect(noop).toContain('length(google_project_iam_member.terraform_ci) == 0');
-    expect(noop).toContain('grant.role == role && grant.project == var.project_id');
+    expect(noop).toContain(
+      'grant.role == role && grant.project == var.project_id'
+    );
   });
 
   it('provisions WIF, empty secrets, budget 50/80/100 Pub/Sub, and logging only when apply is enabled', () => {
