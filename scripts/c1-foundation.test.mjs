@@ -17,6 +17,32 @@ const main = read('infra/terraform/c1-foundation/main.tf');
 const variables = read('infra/terraform/c1-foundation/variables.tf');
 const versions = read('infra/terraform/c1-foundation/versions.tf');
 
+// Test-only source drift checks complement the evaluated Terraform mock plan.
+function expectCiGrantBoundary(source) {
+  const block =
+    source.match(
+      /^resource "google_project_iam_member" "terraform_ci" \{([\s\S]*?)^\}/m
+    )?.[1] ?? '';
+  expect(
+    [
+      ...source.matchAll(
+        /^resource "google_project_iam_(?:member|binding|policy)" "([^"]+)"/gm
+      )
+    ].map((match) => match[1])
+  ).toEqual(['terraform_ci']);
+  expect(
+    [...block.matchAll(/"roles\/[^"]+"/g)]
+      .map(([role]) => JSON.parse(role))
+      .sort()
+  ).toEqual([...C1_TERRAFORM_CI_ROLES].sort());
+  expect(block).toMatch(/for_each\s*=\s*local\.apply_enabled \? toset\(\[/);
+  expect(block).toMatch(/project\s*=\s*var\.project_id\s*$/m);
+  expect(block).toMatch(/role\s*=\s*each\.value\s*$/m);
+  expect(block).toMatch(
+    /member\s*=\s*"serviceAccount:\$\{google_service_account\.terraform_ci\[0\]\.email\}"\s*$/m
+  );
+}
+
 describe('C1 isolated foundation Terraform source', () => {
   it('defaults to a no-op apply SHA and rejects the existing staging project', () => {
     expect(variables).toContain('default     = "not_granted"');
@@ -54,6 +80,68 @@ describe('C1 isolated foundation Terraform source', () => {
     for (const role of C1_TERRAFORM_CI_ROLES) {
       expect(main).toContain(`"${role}"`);
     }
+  });
+
+  it('pins project IAM grants to the current inventory, SHA gate and CI principal (B-41)', () => {
+    expectCiGrantBoundary(main);
+  });
+
+  it.each([
+    [
+      'an additional role',
+      main.replace(
+        '"roles/storage.admin"',
+        '"roles/storage.admin", "roles/compute.admin"'
+      )
+    ],
+    ['a missing role', main.replace('"roles/storage.admin"', '')],
+    [
+      'an unconditional grant',
+      main.replace(
+        'for_each = local.apply_enabled ? toset([',
+        'for_each = true ? toset(['
+      )
+    ],
+    [
+      'another project',
+      main.replace(
+        /(resource "google_project_iam_member" "terraform_ci" \{[\s\S]*?project\s*=\s*)var\.project_id/,
+        '$1"synthetic-other-project"'
+      )
+    ],
+    [
+      'a role value outside the manifest key',
+      main.replace(/role\s*=\s*each\.value/, 'role = "roles/compute.admin"')
+    ],
+    [
+      'another principal',
+      main.replace(
+        '"serviceAccount:${google_service_account.terraform_ci[0].email}"',
+        '"serviceAccount:unapproved@fixture.invalid"'
+      )
+    ],
+    [
+      'another project IAM resource',
+      `${main}\nresource "google_project_iam_member" "unexpected" {}\n`
+    ]
+  ])('rejects source drift: %s (B-41)', (_name, source) => {
+    expect(source).not.toBe(main);
+    expect(() => expectCiGrantBoundary(source)).toThrow();
+  });
+
+  it('binds the mock-plan inventory to the same current role manifest (B-41)', () => {
+    const noop = read('infra/terraform/c1-foundation/noop.tftest.hcl');
+    const manifest =
+      noop.match(
+        /condition\s*=\s*toset\(keys\(google_project_iam_member\.terraform_ci\)\)\s*==\s*toset\(\[([\s\S]*?)\]\)/
+      )?.[1] ?? '';
+    expect(
+      [...manifest.matchAll(/"roles\/[^"]+"/g)]
+        .map(([role]) => JSON.parse(role))
+        .sort()
+    ).toEqual([...C1_TERRAFORM_CI_ROLES].sort());
+    expect(noop).toContain('length(google_project_iam_member.terraform_ci) == 0');
+    expect(noop).toContain('grant.role == role && grant.project == var.project_id');
   });
 
   it('provisions WIF, empty secrets, budget 50/80/100 Pub/Sub, and logging only when apply is enabled', () => {
