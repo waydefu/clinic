@@ -140,7 +140,9 @@ describe('C1 isolated foundation Terraform source', () => {
         .map(([role]) => JSON.parse(role))
         .sort()
     ).toEqual([...C1_TERRAFORM_CI_ROLES].sort());
-    expect(noop).toContain('length(google_project_iam_member.terraform_ci) == 0');
+    expect(noop).toContain(
+      'length(google_project_iam_member.terraform_ci) == 0'
+    );
     expect(noop).toContain(
       'grant.role == role && grant.project == var.project_id'
     );
