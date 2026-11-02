@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { SharedMaintenanceControl } from '@beauessence/domain/maintenance-control.node';
 
 import type {
   CollectionReference,
@@ -440,7 +441,8 @@ export class CalendarPilotRuntime {
   public constructor(
     private readonly db: Firestore,
     environment: NodeJS.ProcessEnv = process.env,
-    private readonly clock: () => string = () => new Date().toISOString()
+    private readonly clock: () => string = () => new Date().toISOString(),
+    public readonly maintenanceControl = new SharedMaintenanceControl()
   ) {
     const configuration = resolveCalendarPilotRuntimeConfiguration(environment);
     this.pseudonymKey = configuration.pseudonymKey;
@@ -910,7 +912,11 @@ export class CalendarPilotRuntime {
     });
   }
 
-  public async run(now = this.clock()): Promise<CalendarPilotRunSummary> {
+  public run(now = this.clock()): Promise<CalendarPilotRunSummary> {
+    return this.maintenanceControl.run(() => this.runAdmitted(now));
+  }
+
+  private async runAdmitted(now: string): Promise<CalendarPilotRunSummary> {
     const owner = randomUUID();
     const generation = await this.acquire(owner, now);
     if (generation === undefined)

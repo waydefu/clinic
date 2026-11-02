@@ -91,10 +91,10 @@ whole-project 與 regional failure。** 目前仍沒有 cloud 演練證明可達
 MAINTENANCE_WRITE_QUIESCENCE = RUNTIME_PROOF_REQUIRED
 ```
 
-`StaticMaintenanceGate` 是程式介面，`MaintenanceGuard` 的預設注入值是
-`false`；這不是操作者可開啟的共用維護旗標，也不會停止 worker。合成 HTTP
-測試中的 `SERVICE_UNAVAILABLE`、前端維護畫面或 IP-001 gate 關閉，都不能
-當作所有寫入已停止的證據。
+`ControlledMaintenanceGate` 已取代 AppModule 的 `StaticMaintenanceGate(false)`；
+沒有接 reader 的預設是 unknown／503。共用到期控制與 API／worker 的來源准入、
+callback 計數只證明可測邊界，不是已部署的全域維護旗標。合成 HTTP 測試中的
+`SERVICE_UNAVAILABLE`、前端維護畫面或 IP-001 gate 關閉，都不能當作所有寫入已停止的證據。
 
 只在另行核准的 exact-SHA isolated 操作包內，確認已部署的共用控制、所有
 相關 API instance／寫入路徑與 worker 的停寫／排空證據，再繼續 §4.3。
@@ -103,12 +103,12 @@ MAINTENANCE_WRITE_QUIESCENCE = RUNTIME_PROOF_REQUIRED
 **BLOCKED**：不得跳過停寫前置，也不得開始 restore、切換連線或宣稱已止血。
 本 source／單元測試不提供這份 runtime 證據，亦不授予任何 cloud 操作權限。
 
-`MaintenanceControlPort`／`setMaintenanceControl` 是只含來源的共用控制提案：
-先讀取明確布林狀態、寫入，再讀回確認；未知值、讀寫失敗或不相符均拒絕，
-寫入回覆遺失時不盲目回寫。提案沒有建立 store、操作入口或 API／worker 接線，
-AppModule 仍注入 `StaticMaintenanceGate(false)`；合成 gate／在途工作測試不是
-分散式鎖或所有工作已排空的證據。實際 store 的權限、並行寫入控制與接線仍須
-C0 審查及另行核准的 C1 操作包；控制讀回成功也不得解鎖 §4.3。
+既有 `MaintenanceControlPort`／`setMaintenanceControl` 保留布林來源相容，不是新到期
+快照的 operational write API，也不能重新開啟預設 gate。
+[共用停寫來源候選](../plans/2026-11-02-sol-maintenance-source-control.md) 的 reader 尚未接實際 store；
+單一 process 的 callback 計數、API hooks 與合成排空測試不是分散式鎖、取消證明或全域零寫入。
+store 權限、並行寫入控制、所有 writer／instance 的接線與外部效果排空仍須另核；
+控制讀回成功或 callback 數歸零都不得解鎖 §4.3。
 
 ### 4.3 還原
 

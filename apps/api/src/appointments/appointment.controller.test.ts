@@ -16,7 +16,7 @@ import { createRbacAppointmentPolicy } from '../platform/authorization/rbac-appo
 import { AuthenticationRequiredError } from '../platform/errors/api-error.js';
 import { ApiExceptionFilter } from '../platform/errors/api-exception.filter.js';
 import { WP_B2_RATE_LIMITER } from '../platform/runtime/wp-b2-rate-limiter.js';
-import { createApplication } from '../main.js';
+import { createSyntheticApplication as createApplication } from '../../../../tests/helpers/synthetic-api.js';
 import { AppointmentApplicationService } from './appointment.application-service.js';
 import {
   APPOINTMENT_APPLICATION,

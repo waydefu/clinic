@@ -1,5 +1,6 @@
 import type { Firestore } from 'firebase-admin/firestore';
 import { describe, expect, it, vi } from 'vitest';
+import { syntheticOpenMaintenanceControl } from '../../../tests/helpers/synthetic-maintenance.js';
 
 import {
   createInternalTestOutboxRuntime,
@@ -125,6 +126,7 @@ describe.each(['inspect', 'run'] as const)(
         const { db } = fakeStore();
         const runtime = createInternalTestOutboxRuntime({
           db,
+          maintenanceControl: syntheticOpenMaintenanceControl(),
           clock: () => now
         });
         await expect(runtime[method]()).resolves.toMatchObject({

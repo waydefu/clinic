@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { Module, type DynamicModule } from '@nestjs/common';
+import type { SharedMaintenanceControl } from '@beauessence/domain/maintenance-control.node';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 
 import { ApiSafetyModule } from './firestore/api-safety.module.js';
@@ -11,7 +12,7 @@ import { NoStoreInterceptor } from './platform/runtime/no-store.interceptor.js';
 import { ObservabilityModule } from './platform/runtime/observability.module.js';
 import {
   MAINTENANCE_GATE,
-  StaticMaintenanceGate
+  ControlledMaintenanceGate
 } from './platform/runtime/maintenance-gate.js';
 import { MaintenanceGuard } from './platform/runtime/maintenance.guard.js';
 
@@ -30,11 +31,27 @@ import { MaintenanceGuard } from './platform/runtime/maintenance.guard.js';
   ],
   controllers: [HealthController],
   providers: [
-    // Compatibility default only: not a shared flag or an operational switch.
-    { provide: MAINTENANCE_GATE, useValue: new StaticMaintenanceGate(false) },
+    {
+      provide: MAINTENANCE_GATE,
+      useFactory: () => new ControlledMaintenanceGate()
+    },
     { provide: APP_GUARD, useClass: MaintenanceGuard },
     { provide: APP_INTERCEPTOR, useClass: NoStoreInterceptor },
     { provide: APP_FILTER, useClass: ApiExceptionFilter }
   ]
 })
-export class AppModule {}
+export class AppModule {
+  public static withMaintenanceControl(
+    control: SharedMaintenanceControl
+  ): DynamicModule {
+    return {
+      module: AppModule,
+      providers: [
+        {
+          provide: MAINTENANCE_GATE,
+          useValue: new ControlledMaintenanceGate(control)
+        }
+      ]
+    };
+  }
+}

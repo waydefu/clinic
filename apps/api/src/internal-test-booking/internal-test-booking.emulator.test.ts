@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { syntheticOpenMaintenanceControl } from '../../../../tests/helpers/synthetic-maintenance.js';
 
 import {
   deleteApp,
@@ -409,6 +410,7 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     const calendar = new InMemoryCalendar();
     const outbox = createInternalTestOutboxRuntime({
       db,
+      maintenanceControl: syntheticOpenMaintenanceControl(),
       calendar,
       clock: () => NOW,
       random: () => 0.5
@@ -506,6 +508,7 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     const calendar = new InMemoryCalendar();
     const outbox = createInternalTestOutboxRuntime({
       db,
+      maintenanceControl: syntheticOpenMaintenanceControl(),
       calendar,
       clock: () => NOW,
       random: () => 0.5
@@ -632,6 +635,7 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     const calendar = new InMemoryCalendar();
     const outbox = createInternalTestOutboxRuntime({
       db,
+      maintenanceControl: syntheticOpenMaintenanceControl(),
       calendar,
       clock: () => NOW,
       random: () => 0.5
@@ -1027,6 +1031,7 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     const calendar = new InMemoryCalendar();
     const outbox = createInternalTestOutboxRuntime({
       db,
+      maintenanceControl: syntheticOpenMaintenanceControl(),
       calendar,
       clock: () => NOW,
       random: () => 0.5

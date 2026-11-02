@@ -1,5 +1,6 @@
 import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
+import { syntheticOpenMaintenanceControl } from '../helpers/synthetic-maintenance.js';
 import {
   afterAll,
   afterEach,
@@ -90,7 +91,12 @@ async function seedJob(id: string, kind = 'calendar_projection_delete') {
   });
 }
 function run() {
-  return new CalendarPilotRuntime(db, environment, now).run(NOW);
+  return new CalendarPilotRuntime(
+    db,
+    environment,
+    now,
+    syntheticOpenMaintenanceControl()
+  ).run(NOW);
 }
 
 beforeAll(() => {
@@ -315,7 +321,12 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
     const oldOwner = (await state('job_a'))?.['leaseOwner'];
     afterDispatch = () => {};
     await expect(
-      new CalendarPilotRuntime(db, environment, now).run(clock)
+      new CalendarPilotRuntime(
+        db,
+        environment,
+        now,
+        syntheticOpenMaintenanceControl()
+      ).run(clock)
     ).resolves.toMatchObject({ processedJobs: 2, failedJobs: 0 });
     expect(oldOwner).toEqual(expect.any(String));
     expect(await state('job_a')).toMatchObject({
