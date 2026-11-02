@@ -93,7 +93,10 @@ export function fixtureCases() {
     },
     ...['prefix_', '.example.com'].map((affix) => ({
       id: `c1-host-${index}-${affix}`,
-      input: line.replace(host, affix === 'prefix_' ? affix + host : host + affix),
+      input: line.replace(
+        host,
+        affix === 'prefix_' ? affix + host : host + affix
+      ),
       control: ['fixture-c1-host'],
       expected: ['fixture-c1-host']
     })),
