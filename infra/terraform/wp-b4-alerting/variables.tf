@@ -54,3 +54,25 @@ variable "alert_email_address" {
     error_message = "Applying WP-B4 requires alert_email_address from secret/tfvar. Recipients never land in git."
   }
 }
+
+# Optional source proposal. Values must be explicitly supplied and confirmed by
+# an authorized operator later; format checks do not confirm real identities.
+variable "application_delivery" {
+  type = object({
+    project_number              = string
+    monitoring_publisher_member = string
+    worker_member               = string
+    pubsub_service_agent_member = string
+  })
+  description = "Explicit application delivery identities; null leaves transport unconfigured. No discovery or principal guessing."
+  default     = null
+  validation {
+    condition = var.application_delivery == null || try(alltrue([
+      can(regex("^[0-9]+$", var.application_delivery.project_number)),
+      var.application_delivery.monitoring_publisher_member == "serviceAccount:service-${var.application_delivery.project_number}@gcp-sa-monitoring-notification.iam.gserviceaccount.com",
+      var.application_delivery.pubsub_service_agent_member == "serviceAccount:service-${var.application_delivery.project_number}@gcp-sa-pubsub.iam.gserviceaccount.com",
+      var.application_delivery.worker_member == "serviceAccount:internal-test-outbox@${var.project_id}.iam.gserviceaccount.com"
+    ]), false)
+    error_message = "Application delivery needs explicit same-project Monitoring/PubSub agents and the isolated worker, never a public, API or unrelated principal. Format is not identity confirmation."
+  }
+}
