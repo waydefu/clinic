@@ -22,6 +22,11 @@ run "default_sha_is_noop" {
   }
 
   assert {
+    condition     = length(google_project_iam_member.terraform_ci) == 0
+    error_message = "C1 must create zero project IAM grants when SHA is not_granted."
+  }
+
+  assert {
     condition     = length(google_iam_workload_identity_pool.github) == 0
     error_message = "C1 must create zero WIF pools when SHA is not_granted."
   }
@@ -235,6 +240,30 @@ run "ci_principal_has_no_basic_or_data_or_key_roles" {
     billing_account_id         = "000000-000000-000000"
     github_repository_id       = "123456789"
     github_repository_owner_id = "987654321"
+  }
+
+  # Pin today's inventory, not its necessity or least-privilege approval (B-01).
+  assert {
+    condition = toset(keys(google_project_iam_member.terraform_ci)) == toset([
+      "roles/serviceusage.serviceUsageAdmin",
+      "roles/iam.serviceAccountAdmin",
+      "roles/iam.workloadIdentityPoolAdmin",
+      "roles/resourcemanager.projectIamAdmin",
+      "roles/secretmanager.admin",
+      "roles/logging.admin",
+      "roles/monitoring.admin",
+      "roles/pubsub.admin",
+      "roles/storage.admin"
+    ])
+    error_message = "C1 project IAM grants must exactly match the current source inventory, with no additional or missing roles."
+  }
+
+  assert {
+    condition = alltrue([
+      for role, grant in google_project_iam_member.terraform_ci :
+      grant.role == role && grant.project == var.project_id
+    ])
+    error_message = "Every C1 CI grant must use its manifest role and the isolated project."
   }
 
   # B-41: negative baseline. Today's broad admin roles are tracked by B-01 and
