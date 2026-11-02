@@ -334,6 +334,49 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     expect(published.statusCode).toBe(401);
   });
 
+  it.each([
+    { disabled: true, refreshTokensRevoked: false },
+    { disabled: false, refreshTokensRevoked: true }
+  ])('denies staff writes after account state changes %j', async (state) => {
+    const harness = requireHarness();
+    const accepted = await harness.inject({
+      method: 'POST',
+      url: '/v1/schedule/publish',
+      headers: managerHeaders(),
+      payload: PUBLISH_BODY
+    });
+    expect(accepted.statusCode).toBe(201);
+    const before = await takeLogicalSnapshot(db);
+    fake.addAccount({
+      uid: MANAGER_UID,
+      email: MANAGER_EMAIL,
+      totp: true,
+      ...state
+    });
+    try {
+      const denied = await harness.inject({
+        method: 'POST',
+        url: '/v1/schedule/publish',
+        headers: managerHeaders(),
+        payload: {
+          ...PUBLISH_BODY,
+          idempotencyKey: 'schedule-schedule-schedule-schedule-schedule',
+          expectedVersion: 1
+        }
+      });
+      expect(denied.statusCode).toBe(401);
+      expect(await takeLogicalSnapshot(db)).toEqual(before);
+    } finally {
+      fake.addAccount({
+        uid: MANAGER_UID,
+        email: MANAGER_EMAIL,
+        totp: true,
+        disabled: false,
+        refreshTokensRevoked: false
+      });
+    }
+  });
+
   it('publishes, books, stamps privacy-v1, and projects calendar outbox in memory', async () => {
     const harness = requireHarness();
 
