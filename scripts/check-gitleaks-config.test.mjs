@@ -71,6 +71,22 @@ describe('gitleaks allowlist', () => {
     );
   });
 
+  it('allowlists only the exact public C1 host capture, not adjoining tokens', () => {
+    const host = 'beauessence-clinic-stg-c1a01.web.app';
+    expect(matchesAllowlist('', host)).toBe(true);
+    for (const value of [
+      `prefix_${host}`,
+      `${host}_suffix`,
+      `${host}.example.com`,
+      `https://${host}`,
+      'beauessence-clinic-stg-other.web.app',
+      'LEAK_CANARY_COMPANION'
+    ]) {
+      const line = `authDomain: '${host}'; probe: '${value}'`;
+      expect(matchesAllowlist(line, value)).toBe(false);
+    }
+  });
+
   it('does not allowlist AWS or GitHub token shapes', () => {
     expect(config).not.toMatch(/AKIA[0-9A-Z]{16}/);
     expect(config).not.toMatch(/ghp_[A-Za-z0-9]/);

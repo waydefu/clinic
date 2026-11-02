@@ -6,8 +6,8 @@ const cases = fixtureCases();
 describe('real-scanner fixture oracle', () => {
   it('covers every named value with positive, mixed and both boundary cases', () => {
     expect(new Set(cases.map(({ id }) => id)).size).toBe(cases.length);
-    expect(cases).toHaveLength(42);
-    for (let index = 0; index < 9; index += 1) {
+    expect(cases).toHaveLength(46);
+    for (let index = 0; index < 10; index += 1) {
       expect(
         cases.filter(({ id }) => id.startsWith(`value-${index}-`))
       ).toHaveLength(4);

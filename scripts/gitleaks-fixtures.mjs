@@ -40,7 +40,8 @@ export function fixtureCases() {
     'arrive-idempotency-1234',
     'complete-idempotency-1234',
     'follow-up-idempotency-1234',
-    'stagef_c1_schedule_publish_v0'
+    'stagef_c1_schedule_publish_v0',
+    'beauessence-clinic-stg-c1a01.web.app'
   ];
   const cases = values.flatMap((value, index) => [
     {

@@ -27,6 +27,9 @@ description = """
   scripts/stage-f-synthetic-schedule-bootstrap.mjs
     stagef_c1_schedule_publish_v0
     (inspect-only Stage F publish idempotency id; not a credential)
+  C1 authDomain (owner fixed-host decision, #268 comment 6569852361)
+    beauessence-clinic-stg-c1a01.web.app
+    (exact public host, not an API key; no URL/path/suffix exception)
 
 這些是具名且可回溯至測試來源的合成固定形狀。匯出測試的例外要求完整 body 行符合
 固定請求形狀；若該行多出任何 token，例外就不會命中。若日後測試改用別的前綴或
@@ -46,7 +49,8 @@ regexes = [
   '''^arrive-idempotency-\d{4}$''',
   '''^complete-idempotency-\d{4}$''',
   '''^follow-up-idempotency-\d{4}$''',
-  '''^stagef_c1_schedule_publish_v0$'''
+  '''^stagef_c1_schedule_publish_v0$''',
+  '''^beauessence-clinic-stg-c1a01\.web\.app$'''
 ]
 
 [[allowlists]]

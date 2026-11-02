@@ -22,7 +22,8 @@ describe('public booking vs staff surfaces', () => {
         protocol: 'https:',
         pathname: '/staff',
         port: '',
-        hostname: 'beauessence-clinic-stg-c1a01.web.app',
+        hostname:
+          'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app',
         search: '?internalTestBooking=1'
       })
     ).toBe(false);
