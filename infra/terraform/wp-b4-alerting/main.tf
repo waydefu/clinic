@@ -167,7 +167,7 @@ resource "google_logging_metric" "booking_transaction_failure" {
   count   = local.apply_enabled ? 1 : 0
   project = var.project_id
   name    = "wp-b4-booking-transaction-failure"
-  filter  = "jsonPayload.errorCode=\"SLOT_UNAVAILABLE\""
+  filter  = "jsonPayload.operation=\"booking_transaction\" AND jsonPayload.result=\"error\""
   metric_descriptor {
     metric_kind = "DELTA"
     value_type  = "INT64"

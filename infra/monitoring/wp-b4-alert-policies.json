@@ -19,7 +19,7 @@
       "comparison": "gte",
       "window": "5m",
       "logMetric": "wp-b4-http-5xx",
-      "filter": "jsonPayload.errorCode=\"INTERNAL_ERROR\" OR jsonPayload.errorCode=\"INTERNAL\"",
+      "filter": "jsonPayload.errorCode=\"INTERNAL_ERROR\"",
       "exclude": "SERVICE_UNAVAILABLE fail-closed gate"
     },
     {
@@ -40,7 +40,7 @@
       "comparison": "gte",
       "window": "5m",
       "logMetric": "wp-b4-booking-transaction-failure",
-      "filter": "jsonPayload.errorCode=\"SLOT_UNAVAILABLE\" OR jsonPayload.operation=\"booking_transaction\" AND jsonPayload.result=\"error\""
+      "filter": "jsonPayload.operation=\"booking_transaction\" AND jsonPayload.result=\"error\""
     },
     {
       "id": "backup_failure",
@@ -50,7 +50,7 @@
       "comparison": "gte",
       "window": "5m",
       "logMetric": "wp-b4-backup-failure",
-      "filter": "jsonPayload.errorCode=\"BACKUP_FAILED\" OR protoPayload.methodName=~\"google.firestore.admin.v1.FirestoreAdmin.CreateBackup\""
+      "filter": "jsonPayload.errorCode=\"BACKUP_FAILED\""
     },
     {
       "id": "outbox_dead_letter",
