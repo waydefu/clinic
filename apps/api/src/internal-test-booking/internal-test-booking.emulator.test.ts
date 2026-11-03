@@ -228,6 +228,7 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
   let fake: FakeAuth;
   let managerCookie: string;
   let managerCsrf: string;
+  let managerSessionId: string;
   let patientToken: string;
   const previousEnv = {
     enabled: process.env['INTERNAL_TEST_BOOKING_ENABLED'],
@@ -282,6 +283,8 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     fake.linkSessionCookie(created.cookieValue, MANAGER_UID);
     managerCookie = `${CALENDAR_PILOT_COOKIE}=${created.cookieValue}`;
     managerCsrf = created.csrfToken;
+    const authentication = await sessions.authenticate(created.cookieValue);
+    managerSessionId = authentication.sessionId;
     patientToken = fake.mintIdToken(PATIENT_UID);
   });
 
@@ -376,6 +379,49 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
       });
     }
   });
+
+  it.each(['expired', 'revoked'])(
+    'denies staff writes when the stored session is %s',
+    async (state: string) => {
+      const harness = requireHarness();
+      const accepted = await harness.inject({
+        method: 'POST',
+        url: '/v1/schedule/publish',
+        headers: managerHeaders(),
+        payload: PUBLISH_BODY
+      });
+      expect(accepted.statusCode).toBe(201);
+      const before = await takeLogicalSnapshot(db);
+      const session = db
+        .collection('calendar_pilot_sessions')
+        .doc(managerSessionId);
+      const previous = (await session.get()).data();
+      if (previous === undefined) throw new Error('synthetic session missing');
+      try {
+        const inactiveAt = new Date().toISOString();
+        await session.update(
+          state === 'expired'
+            ? { expiresAt: inactiveAt }
+            : { revokedAt: inactiveAt }
+        );
+        const denied = await harness.inject({
+          method: 'POST',
+          url: '/v1/schedule/publish',
+          headers: managerHeaders(),
+          payload: {
+            ...PUBLISH_BODY,
+            idempotencyKey: 'schedule-schedule-schedule-schedule-schedule',
+            expectedVersion: 1
+          }
+        });
+        expect(denied.statusCode).toBe(401);
+        expect(await takeLogicalSnapshot(db)).toEqual(before);
+      } finally {
+        await session.set(previous);
+      }
+      expect((await session.get()).data()).toEqual(previous);
+    }
+  );
 
   it('publishes, books, stamps privacy-v1, and projects calendar outbox in memory', async () => {
     const harness = requireHarness();
