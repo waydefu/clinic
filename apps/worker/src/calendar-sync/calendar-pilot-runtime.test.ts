@@ -1,5 +1,6 @@
 import type { DocumentSnapshot, Firestore } from 'firebase-admin/firestore';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { SharedMaintenanceControl } from '@beauessence/domain/maintenance-control.node';
 import { syntheticOpenMaintenanceControl } from '../../../../tests/helpers/synthetic-maintenance.js';
 
 import {
@@ -153,6 +154,33 @@ describe('calendar pilot canonical runtime clock', () => {
     const db = { collection, runTransaction } as unknown as Firestore;
     return { db, collection, runTransaction };
   }
+
+  it.each([
+    { underMaintenance: true, expiresAtUtc: '2028-03-01T00:00:00Z' },
+    undefined
+  ])(
+    'denies calendar work for maintenance control %j',
+    async (state: unknown) => {
+      const { db, collection, runTransaction } = setup();
+      const readControl = vi.fn(() => Promise.resolve(state));
+      const control = new SharedMaintenanceControl(
+        readControl,
+        () => '2028-02-29T00:00:00Z'
+      );
+      const runtime = new CalendarPilotRuntime(
+        db,
+        environment,
+        () => '2028-02-29T00:00:00Z',
+        control
+      );
+
+      await expect(runtime.run()).rejects.toThrow(/Maintenance/);
+      expect(readControl).toHaveBeenCalledOnce();
+      expect(collection).not.toHaveBeenCalled();
+      expect(runTransaction).not.toHaveBeenCalled();
+      expect(control.inFlightCallbacks).toBe(0);
+    }
+  );
 
   it.each([
     '2026-02-30T00:00:00Z',
