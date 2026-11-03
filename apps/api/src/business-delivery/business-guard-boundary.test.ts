@@ -24,12 +24,11 @@ import {
 } from './business-delivery.tokens.js';
 
 const actor = { actorId: 'opaque_staff', actorRole: OPERATIONAL_ROLES[0] };
-const authenticate = vi.fn(async () => ({
-  ...actor,
-  sessionId: 'opaque_session'
-}));
+const authenticate = vi.fn(() =>
+  Promise.resolve({ ...actor, sessionId: 'opaque_session' })
+);
 const assertCsrf = vi.fn(async () => {});
-const action = vi.fn(async (..._args: unknown[]) => ({ ok: true }));
+const action = vi.fn((..._args: unknown[]) => Promise.resolve({ ok: true }));
 
 @Module({
   controllers: [
