@@ -145,7 +145,7 @@ resource "google_logging_metric" "http_5xx" {
   count   = local.apply_enabled ? 1 : 0
   project = var.project_id
   name    = "wp-b4-http-5xx"
-  filter  = "jsonPayload.errorCode=\"INTERNAL_ERROR\""
+  filter  = "jsonPayload.errorCode=\"INTERNAL_ERROR\" OR jsonPayload.errorCode=\"INTERNAL\""
   metric_descriptor {
     metric_kind = "DELTA"
     value_type  = "INT64"
@@ -167,7 +167,7 @@ resource "google_logging_metric" "booking_transaction_failure" {
   count   = local.apply_enabled ? 1 : 0
   project = var.project_id
   name    = "wp-b4-booking-transaction-failure"
-  filter  = "jsonPayload.errorCode=\"SLOT_UNAVAILABLE\""
+  filter  = "jsonPayload.operation=\"booking_transaction\" AND jsonPayload.result=\"error\""
   metric_descriptor {
     metric_kind = "DELTA"
     value_type  = "INT64"
@@ -178,7 +178,7 @@ resource "google_logging_metric" "backup_failure" {
   count   = local.apply_enabled ? 1 : 0
   project = var.project_id
   name    = "wp-b4-backup-failure"
-  filter  = "jsonPayload.errorCode=\"BACKUP_FAILED\""
+  filter  = "jsonPayload.errorCode=\"BACKUP_FAILED\" OR (protoPayload.methodName=~\"google.firestore.admin.v1.FirestoreAdmin.CreateBackup\" AND protoPayload.status.code!=0)"
   metric_descriptor {
     metric_kind = "DELTA"
     value_type  = "INT64"
