@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 export const TERRAFORM_MODULES = Object.freeze([
   'c1-foundation',
   'c1-internal-test-run',
+  'cal-pilot',
   'c2-identity',
   'c5-firestore',
   'c6-calendar',

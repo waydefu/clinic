@@ -123,6 +123,19 @@ run "api_consumer_is_rejected" {
   expect_failures = [var.application_delivery]
 }
 
+run "cross_project_publisher_is_rejected" {
+  command = plan
+  variables {
+    application_delivery = {
+      project_number              = "000000000000"
+      monitoring_publisher_member  = "serviceAccount:service-111111111111\u0040gcp-sa-monitoring-notification.iam.gserviceaccount.com"
+      worker_member                = "serviceAccount:internal-test-outbox\u0040beauessence-clinic-stg-ci.iam.gserviceaccount.com"
+      pubsub_service_agent_member = "serviceAccount:service-000000000000\u0040gcp-sa-pubsub.iam.gserviceaccount.com"
+    }
+  }
+  expect_failures = [var.application_delivery]
+}
+
 run "cross_project_broker_is_rejected" {
   command = plan
   variables {

@@ -26,6 +26,27 @@
 - 依本條再重算 `clinic-site.css` 的凍結基準值。本條不授權部署，預覽頻道另依
   [合成資料線上預覽操作手冊](../runbooks/synthetic-online-preview.md) 逐次核准。
 
+## 2026-11-02：C1 固定前端 host（僅來源修改）
+
+決策人：負責人 `wayde.fu`；Claude 代為記錄負責人原話「改用固定網址」。
+來源：[OWNER-DECISION](https://github.com/waydefu/clinic/pull/268#issuecomment-6569852361)。
+未另提供 approval ID，不另造；本節不改變 D-001～D-016 的整體狀態。
+
+- C1 唯一核准前端 host 的來源設定，由已過期的 preview host
+  `beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app`
+  改為固定 host `beauessence-clinic-stg-c1a01.web.app`。
+  負責人的選擇是 Hosting live channel 的固定網址，不是新 preview channel。
+- 來源仍採 exact-host：只接受上述單一 host，不接受萬用字元、其他 host 或已過期 preview host。
+- 固定網址本身不會自動到期；測試期停止仍由既有
+  `INTERNAL_TEST_BOOKING_EXPIRES_AT_UTC` 的 UTC 到期 gate 與測完收尾負責。
+  本決定不設定或延長該到期值，也不把網址當成登入或授權。
+- **只授權 source-only 修改與合成測試**。部署、Hosting 發布、Firebase Auth
+  授權網域及其他雲端變更，仍須負責人另對該批精確操作明確同意。
+  本節不是 live Hosting 發布、production backend、公開營運、真實資料、IAM
+  或憑證操作的授權；Sol 不執行任何上述外部操作。
+- 本次先記錄決定；程式的 exact-host 替換與正反測試另以來源 PR 提交。
+  尚未宣稱前端已發布、網域已設定、登入已實測或 INGRESS 整包已完成。
+
 ## 2026-11-02 Sol：INGRESS 方案 A 的來源驗收單更正
 
 決策人：負責人；Claude 依授權在

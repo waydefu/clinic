@@ -6,7 +6,11 @@ import { OPERATIONAL_ROLES } from '@beauessence/domain';
 const actorId = 'opaque_authoritative_staff',
   actorRole = OPERATIONAL_ROLES[0];
 type WorkbenchState = {
-  workspace: { authenticated: boolean; accounts: unknown[] };
+  workspace: {
+    authenticated: boolean;
+    currentAccountId?: string | null;
+    accounts: unknown[];
+  };
   session: {
     authenticated: boolean;
     account: { id: string } | null;
@@ -64,21 +68,49 @@ function harness() {
 afterEach(() => {
   vi.unstubAllGlobals();
 });
-describe('independent staff bootstraps share authoritative principal regardless of ordering', () => {
-  it('rehydrates when /state finishes before delayed /me', async () => {
+describe('staff bootstrap and server revalidation', () => {
+  it('clears workbench authority when revalidation rejects a stale CSRF', async () => {
     const h = harness();
+    const validCsrf = 'valid-valid-valid-valid';
+    const invalidCsrf = 'invalid-invalid-invalid-invalid';
+    h.storage.setItem('calPilotCsrf', validCsrf);
+    const fetchImpl = vi.fn(
+      (_url: string, request: { headers: Record<string, string> }) =>
+        Promise.resolve({
+          ok: request.headers['X-CSRF-Token'] === validCsrf,
+          json: () => Promise.resolve({ actorId, actorRole })
+        })
+    );
     // Start the exact owning bootstrap while no verified principal exists.
     await h.boot();
     expect(h.read()?.session.authenticated).toBe(false);
     await authority.verifyCalendarPilotClientSession(actorId, {
       storage: h.storage,
-      fetchImpl: () =>
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ actorId, actorRole })
-        })
+      fetchImpl
     });
     expect(h.read()?.session.authenticated).toBe(true);
     expect(h.read()?.session.account?.id).toBe(actorId);
+    expect(h.read()?.session.permissions.length).toBeGreaterThan(0);
+    expect(h.read()?.workspace.currentAccountId).toBe(actorId);
+
+    h.storage.setItem('calPilotCsrf', invalidCsrf);
+    expect(h.read()?.session.authenticated).toBe(true);
+    await authority.verifyCalendarPilotClientSession(actorId, {
+      storage: h.storage,
+      fetchImpl
+    });
+    expect(fetchImpl).toHaveBeenLastCalledWith('/v1/calendar-session/me', {
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json', 'X-CSRF-Token': invalidCsrf }
+    });
+    expect(h.storage.getItem('calPilotCsrf')).toBeNull();
+    expect(h.storage.getItem('calPilotRole')).toBeNull();
+    expect(h.read()?.workspace.authenticated).toBe(false);
+    expect(h.read()?.workspace.currentAccountId).toBeNull();
+    expect(h.read()?.session).toEqual({
+      authenticated: false,
+      account: null,
+      permissions: []
+    });
   });
 });

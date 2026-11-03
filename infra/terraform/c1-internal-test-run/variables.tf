@@ -370,7 +370,7 @@ variable "firebase_auth_domain" {
   validation {
     condition = (
       var.firebase_auth_domain == "" || (
-        var.firebase_auth_domain == "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app" &&
+        var.firebase_auth_domain == "beauessence-clinic-stg-c1a01.web.app" &&
         !strcontains(var.firebase_auth_domain, "://") &&
         !strcontains(var.firebase_auth_domain, "*") &&
         !strcontains(var.firebase_auth_domain, "/") &&
