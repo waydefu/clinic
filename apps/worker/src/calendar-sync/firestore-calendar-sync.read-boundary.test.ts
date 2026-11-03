@@ -290,6 +290,74 @@ describe('CAL-PILOT candidate transaction read boundary', () => {
     };
   }
 
+  it.each([false, true])(
+    'checks an initially missing appointment at commit (created=%s)',
+    async (created) => {
+      const writes = vi.fn();
+      const getAll = vi.fn((ref: { id: string }) =>
+        Promise.resolve([
+          {
+            id: ref.id,
+            exists: created,
+            data: () => (created ? { status: 'confirmed' } : undefined)
+          }
+        ])
+      );
+      const transaction = {
+        get: (ref: { id: string; path: string }) =>
+          Promise.resolve({
+            id: ref.id,
+            exists: ref.path === 'calendar_pilot_configuration/active',
+            data: () =>
+              ref.path === 'calendar_pilot_configuration/active'
+                ? configuration
+                : undefined
+          }),
+        getAll,
+        set: writes,
+        create: writes,
+        update: writes
+      };
+      const db = {
+        collection: (name: string) => ({
+          doc: (id: string) => ({
+            id,
+            path: `${name}/${id}`,
+            get: () => Promise.resolve({ exists: false })
+          })
+        }),
+        runTransaction: (operation: (tx: unknown) => Promise<void>) =>
+          operation(transaction)
+      } as unknown as Firestore;
+      const store = new FirestoreCalendarSyncRepository(
+        db,
+        'synthetic'.repeat(8)
+      );
+      await expect(
+        store.loadAuthoritativeAppointment('synthetic_appointment')
+      ).resolves.toBeUndefined();
+      const guardedCommit: CalendarSyncCommit = {
+        ...commit,
+        mutations: commit.mutations.map((mutation) => ({
+          ...mutation,
+          appointmentGuard: { appointmentId: 'synthetic_appointment' }
+        }))
+      };
+      if (created) {
+        await expect(store.commitSync(guardedCommit)).rejects.toThrow(
+          'Calendar appointment changed before sync commit.'
+        );
+        expect(writes).not.toHaveBeenCalled();
+      } else {
+        await expect(store.commitSync(guardedCommit)).resolves.toBeUndefined();
+        expect(writes).toHaveBeenCalled();
+      }
+      expect(getAll).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ path: 'appointments/synthetic_appointment' })
+      );
+    }
+  );
+
   const reason = 'legacy_candidate_requires_resync';
   it.each([
     { value: undefined, rewrite: true },
