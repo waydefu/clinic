@@ -117,7 +117,9 @@ describe('WP-B4 alert definitions', () => {
         metric: 'booking_transaction_failure',
         events: [
           [
-            { jsonPayload: { operation: 'booking_transaction', result: 'error' } },
+            {
+              jsonPayload: { operation: 'booking_transaction', result: 'error' }
+            },
             true
           ],
           [
@@ -136,7 +138,8 @@ describe('WP-B4 alert definitions', () => {
           [
             {
               protoPayload: {
-                methodName: 'google.firestore.admin.v1.FirestoreAdmin.CreateBackup'
+                methodName:
+                  'google.firestore.admin.v1.FirestoreAdmin.CreateBackup'
               }
             },
             false
@@ -147,13 +150,17 @@ describe('WP-B4 alert definitions', () => {
       }
     ];
     for (const { id, metric, events } of cases) {
-      const jsonFilter = policies.immediate.find((item) => item.id === id)?.filter;
+      const jsonFilter = policies.immediate.find(
+        (item) => item.id === id
+      )?.filter;
       const terraformFilter = filters.get(metric);
       expect(typeof jsonFilter).toBe('string');
       expect(typeof terraformFilter).toBe('string');
       for (const [event, expected] of events) {
         expect(matches(jsonFilter, event), `${id} JSON`).toBe(expected);
-        expect(matches(terraformFilter, event), `${id} Terraform`).toBe(expected);
+        expect(matches(terraformFilter, event), `${id} Terraform`).toBe(
+          expected
+        );
       }
     }
   });
