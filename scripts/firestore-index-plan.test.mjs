@@ -137,6 +137,9 @@ describe('repository inventory', () => {
     expect(paths).toContain(
       'apps/api/src/firestore/calendar-pilot.repository.ts'
     );
+    expect(paths).toContain(
+      'apps/worker/src/calendar-sync/calendar-pilot-activation.ts'
+    );
     expect(paths.some((path) => path.endsWith('.test.ts'))).toBe(false);
   });
 
@@ -150,6 +153,25 @@ describe('repository inventory', () => {
         indexes: loadFirestoreIndexes()
       }).ok
     ).toBe(true);
+  });
+
+  it('fails when the activation worker query is removed from the matrix', () => {
+    const matrix = loadQueryIndexMatrix();
+    const trimmed = {
+      ...matrix,
+      queries: matrix.queries.filter(
+        (query) => query.id !== 'calendar-pilot-appointments-confirmed-future'
+      )
+    };
+    const sources = loadQuerySources().filter((source) =>
+      source.path.endsWith('/calendar-pilot-activation.ts')
+    );
+    expect(sources).toHaveLength(1);
+    expect(findUnlistedQueryShapes(sources, matrix)).toEqual([]);
+    const issues = findUnlistedQueryShapes(sources, trimmed);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toContain('calendar_pilot_appointments');
+    expect(issues[0]).toContain('status, startsAt');
   });
 
   it('would fail if a real listed shape disappeared from the matrix', () => {
