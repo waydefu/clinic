@@ -84,22 +84,41 @@ describe('WP-B4 alert definitions', () => {
         )
       ].map(([, name, filter]) => [name, JSON.parse(filter)])
     );
+    // shortcut: supports only these fixture filter forms; upgrade for new syntax.
     const matches = (filter, event) =>
-      filter.split(' OR ').some((alternative) =>
-        alternative.split(' AND ').every((term) => {
-          const match =
-            /^(jsonPayload|protoPayload)\.([A-Za-z]+)(!?=)"([^"]+)"$/.exec(
-              term
-            );
-          if (!match) throw new Error(`Unsupported filter term: ${term}`);
-          const [, object, field, operator, value] = match;
-          const actual = event[object]?.[field];
-          return (
-            typeof actual === 'string' &&
-            (operator === '=' ? actual === value : actual !== value)
-          );
+      filter
+        .split(' OR ')
+        .map((alternative) => {
+          if (alternative.startsWith('(') || alternative.endsWith(')')) {
+            if (!alternative.startsWith('(') || !alternative.endsWith(')')) {
+              throw new Error(`Unsupported filter group: ${alternative}`);
+            }
+            alternative = alternative.slice(1, -1);
+          }
+          return alternative
+            .split(' AND ')
+            .map((term) => {
+              const match =
+                /^(jsonPayload|protoPayload)((?:\.[A-Za-z]+)+)(=~|!=|=)(?:"([A-Za-z0-9._]+)"|(\d+))$/.exec(
+                  term
+                );
+              if (!match) throw new Error(`Unsupported filter term: ${term}`);
+              const [, object, path, operator, text, number] = match;
+              if (operator === '=~' && text === undefined) {
+                throw new Error(`Unsupported filter term: ${term}`);
+              }
+              const value = number === undefined ? text : Number(number);
+              const actual = path
+                .slice(1)
+                .split('.')
+                .reduce((current, field) => current?.[field], event[object]);
+              if (typeof actual !== typeof value) return false;
+              if (operator === '=~') return new RegExp(text).test(actual);
+              return operator === '=' ? actual === value : actual !== value;
+            })
+            .every(Boolean);
         })
-      );
+        .some(Boolean);
     const cases = [
       {
         id: 'api_outage_or_5xx_burst',
@@ -107,7 +126,7 @@ describe('WP-B4 alert definitions', () => {
         events: [
           [{ jsonPayload: { errorCode: 'INTERNAL_ERROR' } }, true],
           [{ jsonPayload: { errorCode: 'SERVICE_UNAVAILABLE' } }, false],
-          [{ jsonPayload: { errorCode: 'INTERNAL' } }, false],
+          [{ jsonPayload: { errorCode: 'INTERNAL' } }, true],
           [{ jsonPayload: { errorCode: 'AUTHENTICATION_REQUIRED' } }, false],
           [{ jsonPayload: {} }, false]
         ]
@@ -139,7 +158,36 @@ describe('WP-B4 alert definitions', () => {
             {
               protoPayload: {
                 methodName:
+                  'google.firestore.admin.v1.FirestoreAdmin.CreateBackup',
+                status: { code: 0 }
+              }
+            },
+            false
+          ],
+          [
+            {
+              protoPayload: {
+                methodName:
+                  'google.firestore.admin.v1.FirestoreAdmin.CreateBackup',
+                status: { code: 7 }
+              }
+            },
+            true
+          ],
+          [
+            {
+              protoPayload: {
+                methodName:
                   'google.firestore.admin.v1.FirestoreAdmin.CreateBackup'
+              }
+            },
+            false
+          ],
+          [
+            {
+              protoPayload: {
+                methodName: 'other.method',
+                status: { code: 7 }
               }
             },
             false
@@ -149,6 +197,19 @@ describe('WP-B4 alert definitions', () => {
         ]
       }
     ];
+    expect(() =>
+      matches('jsonPayload.errorCode="INTERNAL" OR protoPayload.status.code>0', {
+        jsonPayload: { errorCode: 'INTERNAL' }
+      })
+    ).toThrow(/Unsupported filter term/);
+    expect(() =>
+      matches('jsonPayload.errorCode="OTHER" AND unsupported', {
+        jsonPayload: { errorCode: 'INTERNAL' }
+      })
+    ).toThrow(/Unsupported filter term/);
+    expect(() => matches('(jsonPayload.errorCode="INTERNAL"', {})).toThrow(
+      /Unsupported filter group/
+    );
     for (const { id, metric, events } of cases) {
       const jsonFilter = policies.immediate.find(
         (item) => item.id === id

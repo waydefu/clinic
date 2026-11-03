@@ -19,7 +19,7 @@
       "comparison": "gte",
       "window": "5m",
       "logMetric": "wp-b4-http-5xx",
-      "filter": "jsonPayload.errorCode=\"INTERNAL_ERROR\"",
+      "filter": "jsonPayload.errorCode=\"INTERNAL_ERROR\" OR jsonPayload.errorCode=\"INTERNAL\"",
       "exclude": "SERVICE_UNAVAILABLE fail-closed gate"
     },
     {
@@ -50,7 +50,7 @@
       "comparison": "gte",
       "window": "5m",
       "logMetric": "wp-b4-backup-failure",
-      "filter": "jsonPayload.errorCode=\"BACKUP_FAILED\""
+      "filter": "jsonPayload.errorCode=\"BACKUP_FAILED\" OR (protoPayload.methodName=~\"google.firestore.admin.v1.FirestoreAdmin.CreateBackup\" AND protoPayload.status.code!=0)"
     },
     {
       "id": "outbox_dead_letter",
