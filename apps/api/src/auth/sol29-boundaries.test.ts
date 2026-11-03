@@ -265,11 +265,21 @@ describe('SOL29 session proof and allowlist regressions', () => {
       )
     ).resolves.toMatchObject({ actorId: 'opaque_staff', actorRole: role });
     expect(b.update).not.toHaveBeenCalled();
+    await expect(
+      b.service.authenticate(
+        issued.cookieValue,
+        new Date(Date.parse(NOW) + 59_999).toISOString()
+      )
+    ).resolves.toMatchObject({ actorId: 'opaque_staff', actorRole: role });
+    expect(b.update).not.toHaveBeenCalled();
     await b.service.authenticate(
       issued.cookieValue,
       new Date(Date.parse(NOW) + 60_000).toISOString()
     );
     expect(b.update).toHaveBeenCalledOnce();
+    expect(b.update).toHaveBeenCalledWith(expect.anything(), {
+      lastSeenAt: new Date(Date.parse(NOW) + 60_000).toISOString()
+    });
     await b.service.authenticate(
       issued.cookieValue,
       new Date(Date.parse(NOW) + 60_500).toISOString()
