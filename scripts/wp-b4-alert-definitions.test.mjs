@@ -198,9 +198,12 @@ describe('WP-B4 alert definitions', () => {
       }
     ];
     expect(() =>
-      matches('jsonPayload.errorCode="INTERNAL" OR protoPayload.status.code>0', {
-        jsonPayload: { errorCode: 'INTERNAL' }
-      })
+      matches(
+        'jsonPayload.errorCode="INTERNAL" OR protoPayload.status.code>0',
+        {
+          jsonPayload: { errorCode: 'INTERNAL' }
+        }
+      )
     ).toThrow(/Unsupported filter term/);
     expect(() =>
       matches('jsonPayload.errorCode="OTHER" AND unsupported', {
