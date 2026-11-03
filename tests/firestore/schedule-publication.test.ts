@@ -280,6 +280,50 @@ describe('publishing a schedule while a booking is created (AUD-02)', () => {
     }
   });
 
+  // Known D-42 defect: arrived appointments are omitted from orphan detection.
+  it('characterizes publication and replay with an arrived booking', async () => {
+    await publishFirstSchedule();
+    const booking = bookingRequest();
+    await bookings.reserve(booking);
+    const appointmentRef = db
+      .collection(COLLECTIONS.appointments)
+      .doc(booking.appointmentId);
+    const slotRef = db.collection(COLLECTIONS.slots).doc(booking.slotId);
+    const guardRef = db
+      .collection(COLLECTIONS.patientBookingGuards)
+      .doc(booking.patientId);
+    await appointmentRef.update({ status: 'arrived' });
+    const before = await Promise.all([
+      appointmentRef.get(),
+      slotRef.get(),
+      guardRef.get()
+    ]);
+    expect(before.every((snapshot) => snapshot.exists)).toBe(true);
+    expect(before[0]?.data()?.['status']).toBe('arrived');
+    expect(before[1]?.data()?.['reservationId']).toBe(booking.appointmentId);
+
+    const request = publishRequest({
+      draft: EMPTY_SCHEDULE,
+      expectedVersion: 1,
+      key: 'schedule-publish-arrived-characterization'
+    });
+    const published = await schedules.publish(request);
+    expect(published).toMatchObject({ publishedVersion: 2, replayed: false });
+    expect(await schedules.publish(request)).toMatchObject({
+      publishedVersion: 2,
+      replayed: true
+    });
+    const after = await Promise.all([
+      appointmentRef.get(),
+      slotRef.get(),
+      guardRef.get()
+    ]);
+    expect(after.map((snapshot) => snapshot.data())).toEqual(
+      before.map((snapshot) => snapshot.data())
+    );
+    expect((await schedules.readPublished()).schedule).toEqual(EMPTY_SCHEDULE);
+  });
+
   it('refuses a publication that orphans a booking created after its first read', async () => {
     await publishFirstSchedule();
     const racing = new FirestoreScheduleRepository(
