@@ -280,8 +280,7 @@ describe('publishing a schedule while a booking is created (AUD-02)', () => {
     }
   });
 
-  // Known D-42 defect: arrived appointments are omitted from orphan detection.
-  it('characterizes publication and replay with an arrived booking', async () => {
+  it('rejects publication and retry when an arrived booking would be orphaned', async () => {
     await publishFirstSchedule();
     const booking = bookingRequest();
     await bookings.reserve(booking);
@@ -307,11 +306,11 @@ describe('publishing a schedule while a booking is created (AUD-02)', () => {
       expectedVersion: 1,
       key: 'schedule-publish-arrived-characterization'
     });
-    const published = await schedules.publish(request);
-    expect(published).toMatchObject({ publishedVersion: 2, replayed: false });
-    expect(await schedules.publish(request)).toMatchObject({
-      publishedVersion: 2,
-      replayed: true
+    await expect(schedules.publish(request)).rejects.toMatchObject({
+      code: 'SCHEDULE_ORPHANS_APPOINTMENTS'
+    });
+    await expect(schedules.publish(request)).rejects.toMatchObject({
+      code: 'SCHEDULE_ORPHANS_APPOINTMENTS'
     });
     const after = await Promise.all([
       appointmentRef.get(),
@@ -321,7 +320,8 @@ describe('publishing a schedule while a booking is created (AUD-02)', () => {
     expect(after.map((snapshot) => snapshot.data())).toEqual(
       before.map((snapshot) => snapshot.data())
     );
-    expect((await schedules.readPublished()).schedule).toEqual(EMPTY_SCHEDULE);
+    expect(await publishedVersion()).toBe(1);
+    expect((await schedules.readPublished()).schedule).toEqual(schedule);
   });
 
   it('refuses a publication that orphans a booking created after its first read', async () => {

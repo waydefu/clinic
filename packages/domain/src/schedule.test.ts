@@ -377,11 +377,12 @@ describe('scheduleImpact and assertScheduleVersionMatches', () => {
         [
           { id: 'a', slotId: kept, status: 'confirmed' },
           { id: 'b', slotId: 'slot_19990101_0900', status: 'confirmed' },
-          { id: 'c', slotId: 'slot_19990101_0900', status: 'completed' }
+          { id: 'c', slotId: 'slot_19990101_0900', status: 'completed' },
+          { id: 'd', slotId: 'slot_19990101_0900', status: 'arrived' }
         ],
         slots
       ).map((item) => item.id)
-    ).toEqual(['b']);
+    ).toEqual(['b', 'd']);
   });
 
   it('accepts a matching version and rejects a stale one', () => {

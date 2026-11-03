@@ -25,7 +25,11 @@ import { COLLECTIONS } from './booking.repository.js';
 
 export const SCHEDULE_DOCUMENT_ID = 'current';
 
-const OPEN_APPOINTMENT_STATUSES = ['confirmed', 'cancellation_requested'];
+const OPEN_APPOINTMENT_STATUSES = [
+  'confirmed',
+  'cancellation_requested',
+  'arrived'
+];
 
 /**
  * Persists the clinic published grid. Slot occupancy stays on sparse `slots`
