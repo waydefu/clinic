@@ -28,20 +28,22 @@ export function loadQuerySources(
   readFile = readFileSync,
   readDir = readdirSync
 ) {
-  return readDir(join(root, QUERY_SOURCE_DIR))
-    .filter((name) => name.endsWith('.ts') && !name.endsWith('.test.ts'))
-    .sort()
-    .map((name) => {
-      const path = `${QUERY_SOURCE_DIR}/${name}`;
-      return { path, text: readFile(join(root, path), 'utf8') };
-    });
+  const paths = readDir(join(root, QUERY_SOURCE_DIR));
+  return [
+    ...paths
+      .filter((name) => name.endsWith('.ts') && !name.endsWith('.test.ts'))
+      .sort()
+      .map((name) => `${QUERY_SOURCE_DIR}/${name}`),
+    'apps/worker/src/calendar-sync/calendar-pilot-activation.ts'
+  ].map((path) => ({ path, text: readFile(join(root, path), 'utf8') }));
 }
 
 // Code -> matrix direction (B-44): a static, deterministic AST scan of each
 // `collection(x).where(..).orderBy(..)` chain. Known limits (shortcut: widen
 // when a real query needs it): only the sources passed in are scanned, by
-// default apps/api/src/firestore/*.ts, so worker and patient-directory queries
-// stay matrix-only; a query built across statements or helper functions is not
+// default apps/api/src/firestore/*.ts and calendar-pilot-activation.ts; other
+// worker and patient-directory queries stay matrix-only; a query built across
+// statements or helper functions is not
 // seen unless the chain itself carries two or more fields, and then it fails
 // closed; a collection name resolves only from a literal or an object constant
 // in the same or another scanned file.
