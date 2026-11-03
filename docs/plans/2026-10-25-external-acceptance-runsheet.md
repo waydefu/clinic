@@ -37,7 +37,7 @@ Sol v2 四項決定已逐字登記在 [#268](https://github.com/waydefu/clinic/p
 | 包 | 可追溯來源 | 不可省略的前置／未證明內容 |
 | --- | --- | --- |
 | INGRESS／B-03 | [client-ip](../../apps/api/src/platform/runtime/client-ip.ts)、[WP-B2A 身分桶](../../apps/api/src/platform/runtime/wp-b2-rate-limiter.ts)、[internal-test gate](../../apps/api/src/internal-test-booking/internal-test-booking.gate.ts)、#278／#285／#292 | 方案 A 接受直連 run.app 可達；須驗核准正門正常、偽造最左側 X-Forwarded-For／格式錯誤／多地址與換 IP 不能重置身分桶鎖定、未核准 host 及關閉／逾期 gate 拒絕。安全計數取得仍有 §3.1 缺口；exact host、直連目標與操作時窗須新鮮核准 |
-| NOTIFICATION／B-08 | [WP-B4 main](../../infra/terraform/wp-b4-alerting/main.tf)、[設計](2026-10-30-sol-notification-design.md)、[consumer](../../apps/worker/src/alert-notification-consumer.ts)、#357 | 純 consumer 的 allowlist／dedupe／retry／dead-letter 合成測試已合；application topic 的 publisher binding、subscription／DLQ 與實際 worker 接線仍缺，不能只列「待實測」 |
+| NOTIFICATION／B-08 | [WP-B4 main](../../infra/terraform/wp-b4-alerting/main.tf)、[設計](2026-10-30-sol-notification-design.md)、[consumer](../../apps/worker/src/alert-notification-consumer.ts)、#357／#384 | 純 consumer 與可選 publisher／subscription／DLQ 配對已有來源與合成測試；實際 principal、資源、worker transport／sender 與投遞仍未證實，不能只列「待實測」 |
 | MAINTENANCE／E3-07 | [maintenance gate](../../apps/api/src/platform/runtime/maintenance-gate.ts)、[共用來源候選](2026-11-02-sol-maintenance-source-control.md)、[AppModule](../../apps/api/src/app.module.ts)、[還原 runbook](../runbooks/backup-and-restore.md)、[事件應變](../runbooks/incident-response.md) | 10-31 已核准 source-only 施工；預設改為 unknown／到期即拒絕，API／worker／排程准入與在途 callback 可合成測試。實際 reader／store、跨 process 一致性、全部 writer 接線及 provider 排空仍未驗證，不把來源計數當作全域停寫 |
 | LEASE／D-05、D-12 | [runtime](../../apps/worker/src/calendar-sync/calendar-pilot-runtime.ts)、[協調設計](2026-10-22-sol-calendar-lease-coordination.md)、#287 | 合成協調測試不證明實際唯一 egress、舊 worker 終止／隔離與 provider 在途工作排空；未知必須 quarantine |
 | SECRETS／B-31、B-55 | [.claude source policy](../../.claude/settings.json)、[upload exclusion](../../.gcloudignore)、[tracked exclusions](../../.gitignore)、#277／#291 | Claude source deny 不自動涵蓋 Hermes、Codex 或其他工具；每個實際工具與 upload 路徑要各自驗證 admission-before-read |
@@ -132,12 +132,12 @@ API 必填驗證在 `variables.tf:313–326`，worker 在 `variables.tf:344–35
 | 路徑／欄位 | repo 已表達的值 | 邊界／尚缺內容 |
 | --- | --- | --- |
 | application topic | `c1-application-alerts`，由 WP-B4 定義 | 有 topic 來源不等於已建立、已有 publish grant 或已有 subscriber |
-| application channel | `google_monitoring_notification_channel.application_pubsub`，指向上述 topic | 所查 WP-B4 無此 topic 的明確 publisher binding；不能把 budget topic 的 binding 當成它的 |
-| application publisher | 未由所查 WP-B4 來源綁定 | 需要確認實際 principal、topic 與來源差異；不猜 service agent、不新增權限 |
-| application subscription／worker consumer | [consumer 來源](../../apps/worker/src/alert-notification-consumer.ts) 只有 ports；Terraform 未列出已綁定的 subscription | #357 的合成案例不證明 subscriber 或 transport 已接線；不虛構 subscription、service 或 DLQ 名稱 |
-| retry／DLQ | consumer 已有重試／dead-letter 決策及合成測試；WP-B4 未列出相應 subscription 的 retry／DLQ 資源 | source decision 不等於實際 queue 行為；仍需 subscription、consumer 與 DLQ 的核准配對 |
+| application channel | `google_monitoring_notification_channel.application_pubsub`，指向上述 topic | WP-B4 宣告依賴可選 publisher binding；來源配對不代表實際權限或投遞已驗證 |
+| application publisher | 可選 `application_delivery.monitoring_publisher_member` 輸入，來源宣告只授 application topic | 尚須確認實際 principal 與 topic；不借用 budget publisher，也不因來源宣告而新增實際權限 |
+| application subscription／worker consumer | WP-B4 宣告可選 pull subscription 與 worker subscriber binding；[consumer](../../apps/worker/src/alert-notification-consumer.ts) 仍只有 ports | #357／#384 合成案例不證明 subscription 已建立、worker transport 或 sender 已接線 |
+| retry／DLQ | 可選 subscription 宣告 retry、DLQ topic 與 review subscription；consumer 僅回傳重試／隔離決策 | 來源宣告不等於實際 queue 行為；DLQ review 未授 reader，實際配對與持久隔離仍待確認 |
 | human channel | `human_email`；收件值來自 `alert_email_address`，不入 Git | 不記錄私人信箱；正式收件目標由當次有權者核准，測試不得投到未核准者 |
-| 預設開關 | `exact_apply_authority_sha = not_granted`，WP-B4 預設零資源 | 輸入一個 SHA 不構成 apply 授權；目前來源標籤是 `HUMAN_NOTIFICATION_PATH_IMPLEMENTED_NOT_DEPLOYED` |
+| 預設開關 | `exact_apply_authority_sha = not_granted`、`application_delivery = null`，WP-B4 預設零資源 | 輸入一個 SHA 不構成 apply 授權；配對有輸入時也只標 `SOURCE_ONLY_NOT_DEPLOYED`，`runtime_verified` 為 false |
 | 既有 budget topic | `c1-budget-notifications`，位於 [c1-foundation](../../infra/terraform/c1-foundation/main.tf) | 不得刪除、覆寫或拿它的投遞成功替 application 路徑驗收 |
 | budget publisher | `billing-budget-alert@system.gserviceaccount.com` | 公開 system principal 來源字串，不是 application publisher 已核證據 |
 | budget monitoring publisher | `service-${data.google_project.c1[0].number}@gcp-sa-monitoring.iam.gserviceaccount.com` | 原樣保留來源模板，不填 project number、不替 application topic 沿用 grant |
@@ -145,7 +145,7 @@ API 必填驗證在 `variables.tf:313–326`，worker 在 `variables.tf:344–35
 - 包／ID：SOL-NOTIFICATION／B-08。
 - SHA：執行當天的 main SHA，由操作者填。
 - 目標：只在已登記 isolated C1 的精確 topic／subscription／worker consumer。
-  **需要新的精確授權：尚缺的 publisher 配對、上述資源、投遞對象、UTC 時窗、最多投遞量與任何 IAM／部署差異。**
+  **需要先確認實際 publisher 配對，並取得新的精確授權：上述配對與資源、投遞對象、UTC 時窗、最多投遞量及任何 IAM／部署差異。**
 - 資料與允許效果：非個人、非臨床的合成訊息 ID；明列一次成功投遞、重送、暫時失敗重試及耗盡後 DLQ。
   不發給真實患者，不以實際診所訊息測試。
 - 人工步驟：
