@@ -119,6 +119,24 @@ describe('assertInternalTestBookingWritable', () => {
     ).toThrow(ServiceUnavailableError);
   });
 
+  it.each([
+    { enabled: false },
+    { expiresAtUtc: OPEN_NOW },
+    { expiresAtUtc: undefined },
+    { expiresAtUtc: 'invalid' }
+  ])('does not let a loopback emulator bypass gate %o', (override) => {
+    expect(() =>
+      assertInternalTestBookingWritable(
+        OPEN_NOW,
+        settings({
+          projectId: undefined,
+          emulatorHost: '127.0.0.1:8080',
+          ...override
+        })
+      )
+    ).toThrow(ServiceUnavailableError);
+  });
+
   it('does not let a local emulator override the forbidden project', () => {
     expect(() =>
       assertInternalTestBookingWritable(
