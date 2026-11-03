@@ -15,6 +15,11 @@
 - 首頁 FAQ（唯一的純色區）：前後兩區已用同一張圖，三區連用會更單調，所以改奶油到
   `--clinic-sage-100` 的斜向漸層加一處白色光暈。
 - 只用既有 token，不新增顏色；`/clinic.html` 與內頁的 315 KiB 預算不變（約多 16 B）。
+- 部署紀錄（依[合成資料線上預覽操作手冊](../runbooks/synthetic-online-preview.md)）：負責人
+  2026-11-04 核准「好，CI 綠了就發」。exact commit `4afc8908`（PR #393 當時的 head，CI 13 項
+  全綠）、project `beauessence-clinic-staging`、channel `synthetic-review`、`--expires 30d`
+  （Firebase 回報到期 2026-12-04）、operator Claude、approver 負責人，只發 preview channel。
+  本段紀錄是部署後才提交的文件變更，不影響部署內容。
 
 ## 2026-11-03 療程頁「先評估，再選擇」提醒卡配色與預覽頻道部署紀錄
 
