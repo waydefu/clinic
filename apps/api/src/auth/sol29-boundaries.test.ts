@@ -4,7 +4,11 @@ import {
   CalendarPilotSessionService,
   roleForCalendarPilotEmail
 } from './calendar-pilot-session.js';
-import { AuthenticationRequiredError } from '../platform/errors/api-error.js';
+import { CalendarPilotSessionController } from './calendar-pilot-session.controller.js';
+import {
+  AuthenticationRequiredError,
+  RateLimitedError
+} from '../platform/errors/api-error.js';
 import { InternalTestBookingAuthenticator } from '../internal-test-booking/internal-test-booking.authenticator.js';
 
 const NOW = '2026-10-01T00:00:00.000Z';
@@ -253,6 +257,50 @@ describe('SOL29 session proof and allowlist regressions', () => {
     expect(b.auth.createSessionCookie).toHaveBeenCalledOnce();
     expect(b.update).not.toHaveBeenCalled();
     expect(b.rows.size).toBe(0);
+  });
+
+  it('does not issue or persist a session when the verified account quota rejects', async () => {
+    const b = fixture();
+    const sessions = {
+      create: (
+        token: string,
+        _now: unknown,
+        beforeIssue: (uid: string) => Promise<void>
+      ) => b.service.create(token, NOW, beforeIssue)
+    };
+    const limits = {
+      assertUnauthenticatedIp: vi.fn(async () => {}),
+      assertIdentifiedWrite: vi.fn(async (_uid: string) => {})
+    };
+    const controller = new CalendarPilotSessionController(
+      sessions as never,
+      limits as never
+    );
+    const request = { ip: '192.0.2.1', headers: {} };
+    const body = { idToken: 'synthetic-proof-'.repeat(8) };
+    const reply = { header: vi.fn() };
+
+    await controller.create(body, reply, request);
+    expect(limits.assertIdentifiedWrite).toHaveBeenCalledWith('opaque_staff');
+    expect(reply.header).toHaveBeenCalledOnce();
+    expect(b.auth.createSessionCookie).toHaveBeenCalledOnce();
+    expect(b.rows.size).toBe(1);
+    const previousRows = [...b.rows.entries()];
+
+    reply.header.mockClear();
+    b.auth.createSessionCookie.mockClear();
+    limits.assertIdentifiedWrite.mockClear();
+    limits.assertIdentifiedWrite.mockRejectedValueOnce(
+      new RateLimitedError(60)
+    );
+    await expect(
+      controller.create(body, reply, request)
+    ).rejects.toBeInstanceOf(RateLimitedError);
+    expect(limits.assertIdentifiedWrite).toHaveBeenCalledOnce();
+    expect(limits.assertIdentifiedWrite).toHaveBeenCalledWith('opaque_staff');
+    expect(reply.header).not.toHaveBeenCalled();
+    expect(b.auth.createSessionCookie).not.toHaveBeenCalled();
+    expect([...b.rows.entries()]).toEqual(previousRows);
   });
 
   it('keeps the valid current Google/TOTP account path without redundant same-minute writes or an idle timeout', async () => {
