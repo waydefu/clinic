@@ -54,7 +54,7 @@
   --clinic-brand-messenger: #0866ff;
   --clinic-shadow: 0 1.25rem 3.75rem rgb(22 72 58 / 10%);
   --clinic-radius: 0.75rem;
-  --clinic-shell: min(76rem, calc(100% - 3rem));
+  --clinic-shell: min(84rem, calc(100% - 3rem));
   /* 錨點跳轉時要讓開固定頁首（預覽橫幅＋頁首）的距離。它跟著頁首高度走，不是
      版面間距，所以有自己的 token（同 styles.css 的 --scroll-anchor-offset）。 */
   --clinic-scroll-anchor-offset: 7rem;
@@ -147,6 +147,8 @@
    * ----------------------------------------------------------------- */
   --clinic-text-micro: 0.875rem;
   --clinic-text-body: 1rem;
+  /* 內頁內文，手機在 48rem 斷點改回 body。 */
+  --clinic-text-prose: var(--clinic-text-md);
   --clinic-text-md: 1.2rem;
   --clinic-text-lg: 1.44rem;
   --clinic-text-xl: 1.728rem;
@@ -1367,6 +1369,12 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   color: var(--clinic-muted);
 }
 
+/* 只放大段落的直接子元素，卡片裡的小字不動，免得成因卡一列排不下。 */
+.clinic-service-content > section > :is(p, ul),
+.clinic-doctor-details :is(p, li) {
+  font-size: var(--clinic-text-prose);
+}
+
 /* 療程頁末尾的外部資源連結（止鼾頁的 SnoreLab）。橫排一列，寬度不足才換行
    ——介面規則書 R-5。 */
 .clinic-resource-actions {
@@ -1576,6 +1584,7 @@ body:not(:has(.clinic-noscript)) #clinic-main {
 @media (max-width: 48rem) {
   :root {
     --clinic-shell: min(100% - 2rem, 38rem);
+    --clinic-text-prose: var(--clinic-text-body);
   }
 
   .preview-boundary {
@@ -2699,7 +2708,7 @@ body:not(:has(.clinic-noscript)) #clinic-main {
    底下是舊版的淡綠背景圖（業主 2026-10-12：舊背景圖要用上）。文字不疊在照片上。
    標誌位在原圖寬度約 26%～59%、高度 19%～53%；取景 42% 36% 讓標誌從 320px
    手機到超寬螢幕都完整留在畫面內（tests/e2e/ui-redesign.spec.ts 逐尺寸驗證）。
-   欄寬：外側兩欄吃剩餘空間，中間兩欄合計 76rem，等於 --clinic-shell 的上限。 */
+   欄寬：外側兩欄吃剩餘空間，中間兩欄合計 84rem，等於 --clinic-shell 的上限。 */
 .clinic-arrival {
   padding-top: 3rem;
   background:
@@ -2713,8 +2722,8 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   align-items: center;
   grid-template-columns:
     minmax(1.5rem, 1fr)
-    minmax(0, 30rem)
-    minmax(0, 46rem)
+    minmax(0, 33rem)
+    minmax(0, 51rem)
     minmax(0, 1fr);
 }
 
@@ -3163,7 +3172,7 @@ body:not(:has(.clinic-noscript)) #clinic-main {
 
 .clinic-team .clinic-doctor-card {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: center;
   padding: 1.25rem;
   gap: 1.5rem;

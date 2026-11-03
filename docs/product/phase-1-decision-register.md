@@ -11,6 +11,17 @@
 - 提醒卡底色由 `--clinic-sage-200` 改 `--clinic-cream`；「安排門診評估」按鈕改成
   `--clinic-forest` 實心底、`--clinic-white` 字。四個療程頁共用同一張卡。只用既有 token，
   依本條再重算 `clinic-site.css` 的凍結基準值一次。
+- 同日負責人在 1920 外接螢幕上看預覽，說「整體好像過於置中左右有點空」，並要求
+  「醫師區特別注意圖可能過小，還有內頁字體」。逐項選擇如下：
+  - 內容欄上限：選「1344px（84rem）」。`--clinic-shell` 由 76rem 改 84rem；首屏兩欄同步由
+    30rem＋46rem 改 33rem＋51rem，合計仍等於上限。手機斷點的寬度不變。
+  - 首頁醫師卡：照片與文字由 2:3 改 1:1，桌機照片寬約 233px 變約 291px（原圖寬 760px，
+    兩倍密度仍清晰）。手機斷點維持 2:3。
+  - 內頁字體：選「太小，桌機放大」。療程頁段落與清單、醫師頁內文由 1rem 改 `--clinic-text-md`
+    （1.2rem），手機在 48rem 斷點改回 1rem；成因卡、器材卡、比較表等卡片裡的小字不動。
+  - 這會讓官網各頁的總傳輸量超過 314 KiB 幾個位元組。負責人選擇「預算調到 315 KiB」；
+    `apps/web/performance-budget.json` 裡 `/clinic.html` 與所有 `/clinic-route/*` 的 total
+    一起改為 315，其他欄位不變。
 - 部署紀錄（依[合成資料線上預覽操作手冊](../runbooks/synthetic-online-preview.md)）：
   負責人 2026-11-03 在 CI 全綠後核准「部署30日的」。operator 為 Claude、approver 為負責人；
   exact commit `9542238f`（PR #393 當時的 head）、Firebase project `beauessence-clinic-staging`、

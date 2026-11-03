@@ -57,6 +57,8 @@ import { fileURLToPath } from 'node:url';
  * Existing tokens only; that authorises one rebaseline of clinic-site.css.
  * 2026-11-03: the owner asked for the treatment-page note card to change and
  * picked "米白卡＋深綠按鈕" (register 2026-11-03 entry); one more rebaseline.
+ * 2026-11-03: same entry also widens the shell cap 76rem -> 84rem, gives the home
+ * doctor photos half the card and enlarges inner-page desktop prose to text-md.
  */
 export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic.html':
@@ -64,7 +66,7 @@ export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic-site.js':
     '47c72142a9f01815df8d228ae28963c72b6c899260ff748eb07e961ca8aa717b',
   'apps/web/public/clinic-site.css':
-    'f09ebbb2ee0013236a1e33ffbfeb5c0747b62033a44c1ba5663a2fa6ce74c3e5',
+    'a0446396ad3c0e7a4db9cd3d8667deb2056583096cd850b23d71e71684aa7c7a',
   'apps/web/public/clinic-content.js':
     '64b434c15c942ac2f183a3b177c89e431d38d502c24727aefb3d836dba8006c4',
   'apps/web/public/clinic-booking.css':
