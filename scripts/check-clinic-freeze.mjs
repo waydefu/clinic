@@ -55,6 +55,8 @@ import { fileURLToPath } from 'node:url';
  * 都是白的") and chose lighter-palette mid-tone bands for the home page and the
  * treatment pages (docs/product/phase-1-decision-register.md, 2026-11-02 entry).
  * Existing tokens only; that authorises one rebaseline of clinic-site.css.
+ * 2026-11-03: the owner asked for the treatment-page note card to change and
+ * picked "米白卡＋深綠按鈕" (register 2026-11-03 entry); one more rebaseline.
  */
 export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic.html':
@@ -62,7 +64,7 @@ export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic-site.js':
     '47c72142a9f01815df8d228ae28963c72b6c899260ff748eb07e961ca8aa717b',
   'apps/web/public/clinic-site.css':
-    'dbf98165b0b9ffff0d2ffa04824e8ec13af1be01755135a4fc6a3d511f677a07',
+    'f09ebbb2ee0013236a1e33ffbfeb5c0747b62033a44c1ba5663a2fa6ce74c3e5',
   'apps/web/public/clinic-content.js':
     '64b434c15c942ac2f183a3b177c89e431d38d502c24727aefb3d836dba8006c4',
   'apps/web/public/clinic-booking.css':

@@ -1,5 +1,23 @@
 # Phase 1 Decision Register
 
+## 2026-11-03 療程頁「先評估，再選擇」提醒卡配色與預覽頻道部署紀錄
+
+負責人（工程師）看過預覽頻道後，指著療程頁右側的提醒卡說：
+
+> 每頁的這個配色要調整
+
+在「深綠卡＋白字」「白卡＋金色左邊線」「米白卡＋深綠按鈕」三案中選了「米白卡＋深綠按鈕」。
+
+- 提醒卡底色由 `--clinic-sage-200` 改 `--clinic-cream`；「安排門診評估」按鈕改成
+  `--clinic-forest` 實心底、`--clinic-white` 字。四個療程頁共用同一張卡。只用既有 token，
+  依本條再重算 `clinic-site.css` 的凍結基準值一次。
+- 部署紀錄（依[合成資料線上預覽操作手冊](../runbooks/synthetic-online-preview.md)）：
+  負責人 2026-11-03 在 CI 全綠後核准「部署30日的」。operator 為 Claude、approver 為負責人；
+  exact commit `9542238f`（PR #393 當時的 head）、Firebase project `beauessence-clinic-staging`、
+  channel `synthetic-review`、`--expires 30d`（到期 2026-12-03）。只發 preview channel，
+  沒有發 live。手冊範例寫 7d，30d 是負責人這次指定。本條的配色修改是之後的新 commit，
+  重新部署要另行核准。
+
 ## 2026-11-02 官網淺色系加中間色帶（首頁與療程頁底色）
 
 負責人（工程師）看過官網後表示：

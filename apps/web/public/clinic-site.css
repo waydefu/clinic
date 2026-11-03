@@ -1376,12 +1376,12 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   margin-top: 1.5rem;
 }
 
-/* 醫療提醒是一張霧綠卡（方向 B；2026-11-02 加深一階），與正文的白色面板區隔開。 */
+/* 醫療提醒是米白卡配深綠實心按鈕（2026-11-03 負責人選定），與正文的白色面板區隔開。 */
 .clinic-medical-note {
   position: sticky;
   top: 7.5rem;
   padding: 1.5rem;
-  background: var(--clinic-sage-200);
+  background: var(--clinic-cream);
   border-radius: var(--clinic-radius-lg);
 }
 
@@ -1389,9 +1389,10 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   margin-top: 0;
 }
 
-/* green 在 sage-200 上只有 4.04:1，連結改深一階。 */
-.clinic-medical-note .clinic-text-link {
-  color: var(--clinic-forest);
+/* 帶 a 是為了蓋過檔尾 .clinic-text-link:hover 的半透明底，否則白字在 hover 時會消失。 */
+.clinic-medical-note a.clinic-text-link {
+  color: var(--clinic-white);
+  background: var(--clinic-forest);
 }
 
 .clinic-medical-note p:not(.clinic-eyebrow) {
