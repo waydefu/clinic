@@ -563,6 +563,27 @@ describe('accountless booking and return lookup HTTP', () => {
     ).resolves.toMatchObject({ allowed: false });
   });
 
+  it('bounds one source even when return lookup identities change', async () => {
+    const limiter = new WpB2RateLimiter(new InMemoryDurableRateLimitStore(), {
+      now: () => 1_000
+    });
+    const { harness } = await start({ limiter });
+    const limit = RATE_LIMIT_POLICIES.unauthenticated_general.limit;
+    for (let i = 0; i <= limit; i += 1) {
+      const response = await harness.inject({
+        method: 'POST',
+        url: '/v1/return-lookup',
+        payload: { phone: String(i).padStart(8, '0'), birthDate: '--01-15' }
+      });
+      expect(response.statusCode).toBe(i < limit ? 404 : 429);
+      if (i === limit) {
+        expect(response.headers['retry-after']).toEqual(
+          expect.stringMatching(/^\d+$/)
+        );
+      }
+    }
+  });
+
   it('still 429s one lookup identity when every request spoofs a new X-Forwarded-For', async () => {
     const limiter = new WpB2RateLimiter(new InMemoryDurableRateLimitStore(), {
       now: () => 1_000
