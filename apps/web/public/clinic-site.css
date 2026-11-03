@@ -542,14 +542,13 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   scroll-margin-top: var(--clinic-scroll-anchor-offset);
 }
 
-/* 類名沿用（JS 凍結），2026-11-02 起不再是白色：淡綠漸層底，內文放白色面板。 */
+/* 類名沿用（JS 凍結），2026-11-02 起不再是白色，內文放白色面板。2026-11-04 起頂部鋪
+   既有的 soft-green-bg（負責人：「背景不要單色」），圖高約 69vw，往下淡成 sage-100。 */
 .clinic-section--white {
-  background-color: var(--clinic-sage-50);
-  background-image: linear-gradient(
-    180deg,
-    var(--clinic-sage-50),
-    var(--clinic-sage-100)
-  );
+  background:
+    linear-gradient(transparent 30vw, var(--clinic-sage-100) 69vw),
+    url('/clinic-assets/soft-green-bg.webp') center top / 100% auto no-repeat,
+    var(--clinic-sage-100);
 }
 
 .clinic-service-card,
@@ -3602,8 +3601,16 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   color: var(--clinic-gold-ink);
 }
 
+/* 前後兩區已用 soft-green-bg，FAQ 改用漸層（2026-11-04「背景不要單色」）。 */
 #clinic-faq {
-  background: var(--clinic-cream);
+  background-color: var(--clinic-cream);
+  background-image:
+    radial-gradient(
+      circle at 85% 10%,
+      color-mix(in srgb, var(--clinic-white) 60%, transparent),
+      transparent 45%
+    ),
+    linear-gradient(160deg, var(--clinic-cream), var(--clinic-sage-100));
 }
 
 .clinic-team {

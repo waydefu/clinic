@@ -59,6 +59,8 @@ import { fileURLToPath } from 'node:url';
  * picked "米白卡＋深綠按鈕" (register 2026-11-03 entry); one more rebaseline.
  * 2026-11-03: same entry also widens the shell cap 76rem -> 84rem, gives the home
  * doctor photos half the card and enlarges inner-page desktop prose to text-md.
+ * 2026-11-04: the owner said "背景不要單色" (register 2026-11-04 entry): the
+ * treatment body reuses soft-green-bg and the home FAQ gets a gradient.
  */
 export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic.html':
@@ -66,7 +68,7 @@ export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic-site.js':
     '47c72142a9f01815df8d228ae28963c72b6c899260ff748eb07e961ca8aa717b',
   'apps/web/public/clinic-site.css':
-    'a0446396ad3c0e7a4db9cd3d8667deb2056583096cd850b23d71e71684aa7c7a',
+    '6cc15211ae11fac22adf812279a34497a4a67665733145ba97dddcf909d5b692',
   'apps/web/public/clinic-content.js':
     '64b434c15c942ac2f183a3b177c89e431d38d502c24727aefb3d836dba8006c4',
   'apps/web/public/clinic-booking.css':
