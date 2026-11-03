@@ -290,7 +290,9 @@ describe('SOL29 session proof and allowlist regressions', () => {
     reply.header.mockClear();
     b.auth.createSessionCookie.mockClear();
     limits.assertIdentifiedWrite.mockClear();
-    limits.assertIdentifiedWrite.mockRejectedValueOnce(new RateLimitedError(60));
+    limits.assertIdentifiedWrite.mockRejectedValueOnce(
+      new RateLimitedError(60)
+    );
     await expect(controller.create(body, reply, request)).rejects.toBeInstanceOf(
       RateLimitedError
     );
