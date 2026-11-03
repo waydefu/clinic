@@ -293,9 +293,9 @@ describe('SOL29 session proof and allowlist regressions', () => {
     limits.assertIdentifiedWrite.mockRejectedValueOnce(
       new RateLimitedError(60)
     );
-    await expect(controller.create(body, reply, request)).rejects.toBeInstanceOf(
-      RateLimitedError
-    );
+    await expect(
+      controller.create(body, reply, request)
+    ).rejects.toBeInstanceOf(RateLimitedError);
     expect(limits.assertIdentifiedWrite).toHaveBeenCalledOnce();
     expect(limits.assertIdentifiedWrite).toHaveBeenCalledWith('opaque_staff');
     expect(reply.header).not.toHaveBeenCalled();
