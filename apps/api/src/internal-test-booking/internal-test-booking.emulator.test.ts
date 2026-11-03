@@ -327,15 +327,36 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     expect(unauthenticated.statusCode).toBe(401);
   });
 
-  it('refuses a staff write that has the session cookie but no CSRF token', async () => {
-    const published = await requireHarness().inject({
-      method: 'POST',
-      url: '/v1/schedule/publish',
-      headers: managerHeaders(false),
-      payload: PUBLISH_BODY
-    });
-    expect(published.statusCode).toBe(401);
-  });
+  it.each(['missing', 'invalid'])(
+    'denies staff writes with %s CSRF',
+    async (state: string) => {
+      const harness = requireHarness();
+      const accepted = await harness.inject({
+        method: 'POST',
+        url: '/v1/schedule/publish',
+        headers: managerHeaders(),
+        payload: PUBLISH_BODY
+      });
+      expect(accepted.statusCode).toBe(201);
+      const before = await takeLogicalSnapshot(db);
+      const headers = managerHeaders(false);
+      if (state === 'invalid') {
+        headers['x-csrf-token'] = 'invalid-invalid-invalid-invalid';
+      }
+      const denied = await harness.inject({
+        method: 'POST',
+        url: '/v1/schedule/publish',
+        headers,
+        payload: {
+          ...PUBLISH_BODY,
+          idempotencyKey: 'schedule-schedule-schedule-schedule-schedule',
+          expectedVersion: 1
+        }
+      });
+      expect(denied.statusCode).toBe(401);
+      expect(await takeLogicalSnapshot(db)).toEqual(before);
+    }
+  );
 
   it.each([
     { disabled: true, refreshTokensRevoked: false },
