@@ -290,6 +290,40 @@ describe('accountless booking and return lookup HTTP', () => {
     return { harness: instance, patients };
   }
 
+  it.each([{ name: '   ' }, { phone: '++++++++' }])(
+    'rejects invalid intake %o before reserving a slot or creating a patient',
+    async (override) => {
+      const { harness, patients } = await start();
+      const payload = {
+        idempotencyKey: 'synthetic-identity-invalid',
+        slotId: 'slot_001',
+        serviceId: 'service_consult',
+        bookingKind: 'initial',
+        intake: { ...INTAKE, ...override }
+      };
+      const rejected = await harness.inject({
+        method: 'POST',
+        url: '/v1/bookings',
+        payload
+      });
+      expect(rejected.statusCode).toBe(400);
+      expect(patients.appointments).toHaveLength(0);
+      expect(patients.createdPatientCount).toBe(0);
+      expect(patients.patients.size).toBe(0);
+
+      const control = await harness.inject({
+        method: 'POST',
+        url: '/v1/bookings',
+        payload: {
+          ...payload,
+          idempotencyKey: 'synthetic-identity-control',
+          intake: INTAKE
+        }
+      });
+      expect(control.statusCode).toBe(201);
+    }
+  );
+
   it.each([
     ['--02-30', 400, 404],
     ['--04-31', 400, 404],
