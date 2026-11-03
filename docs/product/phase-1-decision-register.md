@@ -28,6 +28,10 @@
   channel `synthetic-review`、`--expires 30d`（到期 2026-12-03）。只發 preview channel，
   沒有發 live。手冊範例寫 7d，30d 是負責人這次指定。本條的配色修改是之後的新 commit，
   重新部署要另行核准。
+- 第二次部署：負責人 2026-11-03 核准「好，CI 綠了就發」，2026-11-04 發出。exact commit `e397e3bb`
+  （PR #393 當時的 head，CI 13 項全綠），其餘同上：project `beauessence-clinic-staging`、
+  channel `synthetic-review`、`--expires 30d`（Firebase 回報到期 2026-12-04）、operator Claude、approver
+  負責人，只發 preview channel。本段紀錄是部署後才提交的文件變更，不影響部署內容。
 
 ## 2026-11-02 官網淺色系加中間色帶（首頁與療程頁底色）
 
