@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   evaluateFirestoreIndexPlan,
@@ -54,6 +55,24 @@ describe('code -> matrix direction (B-44)', () => {
       entry('widgets', ['owner', 'createdAt'], false)
     );
     expect(issues).toHaveLength(1);
+    expect(issues[0]).toContain('composite:false');
+  });
+
+  it('characterizes duplicate composite flags as last-entry-wins', () => {
+    const text = `this.db.collection('widgets').where('owner','==',o).orderBy('createdAt')`;
+    const composite = {
+      ...entry('widgets', ['owner', 'createdAt'], true),
+      id: 'a'
+    };
+    const nonComposite = {
+      ...entry('widgets', ['owner', 'createdAt'], false),
+      id: 'b'
+    };
+
+    expect(issuesFor(text, nonComposite, composite)).toEqual([]);
+    const issues = issuesFor(text, composite, nonComposite);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toContain('widgets: owner, createdAt');
     expect(issues[0]).toContain('composite:false');
   });
 
@@ -210,6 +229,106 @@ describe('repository inventory', () => {
     expect(missing).toHaveLength(1);
     expect(missing[0]).toContain('calendar_pilot_mirrors');
     expect(missing[0]).toContain('sourceId, externalEventId');
+  });
+
+  it('characterizes the outbox worker collection alias boundary', () => {
+    const path = 'apps/worker/src/outbox-processor.ts';
+    const text = readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+    expect(text).toContain("export const OUTBOX_COLLECTION = 'outbox_jobs'");
+    const start = text.indexOf('private async dueCandidates(');
+    const end = text.indexOf('private async claim(', start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const method = text.slice(start, end);
+    const matrix = loadQueryIndexMatrix();
+    const sources = fixture(`class Repo { ${method} }`, path);
+    const unresolved = findUnlistedQueryShapes(sources, matrix);
+    expect(unresolved).toHaveLength(2);
+    expect(unresolved.every((issue) => issue.includes('Cannot resolve'))).toBe(
+      true
+    );
+
+    // Direct chains are an in-memory control, not a runtime replacement.
+    const alias = /\bcollection(?=\s*\.where\()/g;
+    expect([...method.matchAll(alias)]).toHaveLength(2);
+    const direct = fixture(
+      `class Repo { ${method.replace(alias, "this.db.collection('outbox_jobs')")} }`,
+      path
+    );
+    expect(findUnlistedQueryShapes(direct, matrix)).toEqual([]);
+    const withoutOwner = {
+      ...matrix,
+      queries: matrix.queries.filter(
+        (query) => query.id !== 'outbox-pending-due'
+      )
+    };
+    expect(findUnlistedQueryShapes(direct, withoutOwner)).toEqual([]);
+    const withoutShapes = {
+      ...matrix,
+      queries: matrix.queries.filter(
+        (query) =>
+          ![
+            'outbox-pending-due',
+            'outbox-queue-snapshot',
+            'monitoring-outbox-age',
+            'outbox-expired-lease'
+          ].includes(query.id)
+      )
+    };
+    const issues = findUnlistedQueryShapes(direct, withoutShapes);
+    expect(issues).toHaveLength(2);
+    expect(issues.join('\n')).toContain('status, nextAttemptAt');
+    expect(issues.join('\n')).toContain('status, leaseExpiresAt');
+  });
+
+  it('checks the activation generation query against the matrix', () => {
+    const path = 'apps/worker/src/calendar-sync/calendar-pilot-runtime.ts';
+    const text = readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+    const start = text.indexOf('private async hasUnfinishedActivation(');
+    const end = text.indexOf('public run(', start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const sources = fixture(`class Repo { ${text.slice(start, end)} }`, path);
+    const matrix = loadQueryIndexMatrix();
+    expect(findUnlistedQueryShapes(sources, matrix)).toEqual([]);
+    const trimmed = {
+      ...matrix,
+      queries: matrix.queries.filter(
+        (query) => query.id !== 'calendar-pilot-outbox-activation-generation'
+      )
+    };
+    const issues = findUnlistedQueryShapes(sources, trimmed);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toContain('calendar_pilot_outbox');
+    expect(issues[0]).toContain('kind, generation');
+  });
+
+  it('characterizes the patient query split across withinWindow', () => {
+    const path = 'apps/api/src/patients/patient-directory.ts';
+    const text = readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+    const pattern =
+      /withinWindow\(\s*(this\.db\.collection\('appointments'\)\.where\('patientId', '==', patientId\)),\s*window\s*\)(\s*\.orderBy\('startsAt', 'asc'\)\s*\.orderBy\('__name__', 'asc'\))/g;
+    const matches = [...text.matchAll(pattern)];
+    expect(matches).toHaveLength(1);
+    const [original, collection, ordering] = matches[0];
+    const matrix = loadQueryIndexMatrix();
+    const unresolved = findUnlistedQueryShapes(fixture(original, path), matrix);
+    expect(unresolved).toHaveLength(1);
+    expect(unresolved[0]).toContain('Cannot resolve');
+
+    // A direct in-memory chain is only a scanner control, not runtime code.
+    const direct = fixture(`${collection}${ordering}`, path);
+    expect(findUnlistedQueryShapes(direct, matrix)).toEqual([]);
+    const trimmed = {
+      ...matrix,
+      queries: matrix.queries.filter(
+        (query) => query.id !== 'appointments-by-patient'
+      )
+    };
+    const missing = findUnlistedQueryShapes(direct, trimmed);
+    expect(missing).toHaveLength(1);
+    expect(missing[0]).toContain('appointments');
+    expect(missing[0]).toContain('patientId, startsAt');
   });
 
   it('would fail if a real listed shape disappeared from the matrix', () => {
