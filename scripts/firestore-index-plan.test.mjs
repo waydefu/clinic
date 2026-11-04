@@ -213,6 +213,53 @@ describe('repository inventory', () => {
     expect(missing[0]).toContain('sourceId, externalEventId');
   });
 
+  it('characterizes the outbox worker collection alias boundary', () => {
+    const path = 'apps/worker/src/outbox-processor.ts';
+    const text = readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+    expect(text).toContain("export const OUTBOX_COLLECTION = 'outbox_jobs'");
+    const start = text.indexOf('private async dueCandidates(');
+    const end = text.indexOf('private async claim(', start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const method = text.slice(start, end);
+    const matrix = loadQueryIndexMatrix();
+    const sources = fixture(`class Repo { ${method} }`, path);
+    const unresolved = findUnlistedQueryShapes(sources, matrix);
+    expect(unresolved).toHaveLength(2);
+    expect(unresolved.every((issue) => issue.includes('Cannot resolve'))).toBe(
+      true
+    );
+
+    // Direct chains are an in-memory control, not a runtime replacement.
+    const alias = /\bcollection(?=\s*\.where\()/g;
+    expect([...method.matchAll(alias)]).toHaveLength(2);
+    const direct = fixture(
+      `class Repo { ${method.replace(alias, "this.db.collection('outbox_jobs')")} }`,
+      path
+    );
+    expect(findUnlistedQueryShapes(direct, matrix)).toEqual([]);
+    const withoutOwner = {
+      ...matrix,
+      queries: matrix.queries.filter(
+        (query) => query.id !== 'outbox-pending-due'
+      )
+    };
+    expect(findUnlistedQueryShapes(direct, withoutOwner)).toEqual([]);
+    const withoutShapes = {
+      ...matrix,
+      queries: matrix.queries.filter(
+        (query) =>
+          !['outbox-pending-due', 'outbox-queue-snapshot', 'outbox-expired-lease'].includes(
+            query.id
+          )
+      )
+    };
+    const issues = findUnlistedQueryShapes(direct, withoutShapes);
+    expect(issues).toHaveLength(2);
+    expect(issues.join('\n')).toContain('status, nextAttemptAt');
+    expect(issues.join('\n')).toContain('status, leaseExpiresAt');
+  });
+
   it('checks the activation generation query against the matrix', () => {
     const path = 'apps/worker/src/calendar-sync/calendar-pilot-runtime.ts';
     const text = readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
