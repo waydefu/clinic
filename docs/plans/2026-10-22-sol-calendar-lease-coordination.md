@@ -1,5 +1,10 @@
 # SOL-CALENDAR-LEASE：嚴格零派送的協調設計候選
 
+> **2026-11-04 授權更新：**負責人已核准 Gate 2 source 接線、Emulator 跨程序測試與 provider stub；
+> 見[決定登記](../product/phase-1-decision-register.md)。下文此前「Gate 2 未核准」為歷史狀態，
+> 不再適用；既有設計與尚未證明的限制保留。真實 Calendar 寫入僅限另核 C1 批次內的測試日曆，
+> 不授權正式日曆、真實資料、IAM 或部署。此授權不代表 source 接線或任何外部驗收已完成。
+
 日期：2026-10-22；更新：2026-10-30（Asia/Taipei）。狀態：**GATE-1-AUTHORIZED／Gate 1 合成來源項目已全數補齊、待 exact-head CI 與 Sol 審查（PROOF-INCOMPLETE）；GATE-2-BLOCKED-OWNER＋BLOCKED-EXTERNAL**。
 Packet：SOL-CALENDAR-LEASE；findingIDs：D-05、D-12。原始研究 base：`37c10796d5e8f05a2d7b63b4bda7b7d7e99c6746`。
 依據：[#268 保守方向](https://github.com/waydefu/clinic/pull/268#issuecomment-6322342715)、登記 PR #281，
@@ -80,6 +85,25 @@ Gate 1 只有在上述正例與拒絕／衝突案例都有 exact-head 合成執�
 | 正常同步與搬移交錯 | 已涵蓋 | 真實 worker 與搬移共用 egress 的壓力與順序證據 |
 
 以上全部 NOT_RUN 項目都需要負責人另核的 Gate 2，以及隔離的 provider packet；本 PR 不授權、不接入、不部署。
+
+## Gate 2 工作與 C1 證據分類（2026-11-04）
+
+此表是待施工與待驗清單；`SOURCE-NOT_PROVEN` 不表示現有來源已完成，
+`C1-NOT_RUN` 不表示僅靠 C1 就能補齊尚未實作的 source。每列需保留自己的驗證證據。
+
+| 項目 | Source／Emulator | 需另核 C1 或隔離環境證據 |
+| --- | --- | --- |
+| 排空後交接、quarantine | SOURCE-NOT_PROVEN：接入所有 dispatcher 與配置變更的共同邊界 | C1-NOT_RUN：唯一 egress、舊程序與網路能力隔離 |
+| 兩個 worker 競爭 | SOURCE-NOT_PROVEN：兩程序 Emulator 競爭與記錄開始時點的 provider stub | C1-NOT_RUN：真實多程序及 transport 隔離 |
+| 到期後零新派送 | SOURCE-NOT_PROVEN：接入開始時點與到期拒絕，不能用 snapshot 代替 | C1-NOT_RUN：單調時鐘、transport bound 與 safe margin 的環境證據 |
+| 續租與 source binding | SOURCE-NOT_PROVEN：durable 續租與 registry binding 接線、遺失回覆隔離 | C1-NOT_RUN：實際 registry authority 與回覆遺失行為 |
+| 有界搬移與冪等重播 | SOURCE-NOT_PROVEN：接入有界批次、穩定 identity 與共同 egress | C1-NOT_RUN：測試日曆的實際冪等性及 provider fencing 能力 |
+| 跨 binding 來源切換 | SOURCE-NOT_PROVEN：copy、切換與 cleanup 順序及拒絕案例 | C1-NOT_RUN：registry 變更、projection 與 provider 行為 |
+| cursor 持久化與重啟接續 | SOURCE-NOT_PROVEN：durable 非同步 CAS、fencing、cursor 與 crash 視窗 | C1-NOT_RUN：實際 store、重啟時新舊程序隔離 |
+| 正常同步與搬移交錯 | SOURCE-NOT_PROVEN：真實 worker 與搬移共用 egress 的順序與競爭測試 | C1-NOT_RUN：多程序壓力及真實 transport 順序 |
+
+C1 的各項由 Claude 排入另核批次；不得在本 source 授權下連接雲端或直接寫入 Calendar。
+合成 coordinator 與 stub 不證明 provider、實際隔離或零派送；在缺證據時保持 fail closed。
 
 ## 現有證據與未關閉的窗口
 
