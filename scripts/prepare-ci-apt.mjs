@@ -56,17 +56,26 @@ function prepareCiApt() {
     throw new Error('APT preparation requires an Ubuntu runner.');
   }
   const mirrorFile = '/etc/apt/apt-mirrors.txt';
-  const prepared = prioritizeUbuntuMirrors(readFileSync(mirrorFile, 'utf8'));
+  let prepared;
+  try {
+    prepared = prioritizeUbuntuMirrors(readFileSync(mirrorFile, 'utf8'));
+  } catch (error) {
+    // Older runner images ship a different mirror list; keep it untouched
+    // and still apply the acquire bounds below instead of failing the job.
+    console.warn(`CI APT: ${error.message} Mirror order left unchanged.`);
+  }
   const config = [...acquireBounds]
     .map(([key, value]) => `${key} "${value}";`)
     .join('\n');
 
   // Only these existing, signed Ubuntu sources are reprioritised. APT's
   // certificates, signature checks, keys and source definitions stay intact.
-  execFileSync('sudo', ['tee', mirrorFile], {
-    input: prepared,
-    stdio: ['pipe', 'ignore', 'pipe']
-  });
+  if (prepared !== undefined) {
+    execFileSync('sudo', ['tee', mirrorFile], {
+      input: prepared,
+      stdio: ['pipe', 'ignore', 'pipe']
+    });
+  }
   // APT loads parts in filename order; use a late leaf and verify the merged
   // result so an image override cannot silently restore the old waits.
   execFileSync('sudo', ['tee', '/etc/apt/apt.conf.d/zzz-clinic-acquire'], {
@@ -75,7 +84,9 @@ function prepareCiApt() {
   });
   const effective = execFileSync('apt-config', ['dump'], { encoding: 'utf8' });
   assertEffectiveAptBounds(effective);
-  console.log('CI APT: existing Ubuntu HTTPS archives prioritised.');
+  if (prepared !== undefined) {
+    console.log('CI APT: existing Ubuntu HTTPS archives prioritised.');
+  }
   console.log(config);
 }
 

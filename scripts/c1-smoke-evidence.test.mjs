@@ -35,6 +35,56 @@ describe('C1 smoke evidence evaluator', () => {
     });
   });
 
+  it('evaluates synthetic budget recommendations rather than fixed values', () => {
+    const syntheticRecs = {
+      ...recs,
+      budget: {
+        ...recs.budget,
+        proposedMonthlyAmount: 3000,
+        thresholds: [0.25, 0.75]
+      }
+    };
+    const evidence = passingEvidence({
+      budgetAmountTwd: 3000,
+      budgetThresholds: [0.25, 0.75, 1]
+    });
+    expect(evaluateC1Smoke(evidence, syntheticRecs)).toEqual({
+      ok: true,
+      issues: []
+    });
+    expect(
+      evaluateC1Smoke({ ...evidence, budgetAmountTwd: 2000 }, syntheticRecs)
+        .issues
+    ).toContain('C1 budget amount must be NT$3000.');
+    expect(
+      evaluateC1Smoke(
+        { ...evidence, budgetThresholds: [0.25, 1] },
+        syntheticRecs
+      ).issues
+    ).toContain('C1 budget must notify at 25/75.');
+  });
+
+  it('formats fractional percentage thresholds without floating-point artifacts', () => {
+    const syntheticRecs = {
+      ...recs,
+      budget: { ...recs.budget, thresholds: [0.29, 0.755] }
+    };
+    const result = evaluateC1Smoke(
+      passingEvidence({ budgetThresholds: [] }),
+      syntheticRecs
+    );
+    expect(result.issues).toContain('C1 budget must notify at 29/75.5.');
+  });
+
+  it('retains the current budget diagnostics for the current recommendations', () => {
+    const result = evaluateC1Smoke(
+      passingEvidence({ budgetAmountTwd: 0, budgetThresholds: [] }),
+      recs
+    );
+    expect(result.issues).toContain('C1 budget amount must be NT$2000.');
+    expect(result.issues).toContain('C1 budget must notify at 50/80/100.');
+  });
+
   it('rejects existing staging, excluded APIs, primitive IAM, and secret versions', () => {
     const staging = evaluateC1Smoke(
       passingEvidence({ projectId: 'beauessence-clinic-staging' }),

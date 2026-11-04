@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   evaluateFirestoreIndexPlan,
@@ -137,6 +138,9 @@ describe('repository inventory', () => {
     expect(paths).toContain(
       'apps/api/src/firestore/calendar-pilot.repository.ts'
     );
+    expect(paths).toContain(
+      'apps/worker/src/calendar-sync/calendar-pilot-activation.ts'
+    );
     expect(paths.some((path) => path.endsWith('.test.ts'))).toBe(false);
   });
 
@@ -150,6 +154,55 @@ describe('repository inventory', () => {
         indexes: loadFirestoreIndexes()
       }).ok
     ).toBe(true);
+  });
+
+  it('fails when the activation worker query is removed from the matrix', () => {
+    const matrix = loadQueryIndexMatrix();
+    const trimmed = {
+      ...matrix,
+      queries: matrix.queries.filter(
+        (query) => query.id !== 'calendar-pilot-appointments-confirmed-future'
+      )
+    };
+    const sources = loadQuerySources().filter((source) =>
+      source.path.endsWith('/calendar-pilot-activation.ts')
+    );
+    expect(sources).toHaveLength(1);
+    expect(findUnlistedQueryShapes(sources, matrix)).toEqual([]);
+    const issues = findUnlistedQueryShapes(sources, trimmed);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toContain('calendar_pilot_appointments');
+    expect(issues[0]).toContain('status, startsAt');
+  });
+
+  it('documents the unscanned mirror worker collection-constant boundary', () => {
+    const path =
+      'apps/worker/src/calendar-sync/firestore-calendar-sync.repository.ts';
+    const text = readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+    const matrix = loadQueryIndexMatrix();
+    const issues = findUnlistedQueryShapes([{ path, text }], matrix);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toContain('Cannot resolve');
+    expect(issues[0]).toContain(path);
+
+    // Only this in-memory copy substitutes the local collection constant.
+    const literalText = text.replace(
+      '.collection(MIRRORS)',
+      ".collection('calendar_pilot_mirrors')"
+    );
+    expect(literalText).not.toBe(text);
+    const literalSource = [{ path, text: literalText }];
+    expect(findUnlistedQueryShapes(literalSource, matrix)).toEqual([]);
+    const trimmed = {
+      ...matrix,
+      queries: matrix.queries.filter(
+        (query) => query.id !== 'calendar-mirrors-external-event'
+      )
+    };
+    const missing = findUnlistedQueryShapes(literalSource, trimmed);
+    expect(missing).toHaveLength(1);
+    expect(missing[0]).toContain('calendar_pilot_mirrors');
+    expect(missing[0]).toContain('sourceId, externalEventId');
   });
 
   it('would fail if a real listed shape disappeared from the matrix', () => {
