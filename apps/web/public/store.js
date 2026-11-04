@@ -31,12 +31,6 @@ import {
   validateSchedule
 } from './modules/schedule-engine.js';
 import {
-  cancelPatientAppointment,
-  lookupPatientAppointments,
-  managedAppointmentSummary,
-  reschedulePatientAppointment
-} from './modules/patient-booking-management.js';
-import {
   initialState,
   loadState,
   resetState,
@@ -170,26 +164,26 @@ export async function stagingRequest(path, options = {}) {
     return workspaceState(loadState());
   if (method !== 'POST') throw new Error('線上合成預覽只允許 GET 與 POST。');
 
-  const state = loadState();
-  const body = parseBody(options);
-  if (path === '/schedule/draft' || path === '/schedule/discard') {
-    const { editDraft } = await import('./modules/schedule-draft.js');
-    return editDraft(state, path, body, snapshotState);
-  }
-
-  // 查詢是 read-only POST：雙欄位驗證資料放在 body，避免出現在 URL／歷史紀錄；
-  // 找到或找不到都不呼叫 saveState。
-  if (path === '/patient/bookings/lookup')
-    return {
-      appointments: lookupPatientAppointments(state, body).map(
-        managedAppointmentSummary
-      )
-    };
   const selfManage =
     /^\/patient\/bookings\/([A-Za-z0-9_-]+)\/self-(cancel|reschedule)$/.exec(
       path
     );
-  if (selfManage !== null) {
+  if (path === '/patient/bookings/lookup' || selfManage !== null) {
+    const {
+      cancelPatientAppointment,
+      lookupPatientAppointments,
+      managedAppointmentSummary,
+      reschedulePatientAppointment
+    } = await import('./modules/patient-booking-management.js');
+    const state = loadState();
+    const body = parseBody(options);
+    // Read-only lookup keeps verification in the body and never saves state.
+    if (selfManage === null)
+      return {
+        appointments: lookupPatientAppointments(state, body).map(
+          managedAppointmentSummary
+        )
+      };
     const appointment =
       selfManage[2] === 'cancel'
         ? cancelPatientAppointment(
@@ -212,6 +206,13 @@ export async function stagingRequest(path, options = {}) {
       appointment: managedAppointmentSummary(appointment),
       state: snapshotState(state)
     };
+  }
+
+  const state = loadState();
+  const body = parseBody(options);
+  if (path === '/schedule/draft' || path === '/schedule/discard') {
+    const { editDraft } = await import('./modules/schedule-draft.js');
+    return editDraft(state, path, body, snapshotState);
   }
 
   if (path === '/reset') {

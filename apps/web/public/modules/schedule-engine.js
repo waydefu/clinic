@@ -127,8 +127,12 @@ export function followUpDueTimes(schedule, date) {
   return localize(() => followUpGridTimes(schedule, date));
 }
 
-export function scheduleImpact(appointments, candidateSlots) {
-  return domainScheduleImpact(appointments, candidateSlots);
+export function scheduleImpact(
+  appointments,
+  candidateSlots,
+  requestedAt = new Date().toISOString()
+) {
+  return domainScheduleImpact(appointments, candidateSlots, requestedAt);
 }
 
 /**

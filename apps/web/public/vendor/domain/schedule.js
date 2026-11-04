@@ -62,7 +62,7 @@ export function isValidLocalDate(value) {
     return (month >= 1 && month <= 12 && day >= 1 && day <= daysInMonth[month - 1]);
 }
 /** 尚未結束、仍佔著時段的預約狀態。 */
-const OPEN_APPOINTMENT_STATUSES = ['confirmed', 'cancellation_requested'];
+const OPEN_APPOINTMENT_STATUSES = ['confirmed', 'cancellation_requested', 'arrived'];
 // A defensive array check that returns a plain boolean. `Array.isArray` is a
 // `x is any[]` type guard, so using it on an already-typed `readonly T[]`
 // narrows the element type to `any` and poisons everything downstream. These
@@ -277,9 +277,12 @@ export function followUpGridTimes(schedule, date) {
  * 哪些尚未結束的預約會被一份候選排班孤立——它們的那一格在新排班裡不存在。
  * 發布前必須先處理這些預約，否則患者手上有一筆約不到任何時段的預約。
  */
-export function scheduleImpact(appointments, candidateSlots) {
+export function scheduleImpact(appointments, candidateSlots, requestedAt) {
     const ids = new Set(candidateSlots.map((slot) => slot.id));
+    const today = taipeiCalendarDate(requestedAt);
     return appointments.filter((appointment) => OPEN_APPOINTMENT_STATUSES.includes(appointment.status) &&
+        (appointment.startsAt === undefined ||
+            taipeiCalendarDate(appointment.startsAt) >= today) &&
         !ids.has(appointment.slotId));
 }
 /**
@@ -313,7 +316,7 @@ export function planSchedulePublication(request, current, existingSlots, appoint
     assertScheduleValid(request.draft);
     assertScheduleVersionMatches(request.expectedVersion, current);
     const slots = planSlots(request.draft, existingSlots, request.slotGeneration);
-    const orphaned = scheduleImpact(appointments, slots);
+    const orphaned = scheduleImpact(appointments, slots, request.requestedAt);
     if (orphaned.length > 0) {
         throw new DomainError('SCHEDULE_ORPHANS_APPOINTMENTS', `Publishing would leave ${orphaned.length} open appointment(s) without a slot.`);
     }

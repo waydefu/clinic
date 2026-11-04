@@ -102,6 +102,25 @@ describe('code -> matrix direction (B-44)', () => {
     expect(issues.join('\n')).toContain('widgets');
   });
 
+  it('resolves only unambiguous top-level literal collection constants', () => {
+    const query = `this.db.collection(COLLECTION).where('a','==',1).orderBy('b')`;
+    const listed = entry('widgets', ['a', 'b'], true);
+    expect(issuesFor(`const COLLECTION = 'widgets'; ${query}`, listed)).toEqual(
+      []
+    );
+    expect(issuesFor(`const COLLECTION = 'widgets'; ${query}`)).toHaveLength(1);
+    for (const prefix of [
+      `let COLLECTION = 'widgets';`,
+      `const COLLECTION = 'widgets'; function f(COLLECTION) { ${query} }`,
+      `const COLLECTION = 'widgets'; { const COLLECTION = 'other'; ${query} }`,
+      `const COLLECTION = 'widgets'; COLLECTION = 'other';`
+    ]) {
+      expect(issuesFor(`${prefix} ${query}`, listed).join('\n')).toContain(
+        'Cannot resolve'
+      );
+    }
+  });
+
   it('fails closed when a multi-field chain cannot be analysed', () => {
     const unresolved = issuesFor(
       `this.db.collection(somewhereElse.name).where('a','==',1).orderBy('b')`
@@ -137,6 +156,9 @@ describe('repository inventory', () => {
     expect(paths).toContain(
       'apps/api/src/firestore/calendar-pilot.repository.ts'
     );
+    expect(paths).toContain(
+      'apps/worker/src/calendar-sync/calendar-pilot-activation.ts'
+    );
     expect(paths.some((path) => path.endsWith('.test.ts'))).toBe(false);
   });
 
@@ -150,6 +172,44 @@ describe('repository inventory', () => {
         indexes: loadFirestoreIndexes()
       }).ok
     ).toBe(true);
+  });
+
+  it('fails when the activation worker query is removed from the matrix', () => {
+    const matrix = loadQueryIndexMatrix();
+    const trimmed = {
+      ...matrix,
+      queries: matrix.queries.filter(
+        (query) => query.id !== 'calendar-pilot-appointments-confirmed-future'
+      )
+    };
+    const sources = loadQuerySources().filter((source) =>
+      source.path.endsWith('/calendar-pilot-activation.ts')
+    );
+    expect(sources).toHaveLength(1);
+    expect(findUnlistedQueryShapes(sources, matrix)).toEqual([]);
+    const issues = findUnlistedQueryShapes(sources, trimmed);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toContain('calendar_pilot_appointments');
+    expect(issues[0]).toContain('status, startsAt');
+  });
+
+  it('scans the real mirror worker query against the matrix', () => {
+    const path =
+      'apps/worker/src/calendar-sync/firestore-calendar-sync.repository.ts';
+    const sources = loadQuerySources().filter((source) => source.path === path);
+    expect(sources).toHaveLength(1);
+    const matrix = loadQueryIndexMatrix();
+    expect(findUnlistedQueryShapes(sources, matrix)).toEqual([]);
+    const trimmed = {
+      ...matrix,
+      queries: matrix.queries.filter(
+        (query) => query.id !== 'calendar-mirrors-external-event'
+      )
+    };
+    const missing = findUnlistedQueryShapes(sources, trimmed);
+    expect(missing).toHaveLength(1);
+    expect(missing[0]).toContain('calendar_pilot_mirrors');
+    expect(missing[0]).toContain('sourceId, externalEventId');
   });
 
   it('would fail if a real listed shape disappeared from the matrix', () => {
