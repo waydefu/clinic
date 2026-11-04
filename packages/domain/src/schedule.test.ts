@@ -420,11 +420,9 @@ describe('scheduleImpact and assertScheduleVersionMatches', () => {
       },
       { ...base, id: 'missing-date' }
     ];
-    expect(scheduleImpact(appointments, [], now).map((item) => item.id)).toEqual([
-      'today-arrived',
-      'tomorrow-confirmed',
-      'missing-date'
-    ]);
+    expect(
+      scheduleImpact(appointments, [], now).map((item) => item.id)
+    ).toEqual(['today-arrived', 'tomorrow-confirmed', 'missing-date']);
   });
 
   it('accepts a matching version and rejects a stale one', () => {

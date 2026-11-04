@@ -88,7 +88,9 @@ export class FirestoreScheduleRepository implements ScheduleRepositoryPort {
             id: parsed.id,
             slotId: parsed.slotId,
             status: parsed.status,
-            ...(parsed.startsAt === undefined ? {} : { startsAt: parsed.startsAt })
+            ...(parsed.startsAt === undefined
+              ? {}
+              : { startsAt: parsed.startsAt })
           };
         });
 
