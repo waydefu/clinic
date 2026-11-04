@@ -191,6 +191,7 @@ export async function claimCalendarPilotJobs(
 
 interface PilotLeaseContext extends CalendarPilotWorkerLease {
   readonly document?: DocumentSnapshot;
+  readonly dispatch: { pending: number };
 }
 
 interface StoredAppointment {
@@ -529,10 +530,17 @@ export class CalendarPilotRuntime {
       const beforeDispatch = await this.withLease(lease);
       // Even the transaction reply may arrive after the checked deadline.
       beforeDispatch();
-      const response = await fetch(input, init);
-      const afterResponse = await this.withLease(lease);
-      afterResponse();
-      return response;
+      lease.dispatch.pending += 1;
+      try {
+        const response = await fetch(input, init);
+        const afterResponse = await this.withLease(lease);
+        afterResponse();
+        lease.dispatch.pending -= 1;
+        return response;
+      } catch {
+        // An unknown transport outcome must not release this owner for reuse.
+        throw new CalendarPilotLeaseLostError();
+      }
     };
   }
 
@@ -599,13 +607,12 @@ export class CalendarPilotRuntime {
         configuration['outboundEnabled'] !== true
       )
         return undefined;
-      const leaseExpiresAt = configuration['workerLeaseExpiresAt'];
+      // Expiry alone cannot prove that the previous dispatcher has stopped.
       if (
-        leaseExpiresAt !== undefined &&
-        leaseExpiresAt !== null &&
-        (typeof leaseExpiresAt !== 'string' ||
-          !isUtcIsoTimestamp(leaseExpiresAt) ||
-          Date.parse(leaseExpiresAt) > Date.parse(now))
+        (configuration.workerLeaseOwner !== null &&
+          configuration.workerLeaseOwner !== undefined) ||
+        (configuration.workerLeaseExpiresAt !== null &&
+          configuration.workerLeaseExpiresAt !== undefined)
       )
         return undefined;
       const version = configuration['version'];
@@ -921,7 +928,12 @@ export class CalendarPilotRuntime {
     const generation = await this.acquire(owner, now);
     if (generation === undefined)
       return { acquired: false, processedJobs: 0, failedJobs: 0 };
-    const lease: PilotLeaseContext = { owner, generation, now: this.clock };
+    const lease: PilotLeaseContext = {
+      owner,
+      generation,
+      now: this.clock,
+      dispatch: { pending: 0 }
+    };
     let processedJobs = 0;
     let failedJobs = 0;
     let activationInProgress = false;
@@ -1000,7 +1012,7 @@ export class CalendarPilotRuntime {
       }
       return { acquired: true, processedJobs, failedJobs, sync };
     } finally {
-      await this.release(owner);
+      if (lease.dispatch.pending === 0) await this.release(owner);
     }
   }
 }

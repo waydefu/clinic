@@ -55,7 +55,7 @@ describe('calendar pilot preflight fresh clock admission', () => {
       .spyOn(GoogleCalendarEventWriter.prototype, 'verifyWriteAccess')
       .mockResolvedValue(undefined);
     const clock = vi.fn(() => now).mockReturnValueOnce('2028-02-29T00:00:00Z');
-    const lease = { owner, generation: 0, now: clock };
+    const lease = { owner, generation: 0, now: clock, dispatch: { pending: 0 } };
     const runtime = new CalendarPilotRuntime(db, {
       CALENDAR_PILOT_RUNTIME_MODE: 'C1_SYNTHETIC_ADC',
       GOOGLE_CLOUD_PROJECT: 'beauessence-clinic-stg-c1a01',

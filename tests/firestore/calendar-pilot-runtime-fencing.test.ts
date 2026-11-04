@@ -161,6 +161,45 @@ afterAll(async () => {
 });
 
 describe('CAL-PILOT dispatch and completion use live lease state', () => {
+  it('does not reclaim an expired owner without proof it stopped', async () => {
+    await configuration().update({
+      workerLeaseOwner: 'previous-worker',
+      workerLeaseExpiresAt: '2026-08-31T23:59:59.000Z'
+    });
+
+    await expect(run()).resolves.toMatchObject({ acquired: false });
+    expect(dispatch).not.toHaveBeenCalled();
+    expect((await configuration().get()).data()).toMatchObject({
+      workerLeaseOwner: 'previous-worker'
+    });
+    expect(await state('job_a')).toMatchObject({ status: 'pending' });
+  });
+
+  it('keeps the owner after an unknown transport outcome and denies takeover', async () => {
+    dispatch.mockRejectedValue(new Error('synthetic transport failure'));
+
+    await expect(run()).rejects.toThrow(/lease/iu);
+    const quarantined = (await configuration().get()).data();
+    expect(quarantined?.['workerLeaseOwner']).toEqual(expect.any(String));
+    expect(await state('job_a')).toMatchObject({ status: 'processing' });
+    expect(dispatch).toHaveBeenCalledTimes(1);
+
+    clock = '2026-09-01T00:05:00.000Z';
+    const successor = new CalendarPilotRuntime(
+      db,
+      environment,
+      now,
+      syntheticOpenMaintenanceControl()
+    );
+    await expect(successor.run(clock)).resolves.toMatchObject({
+      acquired: false
+    });
+    expect((await configuration().get()).data()).toMatchObject({
+      workerLeaseOwner: quarantined?.['workerLeaseOwner']
+    });
+    expect(dispatch).toHaveBeenCalledTimes(1);
+  });
+
   it('serializes concurrent complete runs behind the global lease', async () => {
     let releaseToken = () => {};
     let signalToken = () => {};
