@@ -18,6 +18,11 @@
   米白卡底不變。
 - 沒改的：症狀選單「已選」的那一顆維持深綠實心，那是目前選了哪一項的狀態提示；鍵盤才會出現的
   「跳至主要內容」維持深綠；社群圖示維持品牌色；預約頁（`/booking`）是另一套樣式，不在此列。
+- 部署紀錄（依[合成資料線上預覽操作手冊](../runbooks/synthetic-online-preview.md)）：負責人
+  2026-11-04 核准「部署」。exact commit `0b9ce4f5`（PR #393 當時的 head，CI 13 項全綠）、
+  project `beauessence-clinic-staging`、channel `synthetic-review`、`--expires 30d`
+  （Firebase 回報到期 2026-12-04）、operator Claude、approver 負責人，只發 preview channel。
+  本段紀錄是部署後才提交的文件變更，不影響部署內容。
 
 ## 2026-11-04 官網背景不用單色（療程頁內文鋪背景圖、首頁 FAQ 改漸層）
 
