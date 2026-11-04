@@ -58,6 +58,24 @@ describe('code -> matrix direction (B-44)', () => {
     expect(issues[0]).toContain('composite:false');
   });
 
+  it('characterizes duplicate composite flags as last-entry-wins', () => {
+    const text = `this.db.collection('widgets').where('owner','==',o).orderBy('createdAt')`;
+    const composite = {
+      ...entry('widgets', ['owner', 'createdAt'], true),
+      id: 'a'
+    };
+    const nonComposite = {
+      ...entry('widgets', ['owner', 'createdAt'], false),
+      id: 'b'
+    };
+
+    expect(issuesFor(text, nonComposite, composite)).toEqual([]);
+    const issues = issuesFor(text, composite, nonComposite);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toContain('widgets: owner, createdAt');
+    expect(issues[0]).toContain('composite:false');
+  });
+
   it('requires a listing for equality-only multi-field queries, either flag', () => {
     const text = `this.db.collection('widgets').where('a','==',1).where('b','==',2)`;
     expect(issuesFor(text)).toHaveLength(1);
