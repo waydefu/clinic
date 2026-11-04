@@ -108,9 +108,11 @@ describe('code -> matrix direction (B-44)', () => {
     expect(issuesFor(`const COLLECTION = 'widgets'; ${query}`, listed)).toEqual(
       []
     );
+    expect(issuesFor(`const COLLECTION = 'widgets'; ${query}`)).toHaveLength(1);
     for (const prefix of [
       `let COLLECTION = 'widgets';`,
       `const COLLECTION = 'widgets'; function f(COLLECTION) { ${query} }`,
+      `const COLLECTION = 'widgets'; { const COLLECTION = 'other'; ${query} }`,
       `const COLLECTION = 'widgets'; COLLECTION = 'other';`
     ]) {
       expect(issuesFor(`${prefix} ${query}`, listed).join('\n')).toContain(
