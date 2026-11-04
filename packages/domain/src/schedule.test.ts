@@ -376,12 +376,53 @@ describe('scheduleImpact and assertScheduleVersionMatches', () => {
       scheduleImpact(
         [
           { id: 'a', slotId: kept, status: 'confirmed' },
-          { id: 'b', slotId: 'slot_19990101_0900', status: 'confirmed' },
-          { id: 'c', slotId: 'slot_19990101_0900', status: 'completed' }
+          {
+            id: 'b',
+            slotId: 'slot_19990101_0900',
+            status: 'confirmed',
+            startsAt: '1999-01-01T01:00:00.000Z'
+          },
+          { id: 'c', slotId: 'slot_19990101_0900', status: 'completed' },
+          {
+            id: 'd',
+            slotId: 'slot_19990101_0900',
+            status: 'arrived',
+            startsAt: '1999-01-01T01:00:00.000Z'
+          }
         ],
-        slots
+        slots,
+        '1998-12-31T16:00:00.000Z'
       ).map((item) => item.id)
-    ).toEqual(['b']);
+    ).toEqual(['b', 'd']);
+  });
+
+  it('uses Taipei calendar days and keeps unknown dates fail-closed', () => {
+    const now = '2030-01-01T16:00:00.000Z';
+    const base = { slotId: 'slot_missing', status: 'confirmed' };
+    const appointments = [
+      { ...base, id: 'past-confirmed', startsAt: '2030-01-01T15:59:00.000Z' },
+      {
+        ...base,
+        id: 'past-arrived',
+        status: 'arrived',
+        startsAt: '2030-01-01T15:59:00.000Z'
+      },
+      {
+        ...base,
+        id: 'today-arrived',
+        status: 'arrived',
+        startsAt: '2030-01-01T16:00:00.000Z'
+      },
+      {
+        ...base,
+        id: 'tomorrow-confirmed',
+        startsAt: '2030-01-02T16:00:00.000Z'
+      },
+      { ...base, id: 'missing-date' }
+    ];
+    expect(
+      scheduleImpact(appointments, [], now).map((item) => item.id)
+    ).toEqual(['today-arrived', 'tomorrow-confirmed', 'missing-date']);
   });
 
   it('accepts a matching version and rejects a stale one', () => {
