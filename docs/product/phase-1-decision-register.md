@@ -1,5 +1,19 @@
 # Phase 1 Decision Register
 
+## 2026-11-04：INGRESS K6 與 LIST 清單契約
+
+決策人：負責人；Claude 轉達負責人原話「都照建議」。未另提供 approval ID，不另造。
+此處記錄方向與後續來源工作，不宣稱兩包完成，也不授權部署、真實資料或雲端操作。
+
+- **INGRESS K6**：IPv6 限流身分維持使用完整位址，不以 `/64` 分組。
+  後續 source 工作核對實作與正反測試，不將 IP 當作身分保證。
+- **LIST K7／C07／E4-24**：員工預約清單每頁最多 50 筆，以 cursor 續載；
+  尚未載完時顯示「至少 N 筆」。沿用 [#369](https://github.com/waydefu/clinic/pull/369)
+  介面，另補連續超過 1,000 筆封存資料時提前結束且沒有 cursor 的存取缺口。
+- **順序**：Gate 2 下一片先處理卡住 lease owner 的安全復原；上述 source 工作
+  排在 Gate 2 接線之後，或在不衝突時另開 PR。復原須有明確條件與紀錄，
+  不能只靠到期時間。任何外部操作或實測仍須另行明確授權。
+
 ## 2026-11-04：SOL-CALENDAR-LEASE Gate 2 核准
 
 決策人：負責人；Claude 轉達負責人原話「核准 Gate2」。未另提供 approval ID，不另造。
