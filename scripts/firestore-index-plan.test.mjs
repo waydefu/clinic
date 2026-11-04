@@ -252,6 +252,7 @@ describe('repository inventory', () => {
           ![
             'outbox-pending-due',
             'outbox-queue-snapshot',
+            'monitoring-outbox-age',
             'outbox-expired-lease'
           ].includes(query.id)
       )
