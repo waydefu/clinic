@@ -91,13 +91,23 @@ export function evaluateC1Smoke(evidence, recs) {
     issues.push('C1 secret containers must have zero versions.');
   }
   if (evidence.budgetAmountTwd !== recs.budget.proposedMonthlyAmount) {
-    issues.push('C1 budget amount must be NT$2000.');
+    issues.push(
+      `C1 budget amount must be NT$${recs.budget.proposedMonthlyAmount}.`
+    );
   }
   const thresholds = Array.isArray(evidence.budgetThresholds)
     ? evidence.budgetThresholds
     : [];
   if (!recs.budget.thresholds.every((value) => thresholds.includes(value))) {
-    issues.push('C1 budget must notify at 50/80/100.');
+    const percent = new Intl.NumberFormat('en-US', {
+      style: 'percent',
+      maximumFractionDigits: 20,
+      useGrouping: false
+    });
+    const required = recs.budget.thresholds
+      .map((value) => percent.format(value).replace('%', ''))
+      .join('/');
+    issues.push(`C1 budget must notify at ${required}.`);
   }
   if (evidence.billingDetached !== false) {
     issues.push('C1 must record billingDetached=false (no auto-detach).');

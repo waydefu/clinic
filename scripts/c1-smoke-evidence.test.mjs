@@ -64,6 +64,18 @@ describe('C1 smoke evidence evaluator', () => {
     ).toContain('C1 budget must notify at 25/75.');
   });
 
+  it('formats fractional percentage thresholds without floating-point artifacts', () => {
+    const syntheticRecs = {
+      ...recs,
+      budget: { ...recs.budget, thresholds: [0.29, 0.755] }
+    };
+    const result = evaluateC1Smoke(
+      passingEvidence({ budgetThresholds: [] }),
+      syntheticRecs
+    );
+    expect(result.issues).toContain('C1 budget must notify at 29/75.5.');
+  });
+
   it('retains the current budget diagnostics for the current recommendations', () => {
     const result = evaluateC1Smoke(
       passingEvidence({ budgetAmountTwd: 0, budgetThresholds: [] }),
