@@ -156,13 +156,14 @@ function publishRequest(input: {
   readonly draft: Schedule;
   readonly expectedVersion: number;
   readonly key: string;
+  readonly requestedAt?: string;
 }) {
   return {
     draft: input.draft,
     expectedVersion: input.expectedVersion,
     slotGeneration: SLOT_GENERATION,
     audit,
-    requestedAt: REQUESTED_AT,
+    requestedAt: input.requestedAt ?? REQUESTED_AT,
     idempotency: publishScheduleIdempotency({
       key: input.key,
       actorId: audit.actorId,
@@ -323,6 +324,41 @@ describe('publishing a schedule while a booking is created (AUD-02)', () => {
     expect(await publishedVersion()).toBe(1);
     expect((await schedules.readPublished()).schedule).toEqual(schedule);
   });
+
+  it.each([
+    { status: 'arrived', now: '2030-01-02T16:00:00.000Z', blocked: false },
+    { status: 'confirmed', now: '2030-01-02T16:00:00.000Z', blocked: false },
+    { status: 'arrived', now: '2030-01-01T16:00:00.000Z', blocked: true },
+    { status: 'confirmed', now: '2029-12-31T16:00:00.000Z', blocked: true }
+  ])(
+    'applies the Taipei date boundary for $status at $now',
+    async ({ status, now, blocked }) => {
+      await publishFirstSchedule();
+      const booking = bookingRequest();
+      await bookings.reserve(booking);
+      const appointmentRef = db
+        .collection(COLLECTIONS.appointments)
+        .doc(booking.appointmentId);
+      await appointmentRef.update({ status });
+      const request = publishRequest({
+        draft: EMPTY_SCHEDULE,
+        expectedVersion: 1,
+        key: 'schedule-publish-day-boundary',
+        requestedAt: now
+      });
+      if (blocked) {
+        await expect(schedules.publish(request)).rejects.toMatchObject({
+          code: 'SCHEDULE_ORPHANS_APPOINTMENTS'
+        });
+        expect(await publishedVersion()).toBe(1);
+      } else {
+        await expect(schedules.publish(request)).resolves.toMatchObject({
+          publishedVersion: 2
+        });
+      }
+      expect((await appointmentRef.get()).data()?.['status']).toBe(status);
+    }
+  );
 
   it('refuses a publication that orphans a booking created after its first read', async () => {
     await publishFirstSchedule();

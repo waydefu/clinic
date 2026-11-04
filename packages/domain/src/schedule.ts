@@ -127,6 +127,7 @@ export interface ScheduledAppointmentSnapshot {
   readonly id: string;
   readonly slotId: string;
   readonly status: string;
+  readonly startsAt?: string;
 }
 
 export interface SchedulePublicationRequest {
@@ -470,12 +471,16 @@ export function followUpGridTimes(
  */
 export function scheduleImpact<T extends ScheduledAppointmentSnapshot>(
   appointments: readonly T[],
-  candidateSlots: readonly SlotSnapshot[]
+  candidateSlots: readonly SlotSnapshot[],
+  requestedAt: string
 ): T[] {
   const ids = new Set(candidateSlots.map((slot) => slot.id));
+  const today = taipeiCalendarDate(requestedAt);
   return appointments.filter(
     (appointment) =>
       OPEN_APPOINTMENT_STATUSES.includes(appointment.status) &&
+      (appointment.startsAt === undefined ||
+        taipeiCalendarDate(appointment.startsAt) >= today) &&
       !ids.has(appointment.slotId)
   );
 }
@@ -525,7 +530,7 @@ export function planSchedulePublication(
   assertScheduleVersionMatches(request.expectedVersion, current);
 
   const slots = planSlots(request.draft, existingSlots, request.slotGeneration);
-  const orphaned = scheduleImpact(appointments, slots);
+  const orphaned = scheduleImpact(appointments, slots, request.requestedAt);
   if (orphaned.length > 0) {
     throw new DomainError(
       'SCHEDULE_ORPHANS_APPOINTMENTS',
