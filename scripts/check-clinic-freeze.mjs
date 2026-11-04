@@ -61,6 +61,8 @@ import { fileURLToPath } from 'node:url';
  * doctor photos half the card and enlarges inner-page desktop prose to text-md.
  * 2026-11-04: the owner said "背景不要單色" (register 2026-11-04 entry): the
  * treatment body reuses soft-green-bg and the home FAQ gets a gradient.
+ * 2026-11-04: the owner said "按鈕都改成淺綠色框白底" (register 2026-11-04 button
+ * entry): buttons and pill links become white with a sage-300 border.
  */
 export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic.html':
@@ -68,7 +70,7 @@ export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic-site.js':
     '47c72142a9f01815df8d228ae28963c72b6c899260ff748eb07e961ca8aa717b',
   'apps/web/public/clinic-site.css':
-    '6cc15211ae11fac22adf812279a34497a4a67665733145ba97dddcf909d5b692',
+    '153af1a660391574561c551360fa6914b3d7eaf987f5711b1bd9631d8c032d92',
   'apps/web/public/clinic-content.js':
     '64b434c15c942ac2f183a3b177c89e431d38d502c24727aefb3d836dba8006c4',
   'apps/web/public/clinic-booking.css':

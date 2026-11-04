@@ -448,26 +448,32 @@ a {
     transform var(--clinic-duration-effect-swift) var(--clinic-ease-out);
 }
 
+/* 按鈕一律淺綠框白底（2026-11-04 負責人：「按鈕都改成淺綠色框白底」）。 */
+.clinic-header__booking,
+.clinic-button--primary,
+.clinic-button--outline {
+  color: var(--clinic-forest);
+  background: var(--clinic-white);
+  border-color: var(--clinic-sage-300);
+}
+
+.clinic-header__booking:hover,
+.clinic-button--primary:hover,
+.clinic-button--outline:hover {
+  background: var(--clinic-sage-50);
+  border-color: var(--clinic-green);
+  transform: translateY(-0.1rem);
+}
+
+/* 主要按鈕框加深加粗，和次要按鈕分出主次（負責人選「主要按鈕框加深」）。 */
 .clinic-header__booking,
 .clinic-button--primary {
-  color: var(--clinic-white);
-  background: var(--clinic-forest);
+  border: 2px solid var(--clinic-green);
 }
 
 .clinic-header__booking:hover,
 .clinic-button--primary:hover {
-  background: var(--clinic-forest-deep);
-  transform: translateY(-0.1rem);
-}
-
-.clinic-button--outline {
-  color: var(--clinic-forest);
   border-color: var(--clinic-forest);
-}
-
-.clinic-button--outline:hover {
-  color: var(--clinic-white);
-  background: var(--clinic-forest);
 }
 
 /* 首屏實用資訊。手機上「門診時間與交通」原本在 y≈6240px（約 11 個畫面之後），
@@ -1394,12 +1400,6 @@ body:not(:has(.clinic-noscript)) #clinic-main {
 
 .clinic-medical-note h2 {
   margin-top: 0;
-}
-
-/* 帶 a 是為了蓋過檔尾 .clinic-text-link:hover 的半透明底，否則白字在 hover 時會消失。 */
-.clinic-medical-note a.clinic-text-link {
-  color: var(--clinic-white);
-  background: var(--clinic-forest);
 }
 
 .clinic-medical-note p:not(.clinic-eyebrow) {
@@ -2448,7 +2448,7 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   padding: 1rem;
   color: var(--clinic-forest-deep);
   background: var(--clinic-white);
-  border: 1px solid var(--clinic-line);
+  border: 1px solid var(--clinic-sage-300);
   border-radius: var(--clinic-radius-lg);
   font-weight: var(--clinic-weight-bold);
   text-align: left;
@@ -3536,8 +3536,9 @@ body:not(:has(.clinic-noscript)) #clinic-main {
 .clinic-footer a,
 .clinic-text-link {
   padding: 0.25rem 0.75rem;
-  background-color: color-mix(in srgb, currentColor 7%, transparent);
-  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  /* 2026-11-04 起和按鈕一樣是淺綠框白底。 */
+  background-color: var(--clinic-white);
+  border: 1px solid var(--clinic-sage-300);
   /* 地址在窄欄會折成兩行，全圓角折行後兩端變形，所以用中等圓角。 */
   border-radius: var(--clinic-radius-md);
   text-decoration: none;
@@ -3549,7 +3550,7 @@ body:not(:has(.clinic-noscript)) #clinic-main {
 .clinic-visit__facts dd > a:not(.clinic-text-link):hover,
 .clinic-footer a:hover,
 .clinic-text-link:hover {
-  background-color: color-mix(in srgb, currentColor 14%, transparent);
+  background-color: var(--clinic-sage-50);
 }
 
 /* 純色區塊改成柔和漸層（2026-10-25，負責人：「單色背景看要不做點漸層」）。每區保留
