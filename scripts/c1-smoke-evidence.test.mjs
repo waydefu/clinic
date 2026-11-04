@@ -35,6 +35,37 @@ describe('C1 smoke evidence evaluator', () => {
     });
   });
 
+  it('evaluates synthetic budget recommendations rather than fixed values', () => {
+    const syntheticRecs = {
+      ...recs,
+      budget: {
+        ...recs.budget,
+        proposedMonthlyAmount: 3000,
+        thresholds: [0.25, 0.75]
+      }
+    };
+    const evidence = passingEvidence({
+      budgetAmountTwd: 3000,
+      budgetThresholds: [0.25, 0.75, 1]
+    });
+    expect(evaluateC1Smoke(evidence, syntheticRecs)).toEqual({
+      ok: true,
+      issues: []
+    });
+    expect(
+      evaluateC1Smoke({ ...evidence, budgetAmountTwd: 2000 }, syntheticRecs)
+        .issues
+    ).toEqual(expect.arrayContaining([expect.stringMatching(/budget amount/)]));
+    expect(
+      evaluateC1Smoke(
+        { ...evidence, budgetThresholds: [0.25, 1] },
+        syntheticRecs
+      ).issues
+    ).toEqual(
+      expect.arrayContaining([expect.stringMatching(/budget must notify/)])
+    );
+  });
+
   it('rejects existing staging, excluded APIs, primitive IAM, and secret versions', () => {
     const staging = evaluateC1Smoke(
       passingEvidence({ projectId: 'beauessence-clinic-staging' }),
