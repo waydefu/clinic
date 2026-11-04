@@ -47,6 +47,10 @@
 
 ### 2.1 內部
 
+> **2026-08-04 歷史快照：** 下表的「現況」是當時描述，不是現行角色或權限。
+> 角色單一來源為 [`roles.ts`](../../packages/domain/src/roles.ts)；臨床資料仍須遵守
+> [Safety Floor](../../AGENTS.md#safety-floor-normative) 與[決策登錄](phase-1-decision-register.md)。
+
 | 角色 | 主要工作 | 現況 |
 | --- | --- | --- |
 | 管理者 | 全域設定、員工權限、金額、稽核 | 已實作（瀏覽器端稱 `admin`） |
@@ -67,6 +71,10 @@
 ## 3. 產品核心能力
 
 目前產品在外界看來是一個預約網站。長期方向是一套診所營運系統，預約只是其中一環：
+
+> **2026-08-04 歷史快照：** 下表及其後的阻擋數量保留當時描述，不是現況。
+> 現行內部測試與 production 的範圍、未決事項及資料限制以
+> [Safety Floor](../../AGENTS.md#safety-floor-normative) 和[決策登錄](phase-1-decision-register.md)為準。
 
 | 能力 | 目前狀態 | 阻擋 |
 | --- | --- | --- |
