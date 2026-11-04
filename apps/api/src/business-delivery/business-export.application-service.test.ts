@@ -189,6 +189,36 @@ describe('create', () => {
     ).rejects.toBeInstanceOf(ZodError);
   });
 
+  it('accepts the leap-year maximum and rejects one more day', async () => {
+    const repo = fake();
+    let reauthCalls = 0;
+    const instance = service(repo.repository, () => {
+      reauthCalls += 1;
+      return Promise.resolve();
+    });
+    await expect(
+      instance.create(
+        { ...body, from: '2032-01-01', to: '2032-12-31' },
+        'fresh',
+        staff(OWNER_ROLE)
+      )
+    ).resolves.toEqual(JOB);
+    expect(repo.created).toHaveLength(1);
+    expect(repo.created[0]).toMatchObject({
+      startAt: '2031-12-31T16:00:00.000Z',
+      endAt: '2032-12-31T16:00:00.000Z'
+    });
+    await expect(
+      instance.create(
+        { ...body, from: '2032-01-01', to: '2033-01-01' },
+        'fresh',
+        staff(OWNER_ROLE)
+      )
+    ).rejects.toBeInstanceOf(DomainError);
+    expect(reauthCalls).toBe(1);
+    expect(repo.created).toHaveLength(1);
+  });
+
   it('refuses an inverted or over-long range before re-authentication', async () => {
     const repo = fake();
     let reauthCalls = 0;
