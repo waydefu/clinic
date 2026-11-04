@@ -1,5 +1,17 @@
 # Phase 1 Decision Register
 
+## 2026-11-04：SOL-CALENDAR-LEASE Gate 2 核准
+
+決策人：負責人；Claude 轉達負責人原話「核准 Gate2」。未另提供 approval ID，不另造。
+此決定取代下方 2026-10-29 的 Gate 2 未核准狀態，但不改 D-05／D-12 的整體狀態。
+
+- 授權 Gate 2 的 source 接線、Firestore Emulator 跨程序測試與 provider stub；
+  授權不等於接線、隔離、嚴格零派送或任何 runtime 驗收已完成。
+- 真實 Calendar 寫入只能寫測試用日曆，且只在負責人另核的 C1 雲端批次內進行。
+- 不授權正式日曆、真實資料、IAM 或部署；雲端操作及其範圍仍須另行明確核准。
+- [協調計畫](../plans/2026-10-22-sol-calendar-lease-coordination.md) 保留原設計、
+  風險與逐項證據邊界；未知的排空或隔離不得靠到期或重啟假設安全。
+
 ## 2026-11-04：D-42 排班發布預約日期界線
 
 決策人：負責人；Claude 轉達負責人原話「B. 只看今天以後的預約，再合併」。
