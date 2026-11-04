@@ -12,7 +12,7 @@
   圓角連結鈕（電話、地址、醫師介紹、頁尾）一律改為白底、`--clinic-sage-300` 細框、深綠字；
   懸停改 `--clinic-sage-50` 底、`--clinic-green` 框。症狀選單未選的按鈕框也改 `--clinic-sage-300`。
 - 全部同款會分不出主次，淺框在白卡上對比也只有約 1.9:1；負責人選「主要按鈕框加深」：
-  頁首「線上預約」與 `.clinic-button--primary` 改 2px `--clinic-green` 框（懸停 `--clinic-forest`），
+  頁首「線上預約」與 `.clinic-button--primary` 改 `--clinic-green` 框加一道 1px inset 線（看起來 2px；懸停 `--clinic-forest`），
   仍是白底。
 - 療程頁「先評估，再選擇」提醒卡的按鈕跟著改成白底淺綠框，取代 2026-11-03 條選的深綠實心按鈕；
   米白卡底不變。

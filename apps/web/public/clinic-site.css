@@ -465,15 +465,18 @@ a {
   transform: translateY(-0.1rem);
 }
 
-/* 主要按鈕框加深加粗，和次要按鈕分出主次（負責人選「主要按鈕框加深」）。 */
+/* 主要按鈕框加深加粗，和次要按鈕分出主次（負責人選「主要按鈕框加深」）。第二道線用
+   inset 陰影畫，不加 border 寬度：按鈕 overflow 隱藏，2px border 會在 200% 字級時切到字。 */
 .clinic-header__booking,
 .clinic-button--primary {
-  border: 2px solid var(--clinic-green);
+  border-color: var(--clinic-green);
+  box-shadow: inset 0 0 0 1px var(--clinic-green);
 }
 
 .clinic-header__booking:hover,
 .clinic-button--primary:hover {
   border-color: var(--clinic-forest);
+  box-shadow: inset 0 0 0 1px var(--clinic-forest);
 }
 
 /* 首屏實用資訊。手機上「門診時間與交通」原本在 y≈6240px（約 11 個畫面之後），
@@ -3446,7 +3449,9 @@ body:not(:has(.clinic-noscript)) #clinic-main {
 @media (hover: hover) {
   .clinic-header__booking:hover,
   .clinic-button--primary:hover {
-    box-shadow: var(--clinic-elevation-glow);
+    box-shadow:
+      inset 0 0 0 1px var(--clinic-forest),
+      var(--clinic-elevation-glow);
   }
 }
 
