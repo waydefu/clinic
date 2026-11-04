@@ -23,6 +23,9 @@ steps:
       - asia-east1-docker.pkg.dev/$PROJECT_ID/internal-test/worker:${_SOURCE_SHA}
       - .
     waitFor: ['-']
+# C1 cost bound: cap the combined job at 10 minutes. No machineType override,
+# so the default pool runs it on the default e2-standard-2 worker.
+timeout: 600s
 images:
   - asia-east1-docker.pkg.dev/$PROJECT_ID/internal-test/api:${_SOURCE_SHA}
   - asia-east1-docker.pkg.dev/$PROJECT_ID/internal-test/worker:${_SOURCE_SHA}
