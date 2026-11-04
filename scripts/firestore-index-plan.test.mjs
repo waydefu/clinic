@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   evaluateFirestoreIndexPlan,
@@ -103,6 +102,25 @@ describe('code -> matrix direction (B-44)', () => {
     expect(issues.join('\n')).toContain('widgets');
   });
 
+  it('resolves only unambiguous top-level literal collection constants', () => {
+    const query = `this.db.collection(COLLECTION).where('a','==',1).orderBy('b')`;
+    const listed = entry('widgets', ['a', 'b'], true);
+    expect(issuesFor(`const COLLECTION = 'widgets'; ${query}`, listed)).toEqual(
+      []
+    );
+    expect(issuesFor(`const COLLECTION = 'widgets'; ${query}`)).toHaveLength(1);
+    for (const prefix of [
+      `let COLLECTION = 'widgets';`,
+      `const COLLECTION = 'widgets'; function f(COLLECTION) { ${query} }`,
+      `const COLLECTION = 'widgets'; { const COLLECTION = 'other'; ${query} }`,
+      `const COLLECTION = 'widgets'; COLLECTION = 'other';`
+    ]) {
+      expect(issuesFor(`${prefix} ${query}`, listed).join('\n')).toContain(
+        'Cannot resolve'
+      );
+    }
+  });
+
   it('fails closed when a multi-field chain cannot be analysed', () => {
     const unresolved = issuesFor(
       `this.db.collection(somewhereElse.name).where('a','==',1).orderBy('b')`
@@ -175,31 +193,20 @@ describe('repository inventory', () => {
     expect(issues[0]).toContain('status, startsAt');
   });
 
-  it('documents the unscanned mirror worker collection-constant boundary', () => {
+  it('scans the real mirror worker query against the matrix', () => {
     const path =
       'apps/worker/src/calendar-sync/firestore-calendar-sync.repository.ts';
-    const text = readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+    const sources = loadQuerySources().filter((source) => source.path === path);
+    expect(sources).toHaveLength(1);
     const matrix = loadQueryIndexMatrix();
-    const issues = findUnlistedQueryShapes([{ path, text }], matrix);
-    expect(issues).toHaveLength(1);
-    expect(issues[0]).toContain('Cannot resolve');
-    expect(issues[0]).toContain(path);
-
-    // Only this in-memory copy substitutes the local collection constant.
-    const literalText = text.replace(
-      '.collection(MIRRORS)',
-      ".collection('calendar_pilot_mirrors')"
-    );
-    expect(literalText).not.toBe(text);
-    const literalSource = [{ path, text: literalText }];
-    expect(findUnlistedQueryShapes(literalSource, matrix)).toEqual([]);
+    expect(findUnlistedQueryShapes(sources, matrix)).toEqual([]);
     const trimmed = {
       ...matrix,
       queries: matrix.queries.filter(
         (query) => query.id !== 'calendar-mirrors-external-event'
       )
     };
-    const missing = findUnlistedQueryShapes(literalSource, trimmed);
+    const missing = findUnlistedQueryShapes(sources, trimmed);
     expect(missing).toHaveLength(1);
     expect(missing[0]).toContain('calendar_pilot_mirrors');
     expect(missing[0]).toContain('sourceId, externalEventId');

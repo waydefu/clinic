@@ -34,19 +34,20 @@ export function loadQuerySources(
       .filter((name) => name.endsWith('.ts') && !name.endsWith('.test.ts'))
       .sort()
       .map((name) => `${QUERY_SOURCE_DIR}/${name}`),
-    'apps/worker/src/calendar-sync/calendar-pilot-activation.ts'
+    'apps/worker/src/calendar-sync/calendar-pilot-activation.ts',
+    'apps/worker/src/calendar-sync/firestore-calendar-sync.repository.ts'
   ].map((path) => ({ path, text: readFile(join(root, path), 'utf8') }));
 }
 
 // Code -> matrix direction (B-44): a static, deterministic AST scan of each
 // `collection(x).where(..).orderBy(..)` chain. Known limits (shortcut: widen
 // when a real query needs it): only the sources passed in are scanned, by
-// default apps/api/src/firestore/*.ts and calendar-pilot-activation.ts; other
-// worker and patient-directory queries stay matrix-only; a query built across
+// default apps/api/src/firestore/*.ts and two Calendar workers; other worker and
+// patient-directory queries stay matrix-only; a query built across
 // statements or helper functions is not
 // seen unless the chain itself carries two or more fields, and then it fails
-// closed; a collection name resolves only from a literal or an object constant
-// in the same or another scanned file.
+// closed; a collection name resolves from a literal, a narrowly checked local
+// literal const, or an object constant in the same or another scanned file.
 const EQUALITY_OPERATORS = new Set([
   '==',
   'in',
@@ -118,6 +119,45 @@ function parseSource({ path, text }) {
 function resolveCollection(node, parsed, byPath) {
   const literal = literalText(node);
   if (literal !== undefined) return literal;
+  if (node !== undefined && ts.isIdentifier(node)) {
+    const declarations = parsed.file.statements.flatMap((statement) =>
+      ts.isVariableStatement(statement) &&
+      (statement.declarationList.flags & ts.NodeFlags.Const) !== 0
+        ? [...statement.declarationList.declarations].filter(
+            (declaration) =>
+              ts.isIdentifier(declaration.name) &&
+              declaration.name.text === node.text &&
+              literalText(unwrap(declaration.initializer)) !== undefined
+          )
+        : []
+    );
+    if (declarations.length !== 1) return undefined;
+    let unambiguous = true;
+    // shortcut: only collection-call references; widen with scope-aware binding.
+    const check = (current) => {
+      if (ts.isIdentifier(current) && current.text === node.text) {
+        const parent = current.parent;
+        if (
+          current !== declarations[0].name &&
+          !(
+            ts.isCallExpression(parent) &&
+            parent.arguments[0] === current &&
+            ts.isPropertyAccessExpression(parent.expression) &&
+            ['collection', 'collectionGroup'].includes(
+              parent.expression.name.text
+            )
+          )
+        ) {
+          unambiguous = false;
+        }
+      }
+      ts.forEachChild(current, check);
+    };
+    check(parsed.file);
+    return unambiguous
+      ? literalText(unwrap(declarations[0].initializer))
+      : undefined;
+  }
   if (
     node === undefined ||
     !ts.isPropertyAccessExpression(node) ||
