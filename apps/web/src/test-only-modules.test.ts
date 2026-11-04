@@ -640,7 +640,11 @@ describe('門診時段', () => {
     );
     const empty = { ...state.schedule, weeklyAvailability: [] };
     expect(
-      scheduleImpact(state.appointments, generateSlots(empty))
+      scheduleImpact(
+        state.appointments,
+        generateSlots(empty),
+        '2029-12-31T00:00:00.000Z'
+      )
     ).toHaveLength(1);
   });
 });
