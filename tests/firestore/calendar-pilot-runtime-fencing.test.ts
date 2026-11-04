@@ -352,21 +352,32 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
     expect(await state('job_a')).not.toHaveProperty('nextAttemptAt');
   });
 
-  it('lets a later owner recover both still-processing expired jobs', async () => {
+  it('recovers expired jobs only after simulated stub isolation', async () => {
     afterDispatch = () => {
       clock = DEADLINE;
     };
     await expect(run()).rejects.toThrow(/lease/iu);
     const oldOwner = (await state('job_a'))?.['leaseOwner'];
     afterDispatch = () => {};
-    await expect(
-      new CalendarPilotRuntime(
-        db,
-        environment,
-        now,
-        syntheticOpenMaintenanceControl()
-      ).run(clock)
-    ).resolves.toMatchObject({ processedJobs: 2, failedJobs: 0 });
+    const successor = new CalendarPilotRuntime(
+      db,
+      environment,
+      now,
+      syntheticOpenMaintenanceControl()
+    );
+    await expect(successor.run(clock)).resolves.toMatchObject({
+      acquired: false
+    });
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    // Test-only: the awaited stub has settled; this is not a real recovery path.
+    await configuration().update({
+      workerLeaseOwner: null,
+      workerLeaseExpiresAt: null
+    });
+    await expect(successor.run(clock)).resolves.toMatchObject({
+      processedJobs: 2,
+      failedJobs: 0
+    });
     expect(oldOwner).toEqual(expect.any(String));
     expect(await state('job_a')).toMatchObject({
       status: 'completed',
