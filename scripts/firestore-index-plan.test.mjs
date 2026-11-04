@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   evaluateFirestoreIndexPlan,
@@ -210,6 +211,34 @@ describe('repository inventory', () => {
     expect(missing).toHaveLength(1);
     expect(missing[0]).toContain('calendar_pilot_mirrors');
     expect(missing[0]).toContain('sourceId, externalEventId');
+  });
+
+  it('characterizes the patient query split across withinWindow', () => {
+    const path = 'apps/api/src/patients/patient-directory.ts';
+    const text = readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+    const pattern =
+      /withinWindow\(\s*(this\.db\.collection\('appointments'\)\.where\('patientId', '==', patientId\)),\s*window\s*\)(\s*\.orderBy\('startsAt', 'asc'\)\s*\.orderBy\('__name__', 'asc'\))/g;
+    const matches = [...text.matchAll(pattern)];
+    expect(matches).toHaveLength(1);
+    const [original, collection, ordering] = matches[0];
+    const matrix = loadQueryIndexMatrix();
+    const unresolved = findUnlistedQueryShapes(fixture(original, path), matrix);
+    expect(unresolved).toHaveLength(1);
+    expect(unresolved[0]).toContain('Cannot resolve');
+
+    // A direct in-memory chain is only a scanner control, not runtime code.
+    const direct = fixture(`${collection}${ordering}`, path);
+    expect(findUnlistedQueryShapes(direct, matrix)).toEqual([]);
+    const trimmed = {
+      ...matrix,
+      queries: matrix.queries.filter(
+        (query) => query.id !== 'appointments-by-patient'
+      )
+    };
+    const missing = findUnlistedQueryShapes(direct, trimmed);
+    expect(missing).toHaveLength(1);
+    expect(missing[0]).toContain('appointments');
+    expect(missing[0]).toContain('patientId, startsAt');
   });
 
   it('would fail if a real listed shape disappeared from the matrix', () => {
