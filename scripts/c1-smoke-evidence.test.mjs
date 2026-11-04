@@ -55,15 +55,22 @@ describe('C1 smoke evidence evaluator', () => {
     expect(
       evaluateC1Smoke({ ...evidence, budgetAmountTwd: 2000 }, syntheticRecs)
         .issues
-    ).toEqual(expect.arrayContaining([expect.stringMatching(/budget amount/)]));
+    ).toContain('C1 budget amount must be NT$3000.');
     expect(
       evaluateC1Smoke(
         { ...evidence, budgetThresholds: [0.25, 1] },
         syntheticRecs
       ).issues
-    ).toEqual(
-      expect.arrayContaining([expect.stringMatching(/budget must notify/)])
+    ).toContain('C1 budget must notify at 25/75.');
+  });
+
+  it('retains the current budget diagnostics for the current recommendations', () => {
+    const result = evaluateC1Smoke(
+      passingEvidence({ budgetAmountTwd: 0, budgetThresholds: [] }),
+      recs
     );
+    expect(result.issues).toContain('C1 budget amount must be NT$2000.');
+    expect(result.issues).toContain('C1 budget must notify at 50/80/100.');
   });
 
   it('rejects existing staging, excluded APIs, primitive IAM, and secret versions', () => {
