@@ -143,7 +143,9 @@ function resolveCollection(node, parsed, byPath) {
             ts.isCallExpression(parent) &&
             parent.arguments[0] === current &&
             ts.isPropertyAccessExpression(parent.expression) &&
-            ['collection', 'collectionGroup'].includes(parent.expression.name.text)
+            ['collection', 'collectionGroup'].includes(
+              parent.expression.name.text
+            )
           )
         ) {
           unambiguous = false;
