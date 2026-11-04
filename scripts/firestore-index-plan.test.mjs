@@ -213,6 +213,28 @@ describe('repository inventory', () => {
     expect(missing[0]).toContain('sourceId, externalEventId');
   });
 
+  it('checks the activation generation query against the matrix', () => {
+    const path = 'apps/worker/src/calendar-sync/calendar-pilot-runtime.ts';
+    const text = readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+    const start = text.indexOf('private async hasUnfinishedActivation(');
+    const end = text.indexOf('public run(', start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const sources = fixture(`class Repo { ${text.slice(start, end)} }`, path);
+    const matrix = loadQueryIndexMatrix();
+    expect(findUnlistedQueryShapes(sources, matrix)).toEqual([]);
+    const trimmed = {
+      ...matrix,
+      queries: matrix.queries.filter(
+        (query) => query.id !== 'calendar-pilot-outbox-activation-generation'
+      )
+    };
+    const issues = findUnlistedQueryShapes(sources, trimmed);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toContain('calendar_pilot_outbox');
+    expect(issues[0]).toContain('kind, generation');
+  });
+
   it('characterizes the patient query split across withinWindow', () => {
     const path = 'apps/api/src/patients/patient-directory.ts';
     const text = readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
