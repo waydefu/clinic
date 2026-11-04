@@ -432,6 +432,12 @@ describe('B-26 container source provenance without image build', () => {
     expect(source).not.toContain('SOURCE_SHA=${_TAG}');
   });
 
+  it('bounds the C1 image build to the default worker for 10 minutes', () => {
+    const source = read('containers/internal-test.cloudbuild.yaml');
+    expect(source).toMatch(/^timeout: 600s$/m);
+    expect(source).not.toMatch(/machineType|pool:/);
+  });
+
   it.each([
     ['a'.repeat(40), 0],
     ['', 1],
