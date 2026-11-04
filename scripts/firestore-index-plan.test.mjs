@@ -249,9 +249,11 @@ describe('repository inventory', () => {
       ...matrix,
       queries: matrix.queries.filter(
         (query) =>
-          !['outbox-pending-due', 'outbox-queue-snapshot', 'outbox-expired-lease'].includes(
-            query.id
-          )
+          ![
+            'outbox-pending-due',
+            'outbox-queue-snapshot',
+            'outbox-expired-lease'
+          ].includes(query.id)
       )
     };
     const issues = findUnlistedQueryShapes(direct, withoutShapes);
