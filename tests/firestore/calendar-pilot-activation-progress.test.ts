@@ -103,6 +103,19 @@ async function runToPhase(phase: string) {
     'Synthetic activation did not reach the requested phase within the bounded test.'
   );
 }
+async function simulateIsolatedStubReset() {
+  const calls = dispatch.mock.calls.length;
+  expect((await configuration().get()).data()?.['workerLeaseOwner']).toEqual(
+    expect.any(String)
+  );
+  await expect(tick()).resolves.toMatchObject({ acquired: false });
+  expect(dispatch).toHaveBeenCalledTimes(calls);
+  // Test-only: the awaited stub has settled; this is not a real recovery path.
+  await configuration().update({
+    workerLeaseOwner: null,
+    workerLeaseExpiresAt: null
+  });
+}
 async function finish() {
   for (let attempts = 0; attempts < 30; attempts += 1) {
     const before = effects.length;
@@ -511,6 +524,7 @@ describe('bounded CAL-PILOT source activation', () => {
     );
     expect(effects.some((effect) => effect.method === 'DELETE')).toBe(false);
     afterEffect = () => {};
+    await simulateIsolatedStubReset();
     await finish();
     for (const id of acknowledged)
       expect(
@@ -545,6 +559,7 @@ describe('bounded CAL-PILOT source activation', () => {
       .map((effect) => effect.eventId);
     expect((await progress())?.['cleanupOffset']).toBe(acknowledged.length);
     afterEffect = () => {};
+    await simulateIsolatedStubReset();
     await finish();
     expect(effects.filter((effect) => effect.method === 'POST')).toHaveLength(
       copies
@@ -666,8 +681,9 @@ describe('bounded CAL-PILOT source activation', () => {
       0
     );
     afterEffect = () => {};
-    // A new global owner cannot reclaim the old job's still-valid lease.
+    // The stub has settled; explicitly simulate isolation before recovery.
     clock = DEADLINE;
+    await simulateIsolatedStubReset();
     await expect(tick()).resolves.toMatchObject({
       processedJobs: 1,
       failedJobs: 0
