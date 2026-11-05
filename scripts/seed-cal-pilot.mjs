@@ -10,7 +10,9 @@ function validateSeed({ projectId, expiresAt }) {
     expiresAt === undefined ||
     !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(expiresAt)
   )
-    throw new Error('CALENDAR_PILOT_EXPIRES_AT must be an exact UTC timestamp.');
+    throw new Error(
+      'CALENDAR_PILOT_EXPIRES_AT must be an exact UTC timestamp.'
+    );
 }
 
 export async function seedCalPilot({ db, projectId, expiresAt, now }) {

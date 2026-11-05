@@ -31,7 +31,10 @@ async function wipe(): Promise<void> {
 }
 
 beforeAll(() => {
-  app = initializeApp({ projectId: LOCAL_FIREBASE_PROJECT_ID }, 'seed-admission');
+  app = initializeApp(
+    { projectId: LOCAL_FIREBASE_PROJECT_ID },
+    'seed-admission'
+  );
   db = getFirestore(app);
 });
 
@@ -56,7 +59,9 @@ describe('CAL-PILOT bootstrap admission', () => {
       outboundEnabled: false
     });
     expect((await db.collection('calendar_pilot_sources').get()).size).toBe(2);
-    expect((await db.collection('calendar_pilot_patients').get()).size).toBe(30);
+    expect((await db.collection('calendar_pilot_patients').get()).size).toBe(
+      30
+    );
   });
 
   it.each([
@@ -71,7 +76,9 @@ describe('CAL-PILOT bootstrap admission', () => {
       workerLeaseOwner: string | null;
       workerLeaseExpiresAt: string | null;
     }) => {
-      const config = db.collection('calendar_pilot_configuration').doc('active');
+      const config = db
+        .collection('calendar_pilot_configuration')
+        .doc('active');
       const source = db
         .collection('calendar_pilot_sources')
         .doc('calendar_source_primary');
@@ -88,9 +95,15 @@ describe('CAL-PILOT bootstrap admission', () => {
       await expect(seedCalPilot({ db, ...seedOptions })).rejects.toThrow();
       expect((await config.get()).data()).toEqual(existing);
       expect((await source.get()).data()).toEqual({ sentinel: 'source_kept' });
-      expect((await patient.get()).data()).toEqual({ sentinel: 'patient_kept' });
-      expect((await db.collection('calendar_pilot_sources').get()).size).toBe(1);
-      expect((await db.collection('calendar_pilot_patients').get()).size).toBe(1);
+      expect((await patient.get()).data()).toEqual({
+        sentinel: 'patient_kept'
+      });
+      expect((await db.collection('calendar_pilot_sources').get()).size).toBe(
+        1
+      );
+      expect((await db.collection('calendar_pilot_patients').get()).size).toBe(
+        1
+      );
     }
   );
 
@@ -102,11 +115,13 @@ describe('CAL-PILOT bootstrap admission', () => {
     expect(
       results.filter((result) => result.status === 'fulfilled')
     ).toHaveLength(1);
-    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(
-      1
-    );
+    expect(
+      results.filter((result) => result.status === 'rejected')
+    ).toHaveLength(1);
     expect((await db.collection('calendar_pilot_sources').get()).size).toBe(2);
-    expect((await db.collection('calendar_pilot_patients').get()).size).toBe(30);
+    expect((await db.collection('calendar_pilot_patients').get()).size).toBe(
+      30
+    );
   });
 
   it('keeps project and expiry validation on the exported entry point', async () => {
@@ -116,8 +131,8 @@ describe('CAL-PILOT bootstrap admission', () => {
     await expect(
       seedCalPilot({ db, ...seedOptions, expiresAt: 'invalid' })
     ).rejects.toThrow(/UTC/iu);
-    expect((await db.collection('calendar_pilot_configuration').get()).empty).toBe(
-      true
-    );
+    expect(
+      (await db.collection('calendar_pilot_configuration').get()).empty
+    ).toBe(true);
   });
 });
