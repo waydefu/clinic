@@ -234,7 +234,11 @@ export class GoogleCalendarEventWriter {
     if (inserted.status !== 409) return;
     const etag = await this.readEtag(event.eventId, event.linkId);
     if (etag === undefined)
-      throw new GoogleCalendarSyncError('Google Calendar event is missing.', 404, false);
+      throw new GoogleCalendarSyncError(
+        'Google Calendar event is missing.',
+        404,
+        false
+      );
     await this.update(event, etag);
   }
 
@@ -276,7 +280,10 @@ export class GoogleCalendarEventWriter {
     return JSON.stringify(this.mutationBody(event));
   }
 
-  private async readEtag(eventId: string, linkId: string): Promise<string | undefined> {
+  private async readEtag(
+    eventId: string,
+    linkId: string
+  ): Promise<string | undefined> {
     const response = await this.request(
       `/events/${encodeURIComponent(eventId)}`,
       { method: 'GET' },
@@ -298,7 +305,8 @@ export class GoogleCalendarEventWriter {
       !/^"[\x21\x23-\x7e]*"$/u.test(record['etag']) ||
       typeof privateProperties !== 'object' ||
       privateProperties === null ||
-      (privateProperties as Record<string, unknown>)['beauessenceLinkId'] !== linkId
+      (privateProperties as Record<string, unknown>)['beauessenceLinkId'] !==
+        linkId
     )
       throw new Error('Calendar event identity or version is unavailable.');
     return record['etag'];

@@ -205,11 +205,16 @@ describe('GoogleCalendarEventWriter', () => {
     const fetchImpl = vi
       .fn()
       .mockResolvedValueOnce(response({}, 409))
-      .mockResolvedValueOnce(response({
-        id: 'calpilotevent001',
-        etag: '"etag-001"',
-        extendedProperties: { private: { beauessenceLinkId: 'block_001' } }
-      }, 200))
+      .mockResolvedValueOnce(
+        response(
+          {
+            id: 'calpilotevent001',
+            etag: '"etag-001"',
+            extendedProperties: { private: { beauessenceLinkId: 'block_001' } }
+          },
+          200
+        )
+      )
       .mockResolvedValueOnce(response({}, 200));
     const writer = new GoogleCalendarEventWriter(
       'calendar@example.invalid',
@@ -226,59 +231,102 @@ describe('GoogleCalendarEventWriter', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(3);
     expect(fetchImpl.mock.calls[1]?.[1]?.method).toBe('GET');
     expect(fetchImpl.mock.calls[2]?.[1]?.method).toBe('PATCH');
-    expect(new Headers(fetchImpl.mock.calls[2]?.[1]?.headers).get('If-Match')).toBe('"etag-001"');
+    expect(
+      new Headers(fetchImpl.mock.calls[2]?.[1]?.headers).get('If-Match')
+    ).toBe('"etag-001"');
     expect(
       JSON.parse(String(fetchImpl.mock.calls[2]?.[1]?.body))
     ).not.toHaveProperty('id');
   });
 
   it('deletes only with the etag of the matching link and stops on 412', async () => {
-    const fetchImpl = vi.fn()
-      .mockResolvedValueOnce(response({
-        id: 'calpilotevent001',
-        etag: '"etag-001"',
-        extendedProperties: { private: { beauessenceLinkId: 'block_001' } }
-      }, 200))
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        response(
+          {
+            id: 'calpilotevent001',
+            etag: '"etag-001"',
+            extendedProperties: { private: { beauessenceLinkId: 'block_001' } }
+          },
+          200
+        )
+      )
       .mockResolvedValueOnce(response({}, 412));
-    const writer = new GoogleCalendarEventWriter('calendar@example.invalid', () => Promise.resolve('token'), fetchImpl);
-    await expect(writer.remove('calpilotevent001', 'block_001')).rejects.toEqual(
+    const writer = new GoogleCalendarEventWriter(
+      'calendar@example.invalid',
+      () => Promise.resolve('token'),
+      fetchImpl
+    );
+    await expect(
+      writer.remove('calpilotevent001', 'block_001')
+    ).rejects.toEqual(
       expect.objectContaining({ status: 412, retryable: false })
     );
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     expect(fetchImpl.mock.calls[1]?.[1]?.method).toBe('DELETE');
-    expect(new Headers(fetchImpl.mock.calls[1]?.[1]?.headers).get('If-Match')).toBe('"etag-001"');
+    expect(
+      new Headers(fetchImpl.mock.calls[1]?.[1]?.headers).get('If-Match')
+    ).toBe('"etag-001"');
   });
 
   it('does not delete when the stored link differs', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue(response({
-      id: 'calpilotevent001',
-      etag: '"etag-001"',
-      extendedProperties: { private: { beauessenceLinkId: 'another_link' } }
-    }, 200));
-    const writer = new GoogleCalendarEventWriter('calendar@example.invalid', () => Promise.resolve('token'), fetchImpl);
-    await expect(writer.remove('calpilotevent001', 'block_001')).rejects.toThrow(/identity/iu);
+    const fetchImpl = vi.fn().mockResolvedValue(
+      response(
+        {
+          id: 'calpilotevent001',
+          etag: '"etag-001"',
+          extendedProperties: { private: { beauessenceLinkId: 'another_link' } }
+        },
+        200
+      )
+    );
+    const writer = new GoogleCalendarEventWriter(
+      'calendar@example.invalid',
+      () => Promise.resolve('token'),
+      fetchImpl
+    );
+    await expect(
+      writer.remove('calpilotevent001', 'block_001')
+    ).rejects.toThrow(/identity/iu);
     expect(fetchImpl).toHaveBeenCalledOnce();
   });
 
   it('does not fetch a new etag or retry after a patch precondition failure', async () => {
-    const fetchImpl = vi.fn()
+    const fetchImpl = vi
+      .fn()
       .mockResolvedValueOnce(response({}, 409))
-      .mockResolvedValueOnce(response({
-        id: 'calpilotevent001',
-        etag: '"etag-001"',
-        extendedProperties: { private: { beauessenceLinkId: 'block_001' } }
-      }, 200))
+      .mockResolvedValueOnce(
+        response(
+          {
+            id: 'calpilotevent001',
+            etag: '"etag-001"',
+            extendedProperties: { private: { beauessenceLinkId: 'block_001' } }
+          },
+          200
+        )
+      )
       .mockResolvedValueOnce(response({}, 412));
-    const writer = new GoogleCalendarEventWriter('calendar@example.invalid', () => Promise.resolve('token'), fetchImpl);
-    await expect(writer.upsert({
-      eventId: 'calpilotevent001',
-      title: '[忙碌] 會議',
-      startsAt: '2026-09-02T06:00:00.000Z',
-      endsAt: '2026-09-02T07:00:00.000Z',
-      linkId: 'block_001'
-    })).rejects.toEqual(expect.objectContaining({ status: 412, retryable: false }));
+    const writer = new GoogleCalendarEventWriter(
+      'calendar@example.invalid',
+      () => Promise.resolve('token'),
+      fetchImpl
+    );
+    await expect(
+      writer.upsert({
+        eventId: 'calpilotevent001',
+        title: '[忙碌] 會議',
+        startsAt: '2026-09-02T06:00:00.000Z',
+        endsAt: '2026-09-02T07:00:00.000Z',
+        linkId: 'block_001'
+      })
+    ).rejects.toEqual(
+      expect.objectContaining({ status: 412, retryable: false })
+    );
     expect(fetchImpl).toHaveBeenCalledTimes(3);
-    expect(new Headers(fetchImpl.mock.calls[2]?.[1]?.headers).get('If-Match')).toBe('"etag-001"');
+    expect(
+      new Headers(fetchImpl.mock.calls[2]?.[1]?.headers).get('If-Match')
+    ).toBe('"etag-001"');
   });
 
   it('updates the existing event with If-Match and never sends insert-only id', async () => {

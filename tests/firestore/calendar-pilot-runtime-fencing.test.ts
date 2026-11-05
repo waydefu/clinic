@@ -75,17 +75,19 @@ let afterDispatch: () => void | Promise<void>;
 let restoreEngine = () => {};
 let engineCallCount = () => 0;
 let mutationFailure:
-  | { readonly method: 'PATCH' | 'DELETE'; readonly status?: number; readonly unknown?: boolean }
+  | {
+      readonly method: 'PATCH' | 'DELETE';
+      readonly status?: number;
+      readonly unknown?: boolean;
+    }
   | undefined;
 
 function requestsForEvent(eventId: string) {
-  return (dispatch.mock.calls as Parameters<typeof fetch>[]).filter(
-    ([url]) => {
-      const target =
-        typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
-      return new URL(target).pathname.endsWith(`/events/${eventId}`);
-    }
-  );
+  return (dispatch.mock.calls as Parameters<typeof fetch>[]).filter(([url]) => {
+    const target =
+      typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
+    return new URL(target).pathname.endsWith(`/events/${eventId}`);
+  });
 }
 
 async function wipe(): Promise<void> {
@@ -138,11 +140,15 @@ beforeEach(async () => {
     const method = init?.method ?? 'GET';
     if (method === 'GET' && new URL(target).pathname.includes('/events/')) {
       const eventId = new URL(target).pathname.split('/').at(-1);
-      const linkId = ['job_a', 'job_b'].find((id) =>
-        eventId === `calpilot${createHash('sha256').update(id).digest('hex').slice(0, 40)}`
-      ) ?? (eventId?.startsWith('calpilotpreflight')
-        ? `preflight_${eventId.slice('calpilotpreflight'.length)}`
-        : undefined);
+      const linkId =
+        ['job_a', 'job_b'].find(
+          (id) =>
+            eventId ===
+            `calpilot${createHash('sha256').update(id).digest('hex').slice(0, 40)}`
+        ) ??
+        (eventId?.startsWith('calpilotpreflight')
+          ? `preflight_${eventId.slice('calpilotpreflight'.length)}`
+          : undefined);
       if (linkId === undefined) throw new Error('Unknown synthetic event.');
       return Response.json({
         id: eventId,
@@ -160,7 +166,8 @@ beforeEach(async () => {
     const failure = mutationFailure;
     if (failure !== undefined && failure.method === method) {
       mutationFailure = undefined;
-      if (failure.unknown) throw new Error('synthetic mutation outcome unknown');
+      if (failure.unknown)
+        throw new Error('synthetic mutation outcome unknown');
       return new Response(null, { status: failure.status });
     }
     return Response.json({ items: [] });
@@ -224,7 +231,10 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
     await expect(run()).rejects.toThrow(/lease/iu);
     const quarantined = (await configuration().get()).data();
     expect(quarantined?.['workerLeaseOwner']).toEqual(expect.any(String));
-    expect(await state('job_a')).toMatchObject({ status: 'failed', lastErrorCode: 'needs_reconcile' });
+    expect(await state('job_a')).toMatchObject({
+      status: 'failed',
+      lastErrorCode: 'needs_reconcile'
+    });
     expect(dispatch).toHaveBeenCalledTimes(1);
 
     clock = '2026-09-01T00:05:00.000Z';
@@ -254,7 +264,10 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
     expect(dispatch).toHaveBeenCalledTimes(2);
     expect(dispatch.mock.calls[0]?.[1]?.method).toBe('GET');
     expect(dispatch.mock.calls[1]?.[1]?.method).toBe('POST');
-    expect(await state('job_a')).toMatchObject({ status: 'failed', lastErrorCode: 'needs_reconcile' });
+    expect(await state('job_a')).toMatchObject({
+      status: 'failed',
+      lastErrorCode: 'needs_reconcile'
+    });
     expect((await configuration().get()).data()?.['workerLeaseOwner']).toEqual(
       expect.any(String)
     );
@@ -451,7 +464,11 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
     { name: 'unknown transport outcome', unknown: true, leaseRetained: true }
   ])(
     'quarantines a conditional DELETE on $name without retrying other jobs',
-    async ({ status, unknown, leaseRetained }: {
+    async ({
+      status,
+      unknown,
+      leaseRetained
+    }: {
       status?: number;
       unknown?: boolean;
       leaseRetained: boolean;
@@ -474,8 +491,13 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
       else expect(owner).toBeNull();
       const eventId = `calpilot${createHash('sha256').update('job_a').digest('hex').slice(0, 40)}`;
       const requests = requestsForEvent(eventId);
-      expect(requests.map(([, init]) => init?.method)).toEqual(['GET', 'DELETE']);
-      expect(new Headers(requests[1]?.[1]?.headers).get('If-Match')).toBe(SYNTHETIC_ETAG);
+      expect(requests.map(([, init]) => init?.method)).toEqual([
+        'GET',
+        'DELETE'
+      ]);
+      expect(new Headers(requests[1]?.[1]?.headers).get('If-Match')).toBe(
+        SYNTHETIC_ETAG
+      );
       expect(dispatch).toHaveBeenCalledTimes(2);
     }
   );

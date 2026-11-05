@@ -717,7 +717,6 @@ export class CalendarPilotRuntime {
     });
   }
 
-
   private async preflight(
     job: PilotJob,
     document: DocumentSnapshot,
@@ -901,7 +900,10 @@ export class CalendarPilotRuntime {
     if (job.localRecordId === undefined)
       throw new Error('Local record is missing.');
     if (job.kind === 'calendar_projection_delete') {
-      await writer.remove(calendarEventId(job.localRecordId), job.localRecordId);
+      await writer.remove(
+        calendarEventId(job.localRecordId),
+        job.localRecordId
+      );
       return 'completed';
     }
     const appointment = await this.db

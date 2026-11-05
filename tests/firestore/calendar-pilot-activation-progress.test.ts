@@ -58,7 +58,11 @@ let effects: Effect[];
 let conflictOnInsert = false;
 let afterEffect: (effect: Effect) => void | Promise<void>;
 let mutationFailure:
-  | { readonly method: 'PATCH' | 'DELETE'; readonly status?: number; readonly unknown?: boolean }
+  | {
+      readonly method: 'PATCH' | 'DELETE';
+      readonly status?: number;
+      readonly unknown?: boolean;
+    }
   | undefined;
 let engineCallCount = () => 0;
 let restoreEngine = () => {};
@@ -68,13 +72,11 @@ const jobRef = () => db.collection(OUTBOX).doc(JOB);
 const configuration = () => db.collection(CONFIG).doc('active');
 const state = async () => (await jobRef().get()).data();
 function requestsForEvent(eventId: string) {
-  return (dispatch.mock.calls as Parameters<typeof fetch>[]).filter(
-    ([url]) => {
-      const target =
-        typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
-      return new URL(target).pathname.endsWith(`/events/${eventId}`);
-    }
-  );
+  return (dispatch.mock.calls as Parameters<typeof fetch>[]).filter(([url]) => {
+    const target =
+      typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
+    return new URL(target).pathname.endsWith(`/events/${eventId}`);
+  });
 }
 const tick = () =>
   new CalendarPilotRuntime(
@@ -176,10 +178,13 @@ beforeEach(async () => {
     const method = init?.method ?? 'GET';
     if (method === 'GET') {
       if (path[2] === undefined) return Response.json({ items: [] });
-      const linkId = Array.from({ length: DATASET_SIZE }, (_, index) =>
-        `record_${String(index).padStart(3, '0')}`
-      ).find((id) =>
-        path[2] === `calpilot${createHash('sha256').update(id).digest('hex').slice(0, 40)}`
+      const linkId = Array.from(
+        { length: DATASET_SIZE },
+        (_, index) => `record_${String(index).padStart(3, '0')}`
+      ).find(
+        (id) =>
+          path[2] ===
+          `calpilot${createHash('sha256').update(id).digest('hex').slice(0, 40)}`
       );
       if (linkId === undefined) throw new Error('Unknown synthetic event.');
       return Response.json({
@@ -209,7 +214,8 @@ beforeEach(async () => {
     const failure = mutationFailure;
     if (failure !== undefined && failure.method === method) {
       mutationFailure = undefined;
-      if (failure.unknown) throw new Error('synthetic mutation outcome unknown');
+      if (failure.unknown)
+        throw new Error('synthetic mutation outcome unknown');
       return new Response(null, { status: failure.status });
     }
     if (method === 'POST' && conflictOnInsert)
@@ -333,7 +339,11 @@ describe('bounded CAL-PILOT source activation', () => {
     { name: 'unknown transport outcome', unknown: true, leaseRetained: true }
   ])(
     'quarantines a conditional PATCH on $name without refetching or retrying',
-    async ({ status, unknown, leaseRetained }: {
+    async ({
+      status,
+      unknown,
+      leaseRetained
+    }: {
       status?: number;
       unknown?: boolean;
       leaseRetained: boolean;
@@ -354,11 +364,16 @@ describe('bounded CAL-PILOT source activation', () => {
       const owner = (await configuration().get()).data()?.['workerLeaseOwner'];
       if (leaseRetained) expect(owner).toEqual(expect.any(String));
       else expect(owner).toBeNull();
-      expect(effects.filter((effect) => effect.method === 'POST')).toHaveLength(1);
+      expect(effects.filter((effect) => effect.method === 'POST')).toHaveLength(
+        1
+      );
       const patches = effects.filter((effect) => effect.method === 'PATCH');
       expect(patches).toHaveLength(1);
       const requests = requestsForEvent(patches[0]!.eventId);
-      expect(requests.map(([, init]) => init?.method)).toEqual(['GET', 'PATCH']);
+      expect(requests.map(([, init]) => init?.method)).toEqual([
+        'GET',
+        'PATCH'
+      ]);
       expect(new Headers(requests[1]?.[1]?.headers).get('If-Match')).toBe(
         SYNTHETIC_ETAG
       );
@@ -454,7 +469,9 @@ describe('bounded CAL-PILOT source activation', () => {
       leaseOwner: null,
       leaseExpiresAt: null
     });
-    expect((await configuration().get()).data()?.['workerLeaseOwner']).toEqual(expect.any(String));
+    expect((await configuration().get()).data()?.['workerLeaseOwner']).toEqual(
+      expect.any(String)
+    );
     expect((await configuration().get()).data()).not.toHaveProperty(
       'lastSuccessfulSyncAt'
     );
@@ -474,7 +491,9 @@ describe('bounded CAL-PILOT source activation', () => {
           (effect) => effect.method === 'POST' && effect.eventId === id
         )
       ).toHaveLength(1);
-    expect((await configuration().get()).data()).not.toHaveProperty('lastSuccessfulSyncAt');
+    expect((await configuration().get()).data()).not.toHaveProperty(
+      'lastSuccessfulSyncAt'
+    );
   });
 
   it('allows inbound with no activation records at generation zero', async () => {
