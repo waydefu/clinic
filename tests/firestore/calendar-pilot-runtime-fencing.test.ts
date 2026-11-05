@@ -245,7 +245,8 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
       owner: 'worker_a',
       generation: 1,
       now,
-      dispatch: { pending: 0 }
+      dispatch: { pending: 0 },
+      timing: { wall: Date.parse(now()), monotonic: performance.now() }
     });
     const url =
       'https://www.googleapis.com/calendar/v3/calendars/synthetic-calendar-id/events';
