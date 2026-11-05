@@ -527,6 +527,27 @@ export class CalendarPilotRuntime {
 
   private guardedFetch(lease: PilotLeaseContext): typeof fetch {
     return async (input, init) => {
+      const url = new URL(
+        input instanceof Request ? input.url : input.toString()
+      );
+      const allowed = Object.values(this.sources).some(({ calendarId }) => {
+        const events = `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`;
+        const event = url.pathname.slice(events.length + 1);
+        return (
+          url.pathname === events ||
+          (url.pathname.startsWith(`${events}/`) &&
+            event !== '' &&
+            !event.includes('/') &&
+            !/%2f/iu.test(event))
+        );
+      });
+      if (
+        url.origin !== 'https://www.googleapis.com' ||
+        url.username !== '' ||
+        url.password !== '' ||
+        !allowed
+      )
+        throw new Error('CAL-PILOT Calendar transport is not allowlisted.');
       if (lease.dispatch.pending !== 0) throw new CalendarPilotLeaseLostError();
       // Tokens may be slow: check here, after the client obtains its token.
       const beforeDispatch = await this.withLease(lease);
@@ -535,7 +556,13 @@ export class CalendarPilotRuntime {
       beforeDispatch();
       lease.dispatch.pending += 1;
       try {
-        const response = await fetch(input, init);
+        const response = await fetch(
+          input instanceof Request ? input : url.href,
+          {
+            ...init,
+            redirect: 'error'
+          }
+        );
         const afterResponse = await this.withLease(lease);
         afterResponse();
         lease.dispatch.pending -= 1;

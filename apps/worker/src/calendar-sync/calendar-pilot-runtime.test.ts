@@ -84,9 +84,46 @@ describe('calendar pilot preflight fresh clock admission', () => {
       transaction,
       reader,
       writer,
-      clock
+      clock,
+      runtime,
+      lease
     };
   }
+
+  it.each([
+    'https://www.googleapis.com/calendar/v3/calendars/other/events',
+    'https://www.googleapis.com/calendar/v3/calendars/synthetic-calendar-id/events/event/other',
+    'https://www.googleapis.com/calendar/v3/calendars/synthetic-calendar-id/events/event%2Fother',
+    'https://www.googleapis.com/calendar/v3/calendars/synthetic-calendar-id/eventsx',
+    'https://www.googleapis.com.evil.invalid/calendar/v3/calendars/synthetic-calendar-id/events',
+    'http://www.googleapis.com/calendar/v3/calendars/synthetic-calendar-id/events',
+    'https://user@www.googleapis.com/calendar/v3/calendars/synthetic-calendar-id/events'
+  ])('rejects a non-allowlisted transport destination', async (url: string) => {
+    const store = setup('2028-02-29T00:00:00Z');
+    const transport = vi.spyOn(globalThis, 'fetch');
+    await expect(
+      store.runtime['guardedFetch'](store.lease)(url)
+    ).rejects.toThrow(/not allowlisted/iu);
+    expect(transport).not.toHaveBeenCalled();
+    expect(store.transaction.get).not.toHaveBeenCalled();
+  });
+
+  it('permits only the configured event endpoint and disables redirects', async () => {
+    const store = setup('2028-02-29T00:00:00Z');
+    const url =
+      'https://www.googleapis.com/calendar/v3/calendars/synthetic-calendar-id/events/event123';
+    const transport = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response('{}'));
+    await store.runtime['guardedFetch'](store.lease)(url, {
+      method: 'PATCH',
+      redirect: 'follow'
+    });
+    expect(transport).toHaveBeenCalledExactlyOnceWith(url, {
+      method: 'PATCH',
+      redirect: 'error'
+    });
+  });
 
   it.each([
     '2028-02-30T00:00:00Z',
