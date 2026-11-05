@@ -247,7 +247,9 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
       now,
       dispatch: { pending: 0 }
     });
-    const first = guarded('https://www.googleapis.com/calendar/v3/test');
+    const url =
+      'https://www.googleapis.com/calendar/v3/calendars/synthetic-calendar-id/events';
+    const first = guarded(url);
     try {
       await Promise.race([
         reached,
@@ -255,17 +257,13 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
           throw new Error('The first transport did not reach the barrier.');
         })
       ]);
-      await expect(
-        guarded('https://www.googleapis.com/calendar/v3/test')
-      ).rejects.toThrow(/lease/iu);
+      await expect(guarded(url)).rejects.toThrow(/lease/iu);
       expect(dispatch).toHaveBeenCalledTimes(1);
     } finally {
       release();
     }
     await expect(first).resolves.toMatchObject({ status: 200 });
-    await expect(
-      guarded('https://www.googleapis.com/calendar/v3/test')
-    ).resolves.toMatchObject({ status: 200 });
+    await expect(guarded(url)).resolves.toMatchObject({ status: 200 });
     expect(dispatch).toHaveBeenCalledTimes(2);
   });
 
