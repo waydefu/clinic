@@ -101,9 +101,9 @@ describe('calendar pilot preflight fresh clock admission', () => {
   ])('rejects a non-allowlisted transport destination', async (url: string) => {
     const store = setup('2028-02-29T00:00:00Z');
     const transport = vi.spyOn(globalThis, 'fetch');
-    await expect(store.runtime['guardedFetch'](store.lease)(url)).rejects.toThrow(
-      /not allowlisted/iu
-    );
+    await expect(
+      store.runtime['guardedFetch'](store.lease)(url)
+    ).rejects.toThrow(/not allowlisted/iu);
     expect(transport).not.toHaveBeenCalled();
     expect(store.transaction.get).not.toHaveBeenCalled();
   });

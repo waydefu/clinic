@@ -556,10 +556,13 @@ export class CalendarPilotRuntime {
       beforeDispatch();
       lease.dispatch.pending += 1;
       try {
-        const response = await fetch(input instanceof Request ? input : url.href, {
-          ...init,
-          redirect: 'error'
-        });
+        const response = await fetch(
+          input instanceof Request ? input : url.href,
+          {
+            ...init,
+            redirect: 'error'
+          }
+        );
         const afterResponse = await this.withLease(lease);
         afterResponse();
         lease.dispatch.pending -= 1;
