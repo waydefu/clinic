@@ -60,7 +60,7 @@ beforeAll(() => {
   );
   db = getFirestore(app);
   api = new FirestoreCalendarPilotRepository(db);
-  worker = new FirestoreCalendarSyncRepository(db, 'synthetic-key');
+  worker = new FirestoreCalendarSyncRepository(db, 'p'.repeat(64));
 });
 
 afterAll(async () => {
