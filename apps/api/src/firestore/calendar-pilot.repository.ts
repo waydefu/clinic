@@ -19,6 +19,7 @@ import {
   ReviewCalendarCandidateResponseSchema,
   SyntheticAppointmentCommandResponseSchema,
   SyntheticPatientSummarySchema,
+  hasCalendarPilotWorkerLease,
   parseCalendarPilotRecord
 } from '@beauessence/contracts';
 import type {
@@ -519,6 +520,7 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       }
       if (configuration.version !== command.expectedVersion)
         throw new ConflictError();
+      if (hasCalendarPilotWorkerLease(configuration)) throw new ConflictError();
       const sourceId = requestedSourceId ?? configuration.previousSourceId;
       if (sourceId === undefined) throw new ConflictError();
       const [source, preflight] = await Promise.all([
