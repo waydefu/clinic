@@ -32,6 +32,17 @@ export const CalendarPilotSourceConfigurationSchema = z
   })
   .passthrough();
 
+export function hasCalendarPilotWorkerLease(
+  configuration: Readonly<Record<string, unknown>>
+): boolean {
+  return (
+    (configuration['workerLeaseOwner'] !== null &&
+      configuration['workerLeaseOwner'] !== undefined) ||
+    (configuration['workerLeaseExpiresAt'] !== null &&
+      configuration['workerLeaseExpiresAt'] !== undefined)
+  );
+}
+
 export const CalendarPilotConfigurationRecordSchema =
   CalendarPilotSourceConfigurationSchema.extend({
     health: CalendarSyncHealthSchema,

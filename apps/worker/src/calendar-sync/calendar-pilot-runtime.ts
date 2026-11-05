@@ -16,6 +16,7 @@ import {
   CalendarPilotRuntimeAppointmentRecordSchema,
   CalendarPilotRuntimeConfigurationRecordSchema,
   CalendarPilotRuntimeJobRecordSchema,
+  hasCalendarPilotWorkerLease,
   parseCalendarPilotRecord,
   type CalendarPilotRuntimeJobRecord
 } from '@beauessence/contracts';
@@ -608,13 +609,7 @@ export class CalendarPilotRuntime {
       )
         return undefined;
       // Expiry alone cannot prove that the previous dispatcher has stopped.
-      if (
-        (configuration.workerLeaseOwner !== null &&
-          configuration.workerLeaseOwner !== undefined) ||
-        (configuration.workerLeaseExpiresAt !== null &&
-          configuration.workerLeaseExpiresAt !== undefined)
-      )
-        return undefined;
+      if (hasCalendarPilotWorkerLease(configuration)) return undefined;
       const version = configuration['version'];
       if (
         typeof version !== 'number' ||
