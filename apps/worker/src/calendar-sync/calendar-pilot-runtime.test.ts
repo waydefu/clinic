@@ -141,22 +141,27 @@ describe('calendar pilot preflight fresh clock admission', () => {
     { elapsed: 10_000, allowed: false },
     { elapsed: -1, allowed: false },
     { elapsed: Number.NaN, allowed: false }
-  ])('checks the monotonic dispatch cutoff: $elapsed', async ({ elapsed, allowed }: { elapsed: number; allowed: boolean }) => {
-    const store = setup('2028-02-29T00:00:00Z');
-    store.configuration.workerLeaseExpiresAt = '2028-02-29T00:00:10Z';
-    store.monotonic.mockReturnValue(1_000 + elapsed);
-    const transport = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}'));
-    const dispatch = store.runtime['guardedFetch'](store.lease)(
-      'https://www.googleapis.com/calendar/v3/calendars/synthetic-calendar-id/events'
-    );
-    if (allowed) {
-      await expect(dispatch).resolves.toMatchObject({ status: 200 });
-      expect(transport).toHaveBeenCalledOnce();
-    } else {
-      await expect(dispatch).rejects.toThrow(/lease/iu);
-      expect(transport).not.toHaveBeenCalled();
+  ])(
+    'checks the monotonic dispatch cutoff: $elapsed',
+    async ({ elapsed, allowed }: { elapsed: number; allowed: boolean }) => {
+      const store = setup('2028-02-29T00:00:00Z');
+      store.configuration.workerLeaseExpiresAt = '2028-02-29T00:00:10Z';
+      store.monotonic.mockReturnValue(1_000 + elapsed);
+      const transport = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(new Response('{}'));
+      const dispatch = store.runtime['guardedFetch'](store.lease)(
+        'https://www.googleapis.com/calendar/v3/calendars/synthetic-calendar-id/events'
+      );
+      if (allowed) {
+        await expect(dispatch).resolves.toMatchObject({ status: 200 });
+        expect(transport).toHaveBeenCalledOnce();
+      } else {
+        await expect(dispatch).rejects.toThrow(/lease/iu);
+        expect(transport).not.toHaveBeenCalled();
+      }
     }
-  });
+  );
 
   it('does not let a backward wall-clock adjustment extend dispatch', async () => {
     const store = setup('2028-02-28T23:59:00Z');
