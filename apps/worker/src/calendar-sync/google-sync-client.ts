@@ -232,19 +232,26 @@ export class GoogleCalendarEventWriter {
       new Set([409])
     );
     if (inserted.status !== 409) return;
-    await this.update(event);
+    const etag = await this.readEtag(event.eventId, event.linkId);
+    if (etag === undefined)
+      throw new GoogleCalendarSyncError(
+        'Google Calendar event is missing.',
+        404,
+        false
+      );
+    await this.update(event, etag);
   }
 
   public async update(
     event: CalendarWriteEvent,
-    expectedEtag?: string
+    expectedEtag: string
   ): Promise<void> {
+    if (!/^"[\x21\x23-\x7e]*"$/u.test(expectedEtag))
+      throw new Error('Calendar event version is unavailable.');
     await this.request(`/events/${encodeURIComponent(event.eventId)}`, {
       method: 'PATCH',
       body: this.patchBody(event),
-      ...(expectedEtag === undefined
-        ? {}
-        : { headers: { 'If-Match': expectedEtag } })
+      headers: { 'If-Match': expectedEtag }
     });
   }
 
@@ -273,10 +280,44 @@ export class GoogleCalendarEventWriter {
     return JSON.stringify(this.mutationBody(event));
   }
 
-  public async remove(eventId: string): Promise<void> {
+  private async readEtag(
+    eventId: string,
+    linkId: string
+  ): Promise<string | undefined> {
+    const response = await this.request(
+      `/events/${encodeURIComponent(eventId)}`,
+      { method: 'GET' },
+      new Set([404, 410])
+    );
+    if (response.status === 404 || response.status === 410) return undefined;
+    const data: unknown = await response.json();
+    if (typeof data !== 'object' || data === null)
+      throw new Error('Calendar event version is unavailable.');
+    const record = data as Record<string, unknown>;
+    const extended = record['extendedProperties'];
+    const privateProperties =
+      typeof extended === 'object' && extended !== null
+        ? (extended as Record<string, unknown>)['private']
+        : undefined;
+    if (
+      record['id'] !== eventId ||
+      typeof record['etag'] !== 'string' ||
+      !/^"[\x21\x23-\x7e]*"$/u.test(record['etag']) ||
+      typeof privateProperties !== 'object' ||
+      privateProperties === null ||
+      (privateProperties as Record<string, unknown>)['beauessenceLinkId'] !==
+        linkId
+    )
+      throw new Error('Calendar event identity or version is unavailable.');
+    return record['etag'];
+  }
+
+  public async remove(eventId: string, linkId: string): Promise<void> {
+    const etag = await this.readEtag(eventId, linkId);
+    if (etag === undefined) return;
     await this.request(
       `/events/${encodeURIComponent(eventId)}`,
-      { method: 'DELETE' },
+      { method: 'DELETE', headers: { 'If-Match': etag } },
       new Set([404, 410])
     );
   }
@@ -288,17 +329,15 @@ export class GoogleCalendarEventWriter {
    */
   public async verifyWriteAccess(probeId: string): Promise<void> {
     const eventId = `calpilotpreflight${probeId}`;
-    try {
-      await this.upsert({
-        eventId,
-        title: '[忙碌] 其他',
-        startsAt: '2000-01-01T00:00:00.000Z',
-        endsAt: '2000-01-01T00:01:00.000Z',
-        linkId: `preflight_${probeId}`
-      });
-    } finally {
-      await this.remove(eventId);
-    }
+    const linkId = `preflight_${probeId}`;
+    await this.upsert({
+      eventId,
+      title: '[忙碌] 其他',
+      startsAt: '2000-01-01T00:00:00.000Z',
+      endsAt: '2000-01-01T00:01:00.000Z',
+      linkId
+    });
+    await this.remove(eventId, linkId);
   }
 }
 
