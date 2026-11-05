@@ -64,6 +64,8 @@ const LEASE_MS = 4 * 60_000;
 const DISPATCH_SAFETY_MARGIN_MS = 1_000;
 const JOB_BATCH_SIZE = 20;
 
+class CalendarPilotOutcomeUnknownError extends CalendarPilotLeaseLostError {}
+
 interface SourceSecret {
   readonly calendarId: string;
 }
@@ -591,7 +593,7 @@ export class CalendarPilotRuntime {
         return response;
       } catch {
         // An unknown transport outcome must not release this owner for reuse.
-        throw new CalendarPilotLeaseLostError();
+        throw new CalendarPilotOutcomeUnknownError();
       }
     };
   }
@@ -715,25 +717,6 @@ export class CalendarPilotRuntime {
     });
   }
 
-  private async retryJob(
-    document: DocumentSnapshot,
-    lease: PilotLeaseContext,
-    attemptCount: number,
-    errorCode: string
-  ): Promise<void> {
-    await this.withLease({ ...lease, document }, (transaction, now) => {
-      transaction.update(document.ref, {
-        status: 'pending',
-        attemptCount,
-        nextAttemptAt: new Date(
-          Date.parse(now) + Math.min(5 * 60_000, 10_000 * 2 ** attemptCount)
-        ).toISOString(),
-        leaseOwner: null,
-        leaseExpiresAt: null,
-        lastErrorCode: errorCode
-      });
-    });
-  }
 
   private async preflight(
     job: PilotJob,
@@ -1012,39 +995,30 @@ export class CalendarPilotRuntime {
           await this.completeJob(document, lease, status);
           processedJobs += 1;
         } catch (error) {
-          if (error instanceof CalendarPilotLeaseLostError) throw error;
-          // A failed provider precondition must not be reclaimed as processing
-          // work. Retain a durable failure for later reconciliation instead.
-          if (error instanceof GoogleCalendarSyncError && error.status === 412) {
+          if (
+            error instanceof CalendarPilotOutcomeUnknownError ||
+            (error instanceof GoogleCalendarSyncError &&
+              (error.status === 412 || error.retryable))
+          ) {
+            // Retain the owner if a provider mutation may still take effect.
+            if (error instanceof GoogleCalendarSyncError && error.retryable)
+              lease.dispatch.pending += 1;
             await this.completeJob(
               document,
               lease,
               'failed',
-              'calendar_precondition_failed'
+              'needs_reconcile'
             );
             throw new CalendarPilotLeaseLostError();
           }
-          const nextAttempt = (job.attemptCount ?? 0) + 1;
-          if (
-            error instanceof GoogleCalendarSyncError &&
-            error.retryable &&
-            nextAttempt < 5
-          )
-            await this.retryJob(
-              document,
-              lease,
-              nextAttempt,
-              safeFailureCode(error)
-            );
-          else {
-            await this.completeJob(
-              document,
-              lease,
-              'failed',
-              safeFailureCode(error)
-            );
-            failedJobs += 1;
-          }
+          if (error instanceof CalendarPilotLeaseLostError) throw error;
+          await this.completeJob(
+            document,
+            lease,
+            'failed',
+            safeFailureCode(error)
+          );
+          failedJobs += 1;
         }
       }
       // Do not run inbound sync or advertise its healthy checkpoint while the

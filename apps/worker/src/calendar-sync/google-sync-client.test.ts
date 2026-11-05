@@ -260,6 +260,27 @@ describe('GoogleCalendarEventWriter', () => {
     expect(fetchImpl).toHaveBeenCalledOnce();
   });
 
+  it('does not fetch a new etag or retry after a patch precondition failure', async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(response({}, 409))
+      .mockResolvedValueOnce(response({
+        id: 'calpilotevent001',
+        etag: '"etag-001"',
+        extendedProperties: { private: { beauessenceLinkId: 'block_001' } }
+      }, 200))
+      .mockResolvedValueOnce(response({}, 412));
+    const writer = new GoogleCalendarEventWriter('calendar@example.invalid', () => Promise.resolve('token'), fetchImpl);
+    await expect(writer.upsert({
+      eventId: 'calpilotevent001',
+      title: '[忙碌] 會議',
+      startsAt: '2026-09-02T06:00:00.000Z',
+      endsAt: '2026-09-02T07:00:00.000Z',
+      linkId: 'block_001'
+    })).rejects.toEqual(expect.objectContaining({ status: 412, retryable: false }));
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    expect(new Headers(fetchImpl.mock.calls[2]?.[1]?.headers).get('If-Match')).toBe('"etag-001"');
+  });
+
   it('updates the existing event with If-Match and never sends insert-only id', async () => {
     const fetchImpl = vi.fn(() => Promise.resolve(response({}, 200)));
     const writer = new GoogleCalendarEventWriter(
