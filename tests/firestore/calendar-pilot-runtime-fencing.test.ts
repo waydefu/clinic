@@ -200,6 +200,75 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
     expect(dispatch).toHaveBeenCalledTimes(1);
   });
 
+  it('does not start cleanup after an uncertain preflight write', async () => {
+    await db.collection(OUTBOX).doc('job_b').delete();
+    await seedJob('job_a', 'calendar_source_preflight');
+    dispatch
+      .mockResolvedValueOnce(Response.json({ items: [] }))
+      .mockRejectedValueOnce(new Error('synthetic transport failure'));
+
+    await expect(run()).rejects.toThrow(/lease/iu);
+    expect(dispatch).toHaveBeenCalledTimes(2);
+    expect(dispatch.mock.calls[0]?.[1]?.method).toBe('GET');
+    expect(dispatch.mock.calls[1]?.[1]?.method).toBe('POST');
+    expect(await state('job_a')).toMatchObject({ status: 'processing' });
+    expect((await configuration().get()).data()?.['workerLeaseOwner']).toEqual(
+      expect.any(String)
+    );
+  });
+
+  it('denies a second transport while the first is in flight', async () => {
+    await configuration().update({
+      workerLeaseOwner: 'worker_a',
+      workerLeaseExpiresAt: DEADLINE
+    });
+    let release = () => {};
+    let started = () => {};
+    const barrier = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const reached = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    dispatch.mockImplementationOnce(async () => {
+      started();
+      await barrier;
+      return Response.json({ items: [] });
+    });
+    const runtime = new CalendarPilotRuntime(
+      db,
+      environment,
+      now,
+      syntheticOpenMaintenanceControl()
+    );
+    const guarded = runtime['guardedFetch']({
+      owner: 'worker_a',
+      generation: 1,
+      now,
+      dispatch: { pending: 0 }
+    });
+    const first = guarded('https://www.googleapis.com/calendar/v3/test');
+    try {
+      await Promise.race([
+        reached,
+        first.then(() => {
+          throw new Error('The first transport did not reach the barrier.');
+        })
+      ]);
+      await expect(
+        guarded('https://www.googleapis.com/calendar/v3/test')
+      ).rejects.toThrow(/lease/iu);
+      expect(dispatch).toHaveBeenCalledTimes(1);
+    } finally {
+      release();
+    }
+    await expect(first).resolves.toMatchObject({ status: 200 });
+    await expect(
+      guarded('https://www.googleapis.com/calendar/v3/test')
+    ).resolves.toMatchObject({ status: 200 });
+    expect(dispatch).toHaveBeenCalledTimes(2);
+  });
+
   it('serializes concurrent complete runs behind the global lease', async () => {
     let releaseToken = () => {};
     let signalToken = () => {};

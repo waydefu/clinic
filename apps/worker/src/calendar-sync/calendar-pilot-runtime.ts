@@ -527,8 +527,10 @@ export class CalendarPilotRuntime {
 
   private guardedFetch(lease: PilotLeaseContext): typeof fetch {
     return async (input, init) => {
+      if (lease.dispatch.pending !== 0) throw new CalendarPilotLeaseLostError();
       // Tokens may be slow: check here, after the client obtains its token.
       const beforeDispatch = await this.withLease(lease);
+      if (lease.dispatch.pending !== 0) throw new CalendarPilotLeaseLostError();
       // Even the transaction reply may arrive after the checked deadline.
       beforeDispatch();
       lease.dispatch.pending += 1;
