@@ -60,6 +60,8 @@ export const C1_SYNTHETIC_CALENDAR_SOURCE_ID = 'c1_synthetic_calendar';
 export const C1_SYNTHETIC_ADC_MODE = 'C1_SYNTHETIC_ADC';
 export const C1_SYNTHETIC_PROJECT_ID = 'beauessence-clinic-stg-c1a01';
 const LEASE_MS = 4 * 60_000;
+// Conservative dispatch cutoff, not an extension of any lease or timeout.
+const DISPATCH_SAFETY_MARGIN_MS = 1_000;
 const JOB_BATCH_SIZE = 20;
 
 interface SourceSecret {
@@ -193,6 +195,7 @@ export async function claimCalendarPilotJobs(
 interface PilotLeaseContext extends CalendarPilotWorkerLease {
   readonly document?: DocumentSnapshot;
   readonly dispatch: { pending: number };
+  readonly timing: { readonly wall: number; readonly monotonic: number };
 }
 
 interface StoredAppointment {
@@ -444,7 +447,8 @@ export class CalendarPilotRuntime {
     private readonly db: Firestore,
     environment: NodeJS.ProcessEnv = process.env,
     private readonly clock: () => string = () => new Date().toISOString(),
-    public readonly maintenanceControl = new SharedMaintenanceControl()
+    public readonly maintenanceControl = new SharedMaintenanceControl(),
+    private readonly monotonicClock: () => number = () => performance.now()
   ) {
     const configuration = resolveCalendarPilotRuntimeConfiguration(environment);
     this.pseudonymKey = configuration.pseudonymKey;
@@ -491,7 +495,7 @@ export class CalendarPilotRuntime {
       now: string,
       currentJob?: Record<string, unknown>
     ) => void
-  ): Promise<() => void> {
+  ): Promise<(dispatch?: boolean) => void> {
     return this.db.runTransaction(async (transaction) => {
       const configuration = await transaction.get(
         this.db.collection('calendar_pilot_configuration').doc('active')
@@ -519,8 +523,26 @@ export class CalendarPilotRuntime {
         jobData
       );
       write?.(transaction, now, jobData);
-      return () => {
+      return (dispatch = false) => {
         assertCalendarPilotWorkerLease(configurationData, lease, jobData);
+        if (dispatch) {
+          const deadline = Math.min(
+            Date.parse(configurationData.expiresAt),
+            Date.parse(String(configurationData.workerLeaseExpiresAt)),
+            jobData === undefined
+              ? Number.POSITIVE_INFINITY
+              : Date.parse(String(jobData.leaseExpiresAt))
+          );
+          const elapsed = this.monotonicClock() - lease.timing.monotonic;
+          if (
+            !Number.isFinite(deadline) ||
+            !Number.isFinite(lease.timing.wall) ||
+            !Number.isFinite(elapsed) ||
+            elapsed < 0 ||
+            lease.timing.wall + elapsed >= deadline - DISPATCH_SAFETY_MARGIN_MS
+          )
+            throw new CalendarPilotLeaseLostError();
+        }
       };
     });
   }
@@ -553,7 +575,7 @@ export class CalendarPilotRuntime {
       const beforeDispatch = await this.withLease(lease);
       if (lease.dispatch.pending !== 0) throw new CalendarPilotLeaseLostError();
       // Even the transaction reply may arrive after the checked deadline.
-      beforeDispatch();
+      beforeDispatch(true);
       lease.dispatch.pending += 1;
       try {
         const response = await fetch(
@@ -948,6 +970,10 @@ export class CalendarPilotRuntime {
   }
 
   private async runAdmitted(now: string): Promise<CalendarPilotRunSummary> {
+    const monotonic = this.monotonicClock();
+    const anchor = this.clock();
+    if (!Number.isFinite(monotonic) || !isUtcIsoTimestamp(anchor))
+      throw new CalendarPilotLeaseLostError();
     const owner = randomUUID();
     const generation = await this.acquire(owner, now);
     if (generation === undefined)
@@ -956,7 +982,8 @@ export class CalendarPilotRuntime {
       owner,
       generation,
       now: this.clock,
-      dispatch: { pending: 0 }
+      dispatch: { pending: 0 },
+      timing: { wall: Date.parse(anchor), monotonic }
     };
     let processedJobs = 0;
     let failedJobs = 0;

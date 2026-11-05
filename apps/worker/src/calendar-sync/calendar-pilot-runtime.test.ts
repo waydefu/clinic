@@ -55,19 +55,27 @@ describe('calendar pilot preflight fresh clock admission', () => {
       .spyOn(GoogleCalendarEventWriter.prototype, 'verifyWriteAccess')
       .mockResolvedValue(undefined);
     const clock = vi.fn(() => now).mockReturnValueOnce('2028-02-29T00:00:00Z');
+    const monotonic = vi.fn(() => 1_000);
     const lease = {
       owner,
       generation: 0,
       now: clock,
-      dispatch: { pending: 0 }
+      dispatch: { pending: 0 },
+      timing: { wall: Date.parse('2028-02-29T00:00:00Z'), monotonic: 1_000 }
     };
-    const runtime = new CalendarPilotRuntime(db, {
-      CALENDAR_PILOT_RUNTIME_MODE: 'C1_SYNTHETIC_ADC',
-      GOOGLE_CLOUD_PROJECT: 'beauessence-clinic-stg-c1a01',
-      CALENDAR_PILOT_PSEUDONYM_KEY: 'p'.repeat(32),
-      GOOGLE_CALENDAR_AUTH: 'CLOUD_ADC',
-      GOOGLE_CALENDAR_ID: 'synthetic-calendar-id'
-    });
+    const runtime = new CalendarPilotRuntime(
+      db,
+      {
+        CALENDAR_PILOT_RUNTIME_MODE: 'C1_SYNTHETIC_ADC',
+        GOOGLE_CLOUD_PROJECT: 'beauessence-clinic-stg-c1a01',
+        CALENDAR_PILOT_PSEUDONYM_KEY: 'p'.repeat(32),
+        GOOGLE_CALENDAR_AUTH: 'CLOUD_ADC',
+        GOOGLE_CALENDAR_ID: 'synthetic-calendar-id'
+      },
+      undefined,
+      undefined,
+      monotonic
+    );
     return {
       admit: () => runtime['withLease'](lease),
       preflight: () =>
@@ -85,6 +93,8 @@ describe('calendar pilot preflight fresh clock admission', () => {
       reader,
       writer,
       clock,
+      monotonic,
+      configuration,
       runtime,
       lease
     };
@@ -123,6 +133,83 @@ describe('calendar pilot preflight fresh clock admission', () => {
       method: 'PATCH',
       redirect: 'error'
     });
+  });
+
+  it.each([
+    { elapsed: 8_999, allowed: true },
+    { elapsed: 9_000, allowed: false },
+    { elapsed: 10_000, allowed: false },
+    { elapsed: -1, allowed: false },
+    { elapsed: Number.NaN, allowed: false }
+  ])(
+    'checks the monotonic dispatch cutoff: $elapsed',
+    async ({ elapsed, allowed }: { elapsed: number; allowed: boolean }) => {
+      const store = setup('2028-02-29T00:00:00Z');
+      store.configuration.workerLeaseExpiresAt = '2028-02-29T00:00:10Z';
+      store.monotonic.mockReturnValue(1_000 + elapsed);
+      const transport = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(new Response('{}'));
+      const dispatch = store.runtime['guardedFetch'](store.lease)(
+        'https://www.googleapis.com/calendar/v3/calendars/synthetic-calendar-id/events'
+      );
+      if (allowed) {
+        await expect(dispatch).resolves.toMatchObject({ status: 200 });
+        expect(transport).toHaveBeenCalledOnce();
+      } else {
+        await expect(dispatch).rejects.toThrow(/lease/iu);
+        expect(transport).not.toHaveBeenCalled();
+      }
+    }
+  );
+
+  it('does not let a backward wall-clock adjustment extend dispatch', async () => {
+    const store = setup('2028-02-28T23:59:00Z');
+    store.configuration.workerLeaseExpiresAt = '2028-02-29T00:00:10Z';
+    store.monotonic.mockReturnValue(10_000);
+    const transport = vi.spyOn(globalThis, 'fetch');
+    await expect(
+      store.runtime['guardedFetch'](store.lease)(
+        'https://www.googleapis.com/calendar/v3/calendars/synthetic-calendar-id/events'
+      )
+    ).rejects.toThrow(/lease/iu);
+    expect(transport).not.toHaveBeenCalled();
+  });
+
+  it('respects the configuration expiry when it comes before the worker lease', async () => {
+    const store = setup('2028-02-29T00:00:00Z');
+    store.configuration.expiresAt = '2028-02-29T00:00:10Z';
+    store.monotonic.mockReturnValue(10_000);
+    const transport = vi.spyOn(globalThis, 'fetch');
+    await expect(
+      store.runtime['guardedFetch'](store.lease)(
+        'https://www.googleapis.com/calendar/v3/calendars/synthetic-calendar-id/events'
+      )
+    ).rejects.toThrow(/lease/iu);
+    expect(transport).not.toHaveBeenCalled();
+  });
+
+  it('respects the job expiry when it comes before the worker lease', async () => {
+    const store = setup('2028-02-29T00:00:00Z');
+    store.monotonic.mockReturnValue(10_000);
+    store.transaction.get
+      .mockResolvedValueOnce({ exists: true, data: () => store.configuration })
+      .mockResolvedValueOnce({
+        exists: true,
+        data: () => ({
+          status: 'processing',
+          leaseOwner: 'synthetic_worker',
+          leaseExpiresAt: '2028-02-29T00:00:10Z'
+        })
+      } as never);
+    const transport = vi.spyOn(globalThis, 'fetch');
+    const lease = { ...store.lease, document: { ref: {} } as DocumentSnapshot };
+    await expect(
+      store.runtime['guardedFetch'](lease)(
+        'https://www.googleapis.com/calendar/v3/calendars/synthetic-calendar-id/events'
+      )
+    ).rejects.toThrow(/lease/iu);
+    expect(transport).not.toHaveBeenCalled();
   });
 
   it.each([

@@ -245,7 +245,8 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
       owner: 'worker_a',
       generation: 1,
       now,
-      dispatch: { pending: 0 }
+      dispatch: { pending: 0 },
+      timing: { wall: Date.parse(now()), monotonic: performance.now() }
     });
     const url =
       'https://www.googleapis.com/calendar/v3/calendars/synthetic-calendar-id/events';
@@ -573,15 +574,15 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
   );
 
   it('cannot complete or dispatch a later job after configuration expiry', async () => {
-    await configuration().update({ expiresAt: '2026-09-01T00:00:01.000Z' });
+    await configuration().update({ expiresAt: '2026-09-01T00:00:10.000Z' });
     afterDispatch = () => {
-      clock = '2026-09-01T00:00:01.000Z';
+      clock = '2026-09-01T00:00:10.000Z';
     };
     await expect(run()).rejects.toThrow(/lease/iu);
     expect(dispatch).toHaveBeenCalledTimes(1);
     expect((await state('job_a'))?.['status']).toBe('processing');
     expect((await configuration().get()).data()?.['expiresAt']).toBe(
-      '2026-09-01T00:00:01.000Z'
+      '2026-09-01T00:00:10.000Z'
     );
   });
 
