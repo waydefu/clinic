@@ -83,7 +83,7 @@ let mutationFailure:
   | undefined;
 
 function requestsForEvent(eventId: string) {
-  return (dispatch.mock.calls as Parameters<typeof fetch>[]).filter(([url]) => {
+  return dispatch.mock.calls.filter(([url]) => {
     const target =
       typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
     return new URL(target).pathname.endsWith(`/events/${eventId}`);
