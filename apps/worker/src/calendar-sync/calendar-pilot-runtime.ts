@@ -815,7 +815,7 @@ export class CalendarPilotRuntime {
           });
         },
         removeOld: (localRecordId) =>
-          oldWriter.remove(calendarEventId(localRecordId)),
+          oldWriter.remove(calendarEventId(localRecordId), localRecordId),
         checkpoint: async (change) => {
           await this.withLease(lease, (transaction, _now, currentJob) => {
             assertSameCalendarActivationProgress(
@@ -896,7 +896,7 @@ export class CalendarPilotRuntime {
     if (job.localRecordId === undefined)
       throw new Error('Local record is missing.');
     if (job.kind === 'calendar_projection_delete') {
-      await writer.remove(calendarEventId(job.localRecordId));
+      await writer.remove(calendarEventId(job.localRecordId), job.localRecordId);
       return 'completed';
     }
     const appointment = await this.db
@@ -986,6 +986,17 @@ export class CalendarPilotRuntime {
           processedJobs += 1;
         } catch (error) {
           if (error instanceof CalendarPilotLeaseLostError) throw error;
+          // A failed provider precondition must not be reclaimed as processing
+          // work. Retain a durable failure for later reconciliation instead.
+          if (error instanceof GoogleCalendarSyncError && error.status === 412) {
+            await this.completeJob(
+              document,
+              lease,
+              'failed',
+              'calendar_precondition_failed'
+            );
+            throw new CalendarPilotLeaseLostError();
+          }
           const nextAttempt = (job.attemptCount ?? 0) + 1;
           if (
             error instanceof GoogleCalendarSyncError &&
