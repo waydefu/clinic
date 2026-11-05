@@ -301,9 +301,10 @@ html.synthetic-workbench-ready .cp-boot-status {
 }
 /* 摘要卡片幾張就分幾欄，不留第四欄的空位。 */
 #overview .summary-grid {
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
 }
-/* 手機上卡片改成左邊數字、右邊動作的橫條，三張不必各佔一整屏高度。 */
+/* 手機上卡片改成「標籤／數字＋動作」的矮卡，三張不必各佔一整屏高度；
+   放不下時（200% 字級）動作自動換到下一列，不撐出水平捲動。 */
 @media (max-width: 48rem) {
   /* 手機上深色主視覺原本約佔大半屏；內容一句不刪，只收字級與間距，
      目前帳號那欄改成「帳號名＋版本標籤」同一列。 */
@@ -346,17 +347,19 @@ html.synthetic-workbench-ready .cp-boot-status {
   }
   #overview .summary-card {
     align-items: center;
-    column-gap: var(--space-xs);
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3xs) var(--space-xs);
     min-height: 0;
+  }
+  #overview .summary-card > span {
+    flex-basis: 100%;
   }
   #overview .summary-card strong {
     margin-bottom: 0;
   }
   #overview .summary-card .summary-action {
-    grid-column: 2;
-    grid-row: 1 / span 2;
+    margin-left: auto;
   }
 }
 .summary-card a {
