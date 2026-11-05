@@ -72,7 +72,7 @@ const jobRef = () => db.collection(OUTBOX).doc(JOB);
 const configuration = () => db.collection(CONFIG).doc('active');
 const state = async () => (await jobRef().get()).data();
 function requestsForEvent(eventId: string) {
-  return (dispatch.mock.calls as Parameters<typeof fetch>[]).filter(([url]) => {
+  return dispatch.mock.calls.filter(([url]) => {
     const target =
       typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
     return new URL(target).pathname.endsWith(`/events/${eventId}`);
