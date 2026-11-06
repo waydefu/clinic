@@ -6,7 +6,7 @@ import {
   type CalendarPilotReconciliationPort,
   type ReconcileSnapshot
 } from './calendar-pilot-reconciler.js';
-import type { CalendarWriteEvent } from './google-sync-client.js';
+import { GoogleCalendarEventWriter, type CalendarWriteEvent } from './google-sync-client.js';
 
 const desired: CalendarWriteEvent = {
   eventId: 'original',
@@ -26,7 +26,7 @@ const current = {
 };
 function snapshot(): ReconcileSnapshot {
   return {
-    linkId: 'link_a', blockedByOwner: false, mirrorEventId: 'original',
+    linkId: 'link_a', blockedByOwner: false, inventoryComplete: true, mirrorEventId: 'original',
     projectionEventId: 'projection', projectionOwned: true,
     desired, events: [current]
   };
@@ -47,16 +47,24 @@ describe('calendar pilot reconciliation', () => {
     });
     expect(planCalendarPilotReconciliation({ ...snapshot(), projectionOwned: false, events: [matching, duplicate] })).toEqual({ kind: 'conflict' });
     expect(planCalendarPilotReconciliation({ ...snapshot(), events: [matching, { ...duplicate, id: 'unknown' }] })).toEqual({ kind: 'conflict' });
+    expect(planCalendarPilotReconciliation({ ...snapshot(), inventoryComplete: false })).toEqual({ kind: 'conflict' });
     expect(planCalendarPilotReconciliation({ ...snapshot(), blockedByOwner: true })).toEqual({ kind: 'blocked' });
   });
 
   it('patches in the first round and only settles after the second round is a no-op', async () => {
-    let state = snapshot();
+    let state: ReconcileSnapshot = { ...snapshot(), events: [{ ...current, status: 'cancelled' as const }] };
     let failed = true;
+    const fetchImpl = vi.fn<typeof fetch>(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(init?.method).toBe('PATCH');
+      expect(new Headers(init?.headers).get('If-Match')).toBe('"v1"');
+      expect(JSON.parse(String(init?.body))).toMatchObject({ status: 'confirmed', summary: desired.title });
+      state = { ...snapshot(), events: [{ ...current, title: desired.title, etag: '"v2"' }] };
+      return new Response(null, { status: 200 });
+    });
+    const writer = new GoogleCalendarEventWriter('synthetic-calendar', async () => 'synthetic-token', fetchImpl);
     const apply = vi.fn<CalendarPilotReconciliationPort['apply']>(async (_linkId, action) => {
       if (action.kind !== 'patch') throw new Error('unexpected action');
-      expect(action.etag).toBe('"v1"');
-      state = { ...state, events: [{ ...current, title: desired.title, etag: '"v2"' }] };
+      await writer.update(action.event, action.etag, true);
     });
     const port: CalendarPilotReconciliationPort = {
       scan: async () => ['link_a'],
@@ -71,6 +79,7 @@ describe('calendar pilot reconciliation', () => {
     expect(await runCalendarPilotReconciliation(port, bounds)).toEqual({ processed: 1, converged: 1, conflicts: 0, blocked: 0 });
     expect(failed).toBe(false);
     expect(apply).toHaveBeenCalledTimes(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it('does not mutate or settle blocked and conflicted links', async () => {
@@ -88,5 +97,49 @@ describe('calendar pilot reconciliation', () => {
     expect(apply).not.toHaveBeenCalled();
     expect(settleIfUnchanged).not.toHaveBeenCalled();
     expect(recordConflict).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails closed when its monotonic clock is invalid or the deadline passes', async () => {
+    const apply = vi.fn<CalendarPilotReconciliationPort['apply']>();
+    const settleIfUnchanged = vi.fn<CalendarPilotReconciliationPort['settleIfUnchanged']>();
+    const recordConflict = vi.fn<CalendarPilotReconciliationPort['recordConflict']>();
+    const port: CalendarPilotReconciliationPort = {
+      scan: async () => ['link_a'],
+      read: async () => snapshot(),
+      apply, settleIfUnchanged, recordConflict
+    };
+    await expect(runCalendarPilotReconciliation(port, { maxItems: 1, deadline: 10, now: () => Number.NaN })).rejects.toThrow('Invalid calendar reconciliation clock.');
+    const now = vi.fn().mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(10);
+    await expect(runCalendarPilotReconciliation(port, { maxItems: 1, deadline: 10, now })).resolves.toEqual({
+      processed: 1, converged: 0, conflicts: 0, blocked: 0
+    });
+    expect(apply).not.toHaveBeenCalled();
+    expect(settleIfUnchanged).not.toHaveBeenCalled();
+    expect(recordConflict).not.toHaveBeenCalled();
+  });
+
+  it('does not retry or settle an uncertain transport write', async () => {
+    const apply = vi.fn<CalendarPilotReconciliationPort['apply']>().mockRejectedValue(new Error('synthetic lost response'));
+    const settleIfUnchanged = vi.fn<CalendarPilotReconciliationPort['settleIfUnchanged']>();
+    const port: CalendarPilotReconciliationPort = {
+      scan: async () => ['link_a'],
+      read: async () => snapshot(),
+      apply, settleIfUnchanged,
+      recordConflict: async () => { throw new Error('unexpected conflict'); }
+    };
+    await expect(runCalendarPilotReconciliation(port, { maxItems: 1, deadline: 10, now: () => 0 })).rejects.toThrow('synthetic lost response');
+    expect(apply).toHaveBeenCalledTimes(1);
+    expect(settleIfUnchanged).not.toHaveBeenCalled();
+  });
+
+  it('uses the planned version for a duplicate delete without a replacement GET', async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(init?.method).toBe('DELETE');
+      expect(new Headers(init?.headers).get('If-Match')).toBe('"v2"');
+      return new Response(null, { status: 412 });
+    });
+    const writer = new GoogleCalendarEventWriter('synthetic-calendar', async () => 'synthetic-token', fetchImpl);
+    await expect(writer.removeWithEtag('projection', '"v2"')).rejects.toThrow('Google Calendar write failed (412).');
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });

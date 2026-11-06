@@ -244,13 +244,16 @@ export class GoogleCalendarEventWriter {
 
   public async update(
     event: CalendarWriteEvent,
-    expectedEtag: string
+    expectedEtag: string,
+    restore = false
   ): Promise<void> {
     if (!/^"[\x21\x23-\x7e]*"$/u.test(expectedEtag))
       throw new Error('Calendar event version is unavailable.');
     await this.request(`/events/${encodeURIComponent(event.eventId)}`, {
       method: 'PATCH',
-      body: this.patchBody(event),
+      body: restore
+        ? JSON.stringify({ ...this.mutationBody(event), status: 'confirmed' })
+        : this.patchBody(event),
       headers: { 'If-Match': expectedEtag }
     });
   }
@@ -315,6 +318,12 @@ export class GoogleCalendarEventWriter {
   public async remove(eventId: string, linkId: string): Promise<void> {
     const etag = await this.readEtag(eventId, linkId);
     if (etag === undefined) return;
+    await this.removeWithEtag(eventId, etag);
+  }
+
+  public async removeWithEtag(eventId: string, etag: string): Promise<void> {
+    if (!/^"[\x21\x23-\x7e]*"$/u.test(etag))
+      throw new Error('Calendar event version is unavailable.');
     await this.request(
       `/events/${encodeURIComponent(eventId)}`,
       { method: 'DELETE', headers: { 'If-Match': etag } },

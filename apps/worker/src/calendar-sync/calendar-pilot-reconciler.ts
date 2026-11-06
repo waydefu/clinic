@@ -13,6 +13,7 @@ export interface ReconcileEvent {
 export interface ReconcileSnapshot {
   readonly linkId: string;
   readonly blockedByOwner: boolean;
+  readonly inventoryComplete: boolean;
   readonly mirrorEventId?: string;
   readonly projectionEventId: string;
   readonly projectionOwned: boolean;
@@ -40,6 +41,7 @@ function sameEvent(event: ReconcileEvent, desired: CalendarWriteEvent): boolean 
 
 export function planCalendarPilotReconciliation(snapshot: ReconcileSnapshot): ReconcileAction {
   if (snapshot.blockedByOwner) return { kind: 'blocked' };
+  if (!snapshot.inventoryComplete) return { kind: 'conflict' };
   const canonicalId = snapshot.mirrorEventId ?? snapshot.projectionEventId;
   if (snapshot.mirrorEventId === undefined && !snapshot.projectionOwned)
     return { kind: 'conflict' };
@@ -91,12 +93,20 @@ export async function runCalendarPilotReconciliation(
   if (!Number.isSafeInteger(options.maxItems) || options.maxItems < 1 || !Number.isFinite(options.deadline))
     throw new Error('Invalid calendar reconciliation bounds.');
   const result = { processed: 0, converged: 0, conflicts: 0, blocked: 0 };
-  if (options.now() >= options.deadline) return result;
+  let lastTime = Number.NEGATIVE_INFINITY;
+  const expired = (): boolean => {
+    const now = options.now();
+    if (!Number.isFinite(now) || now < lastTime)
+      throw new Error('Invalid calendar reconciliation clock.');
+    lastTime = now;
+    return now >= options.deadline;
+  };
+  if (expired()) return result;
   const ids = await port.scan(options.maxItems);
   if (ids.length > options.maxItems || new Set(ids).size !== ids.length)
     throw new Error('Invalid calendar reconciliation scan.');
   for (const linkId of ids) {
-    if (options.now() >= options.deadline) break;
+    if (expired()) break;
     const snapshot = await port.read(linkId);
     if (snapshot.linkId !== linkId) throw new Error('Calendar reconciliation link changed.');
     const action = planCalendarPilotReconciliation(snapshot);
@@ -106,16 +116,17 @@ export async function runCalendarPilotReconciliation(
       continue;
     }
     if (action.kind === 'conflict') {
+      if (expired()) break;
       await port.recordConflict(snapshot);
       result.conflicts += 1;
       continue;
     }
     if (action.kind !== 'no-op') {
-      if (options.now() >= options.deadline) break;
+      if (expired()) break;
       await port.apply(linkId, action);
       continue;
     }
-    if (options.now() < options.deadline && await port.settleIfUnchanged(snapshot))
+    if (!expired() && await port.settleIfUnchanged(snapshot))
       result.converged += 1;
   }
   return result;
