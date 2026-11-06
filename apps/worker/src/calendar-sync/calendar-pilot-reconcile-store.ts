@@ -1,7 +1,8 @@
-import type { DocumentSnapshot, Firestore } from 'firebase-admin/firestore';
+import type { DocumentSnapshot, Firestore, Transaction } from 'firebase-admin/firestore';
 import {
   CalendarPilotLeaseConfigurationRecordSchema,
   CalendarPilotRuntimeJobRecordSchema,
+  OpaqueIdentifierSchema,
   parseCalendarPilotRecord
 } from '@beauessence/contracts';
 
@@ -52,6 +53,32 @@ export async function verifyReconciliationDocuments(
   });
 }
 
+export async function markCalendarPilotReconciliationNeeded(
+  db: Firestore,
+  lease: CalendarPilotWorkerLease,
+  sourceId: string,
+  linkId: string,
+  kind: 'calendar_projection_upsert' | 'calendar_projection_delete'
+): Promise<string> {
+  if (!OpaqueIdentifierSchema.safeParse(sourceId).success ||
+      !OpaqueIdentifierSchema.safeParse(linkId).success)
+    throw new Error('Invalid calendar reconciliation failure target.');
+  const job = db.collection('calendar_pilot_outbox').doc();
+  await db.runTransaction(async (transaction: Transaction) => {
+    const configuration = await transaction.get(db.collection('calendar_pilot_configuration').doc('active'));
+    const record = parseCalendarPilotRecord(CalendarPilotLeaseConfigurationRecordSchema, configuration.data());
+    const now = assertCalendarPilotWorkerLease(record, lease);
+    if (record['activeSourceId'] !== sourceId)
+      throw new Error('Calendar reconciliation source changed.');
+    transaction.create(job, {
+      kind, localRecordId: linkId, generation: lease.generation,
+      status: 'failed', lastErrorCode: 'needs_reconcile', createdAt: now,
+      attemptCount: 0, leaseOwner: null, leaseExpiresAt: null
+    });
+  });
+  return job.id;
+}
+
 export async function settleReconciledCalendarPilotJob(
   db: Firestore,
   lease: CalendarPilotWorkerLease,
@@ -78,6 +105,7 @@ export async function settleReconciledCalendarPilotJob(
     .where('sourceId', '==', expected.sourceId)
     .where('linkId', '==', linkId)
     .limit(2);
+  const jobs = db.collection('calendar_pilot_outbox').where('localRecordId', '==', linkId).limit(100);
   return db.runTransaction(async (transaction) => {
     const configuration = await transaction.get(
       db.collection('calendar_pilot_configuration').doc('active')
@@ -85,6 +113,7 @@ export async function settleReconciledCalendarPilotJob(
     const appointment = await transaction.get(expected.appointment.ref);
     const mirrorDocuments = await transaction.get(mirrors);
     const job = await transaction.get(expected.job.ref);
+    const linkedJobs = await transaction.get(jobs);
     const record = parseCalendarPilotRecord(
       CalendarPilotLeaseConfigurationRecordSchema,
       configuration.data()
@@ -95,6 +124,13 @@ export async function settleReconciledCalendarPilotJob(
       !unchanged(expected.appointment, appointment) ||
       !unchanged(expected.job, job) ||
       mirrorDocuments.size !== expected.mirrors.length ||
+      linkedJobs.size >= 100 ||
+      linkedJobs.docs.some((document: DocumentSnapshot) => {
+        const linked = CalendarPilotRuntimeJobRecordSchema.safeParse(document.data());
+        return !linked.success || linked.data.status === 'pending' ||
+          linked.data.status === 'processing' ||
+          (linked.data.leaseOwner !== undefined && linked.data.leaseOwner !== null);
+      }) ||
       expected.mirrors.some(
         (mirror) =>
           !mirrorDocuments.docs.some((current) => unchanged(mirror, current))

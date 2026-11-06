@@ -28,6 +28,8 @@ const mirror = () =>
   db.collection('calendar_pilot_mirrors').doc('synthetic_reconcile_mirror');
 const job = () =>
   db.collection('calendar_pilot_outbox').doc('synthetic_reconcile_job');
+const otherJob = () =>
+  db.collection('calendar_pilot_outbox').doc('synthetic_reconcile_other_job');
 
 beforeAll(() => {
   app = initializeApp(
@@ -38,6 +40,7 @@ beforeAll(() => {
 });
 
 beforeEach(async () => {
+  await otherJob().delete();
   await mirror().delete();
   await configuration().set({
     activeSourceId: 'source_a',
@@ -62,6 +65,7 @@ afterAll(async () => {
   await appointment().delete();
   await mirror().delete();
   await job().delete();
+  await otherJob().delete();
   await configuration().delete();
   await deleteApp(app);
 });
@@ -118,6 +122,18 @@ describe('CAL-PILOT reconciled job settlement', () => {
       status: 'failed',
       lastErrorCode: 'needs_reconcile'
     });
+  });
+
+  it('does not settle after a different job acquires an owner', async () => {
+    const before = await expected();
+    await otherJob().set({
+      kind: 'calendar_projection_upsert', status: 'processing',
+      localRecordId: 'synthetic_reconcile_link', generation: 1,
+      leaseOwner: 'synthetic_stuck_owner'
+    });
+    expect(await settleReconciledCalendarPilotJob(db, lease, before)).toBe(false);
+    expect((await job().get()).data()?.['status']).toBe('failed');
+    expect((await otherJob().get()).data()?.['leaseOwner']).toBe('synthetic_stuck_owner');
   });
 
   it('does not clear a failed job that still has an owner', async () => {

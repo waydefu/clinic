@@ -27,6 +27,7 @@ import {
   type ReconcileSnapshot
 } from './calendar-pilot-reconciler.js';
 import {
+  markCalendarPilotReconciliationNeeded,
   settleReconciledCalendarPilotJob,
   verifyReconciliationDocuments
 } from './calendar-pilot-reconcile-store.js';
@@ -541,10 +542,18 @@ export class FirestoreCalendarPilotReconciliationAdapter
       throw new Error('Calendar reconciliation changed before apply.');
     if (this.expired()) throw new Error('Calendar reconciliation deadline passed.');
     this.latestByLink.delete(linkId);
-    if (action.kind === 'insert') await this.options.writer.upsert(action.event);
-    else if (action.kind === 'patch')
-      await this.options.writer.update(action.event, action.etag, true);
-    else await this.options.writer.removeWithEtag(action.id, action.etag);
+    try {
+      if (action.kind === 'insert') await this.options.writer.upsert(action.event);
+      else if (action.kind === 'patch')
+        await this.options.writer.update(action.event, action.etag, true);
+      else await this.options.writer.removeWithEtag(action.id, action.etag);
+    } catch (error: unknown) {
+      await markCalendarPilotReconciliationNeeded(
+        this.options.db, this.options.lease, this.options.sourceId, linkId,
+        action.kind === 'delete' ? 'calendar_projection_delete' : 'calendar_projection_upsert'
+      );
+      throw error;
+    }
   }
 
   public async settleIfUnchanged(snapshot: ReconcileSnapshot): Promise<boolean> {

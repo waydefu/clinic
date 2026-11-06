@@ -17,6 +17,7 @@ import {
   FirestoreCalendarPilotReconciliationAdapter,
   type CalendarPilotReconcileExpectation
 } from '../../apps/worker/src/calendar-sync/calendar-pilot-reconcile-adapter.js';
+import { GoogleCalendarSyncError } from '../../apps/worker/src/calendar-sync/google-sync-client.js';
 import { FirestoreCalendarPilotFullScanPort } from '../../apps/worker/src/calendar-sync/calendar-pilot-full-scan-adapter.js';
 import { runCalendarPilotFullScanRound, type CalendarPilotFullScanState } from '../../apps/worker/src/calendar-sync/calendar-pilot-full-scan.js';
 import {
@@ -195,6 +196,7 @@ function makeAdapter(input: {
     ) => Promise<ReconcileEvent | undefined>;
   };
   readonly writes?: string[];
+  readonly writer?: ConstructorParameters<typeof FirestoreCalendarPilotReconciliationAdapter>[0]['writer'];
   readonly cursor?: string;
   readonly deadline?: number;
 }) {
@@ -205,7 +207,7 @@ function makeAdapter(input: {
     sourceId: 'source_a',
     workerServiceAccount: 'worker@synthetic.invalid',
     reader: input.reader,
-    writer: {
+    writer: input.writer ?? {
       upsert: () => {
         writes.push('upsert');
         return Promise.resolve();
@@ -495,6 +497,36 @@ describe('Firestore CAL-PILOT reconciliation adapter', () => {
         'Calendar reconciliation changed before apply.'
       );
     expect(writes).toEqual([]);
+  });
+
+  it.each([412, 503])('records needs_reconcile without retry after provider %i', async (status: number) => {
+    await seedMirror();
+    const original = event({ id: 'synthetic_original_event', etag: '"original-v1"',
+      title: 'synthetic outdated title', startsAt: '2026-11-06T01:00:00.000Z',
+      endsAt: '2026-11-06T01:30:00.000Z' });
+    const update = vi.fn(() => Promise.reject(new GoogleCalendarSyncError('synthetic provider error', status, true)));
+    const adapter = makeAdapter({
+      reader: { listReconciliationEvents: () => Promise.resolve({ events: [] }),
+        getReconciliationOriginal: () => Promise.resolve(original) },
+      writer: { upsert: () => Promise.resolve(), update, removeWithEtag: () => Promise.resolve() }
+    });
+    const snapshot = await adapter.read(LINK_A);
+    const action = planCalendarPilotReconciliation(snapshot);
+    if (action.kind !== 'patch') throw new Error('Expected conditional patch.');
+    const before = await db.collection('calendar_pilot_outbox').where('localRecordId', '==', LINK_A).get();
+    const previousIds = new Set(before.docs.map((document: DocumentSnapshot) => document.id));
+    let created: DocumentSnapshot[] = [];
+    try {
+      await expect(adapter.apply(LINK_A, action)).rejects.toThrow('synthetic provider error');
+      const after = await db.collection('calendar_pilot_outbox').where('localRecordId', '==', LINK_A).get();
+      created = after.docs.filter((document: DocumentSnapshot) => !previousIds.has(document.id));
+      expect(update).toHaveBeenCalledTimes(1);
+      expect(created).toHaveLength(1);
+      expect(created[0]?.data()).toMatchObject({ status: 'failed', lastErrorCode: 'needs_reconcile',
+        localRecordId: LINK_A, generation: lease.generation });
+    } finally {
+      await Promise.all(created.map((document) => document.ref.delete()));
+    }
   });
 
   it('fully scans a completed job and a second complete pass is a no-op', async () => {
