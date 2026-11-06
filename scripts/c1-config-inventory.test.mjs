@@ -106,6 +106,14 @@ describe('environment inventory (B-45): code -> contract, no values read', () =>
       expect(entry.requiredFor, name).toContain('api');
     }
   });
+
+  it('classifies the synthetic Calendar worker identity as non-secret', () => {
+    expect(
+      contract.entries.find(
+        (entry) => entry.name === 'CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL'
+      )
+    ).toMatchObject({ class: 'NON_SECRET_CONFIG', cloudRequired: false });
+  });
 });
 
 describe('log redaction follows the contract class (E1-15)', () => {
