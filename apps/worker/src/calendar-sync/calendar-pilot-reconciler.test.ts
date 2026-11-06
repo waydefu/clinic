@@ -111,10 +111,12 @@ describe('calendar pilot reconciliation', () => {
     };
     let failed = true;
     const fetchImpl = vi.fn<typeof fetch>(
-      async (_input: RequestInfo | URL, init?: RequestInit) => {
+      (_input: RequestInfo | URL, init?: RequestInit) => {
         expect(init?.method).toBe('PATCH');
         expect(new Headers(init?.headers).get('If-Match')).toBe('"v1"');
-        expect(JSON.parse(String(init?.body))).toMatchObject({
+        expect(
+          JSON.parse(typeof init?.body === 'string' ? init.body : '')
+        ).toMatchObject({
           status: 'confirmed',
           summary: desired.title
         });
@@ -122,12 +124,12 @@ describe('calendar pilot reconciliation', () => {
           ...snapshot(),
           events: [{ ...current, title: desired.title, etag: '"v2"' }]
         };
-        return new Response(null, { status: 200 });
+        return Promise.resolve(new Response(null, { status: 200 }));
       }
     );
     const writer = new GoogleCalendarEventWriter(
       'synthetic-calendar',
-      async () => 'synthetic-token',
+      () => Promise.resolve('synthetic-token'),
       fetchImpl
     );
     const apply = vi.fn<CalendarPilotReconciliationPort['apply']>(
@@ -137,16 +139,14 @@ describe('calendar pilot reconciliation', () => {
       }
     );
     const port: CalendarPilotReconciliationPort = {
-      scan: async () => ['link_a'],
-      read: async () => state,
+      scan: () => Promise.resolve(['link_a']),
+      read: () => Promise.resolve(state),
       apply,
-      settleIfUnchanged: async () => {
+      settleIfUnchanged: () => {
         failed = false;
-        return true;
+        return Promise.resolve(true);
       },
-      recordConflict: async () => {
-        throw new Error('unexpected conflict');
-      }
+      recordConflict: () => Promise.reject(new Error('unexpected conflict'))
     };
     const bounds = { maxItems: 1, deadline: 100, now: () => 0 };
     expect(await runCalendarPilotReconciliation(port, bounds)).toEqual({
@@ -174,12 +174,13 @@ describe('calendar pilot reconciliation', () => {
     const recordConflict =
       vi.fn<CalendarPilotReconciliationPort['recordConflict']>();
     const port: CalendarPilotReconciliationPort = {
-      scan: async () => ['blocked', 'conflict'],
-      read: async (id) => ({
-        ...snapshot(),
-        linkId: id,
-        blockedByOwner: id === 'blocked'
-      }),
+      scan: () => Promise.resolve(['blocked', 'conflict']),
+      read: (id) =>
+        Promise.resolve({
+          ...snapshot(),
+          linkId: id,
+          blockedByOwner: id === 'blocked'
+        }),
       apply,
       settleIfUnchanged,
       recordConflict
@@ -208,8 +209,8 @@ describe('calendar pilot reconciliation', () => {
     const recordConflict =
       vi.fn<CalendarPilotReconciliationPort['recordConflict']>();
     const port: CalendarPilotReconciliationPort = {
-      scan: async () => ['link_a'],
-      read: async () => snapshot(),
+      scan: () => Promise.resolve(['link_a']),
+      read: () => Promise.resolve(snapshot()),
       apply,
       settleIfUnchanged,
       recordConflict
@@ -246,13 +247,11 @@ describe('calendar pilot reconciliation', () => {
     const settleIfUnchanged =
       vi.fn<CalendarPilotReconciliationPort['settleIfUnchanged']>();
     const port: CalendarPilotReconciliationPort = {
-      scan: async () => ['link_a'],
-      read: async () => snapshot(),
+      scan: () => Promise.resolve(['link_a']),
+      read: () => Promise.resolve(snapshot()),
       apply,
       settleIfUnchanged,
-      recordConflict: async () => {
-        throw new Error('unexpected conflict');
-      }
+      recordConflict: () => Promise.reject(new Error('unexpected conflict'))
     };
     await expect(
       runCalendarPilotReconciliation(port, {
@@ -267,15 +266,15 @@ describe('calendar pilot reconciliation', () => {
 
   it('uses the planned version for a duplicate delete without a replacement GET', async () => {
     const fetchImpl = vi.fn<typeof fetch>(
-      async (_input: RequestInfo | URL, init?: RequestInit) => {
+      (_input: RequestInfo | URL, init?: RequestInit) => {
         expect(init?.method).toBe('DELETE');
         expect(new Headers(init?.headers).get('If-Match')).toBe('"v2"');
-        return new Response(null, { status: 412 });
+        return Promise.resolve(new Response(null, { status: 412 }));
       }
     );
     const writer = new GoogleCalendarEventWriter(
       'synthetic-calendar',
-      async () => 'synthetic-token',
+      () => Promise.resolve('synthetic-token'),
       fetchImpl
     );
     await expect(writer.removeWithEtag('projection', '"v2"')).rejects.toThrow(
