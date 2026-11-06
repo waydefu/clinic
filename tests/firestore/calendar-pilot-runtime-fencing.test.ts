@@ -119,7 +119,10 @@ function run() {
 function reconcile() {
   return new CalendarPilotRuntime(
     db,
-    { ...environment, CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL: 'worker@synthetic.invalid' },
+    {
+      ...environment,
+      CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL: 'worker@synthetic.invalid'
+    },
     now,
     syntheticOpenMaintenanceControl()
   ).runReconciliationRound();
@@ -299,7 +302,11 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
       return Promise.resolve(
         token === 'next'
           ? new Response(null, { status: 410 })
-          : Response.json(tokens.length === 1 ? { items: [], nextPageToken: 'next' } : { items: [] })
+          : Response.json(
+              tokens.length === 1
+                ? { items: [], nextPageToken: 'next' }
+                : { items: [] }
+            )
       );
     });
     const runtime = () =>
@@ -335,8 +342,10 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
     });
     expect(tokens).toEqual([null, 'next', null]);
     expect(await completeReconciliation()).toMatchObject({ converged: false });
-    const conflicts = await db.collection('calendar_pilot_audit_events')
-      .where('action', '==', 'calendar_reconciliation_conflict').get();
+    const conflicts = await db
+      .collection('calendar_pilot_audit_events')
+      .where('action', '==', 'calendar_reconciliation_conflict')
+      .get();
     expect(conflicts.size).toBeGreaterThan(0);
   });
 
@@ -347,7 +356,11 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
         typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
       tokens.push(new URL(target).searchParams.get('pageToken'));
       return Promise.resolve(
-        Response.json(tokens.length === 1 ? { items: [], nextPageToken: 'next' } : { items: [] })
+        Response.json(
+          tokens.length === 1
+            ? { items: [], nextPageToken: 'next' }
+            : { items: [] }
+        )
       );
     });
     const runtime = () =>
@@ -370,8 +383,10 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
     });
     expect(tokens).toEqual([null, null]);
     expect(await completeReconciliation()).toMatchObject({ converged: false });
-    const conflicts = await db.collection('calendar_pilot_audit_events')
-      .where('action', '==', 'calendar_reconciliation_conflict').get();
+    const conflicts = await db
+      .collection('calendar_pilot_audit_events')
+      .where('action', '==', 'calendar_reconciliation_conflict')
+      .get();
     expect(conflicts.size).toBeGreaterThan(0);
   });
 
@@ -686,12 +701,20 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
       );
       expect(dispatch).toHaveBeenCalledTimes(2);
       if (leaseRetained) {
-        await expect(reconcile()).resolves.toMatchObject({ acquired: false, blocked: 'owner_present', converged: false });
+        await expect(reconcile()).resolves.toMatchObject({
+          acquired: false,
+          blocked: 'owner_present',
+          converged: false
+        });
         expect(dispatch).toHaveBeenCalledTimes(2);
       } else {
-        expect(await completeReconciliation()).toMatchObject({ converged: false });
-        const conflicts = await db.collection('calendar_pilot_audit_events')
-          .where('action', '==', 'calendar_reconciliation_conflict').get();
+        expect(await completeReconciliation()).toMatchObject({
+          converged: false
+        });
+        const conflicts = await db
+          .collection('calendar_pilot_audit_events')
+          .where('action', '==', 'calendar_reconciliation_conflict')
+          .get();
         expect(conflicts.size).toBeGreaterThan(0);
       }
     }
@@ -893,7 +916,11 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
     expect((await configuration().get()).data()?.['workerLeaseOwner']).toBe(
       'successor'
     );
-    await expect(reconcile()).resolves.toMatchObject({ acquired: false, blocked: 'owner_present', converged: false });
+    await expect(reconcile()).resolves.toMatchObject({
+      acquired: false,
+      blocked: 'owner_present',
+      converged: false
+    });
     expect(dispatch).toHaveBeenCalledTimes(2);
   });
 

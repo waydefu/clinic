@@ -676,8 +676,13 @@ describe('Firestore CAL-PILOT reconciliation adapter', () => {
         },
         reader: {
           listReconciliationEvents: () =>
-            Promise.resolve({ events: providerEvents.filter((item) => item.id !== original.id) }),
-          getReconciliationOriginal: () => Promise.resolve(providerEvents.find((item) => item.id === original.id))
+            Promise.resolve({
+              events: providerEvents.filter((item) => item.id !== original.id)
+            }),
+          getReconciliationOriginal: () =>
+            Promise.resolve(
+              providerEvents.find((item) => item.id === original.id)
+            )
         }
       });
       const conflicts: string[] = [];
@@ -699,9 +704,12 @@ describe('Firestore CAL-PILOT reconciliation adapter', () => {
                     nextPageToken: 'page_2'
                   }
                 : {
-                    events:
-                      providerEvents.filter((item) => item.id !== original.id).map((item) => ({
-                        id: item.id, linkId: item.linkId, recurring: false
+                    events: providerEvents
+                      .filter((item) => item.id !== original.id)
+                      .map((item) => ({
+                        id: item.id,
+                        linkId: item.linkId,
+                        recurring: false
                       }))
                   }
             )
@@ -735,11 +743,19 @@ describe('Firestore CAL-PILOT reconciliation adapter', () => {
       expect(writes).toEqual([`delete:${duplicateId}`]);
       expect(conflicts).toEqual([]);
       const stored = (await appointment().get()).data();
-      expect(stored).toMatchObject({ patientCode: 'A17', bookingKind: 'initial', serviceId: 'service_snoring' });
+      expect(stored).toMatchObject({
+        patientCode: 'A17',
+        bookingKind: 'initial',
+        serviceId: 'service_snoring'
+      });
       expect(providerEvents).toHaveLength(1);
       expect(providerEvents[0]).toMatchObject({
-        id: 'synthetic_original_event', linkId: LINK_A, status: 'confirmed', title,
-        startsAt: stored?.['startsAt'], endsAt: stored?.['endsAt']
+        id: 'synthetic_original_event',
+        linkId: LINK_A,
+        status: 'confirmed',
+        title,
+        startsAt: stored?.['startsAt'],
+        endsAt: stored?.['endsAt']
       });
     }
   );
