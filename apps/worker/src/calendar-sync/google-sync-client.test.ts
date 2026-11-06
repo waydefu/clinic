@@ -45,7 +45,7 @@ describe('GoogleCalendarEventReader', () => {
     { items: [{ id: 'event-a', etag: 'W/"v1"', status: 'cancelled', extendedProperties: { private: { beauessenceLinkId: 'link_a' } } }] },
     { items: [], nextPageToken: '' },
     { items: 'invalid' }
-  ])('fails closed on malformed reconciliation inventory', async (body) => {
+  ])('fails closed on malformed reconciliation inventory', async (body: unknown) => {
     const reader = new GoogleCalendarEventReader('synthetic', async () => 'synthetic-token', vi.fn(() => Promise.resolve(response(body))));
     await expect(reader.listReconciliationEvents('link_a')).rejects.toThrow();
   });
