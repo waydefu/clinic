@@ -26,6 +26,7 @@ export interface ReconciliationDocuments {
   readonly sourceId: string;
   readonly appointment: DocumentSnapshot;
   readonly mirrors: readonly DocumentSnapshot[];
+  readonly jobs?: readonly DocumentSnapshot[];
 }
 
 export async function verifyReconciliationDocuments(
@@ -36,7 +37,9 @@ export async function verifyReconciliationDocuments(
   if (!expected.appointment.exists ||
       expected.appointment.ref.parent.path !== 'calendar_pilot_appointments' ||
       expected.mirrors.some((mirror) => mirror.ref.parent.path !== 'calendar_pilot_mirrors') ||
-      expected.mirrors.length > 1) return false;
+      expected.mirrors.length > 1 ||
+      (expected.jobs !== undefined && (expected.jobs.length >= 100 ||
+        expected.jobs.some((job) => job.ref.parent.path !== 'calendar_pilot_outbox')))) return false;
   const mirrors = db.collection('calendar_pilot_mirrors')
     .where('sourceId', '==', expected.sourceId)
     .where('linkId', '==', expected.appointment.id).limit(2);
@@ -44,12 +47,18 @@ export async function verifyReconciliationDocuments(
     const configuration = await transaction.get(db.collection('calendar_pilot_configuration').doc('active'));
     const appointment = await transaction.get(expected.appointment.ref);
     const currentMirrors = await transaction.get(mirrors);
+    const currentJobs = expected.jobs === undefined ? undefined : await transaction.get(
+      db.collection('calendar_pilot_outbox').where('localRecordId', '==', expected.appointment.id).limit(100)
+    );
     const record = parseCalendarPilotRecord(CalendarPilotLeaseConfigurationRecordSchema, configuration.data());
     assertCalendarPilotWorkerLease(record, lease);
     return record['activeSourceId'] === expected.sourceId &&
       unchanged(expected.appointment, appointment) &&
       currentMirrors.size === expected.mirrors.length &&
-      expected.mirrors.every((mirror) => currentMirrors.docs.some((current) => unchanged(mirror, current)));
+      expected.mirrors.every((mirror) => currentMirrors.docs.some((current: DocumentSnapshot) => unchanged(mirror, current))) &&
+      (expected.jobs === undefined || (currentJobs !== undefined && currentJobs.size < 100 &&
+        currentJobs.size === expected.jobs.length && expected.jobs.every((job) =>
+          currentJobs.docs.some((current: DocumentSnapshot) => unchanged(job, current)))));
   });
 }
 

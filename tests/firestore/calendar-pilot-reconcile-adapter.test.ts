@@ -17,6 +17,7 @@ import {
   FirestoreCalendarPilotReconciliationAdapter,
   type CalendarPilotReconcileExpectation
 } from '../../apps/worker/src/calendar-sync/calendar-pilot-reconcile-adapter.js';
+import { calendarWriteEventForConfirmedAppointment } from '../../apps/worker/src/calendar-sync/calendar-pilot-runtime.js';
 import { GoogleCalendarSyncError } from '../../apps/worker/src/calendar-sync/google-sync-client.js';
 import { FirestoreCalendarPilotFullScanPort } from '../../apps/worker/src/calendar-sync/calendar-pilot-full-scan-adapter.js';
 import { runCalendarPilotFullScanRound, type CalendarPilotFullScanState } from '../../apps/worker/src/calendar-sync/calendar-pilot-full-scan.js';
@@ -197,6 +198,7 @@ function makeAdapter(input: {
   };
   readonly writes?: string[];
   readonly writer?: ConstructorParameters<typeof FirestoreCalendarPilotReconciliationAdapter>[0]['writer'];
+  readonly onUncertainWrite?: (error: unknown) => void;
   readonly cursor?: string;
   readonly deadline?: number;
 }) {
@@ -206,6 +208,8 @@ function makeAdapter(input: {
     lease,
     sourceId: 'source_a',
     workerServiceAccount: 'worker@synthetic.invalid',
+    buildDesired: calendarWriteEventForConfirmedAppointment,
+    onUncertainWrite: input.onUncertainWrite ?? (() => undefined),
     reader: input.reader,
     writer: input.writer ?? {
       upsert: () => {
@@ -505,7 +509,9 @@ describe('Firestore CAL-PILOT reconciliation adapter', () => {
       title: 'synthetic outdated title', startsAt: '2026-11-06T01:00:00.000Z',
       endsAt: '2026-11-06T01:30:00.000Z' });
     const update = vi.fn(() => Promise.reject(new GoogleCalendarSyncError('synthetic provider error', status, true)));
+    const onUncertainWrite = vi.fn();
     const adapter = makeAdapter({
+      onUncertainWrite,
       reader: { listReconciliationEvents: () => Promise.resolve({ events: [] }),
         getReconciliationOriginal: () => Promise.resolve(original) },
       writer: { upsert: () => Promise.resolve(), update, removeWithEtag: () => Promise.resolve() }
@@ -521,6 +527,7 @@ describe('Firestore CAL-PILOT reconciliation adapter', () => {
       const after = await db.collection('calendar_pilot_outbox').where('localRecordId', '==', LINK_A).get();
       created = after.docs.filter((document: DocumentSnapshot) => !previousIds.has(document.id));
       expect(update).toHaveBeenCalledTimes(1);
+      expect(onUncertainWrite).toHaveBeenCalledTimes(1);
       expect(created).toHaveLength(1);
       expect(created[0]?.data()).toMatchObject({ status: 'failed', lastErrorCode: 'needs_reconcile',
         localRecordId: LINK_A, generation: lease.generation });

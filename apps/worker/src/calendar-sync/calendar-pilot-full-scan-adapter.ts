@@ -1,6 +1,7 @@
 import { FieldPath, type Firestore, type QueryDocumentSnapshot, type Transaction } from 'firebase-admin/firestore';
 import {
   CalendarPilotLeaseConfigurationRecordSchema,
+  CalendarPilotRuntimeJobRecordSchema,
   OpaqueIdentifierSchema,
   parseCalendarPilotRecord
 } from '@beauessence/contracts';
@@ -52,11 +53,15 @@ export class FirestoreCalendarPilotFullScanPort implements CalendarPilotFullScan
     if (last !== undefined && last !== '') query = query.startAfter(last);
     const page = await query.get();
     const linkIds = page.docs.map((document: QueryDocumentSnapshot) => {
-      if (source === 'a') return `l:${document.id}`;
+      if (source === 'a')
+        return OpaqueIdentifierSchema.safeParse(document.id).success ? `l:${document.id}` : `x:${document.id}`;
       const data = document.data();
+      if (source === 'm' && typeof data['sourceId'] !== 'string') return `x:${document.id}`;
       if (source === 'm' && data['sourceId'] !== this.options.sourceId) return `s:${document.id}`;
-      if (source === 'j' && (data['status'] !== 'failed' || data['lastErrorCode'] !== 'needs_reconcile'))
-        return `s:${document.id}`;
+      if (source === 'j' && !CalendarPilotRuntimeJobRecordSchema.safeParse(data).success) return `x:${document.id}`;
+      if (source === 'j' && (typeof data['kind'] !== 'string' ||
+        !['calendar_projection_upsert', 'calendar_projection_delete',
+          'calendar_projection_restore'].includes(data['kind']))) return `s:${document.id}`;
       const link = source === 'm' ? data['linkId'] : data['localRecordId'];
       return typeof link === 'string' && OpaqueIdentifierSchema.safeParse(link).success
         ? `l:${link}` : `x:${document.id}`;

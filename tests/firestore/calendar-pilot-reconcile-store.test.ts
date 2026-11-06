@@ -125,12 +125,14 @@ describe('CAL-PILOT reconciled job settlement', () => {
   });
 
   it('does not settle after a different job acquires an owner', async () => {
-    const before = await expected();
+    const before = { ...await expected(), jobs: [await job().get()] };
+    expect(await verifyReconciliationDocuments(db, lease, before)).toBe(true);
     await otherJob().set({
       kind: 'calendar_projection_upsert', status: 'processing',
       localRecordId: 'synthetic_reconcile_link', generation: 1,
       leaseOwner: 'synthetic_stuck_owner'
     });
+    expect(await verifyReconciliationDocuments(db, lease, before)).toBe(false);
     expect(await settleReconciledCalendarPilotJob(db, lease, before)).toBe(false);
     expect((await job().get()).data()?.['status']).toBe('failed');
     expect((await otherJob().get()).data()?.['leaseOwner']).toBe('synthetic_stuck_owner');

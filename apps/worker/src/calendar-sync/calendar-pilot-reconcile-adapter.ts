@@ -31,9 +31,9 @@ import {
   settleReconciledCalendarPilotJob,
   verifyReconciliationDocuments
 } from './calendar-pilot-reconcile-store.js';
-import {
+import type {
   calendarWriteEventForConfirmedAppointment,
-  type StoredMirror
+  StoredMirror
 } from './calendar-pilot-runtime.js';
 import type {
   CalendarWriteEvent,
@@ -65,6 +65,8 @@ export interface CalendarPilotReconcileAdapterOptions {
   /** Must match the source used to construct the injected reader and writer. */
   readonly sourceId: string;
   readonly workerServiceAccount: string;
+  readonly buildDesired: typeof calendarWriteEventForConfirmedAppointment;
+  readonly onUncertainWrite: (error: unknown) => void;
   /** Pass only the receiver's reader constructed with guardedFetch(lease). */
   readonly reader: Pick<
     GoogleCalendarEventReader,
@@ -405,7 +407,7 @@ export class FirestoreCalendarPilotReconciliationAdapter
     if (appointmentData?.['status'] === 'confirmed') {
       if (stored !== undefined) {
         try {
-          desired = calendarWriteEventForConfirmedAppointment(
+          desired = this.options.buildDesired(
             stored,
             appointmentData,
             linkId
@@ -548,6 +550,7 @@ export class FirestoreCalendarPilotReconciliationAdapter
         await this.options.writer.update(action.event, action.etag, true);
       else await this.options.writer.removeWithEtag(action.id, action.etag);
     } catch (error: unknown) {
+      this.options.onUncertainWrite(error);
       await markCalendarPilotReconciliationNeeded(
         this.options.db, this.options.lease, this.options.sourceId, linkId,
         action.kind === 'delete' ? 'calendar_projection_delete' : 'calendar_projection_upsert'

@@ -211,6 +211,33 @@ afterAll(async () => {
 });
 
 describe('CAL-PILOT dispatch and completion use live lease state', () => {
+  it('reports a stuck reconciliation owner without touching the provider', async () => {
+    await configuration().update({ workerLeaseOwner: 'synthetic_previous_owner',
+      workerLeaseExpiresAt: '2026-08-31T23:59:59.000Z' });
+    const runtime = new CalendarPilotRuntime(db,
+      { ...environment, CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL: 'worker@synthetic.invalid' },
+      now, syntheticOpenMaintenanceControl());
+    await expect(runtime.runReconciliationRound()).resolves.toMatchObject({
+      acquired: false, blocked: 'owner_present', converged: false
+    });
+    expect(dispatch).not.toHaveBeenCalled();
+    expect((await configuration().get()).data()?.['workerLeaseOwner']).toBe('synthetic_previous_owner');
+  });
+
+  it('runs two independent synthetic full scans without provider mutations', async () => {
+    await db.collection(OUTBOX).doc('job_a').delete();
+    await db.collection(OUTBOX).doc('job_b').delete();
+    const runtime = new CalendarPilotRuntime(db,
+      { ...environment, CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL: 'worker@synthetic.invalid' },
+      now, syntheticOpenMaintenanceControl());
+    const first = await runtime.runReconciliationRound();
+    expect(first).toMatchObject({ acquired: true, converged: true });
+    if (!('state' in first)) throw new Error('Expected synthetic scan state.');
+    const second = await runtime.runReconciliationRound(first.state);
+    expect(second).toMatchObject({ acquired: true, converged: true });
+    expect(dispatch).toHaveBeenCalledTimes(2);
+    expect(dispatch.mock.calls.every((call: [RequestInfo | URL, RequestInit?]) => call[1]?.method === 'GET')).toBe(true);
+  });
   it('does not reclaim an expired owner without proof it stopped', async () => {
     await configuration().update({
       workerLeaseOwner: 'previous-worker',

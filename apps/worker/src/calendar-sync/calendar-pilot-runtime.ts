@@ -34,6 +34,10 @@ import {
   createServiceAccountTokenProvider
 } from '../google-calendar.js';
 import { calendarEventId } from './calendar-pilot-event-id.js';
+import { FirestoreCalendarPilotReconciliationAdapter } from './calendar-pilot-reconcile-adapter.js';
+import { FirestoreCalendarPilotFullScanPort } from './calendar-pilot-full-scan-adapter.js';
+import { runCalendarPilotFullScanRound, type CalendarPilotFullScanState } from './calendar-pilot-full-scan.js';
+import { verifyReconciliationDocuments } from './calendar-pilot-reconcile-store.js';
 import { FirestoreCalendarSyncRepository } from './firestore-calendar-sync.repository.js';
 import {
   GoogleCalendarEventReader,
@@ -438,6 +442,7 @@ export class CalendarPilotRuntime {
   private readonly sources: SourceRegistry;
   private readonly readToken: () => Promise<string>;
   private readonly writeToken: () => Promise<string>;
+  private readonly reconciliationWorkerAccount: string | undefined;
 
   public constructor(
     private readonly db: Firestore,
@@ -447,6 +452,7 @@ export class CalendarPilotRuntime {
     private readonly monotonicClock: () => number = () => performance.now()
   ) {
     const configuration = resolveCalendarPilotRuntimeConfiguration(environment);
+    this.reconciliationWorkerAccount = environment['CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL'];
     this.pseudonymKey = configuration.pseudonymKey;
     this.repository = new FirestoreCalendarSyncRepository(
       db,
@@ -941,6 +947,72 @@ export class CalendarPilotRuntime {
       if (!record.success) return true;
       const status = record.data.status;
       return status !== 'completed' && status !== 'superseded';
+    });
+  }
+
+  public runReconciliationRound(previous?: CalendarPilotFullScanState) {
+    return this.maintenanceControl.run(async () => {
+      const workerAccount = this.reconciliationWorkerAccount;
+      if (workerAccount === undefined || workerAccount === '' || workerAccount !== workerAccount.trim())
+        throw new Error('CAL-PILOT reconciliation worker identity is not configured.');
+      const monotonic = this.monotonicClock();
+      const anchor = this.clock();
+      if (!Number.isFinite(monotonic) || !isUtcIsoTimestamp(anchor))
+        throw new CalendarPilotLeaseLostError();
+      const owner = randomUUID();
+      const generation = await this.acquire(owner, anchor);
+      if (generation === undefined) {
+        const current = await this.db.collection('calendar_pilot_configuration').doc('active').get();
+        const data = current.data();
+        return { acquired: false, blocked: hasCalendarPilotWorkerLease(data ?? {}) ? 'owner_present' : 'not_enabled',
+          processed: 0, converged: false, ...(previous === undefined ? {} : { state: previous }) };
+      }
+      const lease: PilotLeaseContext = {
+        owner, generation, now: this.clock, dispatch: { pending: 0 },
+        timing: { wall: Date.parse(anchor), monotonic }
+      };
+      try {
+        await this.withLease(lease);
+        const configuration = await this.repository.loadConfiguration();
+        if (configuration.activeSourceId !== C1_SYNTHETIC_CALENDAR_SOURCE_ID ||
+            await this.hasUnfinishedActivation(generation))
+          return { acquired: true, blocked: 'source_or_activation', processed: 0, converged: false,
+            ...(previous === undefined ? {} : { state: previous }) };
+        const sourceId = configuration.activeSourceId;
+        const scope = `${sourceId}_${generation}_${createHash('sha256').update(workerAccount).digest('hex')}`;
+        const reader = this.reader(sourceId, lease);
+        const writer = this.writer(sourceId, lease);
+        const deadline = monotonic + 15_000;
+        const audit = async (identifier: string): Promise<void> => {
+          const subjectHash = createHash('sha256').update(identifier).digest('hex');
+          await this.withLease(lease, (transaction, occurredAt) => {
+            transaction.create(this.db.collection('calendar_pilot_audit_events').doc(randomUUID()), {
+              action: 'calendar_reconciliation_conflict', sourceId, subjectHash, occurredAt
+            });
+          });
+        };
+        const reconciler = new FirestoreCalendarPilotReconciliationAdapter({
+          db: this.db, lease, sourceId, workerServiceAccount: workerAccount,
+          buildDesired: calendarWriteEventForConfirmedAppointment,
+          reader, writer, deadline, now: this.monotonicClock,
+          onUncertainWrite: (error) => {
+            if (!(error instanceof GoogleCalendarSyncError && error.status === 412))
+              lease.dispatch.pending += 1;
+          },
+          compareBeforeApply: (expected) => verifyReconciliationDocuments(this.db, lease, expected),
+          recordConflict: (snapshot) => audit(snapshot.linkId)
+        });
+        const port = new FirestoreCalendarPilotFullScanPort({
+          db: this.db, lease, sourceId, reader, reconciler, recordUnattributedConflict: audit
+        });
+        const resume = previous?.scope === scope && previous.phase !== 'complete' ? previous : undefined;
+        const result = await runCalendarPilotFullScanRound(port, {
+          scope, maxItems: JOB_BATCH_SIZE, deadline, now: this.monotonicClock
+        }, resume);
+        return { acquired: true, blocked: undefined, ...result };
+      } finally {
+        if (lease.dispatch.pending === 0) await this.release(owner);
+      }
     });
   }
 
