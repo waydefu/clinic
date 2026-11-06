@@ -43,6 +43,7 @@ export interface CalendarPilotHealthInspection {
 
 export interface CalendarPilotHttpRuntime {
   run(): Promise<unknown>;
+  reconcile?(): Promise<unknown>;
   inspect(nowUtc?: string): Promise<CalendarPilotHealthInspection>;
 }
 

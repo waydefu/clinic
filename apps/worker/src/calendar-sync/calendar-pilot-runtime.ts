@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 import { SharedMaintenanceControl } from '@beauessence/domain/maintenance-control.node';
 
 import type {
@@ -33,6 +34,18 @@ import {
   createCloudAdcTokenProvider,
   createServiceAccountTokenProvider
 } from '../google-calendar.js';
+import { calendarEventId } from './calendar-pilot-event-id.js';
+import { FirestoreCalendarPilotReconciliationAdapter } from './calendar-pilot-reconcile-adapter.js';
+import {
+  CalendarPilotInvalidPageTokenError,
+  FirestoreCalendarPilotFullScanPort
+} from './calendar-pilot-full-scan-adapter.js';
+import {
+  isCalendarPilotFullScanState,
+  runCalendarPilotFullScanRound,
+  type CalendarPilotFullScanState
+} from './calendar-pilot-full-scan.js';
+import { verifyReconciliationDocuments } from './calendar-pilot-reconcile-store.js';
 import { FirestoreCalendarSyncRepository } from './firestore-calendar-sync.repository.js';
 import {
   GoogleCalendarEventReader,
@@ -63,6 +76,7 @@ const LEASE_MS = 4 * 60_000;
 // Conservative dispatch cutoff, not an extension of any lease or timeout.
 const DISPATCH_SAFETY_MARGIN_MS = 1_000;
 const JOB_BATCH_SIZE = 20;
+const RECONCILIATION_CURSOR_MAX_AGE_MS = 24 * 60 * 60_000;
 
 class CalendarPilotOutcomeUnknownError extends CalendarPilotLeaseLostError {}
 
@@ -198,6 +212,7 @@ interface PilotLeaseContext extends CalendarPilotWorkerLease {
   readonly document?: DocumentSnapshot;
   readonly dispatch: { pending: number };
   readonly timing: { readonly wall: number; readonly monotonic: number };
+  readonly reconciliationDeadline?: number;
 }
 
 interface StoredAppointment {
@@ -430,13 +445,6 @@ export function assertExpectedMirrorEtag(
     throw new Error('Calendar event version is stale.');
 }
 
-function calendarEventId(localRecordId: string): string {
-  return `calpilot${createHash('sha256')
-    .update(localRecordId)
-    .digest('hex')
-    .slice(0, 40)}`;
-}
-
 /** Private Cloud Run worker; only its service identity receives Calendar secrets. */
 export class CalendarPilotRuntime {
   private readonly repository: FirestoreCalendarSyncRepository;
@@ -444,6 +452,8 @@ export class CalendarPilotRuntime {
   private readonly sources: SourceRegistry;
   private readonly readToken: () => Promise<string>;
   private readonly writeToken: () => Promise<string>;
+  private readonly reconciliationWorkerAccount: string | undefined;
+  private readonly syntheticReconcileAllowed: boolean;
 
   public constructor(
     private readonly db: Firestore,
@@ -453,6 +463,9 @@ export class CalendarPilotRuntime {
     private readonly monotonicClock: () => number = () => performance.now()
   ) {
     const configuration = resolveCalendarPilotRuntimeConfiguration(environment);
+    this.syntheticReconcileAllowed = configuration.auth === 'cloud_adc';
+    this.reconciliationWorkerAccount =
+      environment['CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL'];
     this.pseudonymKey = configuration.pseudonymKey;
     this.repository = new FirestoreCalendarSyncRepository(
       db,
@@ -549,6 +562,94 @@ export class CalendarPilotRuntime {
     });
   }
 
+  private async beginReconciliationSlice(
+    lease: PilotLeaseContext,
+    scope: string,
+    now: string
+  ) {
+    const ref = this.db
+      .collection('calendar_pilot_configuration')
+      .doc('active');
+    return this.db.runTransaction(async (transaction: Transaction) => {
+      const document = await transaction.get(ref);
+      const record = parseCalendarPilotRecord(
+        CalendarPilotLeaseConfigurationRecordSchema,
+        document.data()
+      );
+      assertCalendarPilotWorkerLease(record, lease);
+      const raw: unknown = record['reconciliationScan'];
+      const stored =
+        typeof raw === 'object' && raw !== null && !Array.isArray(raw)
+          ? (raw as Record<string, unknown>)
+          : undefined;
+      const startedAt = stored?.['startedAt'];
+      const state = stored?.['state'];
+      const valid =
+        stored !== undefined &&
+        typeof startedAt === 'string' &&
+        isUtcIsoTimestamp(startedAt) &&
+        Date.parse(now) >= Date.parse(startedAt) &&
+        Date.parse(now) - Date.parse(startedAt) <
+          RECONCILIATION_CURSOR_MAX_AGE_MS &&
+        isCalendarPilotFullScanState(state) &&
+        state.scope === scope &&
+        state.pageSize === JOB_BATCH_SIZE &&
+        state.phase !== 'complete' &&
+        stored['inFlight'] === null;
+      const completed =
+        stored !== undefined &&
+        isCalendarPilotFullScanState(state) &&
+        state.phase === 'complete' &&
+        stored['inFlight'] === null;
+      const discarded = raw !== undefined && !valid && !completed;
+      const start = valid ? startedAt : now;
+      const expected = {
+        startedAt: start,
+        state: valid ? state : null,
+        inFlight: lease.owner
+      };
+      transaction.update(ref, { reconciliationScan: expected });
+      return {
+        state: valid ? state : undefined,
+        startedAt: start,
+        discarded,
+        expected
+      };
+    });
+  }
+
+  private async finishReconciliationSlice(
+    lease: PilotLeaseContext,
+    expected: {
+      startedAt: string;
+      state: CalendarPilotFullScanState | null;
+      inFlight: string;
+    },
+    state: CalendarPilotFullScanState | null
+  ) {
+    const ref = this.db
+      .collection('calendar_pilot_configuration')
+      .doc('active');
+    await this.db.runTransaction(async (transaction: Transaction) => {
+      const document = await transaction.get(ref);
+      const record = parseCalendarPilotRecord(
+        CalendarPilotLeaseConfigurationRecordSchema,
+        document.data()
+      );
+      assertCalendarPilotWorkerLease(record, lease);
+      const raw: unknown = record['reconciliationScan'];
+      if (!isDeepStrictEqual(raw, expected))
+        throw new CalendarPilotLeaseLostError();
+      transaction.update(ref, {
+        reconciliationScan: {
+          startedAt: expected.startedAt,
+          state,
+          inFlight: null
+        }
+      });
+    });
+  }
+
   private guardedFetch(lease: PilotLeaseContext): typeof fetch {
     return async (input, init) => {
       const url = new URL(
@@ -577,6 +678,11 @@ export class CalendarPilotRuntime {
       const beforeDispatch = await this.withLease(lease);
       if (lease.dispatch.pending !== 0) throw new CalendarPilotLeaseLostError();
       // Even the transaction reply may arrive after the checked deadline.
+      if (
+        lease.reconciliationDeadline !== undefined &&
+        this.monotonicClock() >= lease.reconciliationDeadline
+      )
+        throw new CalendarPilotLeaseLostError();
       beforeDispatch(true);
       lease.dispatch.pending += 1;
       try {
@@ -947,6 +1053,162 @@ export class CalendarPilotRuntime {
       if (!record.success) return true;
       const status = record.data.status;
       return status !== 'completed' && status !== 'superseded';
+    });
+  }
+
+  public runReconciliationRound() {
+    return this.maintenanceControl.run(async () => {
+      if (!this.syntheticReconcileAllowed)
+        throw new Error(
+          'CAL-PILOT reconciliation is restricted to the synthetic C1 runtime.'
+        );
+      const workerAccount = this.reconciliationWorkerAccount;
+      if (
+        workerAccount === undefined ||
+        workerAccount === '' ||
+        workerAccount !== workerAccount.trim()
+      )
+        throw new Error(
+          'CAL-PILOT reconciliation worker identity is not configured.'
+        );
+      const monotonic = this.monotonicClock();
+      const anchor = this.clock();
+      if (!Number.isFinite(monotonic) || !isUtcIsoTimestamp(anchor))
+        throw new CalendarPilotLeaseLostError();
+      const owner = randomUUID();
+      const generation = await this.acquire(owner, anchor);
+      if (generation === undefined) {
+        const current = await this.db
+          .collection('calendar_pilot_configuration')
+          .doc('active')
+          .get();
+        const data = current.data();
+        return {
+          acquired: false,
+          blocked: hasCalendarPilotWorkerLease(data ?? {})
+            ? 'owner_present'
+            : 'not_enabled',
+          processed: 0,
+          converged: false
+        };
+      }
+      const lease: PilotLeaseContext = {
+        owner,
+        generation,
+        now: this.clock,
+        dispatch: { pending: 0 },
+        timing: { wall: Date.parse(anchor), monotonic },
+        reconciliationDeadline: monotonic + 15_000
+      };
+      try {
+        await this.withLease(lease);
+        const configuration = await this.repository.loadConfiguration();
+        if (
+          configuration.activeSourceId !== C1_SYNTHETIC_CALENDAR_SOURCE_ID ||
+          (await this.hasUnfinishedActivation(generation))
+        )
+          return {
+            acquired: true,
+            blocked: 'source_or_activation',
+            processed: 0,
+            converged: false
+          };
+        const sourceId = configuration.activeSourceId;
+        const scope = `${sourceId}_${generation}_${createHash('sha256').update(workerAccount).update('\0').update(this.source(sourceId).calendarId).digest('hex')}`;
+        const reader = this.reader(sourceId, lease);
+        const writer = this.writer(sourceId, lease);
+        const deadline = monotonic + 15_000;
+        const audit = async (identifier: string): Promise<void> => {
+          const subjectHash = createHash('sha256')
+            .update(identifier)
+            .digest('hex');
+          await this.withLease(lease, (transaction, occurredAt) => {
+            transaction.create(
+              this.db
+                .collection('calendar_pilot_audit_events')
+                .doc(randomUUID()),
+              {
+                action: 'calendar_reconciliation_conflict',
+                sourceId,
+                subjectHash,
+                occurredAt
+              }
+            );
+          });
+        };
+        const reconciler = new FirestoreCalendarPilotReconciliationAdapter({
+          db: this.db,
+          lease,
+          sourceId,
+          workerServiceAccount: workerAccount,
+          buildDesired: calendarWriteEventForConfirmedAppointment,
+          reader,
+          writer,
+          deadline,
+          now: this.monotonicClock,
+          onUncertainWrite: (error) => {
+            if (!(
+              error instanceof GoogleCalendarSyncError && error.status === 412
+            ))
+              lease.dispatch.pending += 1;
+          },
+          compareBeforeApply: (expected) =>
+            verifyReconciliationDocuments(this.db, lease, expected),
+          recordConflict: (snapshot) => audit(snapshot.linkId)
+        });
+        const port = new FirestoreCalendarPilotFullScanPort({
+          db: this.db,
+          lease,
+          sourceId,
+          reader,
+          reconciler,
+          recordUnattributedConflict: audit
+        });
+        const checkpoint = await this.beginReconciliationSlice(
+          lease,
+          scope,
+          anchor
+        );
+        try {
+          const result = await runCalendarPilotFullScanRound(
+            port,
+            {
+              scope,
+              maxItems: JOB_BATCH_SIZE,
+              deadline,
+              now: this.monotonicClock
+            },
+            checkpoint.state
+          );
+          await this.finishReconciliationSlice(
+            lease,
+            checkpoint.expected,
+            result.state
+          );
+          return {
+            acquired: true,
+            blocked: undefined,
+            ...result,
+            converged: result.converged && !checkpoint.discarded
+          };
+        } catch (error) {
+          if (!(error instanceof CalendarPilotInvalidPageTokenError))
+            throw error;
+          await this.finishReconciliationSlice(
+            lease,
+            checkpoint.expected,
+            null
+          );
+          return {
+            acquired: true,
+            blocked: 'page_token_expired',
+            processed: 0,
+            converged: false
+          };
+        }
+      } finally {
+        if (lease.dispatch.pending === 0) await this.release(owner);
+      }
     });
   }
 

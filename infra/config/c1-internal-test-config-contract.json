@@ -271,6 +271,13 @@
       "notes": "CAL-PILOT worker runtime mode (apps/worker calendar-pilot-runtime). Not part of the C1 required set; listed so every environment read in apps/api and apps/worker has a class (B-45)."
     },
     {
+      "name": "CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL",
+      "class": "NON_SECRET_CONFIG",
+      "requiredFor": [],
+      "cloudRequired": false,
+      "notes": "Service identity used to verify synthetic Calendar event ownership. Required for synthetic reconciliation, not the general C1 worker."
+    },
+    {
       "name": "CALENDAR_PILOT_PSEUDONYM_KEY",
       "class": "FORBIDDEN_TO_STORE_IN_REPO",
       "requiredFor": [],
