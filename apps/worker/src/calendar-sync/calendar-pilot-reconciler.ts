@@ -66,7 +66,10 @@ export function planCalendarPilotReconciliation(
   snapshot: ReconcileSnapshot
 ): ReconcileAction {
   if (snapshot.blockedByOwner) return { kind: 'blocked' };
-  if (!snapshot.inventoryComplete || snapshot.projectionEventId !== calendarEventId(snapshot.linkId))
+  if (
+    !snapshot.inventoryComplete ||
+    snapshot.projectionEventId !== calendarEventId(snapshot.linkId)
+  )
     return { kind: 'conflict' };
   const canonicalId = snapshot.mirrorEventId ?? snapshot.projectionEventId;
   if (snapshot.mirrorEventId === undefined && !snapshot.projectionOwned)
@@ -205,7 +208,13 @@ export async function runCalendarPilotReconciliation(
     if (await port.settleIfUnchanged(snapshot)) result.converged += 1;
     else incomplete = true;
   }
-  if (incomplete || mutated || result.conflicts > 0 || result.blocked > 0 ||
-      port.hasCompletedCleanFullScan?.() !== true) result.converged = 0;
+  if (
+    incomplete ||
+    mutated ||
+    result.conflicts > 0 ||
+    result.blocked > 0 ||
+    port.hasCompletedCleanFullScan?.() !== true
+  )
+    result.converged = 0;
   return result;
 }

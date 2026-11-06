@@ -83,7 +83,10 @@ describe('CAL-PILOT reconciled job settlement', () => {
   it('requires the appointment and mirror snapshot to remain current', async () => {
     const before = await expected();
     expect(await verifyReconciliationDocuments(db, lease, before)).toBe(true);
-    await mirror().set({ sourceId: 'source_a', linkId: 'synthetic_reconcile_link' });
+    await mirror().set({
+      sourceId: 'source_a',
+      linkId: 'synthetic_reconcile_link'
+    });
     expect(await verifyReconciliationDocuments(db, lease, before)).toBe(false);
   });
 
@@ -125,17 +128,23 @@ describe('CAL-PILOT reconciled job settlement', () => {
   });
 
   it('does not settle after a different job acquires an owner', async () => {
-    const before = { ...await expected(), jobs: [await job().get()] };
+    const before = { ...(await expected()), jobs: [await job().get()] };
     expect(await verifyReconciliationDocuments(db, lease, before)).toBe(true);
     await otherJob().set({
-      kind: 'calendar_projection_upsert', status: 'processing',
-      localRecordId: 'synthetic_reconcile_link', generation: 1,
+      kind: 'calendar_projection_upsert',
+      status: 'processing',
+      localRecordId: 'synthetic_reconcile_link',
+      generation: 1,
       leaseOwner: 'synthetic_stuck_owner'
     });
     expect(await verifyReconciliationDocuments(db, lease, before)).toBe(false);
-    expect(await settleReconciledCalendarPilotJob(db, lease, before)).toBe(false);
+    expect(await settleReconciledCalendarPilotJob(db, lease, before)).toBe(
+      false
+    );
     expect((await job().get()).data()?.['status']).toBe('failed');
-    expect((await otherJob().get()).data()?.['leaseOwner']).toBe('synthetic_stuck_owner');
+    expect((await otherJob().get()).data()?.['leaseOwner']).toBe(
+      'synthetic_stuck_owner'
+    );
   });
 
   it('does not clear a failed job that still has an owner', async () => {

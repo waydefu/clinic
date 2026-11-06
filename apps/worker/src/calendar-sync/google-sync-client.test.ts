@@ -19,16 +19,27 @@ function response(body: unknown, status = 200): Response {
 describe('GoogleCalendarEventReader', () => {
   it('pages the whole calendar without hiding events without our marker', async () => {
     const fetchImpl = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
-      Promise.resolve(response({
-        items: [
-          { id: 'owned', extendedProperties: { private: { beauessenceLinkId: 'link_a' } } },
-          { id: 'unmarked', recurrence: ['RRULE:FREQ=DAILY'] }
-        ],
-        nextPageToken: 'next-page'
-      }))
+      Promise.resolve(
+        response({
+          items: [
+            {
+              id: 'owned',
+              extendedProperties: { private: { beauessenceLinkId: 'link_a' } }
+            },
+            { id: 'unmarked', recurrence: ['RRULE:FREQ=DAILY'] }
+          ],
+          nextPageToken: 'next-page'
+        })
+      )
     );
-    const reader = new GoogleCalendarEventReader('synthetic', () => Promise.resolve('synthetic-token'), fetchImpl);
-    await expect(reader.listWholeCalendarInventory(2, 'page-a')).resolves.toEqual({
+    const reader = new GoogleCalendarEventReader(
+      'synthetic',
+      () => Promise.resolve('synthetic-token'),
+      fetchImpl
+    );
+    await expect(
+      reader.listWholeCalendarInventory(2, 'page-a')
+    ).resolves.toEqual({
       events: [
         { id: 'owned', linkId: 'link_a', recurring: false },
         { id: 'unmarked', recurring: true }
@@ -48,9 +59,17 @@ describe('GoogleCalendarEventReader', () => {
   });
 
   it('fails closed on an oversized full-calendar page', async () => {
-    const fetchImpl = vi.fn(() => Promise.resolve(response({ items: [{ id: 'a' }, { id: 'b' }] })));
-    const reader = new GoogleCalendarEventReader('synthetic', () => Promise.resolve('synthetic-token'), fetchImpl);
-    await expect(reader.listWholeCalendarInventory(1)).rejects.toThrow('exceeded its bound');
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(response({ items: [{ id: 'a' }, { id: 'b' }] }))
+    );
+    const reader = new GoogleCalendarEventReader(
+      'synthetic',
+      () => Promise.resolve('synthetic-token'),
+      fetchImpl
+    );
+    await expect(reader.listWholeCalendarInventory(1)).rejects.toThrow(
+      'exceeded its bound'
+    );
   });
 
   it('reads a Firestore-designated original even without link metadata', async () => {

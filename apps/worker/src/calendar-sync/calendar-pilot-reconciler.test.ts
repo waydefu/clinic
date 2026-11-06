@@ -81,12 +81,15 @@ describe('calendar pilot reconciliation', () => {
     expect(
       planCalendarPilotReconciliation({
         ...snapshot(),
-        events: [matching, {
-          ...matching,
-          id: projectionId,
-          etag: '"v2"',
-          linkMarker: 'link_a'
-        }]
+        events: [
+          matching,
+          {
+            ...matching,
+            id: projectionId,
+            etag: '"v2"',
+            linkMarker: 'link_a'
+          }
+        ]
       })
     ).toEqual({ kind: 'conflict' });
     expect(
@@ -100,7 +103,10 @@ describe('calendar pilot reconciliation', () => {
     expect(
       planCalendarPilotReconciliation({
         ...snapshot(),
-        events: [matching, { ...duplicate, creatorEmail: 'other@synthetic.invalid' }]
+        events: [
+          matching,
+          { ...duplicate, creatorEmail: 'other@synthetic.invalid' }
+        ]
       })
     ).toEqual({ kind: 'conflict' });
     expect(
@@ -112,11 +118,14 @@ describe('calendar pilot reconciliation', () => {
     expect(
       planCalendarPilotReconciliation({
         ...snapshot(),
-        events: [matching, {
-          ...duplicate,
-          creatorEmail: 'other@synthetic.invalid',
-          organizerEmail: 'worker@synthetic.invalid'
-        }]
+        events: [
+          matching,
+          {
+            ...duplicate,
+            creatorEmail: 'other@synthetic.invalid',
+            organizerEmail: 'worker@synthetic.invalid'
+          }
+        ]
       })
     ).toEqual({ kind: 'delete', id: projectionId, etag: '"v2"' });
     expect(
@@ -229,14 +238,23 @@ describe('calendar pilot reconciliation', () => {
   it('does not count a no-op as convergence while the full scan is incomplete', async () => {
     const port: CalendarPilotReconciliationPort = {
       scan: () => Promise.resolve(['link_a']),
-      read: () => Promise.resolve({ ...snapshot(), events: [{ ...current, title: desired.title }] }),
+      read: () =>
+        Promise.resolve({
+          ...snapshot(),
+          events: [{ ...current, title: desired.title }]
+        }),
       apply: () => Promise.reject(new Error('unexpected mutation')),
       settleIfUnchanged: () => Promise.resolve(true),
       recordConflict: () => Promise.reject(new Error('unexpected conflict')),
       hasCompletedCleanFullScan: () => false
     };
-    expect(await runCalendarPilotReconciliation(port, { maxItems: 1, deadline: 10, now: () => 0 }))
-      .toEqual({ processed: 1, converged: 0, conflicts: 0, blocked: 0 });
+    expect(
+      await runCalendarPilotReconciliation(port, {
+        maxItems: 1,
+        deadline: 10,
+        now: () => 0
+      })
+    ).toEqual({ processed: 1, converged: 0, conflicts: 0, blocked: 0 });
   });
 
   it('does not mutate or settle blocked and conflicted links', async () => {
@@ -345,13 +363,17 @@ describe('calendar pilot reconciliation', () => {
       linkMarker: 'link_a',
       creatorEmail: 'worker@synthetic.invalid'
     };
-    const fetchImpl = vi.fn<typeof fetch>((_input: RequestInfo | URL, init?: RequestInit) => {
-      expect(init?.method).toBe('DELETE');
-      expect(new Headers(init?.headers).get('If-Match')).toBe('"v2"');
-      return Promise.resolve(new Response(null, { status: 204 }));
-    });
+    const fetchImpl = vi.fn<typeof fetch>(
+      (_input: RequestInfo | URL, init?: RequestInit) => {
+        expect(init?.method).toBe('DELETE');
+        expect(new Headers(init?.headers).get('If-Match')).toBe('"v2"');
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
+    );
     const writer = new GoogleCalendarEventWriter(
-      'synthetic-calendar', () => Promise.resolve('synthetic-token'), fetchImpl
+      'synthetic-calendar',
+      () => Promise.resolve('synthetic-token'),
+      fetchImpl
     );
     const denied = planCalendarPilotReconciliation({
       ...snapshot(),
@@ -360,9 +382,11 @@ describe('calendar pilot reconciliation', () => {
     expect(denied).toEqual({ kind: 'conflict' });
     expect(fetchImpl).not.toHaveBeenCalled();
     const permitted = planCalendarPilotReconciliation({
-      ...snapshot(), events: [matching, duplicate]
+      ...snapshot(),
+      events: [matching, duplicate]
     });
-    if (permitted.kind !== 'delete') throw new Error('Expected conditional delete.');
+    if (permitted.kind !== 'delete')
+      throw new Error('Expected conditional delete.');
     await writer.removeWithEtag(permitted.id, permitted.etag);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });

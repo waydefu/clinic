@@ -212,30 +212,51 @@ afterAll(async () => {
 
 describe('CAL-PILOT dispatch and completion use live lease state', () => {
   it('reports a stuck reconciliation owner without touching the provider', async () => {
-    await configuration().update({ workerLeaseOwner: 'synthetic_previous_owner',
-      workerLeaseExpiresAt: '2026-08-31T23:59:59.000Z' });
-    const runtime = new CalendarPilotRuntime(db,
-      { ...environment, CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL: 'worker@synthetic.invalid' },
-      now, syntheticOpenMaintenanceControl());
+    await configuration().update({
+      workerLeaseOwner: 'synthetic_previous_owner',
+      workerLeaseExpiresAt: '2026-08-31T23:59:59.000Z'
+    });
+    const runtime = new CalendarPilotRuntime(
+      db,
+      {
+        ...environment,
+        CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL: 'worker@synthetic.invalid'
+      },
+      now,
+      syntheticOpenMaintenanceControl()
+    );
     await expect(runtime.runReconciliationRound()).resolves.toMatchObject({
-      acquired: false, blocked: 'owner_present', converged: false
+      acquired: false,
+      blocked: 'owner_present',
+      converged: false
     });
     expect(dispatch).not.toHaveBeenCalled();
-    expect((await configuration().get()).data()?.['workerLeaseOwner']).toBe('synthetic_previous_owner');
+    expect((await configuration().get()).data()?.['workerLeaseOwner']).toBe(
+      'synthetic_previous_owner'
+    );
   });
 
   it('runs two independent synthetic full scans without provider mutations', async () => {
     await db.collection(OUTBOX).doc('job_a').delete();
     await db.collection(OUTBOX).doc('job_b').delete();
-    const runtime = new CalendarPilotRuntime(db,
-      { ...environment, CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL: 'worker@synthetic.invalid' },
-      now, syntheticOpenMaintenanceControl());
+    const runtime = new CalendarPilotRuntime(
+      db,
+      {
+        ...environment,
+        CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL: 'worker@synthetic.invalid'
+      },
+      now,
+      syntheticOpenMaintenanceControl()
+    );
     async function fullPass() {
-      let state: import('../../apps/worker/src/calendar-sync/calendar-pilot-full-scan.js').CalendarPilotFullScanState | undefined;
+      let state:
+        | import('../../apps/worker/src/calendar-sync/calendar-pilot-full-scan.js').CalendarPilotFullScanState
+        | undefined;
       for (let i = 0; i < 10; i += 1) {
         const result = await runtime.runReconciliationRound(state);
         expect(result.acquired).toBe(true);
-        if (!('state' in result) || result.state === undefined) throw new Error('Expected synthetic scan state.');
+        if (!('state' in result) || result.state === undefined)
+          throw new Error('Expected synthetic scan state.');
         const next = result.state;
         if (next.phase === 'complete') return result;
         state = next;
@@ -246,7 +267,11 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
     expect(await fullPass()).toMatchObject({ acquired: true, converged: true });
     expect(await fullPass()).toMatchObject({ acquired: true, converged: true });
     expect(dispatch).toHaveBeenCalledTimes(2);
-    expect(dispatch.mock.calls.every((call: [RequestInfo | URL, RequestInit?]) => call[1]?.method === 'GET')).toBe(true);
+    expect(
+      dispatch.mock.calls.every(
+        (call: [RequestInfo | URL, RequestInit?]) => call[1]?.method === 'GET'
+      )
+    ).toBe(true);
   });
   it('does not reclaim an expired owner without proof it stopped', async () => {
     await configuration().update({

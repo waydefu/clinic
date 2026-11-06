@@ -15,9 +15,7 @@ import {
 import { formatSyntheticAppointmentTitle } from '@beauessence/domain';
 
 import { calendarEventId } from './calendar-pilot-event-id.js';
-import type {
-  CalendarPilotWorkerLease
-} from './calendar-pilot-worker-lease.js';
+import type { CalendarPilotWorkerLease } from './calendar-pilot-worker-lease.js';
 import { assertCalendarPilotWorkerLease } from './calendar-pilot-worker-lease.js';
 import {
   planCalendarPilotReconciliation,
@@ -168,16 +166,16 @@ function isProjectionJob(
   );
 }
 
-export class FirestoreCalendarPilotReconciliationAdapter
-  implements CalendarPilotReconciliationPort
-{
+export class FirestoreCalendarPilotReconciliationAdapter implements CalendarPilotReconciliationPort {
   private cursorValue: string | undefined;
   private lastNow = Number.NEGATIVE_INFINITY;
   private scannedJobs = new Map<string, readonly string[]>();
   private readonly contexts = new WeakMap<ReconcileSnapshot, ReadContext>();
   private readonly latestByLink = new Map<string, ReconcileSnapshot>();
 
-  public constructor(private readonly options: CalendarPilotReconcileAdapterOptions) {
+  public constructor(
+    private readonly options: CalendarPilotReconcileAdapterOptions
+  ) {
     if (
       !Number.isFinite(options.deadline) ||
       options.workerServiceAccount.trim() === '' ||
@@ -210,7 +208,8 @@ export class FirestoreCalendarPilotReconciliationAdapter
       .collection('calendar_pilot_configuration')
       .doc('active')
       .get();
-    if (!document.exists) throw new Error('CAL-PILOT configuration is missing.');
+    if (!document.exists)
+      throw new Error('CAL-PILOT configuration is missing.');
     const leaseConfiguration = parseCalendarPilotRecord(
       CalendarPilotLeaseConfigurationRecordSchema,
       document.data()
@@ -269,14 +268,18 @@ export class FirestoreCalendarPilotReconciliationAdapter
   public async read(linkId: string): Promise<ReconcileSnapshot> {
     OpaqueIdentifierSchema.parse(linkId);
     if (this.expired())
-      return this.remember(linkId, {
+      return this.remember(
         linkId,
-        blockedByOwner: false,
-        inventoryComplete: false,
-        projectionEventId: calendarEventId(linkId),
-        projectionOwned: false,
-        events: []
-      }, undefined);
+        {
+          linkId,
+          blockedByOwner: false,
+          inventoryComplete: false,
+          projectionEventId: calendarEventId(linkId),
+          projectionOwned: false,
+          events: []
+        },
+        undefined
+      );
     const scannedIds = this.scannedJobs.get(linkId) ?? [];
     const { document: configuration, sourceId } =
       await this.currentConfiguration();
@@ -324,19 +327,35 @@ export class FirestoreCalendarPilotReconciliationAdapter
     const parsedJobs = jobs.map((job) =>
       CalendarPilotRuntimeJobRecordSchema.safeParse(job.data())
     );
-    if (parsedJobs.some((result) => !result.success || result.data.status === 'pending')) complete = false;
-    if (jobs.some((job) => {
-      const data = job.data();
-      return data?.['status'] === 'failed' && data['lastErrorCode'] === 'needs_reconcile' &&
-        !isProjectionJob(data, this.options.lease.generation);
-    })) complete = false;
+    if (
+      parsedJobs.some(
+        (result) => !result.success || result.data.status === 'pending'
+      )
+    )
+      complete = false;
+    if (
+      jobs.some((job) => {
+        const data = job.data();
+        return (
+          data?.['status'] === 'failed' &&
+          data['lastErrorCode'] === 'needs_reconcile' &&
+          !isProjectionJob(data, this.options.lease.generation)
+        );
+      })
+    )
+      complete = false;
     const activeJobs = jobs.flatMap((job, index) => {
       const parsed = parsedJobs[index];
-      return parsed?.success && isProjectionJob(job.data(), this.options.lease.generation)
+      return parsed?.success &&
+        isProjectionJob(job.data(), this.options.lease.generation)
         ? [{ document: job, record: parsed.data }]
         : [];
     });
-    if (scannedIds.some((id) => !activeJobs.some(({ document }) => document.id === id)))
+    if (
+      scannedIds.some(
+        (id) => !activeJobs.some(({ document }) => document.id === id)
+      )
+    )
       complete = false;
     const hasOwner = jobs.some((job) => {
       const data = job.data();
@@ -356,15 +375,19 @@ export class FirestoreCalendarPilotReconciliationAdapter
       jobs
     };
     if (hasOwner) {
-      return this.remember(linkId, {
+      return this.remember(
         linkId,
-        blockedByOwner: true,
-        inventoryComplete: false,
-        projectionEventId: calendarEventId(linkId),
-        projectionOwned: false,
-        workerServiceAccount: this.options.workerServiceAccount,
-        events: []
-      }, { expected, settleJobs });
+        {
+          linkId,
+          blockedByOwner: true,
+          inventoryComplete: false,
+          projectionEventId: calendarEventId(linkId),
+          projectionOwned: false,
+          workerServiceAccount: this.options.workerServiceAccount,
+          events: []
+        },
+        { expected, settleJobs }
+      );
     }
     let mirrorEventId: string | undefined;
     let stored: StoredMirror | undefined;
@@ -407,18 +430,13 @@ export class FirestoreCalendarPilotReconciliationAdapter
     if (appointmentData?.['status'] === 'confirmed') {
       if (stored !== undefined) {
         try {
-          desired = this.options.buildDesired(
-            stored,
-            appointmentData,
-            linkId
-          );
+          desired = this.options.buildDesired(stored, appointmentData, linkId);
         } catch {
           complete = false;
         }
       } else if (mirrorQuery.empty) {
-        const appointmentRecord = CalendarPilotRuntimeAppointmentRecordSchema.parse(
-          appointmentData
-        );
+        const appointmentRecord =
+          CalendarPilotRuntimeAppointmentRecordSchema.parse(appointmentData);
         desired = {
           eventId: projectionId,
           title: formatSyntheticAppointmentTitle({
@@ -439,7 +457,11 @@ export class FirestoreCalendarPilotReconciliationAdapter
       let pageToken: string | undefined;
       const seenPageTokens = new Set<string>();
       let finished = false;
-      for (let pageNumber = 0; pageNumber < MAX_RECONCILIATION_PAGES; pageNumber += 1) {
+      for (
+        let pageNumber = 0;
+        pageNumber < MAX_RECONCILIATION_PAGES;
+        pageNumber += 1
+      ) {
         if (this.expired()) {
           inventoryComplete = false;
           break;
@@ -498,10 +520,12 @@ export class FirestoreCalendarPilotReconciliationAdapter
     }
     if (this.expired()) inventoryComplete = false;
     const eventList = [...events.values()];
-    const projectionOwned = eventList.some((event) =>
-      event.id === projectionId && event.linkMarker === linkId &&
-      (event.creatorEmail === this.options.workerServiceAccount ||
-        event.organizerEmail === this.options.workerServiceAccount)
+    const projectionOwned = eventList.some(
+      (event) =>
+        event.id === projectionId &&
+        event.linkMarker === linkId &&
+        (event.creatorEmail === this.options.workerServiceAccount ||
+          event.organizerEmail === this.options.workerServiceAccount)
     );
     const snapshot: ReconcileSnapshot = {
       linkId,
@@ -525,35 +549,52 @@ export class FirestoreCalendarPilotReconciliationAdapter
     linkId: string,
     action: Extract<ReconcileAction, { kind: 'insert' | 'patch' | 'delete' }>
   ): Promise<void> {
-    if (this.expired()) throw new Error('Calendar reconciliation deadline passed.');
+    if (this.expired())
+      throw new Error('Calendar reconciliation deadline passed.');
     const snapshot = this.latestByLink.get(linkId);
-    const context = snapshot === undefined ? undefined : this.contexts.get(snapshot);
+    const context =
+      snapshot === undefined ? undefined : this.contexts.get(snapshot);
     if (snapshot === undefined || context === undefined)
       throw new Error('Calendar reconciliation snapshot is unavailable.');
     const planned = planCalendarPilotReconciliation(snapshot);
     if (!this.sameAction(planned, action))
       throw new Error('Calendar reconciliation action changed.');
     if (action.kind === 'delete' && action.id === context.mirrorEventId)
-      throw new Error('Calendar reconciliation cannot delete the original mirror event.');
+      throw new Error(
+        'Calendar reconciliation cannot delete the original mirror event.'
+      );
     if (action.kind === 'delete') {
-      const originals = await this.options.db.collection('calendar_pilot_mirrors')
-        .where('externalEventId', '==', action.id).limit(1).get();
-      if (!originals.empty) throw new Error('Calendar reconciliation cannot delete a mirror original.');
+      const originals = await this.options.db
+        .collection('calendar_pilot_mirrors')
+        .where('externalEventId', '==', action.id)
+        .limit(1)
+        .get();
+      if (!originals.empty)
+        throw new Error(
+          'Calendar reconciliation cannot delete a mirror original.'
+        );
     }
     if (!(await this.options.compareBeforeApply(context.expected)))
       throw new Error('Calendar reconciliation changed before apply.');
-    if (this.expired()) throw new Error('Calendar reconciliation deadline passed.');
+    if (this.expired())
+      throw new Error('Calendar reconciliation deadline passed.');
     this.latestByLink.delete(linkId);
     try {
-      if (action.kind === 'insert') await this.options.writer.upsert(action.event);
+      if (action.kind === 'insert')
+        await this.options.writer.upsert(action.event);
       else if (action.kind === 'patch')
         await this.options.writer.update(action.event, action.etag, true);
       else await this.options.writer.removeWithEtag(action.id, action.etag);
     } catch (error: unknown) {
       this.options.onUncertainWrite(error);
       await markCalendarPilotReconciliationNeeded(
-        this.options.db, this.options.lease, this.options.sourceId, linkId,
-        action.kind === 'delete' ? 'calendar_projection_delete' : 'calendar_projection_upsert'
+        this.options.db,
+        this.options.lease,
+        this.options.sourceId,
+        linkId,
+        action.kind === 'delete'
+          ? 'calendar_projection_delete'
+          : 'calendar_projection_upsert'
       );
       throw error;
     }
@@ -564,23 +605,38 @@ export class FirestoreCalendarPilotReconciliationAdapter
     return context === undefined || context.settleJobs.length > 0;
   }
 
-  public async settleIfUnchanged(snapshot: ReconcileSnapshot): Promise<boolean> {
+  public async settleIfUnchanged(
+    snapshot: ReconcileSnapshot
+  ): Promise<boolean> {
     const context = this.contexts.get(snapshot);
     if (
       context === undefined ||
       planCalendarPilotReconciliation(snapshot).kind !== 'no-op' ||
       this.expired() ||
       !(await this.options.compareBeforeApply(context.expected))
-    ) return false;
+    )
+      return false;
     if (context.settleJobs.length === 0)
-      return verifyReconciliationDocuments(this.options.db, this.options.lease, context.expected);
+      return verifyReconciliationDocuments(
+        this.options.db,
+        this.options.lease,
+        context.expected
+      );
     for (const job of context.settleJobs) {
-      if (this.expired() || !(await settleReconciledCalendarPilotJob(this.options.db, this.options.lease, {
-        sourceId: context.expected.sourceId,
-        appointment: context.expected.appointment,
-        mirrors: context.expected.mirrors,
-        job
-      }))) return false;
+      if (
+        this.expired() ||
+        !(await settleReconciledCalendarPilotJob(
+          this.options.db,
+          this.options.lease,
+          {
+            sourceId: context.expected.sourceId,
+            appointment: context.expected.appointment,
+            mirrors: context.expected.mirrors,
+            job
+          }
+        ))
+      )
+        return false;
     }
     return true;
   }
@@ -606,7 +662,10 @@ export class FirestoreCalendarPilotReconciliationAdapter
     return snapshot;
   }
 
-  private sameAction(planned: ReconcileAction, action: ReconcileAction): boolean {
+  private sameAction(
+    planned: ReconcileAction,
+    action: ReconcileAction
+  ): boolean {
     if (planned.kind !== action.kind) return false;
     if (planned.kind === 'insert' && action.kind === 'insert')
       return sameWriteEvent(planned.event, action.event);

@@ -20,11 +20,17 @@ export interface CalendarPilotFullScanState {
 }
 
 export interface CalendarPilotFullScanPort {
-  calendarPage(limit: number, pageToken?: string): Promise<{
+  calendarPage(
+    limit: number,
+    pageToken?: string
+  ): Promise<{
     readonly events: readonly FullScanCalendarEvent[];
     readonly nextPageToken?: string;
   }>;
-  firestorePage(limit: number, cursor?: string): Promise<{
+  firestorePage(
+    limit: number,
+    cursor?: string
+  ): Promise<{
     readonly linkIds: readonly string[];
     readonly nextCursor?: string;
   }>;
@@ -41,25 +47,41 @@ export async function runCalendarPilotFullScanRound(
     readonly now: () => number;
   },
   previous?: CalendarPilotFullScanState
-): Promise<{ readonly state: CalendarPilotFullScanState; readonly processed: number; readonly converged: boolean }> {
-  if (options.scope.trim() === '' || !Number.isSafeInteger(options.maxItems) ||
-      options.maxItems < 1 || options.maxItems > 100 || !Number.isFinite(options.deadline) ||
-      (previous !== undefined && (previous.scope !== options.scope || previous.pageSize !== options.maxItems)))
+): Promise<{
+  readonly state: CalendarPilotFullScanState;
+  readonly processed: number;
+  readonly converged: boolean;
+}> {
+  if (
+    options.scope.trim() === '' ||
+    !Number.isSafeInteger(options.maxItems) ||
+    options.maxItems < 1 ||
+    options.maxItems > 100 ||
+    !Number.isFinite(options.deadline) ||
+    (previous !== undefined &&
+      (previous.scope !== options.scope ||
+        previous.pageSize !== options.maxItems))
+  )
     throw new Error('Invalid full-scan bounds or scope.');
   let phase = previous?.phase ?? 'calendar';
   let pageToken = previous?.pageToken;
   let pageLoaded = previous?.pageLoaded ?? false;
   let pending = [...(previous?.pending ?? [])];
   let clean = previous?.clean ?? true;
-  if (phase === 'complete' || pending.length > 100 || (!pageLoaded && pending.length > 0) ||
-      pending.some((item) => item.kind !== phase))
+  if (
+    phase === 'complete' ||
+    pending.length > 100 ||
+    (!pageLoaded && pending.length > 0) ||
+    pending.some((item) => item.kind !== phase)
+  )
     throw new Error('Invalid full-scan resume state.');
   let processed = 0;
   let pageRequests = 0;
   let lastTime = Number.NEGATIVE_INFINITY;
   const expired = (): boolean => {
     const now = options.now();
-    if (!Number.isFinite(now) || now < lastTime) throw new Error('Invalid full-scan clock.');
+    if (!Number.isFinite(now) || now < lastTime)
+      throw new Error('Invalid full-scan clock.');
     lastTime = now;
     return now >= options.deadline;
   };
@@ -71,18 +93,29 @@ export async function runCalendarPilotFullScanRound(
       const requested = pageToken;
       if (phase === 'calendar') {
         const page = await port.calendarPage(limit, requested);
-        if (page.events.length > limit || page.events.some((event) => typeof event.id !== 'string' || event.id.trim() === ''))
+        if (
+          page.events.length > limit ||
+          page.events.some(
+            (event) => typeof event.id !== 'string' || event.id.trim() === ''
+          )
+        )
           throw new Error('Invalid full-calendar inventory page.');
         pending = page.events.map((event) => ({ kind: 'calendar', event }));
         pageToken = page.nextPageToken;
       } else {
         const page = await port.firestorePage(limit, requested);
-        if (page.linkIds.length > limit || page.linkIds.some((id) => typeof id !== 'string' || id.trim() === ''))
+        if (
+          page.linkIds.length > limit ||
+          page.linkIds.some((id) => typeof id !== 'string' || id.trim() === '')
+        )
           throw new Error('Invalid Firestore link page.');
         pending = page.linkIds.map((linkId) => ({ kind: 'firestore', linkId }));
         pageToken = page.nextCursor;
       }
-      if (pageToken !== undefined && (pageToken.trim() === '' || pageToken === requested))
+      if (
+        pageToken !== undefined &&
+        (pageToken.trim() === '' || pageToken === requested)
+      )
         throw new Error('Invalid full-scan page token.');
       pageLoaded = true;
       pageRequests += 1;
@@ -91,9 +124,10 @@ export async function runCalendarPilotFullScanRound(
     const item = pending[0];
     if (item !== undefined) {
       if (processed >= options.maxItems) break;
-      const outcome = item.kind === 'calendar'
-        ? await port.reconcileCalendarEvent(item.event)
-        : await port.reconcileFirestoreLink(item.linkId);
+      const outcome =
+        item.kind === 'calendar'
+          ? await port.reconcileCalendarEvent(item.event)
+          : await port.reconcileFirestoreLink(item.linkId);
       if (!['no-op', 'changed', 'conflict', 'blocked'].includes(outcome))
         throw new Error('Invalid full-scan outcome.');
       if (outcome !== 'no-op') clean = false;
@@ -112,7 +146,13 @@ export async function runCalendarPilotFullScanRound(
     }
   }
   const state: CalendarPilotFullScanState = {
-    scope: options.scope, pageSize: options.maxItems, phase, ...(pageToken !== undefined ? { pageToken } : {}), pageLoaded, pending, clean
+    scope: options.scope,
+    pageSize: options.maxItems,
+    phase,
+    ...(pageToken !== undefined ? { pageToken } : {}),
+    pageLoaded,
+    pending,
+    clean
   };
   return { state, processed, converged: phase === 'complete' && clean };
 }

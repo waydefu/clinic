@@ -12,15 +12,25 @@ export function scheduleCalendarPilotReconciliation(
   const timer = setInterval(() => {
     if (running) return;
     running = true;
-    void runtime.runReconciliationRound(state).then(
-      (result: Awaited<ReturnType<CalendarPilotRuntime['runReconciliationRound']>>) => {
-        if ('state' in result && result.state !== undefined)
-          state = result.state.phase === 'complete' ? undefined : result.state;
-        if (result.blocked !== undefined)
-          console.warn('calendar_reconciliation_blocked', result.blocked);
-      },
-      () => console.warn('calendar_reconciliation_round_failed')
-    ).finally(() => { running = false; });
+    void runtime
+      .runReconciliationRound(state)
+      .then(
+        (
+          result: Awaited<
+            ReturnType<CalendarPilotRuntime['runReconciliationRound']>
+          >
+        ) => {
+          if ('state' in result && result.state !== undefined)
+            state =
+              result.state.phase === 'complete' ? undefined : result.state;
+          if (result.blocked !== undefined)
+            console.warn('calendar_reconciliation_blocked', result.blocked);
+        },
+        () => console.warn('calendar_reconciliation_round_failed')
+      )
+      .finally(() => {
+        running = false;
+      });
   }, RECONCILIATION_INTERVAL_MS);
   return () => clearInterval(timer);
 }
