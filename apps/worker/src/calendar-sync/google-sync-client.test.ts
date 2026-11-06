@@ -17,6 +17,27 @@ function response(body: unknown, status = 200): Response {
 }
 
 describe('GoogleCalendarEventReader', () => {
+  it('reads a Firestore-designated original even without link metadata', async () => {
+    const fetchImpl = vi.fn(() => Promise.resolve(response({
+      id: 'original', etag: '"v1"', status: 'confirmed', summary: 'synthetic',
+      start: { dateTime: '2026-11-06T01:00:00Z' }, end: { dateTime: '2026-11-06T01:30:00Z' }
+    })));
+    const reader = new GoogleCalendarEventReader('synthetic', () => Promise.resolve('synthetic-token'), fetchImpl);
+    await expect(reader.getReconciliationOriginal('original', 'link_a')).resolves.toMatchObject({
+      id: 'original', linkId: 'link_a', etag: '"v1"'
+    });
+  });
+
+  it.each([
+    { id: 'other', etag: '"v1"', status: 'cancelled' },
+    { id: 'original', etag: '"v1"', status: 'cancelled',
+      extendedProperties: { private: { beauessenceLinkId: 'other_link' } } }
+  ])('rejects a returned original with a different ID or link', async (body: unknown) => {
+    const fetchImpl = vi.fn(() => Promise.resolve(response(body)));
+    const reader = new GoogleCalendarEventReader('synthetic', () => Promise.resolve('synthetic-token'), fetchImpl);
+    await expect(reader.getReconciliationOriginal('original', 'link_a')).rejects.toThrow();
+  });
+
   it('reads a strict paginated reconciliation inventory by link', async () => {
     const fetchImpl = vi.fn(() => Promise.resolve(response({
       items: [{
