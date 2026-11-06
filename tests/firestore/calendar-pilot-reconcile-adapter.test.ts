@@ -658,12 +658,26 @@ describe('Firestore CAL-PILOT reconciliation adapter', () => {
         creatorEmail: 'worker@synthetic.invalid'
       });
       const writes: string[] = [];
+      const providerEvents = [original, duplicate];
       const reconciler = makeAdapter({
         writes,
+        writer: {
+          upsert: () => Promise.reject(new Error('unexpected insert')),
+          update: () => Promise.reject(new Error('unexpected patch')),
+          removeWithEtag: (id, etag) => {
+            expect(id).toBe(duplicateId);
+            expect(etag).toBe('"duplicate-v1"');
+            const index = providerEvents.findIndex((item) => item.id === id);
+            expect(index).toBeGreaterThanOrEqual(0);
+            writes.push(`delete:${id}`);
+            providerEvents.splice(index, 1);
+            return Promise.resolve();
+          }
+        },
         reader: {
           listReconciliationEvents: () =>
-            Promise.resolve({ events: writes.length === 0 ? [duplicate] : [] }),
-          getReconciliationOriginal: () => Promise.resolve(original)
+            Promise.resolve({ events: providerEvents.filter((item) => item.id !== original.id) }),
+          getReconciliationOriginal: () => Promise.resolve(providerEvents.find((item) => item.id === original.id))
         }
       });
       const conflicts: string[] = [];
@@ -686,15 +700,9 @@ describe('Firestore CAL-PILOT reconciliation adapter', () => {
                   }
                 : {
                     events:
-                      writes.length === 0
-                        ? [
-                            {
-                              id: duplicateId,
-                              linkId: LINK_A,
-                              recurring: false
-                            }
-                          ]
-                        : []
+                      providerEvents.filter((item) => item.id !== original.id).map((item) => ({
+                        id: item.id, linkId: item.linkId, recurring: false
+                      }))
                   }
             )
         }
@@ -726,6 +734,13 @@ describe('Firestore CAL-PILOT reconciliation adapter', () => {
       expect(await fullPass()).toBe(true);
       expect(writes).toEqual([`delete:${duplicateId}`]);
       expect(conflicts).toEqual([]);
+      const stored = (await appointment().get()).data();
+      expect(stored).toMatchObject({ patientCode: 'A17', bookingKind: 'initial', serviceId: 'service_snoring' });
+      expect(providerEvents).toHaveLength(1);
+      expect(providerEvents[0]).toMatchObject({
+        id: 'synthetic_original_event', linkId: LINK_A, status: 'confirmed', title,
+        startsAt: stored?.['startsAt'], endsAt: stored?.['endsAt']
+      });
     }
   );
 
