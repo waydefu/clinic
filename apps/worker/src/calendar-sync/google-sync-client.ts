@@ -69,35 +69,80 @@ function safeEvent(value: unknown): ExternalCalendarEvent | undefined {
   };
 }
 
-function parseReconcileEvent(value: unknown, linkId: string, requireLink: boolean): ReconcileEvent {
+function parseReconcileEvent(
+  value: unknown,
+  linkId: string,
+  requireLink: boolean
+): ReconcileEvent {
   if (typeof value !== 'object' || value === null || Array.isArray(value))
     throw new Error('Calendar reconciliation event is invalid.');
   const event = value as Record<string, unknown>;
   const extended = event['extendedProperties'];
-  if (extended !== undefined && (typeof extended !== 'object' || extended === null || Array.isArray(extended)))
+  if (
+    extended !== undefined &&
+    (typeof extended !== 'object' ||
+      extended === null ||
+      Array.isArray(extended))
+  )
     throw new Error('Calendar reconciliation event identity is invalid.');
-  const privateFields = typeof extended === 'object' && extended !== null
-    ? (extended as Record<string, unknown>)['private'] : undefined;
-  if (privateFields !== undefined && (typeof privateFields !== 'object' || privateFields === null || Array.isArray(privateFields)))
+  const privateFields =
+    typeof extended === 'object' && extended !== null
+      ? (extended as Record<string, unknown>)['private']
+      : undefined;
+  if (
+    privateFields !== undefined &&
+    (typeof privateFields !== 'object' ||
+      privateFields === null ||
+      Array.isArray(privateFields))
+  )
     throw new Error('Calendar reconciliation event identity is invalid.');
-  const storedLink = typeof privateFields === 'object' && privateFields !== null
-    ? (privateFields as Record<string, unknown>)['beauessenceLinkId'] : undefined;
-  if (typeof event['id'] !== 'string' || event['id'] === '' ||
-      typeof event['etag'] !== 'string' || !/^"[\x21\x23-\x7e]*"$/u.test(event['etag']) ||
-      (event['status'] !== 'confirmed' && event['status'] !== 'cancelled') ||
-      (requireLink ? storedLink !== linkId : storedLink !== undefined && storedLink !== linkId))
+  const storedLink =
+    typeof privateFields === 'object' && privateFields !== null
+      ? (privateFields as Record<string, unknown>)['beauessenceLinkId']
+      : undefined;
+  if (
+    typeof event['id'] !== 'string' ||
+    event['id'] === '' ||
+    typeof event['etag'] !== 'string' ||
+    !/^"[\x21\x23-\x7e]*"$/u.test(event['etag']) ||
+    (event['status'] !== 'confirmed' && event['status'] !== 'cancelled') ||
+    (requireLink
+      ? storedLink !== linkId
+      : storedLink !== undefined && storedLink !== linkId)
+  )
     throw new Error('Calendar reconciliation event identity is invalid.');
   if (event['status'] === 'cancelled')
-    return { id: event['id'], etag: event['etag'], linkId, status: 'cancelled' };
+    return {
+      id: event['id'],
+      etag: event['etag'],
+      linkId,
+      status: 'cancelled'
+    };
   const start = event['start'];
   const end = event['end'];
-  const startsAt = typeof start === 'object' && start !== null
-    ? (start as Record<string, unknown>)['dateTime'] : undefined;
-  const endsAt = typeof end === 'object' && end !== null
-    ? (end as Record<string, unknown>)['dateTime'] : undefined;
-  if (typeof event['summary'] !== 'string' || typeof startsAt !== 'string' || typeof endsAt !== 'string')
+  const startsAt =
+    typeof start === 'object' && start !== null
+      ? (start as Record<string, unknown>)['dateTime']
+      : undefined;
+  const endsAt =
+    typeof end === 'object' && end !== null
+      ? (end as Record<string, unknown>)['dateTime']
+      : undefined;
+  if (
+    typeof event['summary'] !== 'string' ||
+    typeof startsAt !== 'string' ||
+    typeof endsAt !== 'string'
+  )
     throw new Error('Calendar reconciliation event fields are invalid.');
-  return { id: event['id'], etag: event['etag'], linkId, status: 'confirmed', title: event['summary'], startsAt, endsAt };
+  return {
+    id: event['id'],
+    etag: event['etag'],
+    linkId,
+    status: 'confirmed',
+    title: event['summary'],
+    startsAt,
+    endsAt
+  };
 }
 
 async function responseJson(response: Response): Promise<unknown> {
@@ -206,15 +251,23 @@ export class GoogleCalendarEventReader implements CalendarEventReader {
   public async listReconciliationEvents(
     linkId: string,
     pageToken?: string
-  ): Promise<{ readonly events: readonly ReconcileEvent[]; readonly nextPageToken?: string }> {
+  ): Promise<{
+    readonly events: readonly ReconcileEvent[];
+    readonly nextPageToken?: string;
+  }> {
     OpaqueIdentifierSchema.parse(linkId);
     if (pageToken !== undefined && pageToken.trim() === '')
       throw new Error('Calendar reconciliation page token is invalid.');
-    const url = new URL(`${API_BASE}/calendars/${encodeURIComponent(this.calendarId)}/events`);
+    const url = new URL(
+      `${API_BASE}/calendars/${encodeURIComponent(this.calendarId)}/events`
+    );
     url.searchParams.set('singleEvents', 'true');
     url.searchParams.set('showDeleted', 'true');
     url.searchParams.set('maxResults', '100');
-    url.searchParams.set('privateExtendedProperty', `beauessenceLinkId=${linkId}`);
+    url.searchParams.set(
+      'privateExtendedProperty',
+      `beauessenceLinkId=${linkId}`
+    );
     if (pageToken !== undefined) url.searchParams.set('pageToken', pageToken);
     const token = await this.getAccessToken();
     const response = await this.fetchImpl(url.toString(), {
@@ -223,24 +276,38 @@ export class GoogleCalendarEventReader implements CalendarEventReader {
       signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS)
     });
     if (!response.ok)
-      throw new GoogleCalendarSyncError(`Google Calendar list failed (${response.status}).`, response.status, retryableStatus(response.status));
+      throw new GoogleCalendarSyncError(
+        `Google Calendar list failed (${response.status}).`,
+        response.status,
+        retryableStatus(response.status)
+      );
     const raw = await responseJson(response);
     if (typeof raw !== 'object' || raw === null || Array.isArray(raw))
       throw new Error('Calendar reconciliation inventory is invalid.');
     const body = raw as Record<string, unknown>;
     const next = body['nextPageToken'];
-    if ((next !== undefined && (typeof next !== 'string' || next.trim() === '')) ||
-        (body['items'] !== undefined && !Array.isArray(body['items'])))
+    if (
+      (next !== undefined &&
+        (typeof next !== 'string' || next.trim() === '')) ||
+      (body['items'] !== undefined && !Array.isArray(body['items']))
+    )
       throw new Error('Calendar reconciliation inventory is invalid.');
     const events = ((body['items'] ?? []) as unknown[]).map((item) =>
       parseReconcileEvent(item, linkId, true)
     );
-    return { events, ...(typeof next === 'string' ? { nextPageToken: next } : {}) };
+    return {
+      events,
+      ...(typeof next === 'string' ? { nextPageToken: next } : {})
+    };
   }
 
-  public async getReconciliationOriginal(eventId: string, linkId: string): Promise<ReconcileEvent | undefined> {
+  public async getReconciliationOriginal(
+    eventId: string,
+    linkId: string
+  ): Promise<ReconcileEvent | undefined> {
     OpaqueIdentifierSchema.parse(linkId);
-    if (eventId.trim() === '') throw new Error('Calendar original event ID is invalid.');
+    if (eventId.trim() === '')
+      throw new Error('Calendar original event ID is invalid.');
     const token = await this.getAccessToken();
     const response = await this.fetchImpl(
       `${API_BASE}/calendars/${encodeURIComponent(this.calendarId)}/events/${encodeURIComponent(eventId)}`,
@@ -252,9 +319,18 @@ export class GoogleCalendarEventReader implements CalendarEventReader {
     );
     if (response.status === 404 || response.status === 410) return undefined;
     if (!response.ok)
-      throw new GoogleCalendarSyncError(`Google Calendar get failed (${response.status}).`, response.status, retryableStatus(response.status));
-    const event = parseReconcileEvent(await responseJson(response), linkId, false);
-    if (event.id !== eventId) throw new Error('Calendar original event ID changed.');
+      throw new GoogleCalendarSyncError(
+        `Google Calendar get failed (${response.status}).`,
+        response.status,
+        retryableStatus(response.status)
+      );
+    const event = parseReconcileEvent(
+      await responseJson(response),
+      linkId,
+      false
+    );
+    if (event.id !== eventId)
+      throw new Error('Calendar original event ID changed.');
     return event;
   }
 }
