@@ -50,6 +50,19 @@ import { fileURLToPath } from 'node:url';
  * section background from the owner's soft-green image, visit-card phones as
  * tinted buttons, booking-page social icons in official colours) rebaselined
  * both stylesheets once more.
+ *
+ * 2026-11-02: the owner found the site monotone ("我目前看起來有點單調，很多地方背景
+ * 都是白的") and chose lighter-palette mid-tone bands for the home page and the
+ * treatment pages (docs/product/phase-1-decision-register.md, 2026-11-02 entry).
+ * Existing tokens only; that authorises one rebaseline of clinic-site.css.
+ * 2026-11-03: the owner asked for the treatment-page note card to change and
+ * picked "米白卡＋深綠按鈕" (register 2026-11-03 entry); one more rebaseline.
+ * 2026-11-03: same entry also widens the shell cap 76rem -> 84rem, gives the home
+ * doctor photos half the card and enlarges inner-page desktop prose to text-md.
+ * 2026-11-04: the owner said "背景不要單色" (register 2026-11-04 entry): the
+ * treatment body reuses soft-green-bg and the home FAQ gets a gradient.
+ * 2026-11-04: the owner said "按鈕都改成淺綠色框白底" (register 2026-11-04 button
+ * entry): buttons and pill links become white with a sage-300 border.
  */
 export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic.html':
@@ -57,7 +70,7 @@ export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic-site.js':
     '47c72142a9f01815df8d228ae28963c72b6c899260ff748eb07e961ca8aa717b',
   'apps/web/public/clinic-site.css':
-    'cd02ea2d3ae6a5a98fd8bcf3ed340bd309bdaa475459cb171739aac907cc4f37',
+    'e3fec3f6c03e8e99af23afadcdbcafe33a0ffc6f68b08c6ecd76b5da5b0d677e',
   'apps/web/public/clinic-content.js':
     '64b434c15c942ac2f183a3b177c89e431d38d502c24727aefb3d836dba8006c4',
   'apps/web/public/clinic-booking.css':

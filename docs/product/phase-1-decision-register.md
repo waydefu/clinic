@@ -23,6 +23,110 @@
   分頁及每個 slice 的進度上限，且排程可用與 provider 有回應，才可宣稱該 T。
   blocked（包括 503 保留 owner 與 stuck owner）不計收斂，不能用 lease 過期接管。
 
+## 2026-11-04 官網按鈕改淺綠框白底
+
+負責人（工程師）看過預覽頻道後指示：
+
+> 按鈕都改成淺綠色框白底
+
+沒有另行提供 approval ID，不另造。
+
+- 實心深綠的主要按鈕（頁首與首屏「線上預約」、「顯示 Google 地圖」、App 推薦段等）、外框按鈕、
+  圓角連結鈕（電話、地址、醫師介紹、頁尾）一律改為白底、`--clinic-sage-300` 細框、深綠字；
+  懸停改 `--clinic-sage-50` 底、`--clinic-green` 框。症狀選單未選的按鈕框也改 `--clinic-sage-300`。
+- 全部同款會分不出主次，淺框在白卡上對比也只有約 1.9:1；負責人選「主要按鈕框加深」：
+  頁首「線上預約」與 `.clinic-button--primary` 改 `--clinic-green` 框加一道 1px inset 線（看起來 2px；懸停 `--clinic-forest`），
+  仍是白底。
+- 療程頁「先評估，再選擇」提醒卡的按鈕跟著改成白底淺綠框，取代 2026-11-03 條選的深綠實心按鈕；
+  米白卡底不變。
+- 沒改的：症狀選單「已選」的那一顆維持深綠實心，那是目前選了哪一項的狀態提示；鍵盤才會出現的
+  「跳至主要內容」維持深綠；社群圖示維持品牌色；預約頁（`/booking`）是另一套樣式，不在此列。
+- 部署紀錄（依[合成資料線上預覽操作手冊](../runbooks/synthetic-online-preview.md)）：負責人
+  2026-11-04 核准「部署」。exact commit `0b9ce4f5`（PR #393 當時的 head，CI 13 項全綠）、
+  project `beauessence-clinic-staging`、channel `synthetic-review`、`--expires 30d`
+  （Firebase 回報到期 2026-12-04）、operator Claude、approver 負責人，只發 preview channel。
+  本段紀錄是部署後才提交的文件變更，不影響部署內容。
+
+## 2026-11-04 官網背景不用單色（療程頁內文鋪背景圖、首頁 FAQ 改漸層）
+
+負責人（工程師）看過預覽頻道後指示：
+
+> 背景不要單色，圖片庫或原官網不是有背景，再不行就用漸層
+
+沒有另行提供 approval ID，不另造。
+
+- 圖片庫裡的背景圖只有 `soft-green-bg`（首屏、內頁頁首、App 推薦段、預約橫幅已在用），
+  沒有別張可選；重用同一個檔案不增加傳輸量。
+- 療程頁內文區（`.clinic-section--white`，面積最大）：頂部鋪 `soft-green-bg`，寬度貼齊畫面，
+  往下用漸層淡成 `--clinic-sage-100`；內文仍在白色面板裡，文字對比不變。
+- 首頁 FAQ（唯一的純色區）：前後兩區已用同一張圖，三區連用會更單調，所以改奶油到
+  `--clinic-sage-100` 的斜向漸層加一處白色光暈。
+- 只用既有 token，不新增顏色；`/clinic.html` 與內頁的 315 KiB 預算不變（約多 16 B）。
+- 部署紀錄（依[合成資料線上預覽操作手冊](../runbooks/synthetic-online-preview.md)）：負責人
+  2026-11-04 核准「好，CI 綠了就發」。exact commit `4afc8908`（PR #393 當時的 head，CI 13 項
+  全綠）、project `beauessence-clinic-staging`、channel `synthetic-review`、`--expires 30d`
+  （Firebase 回報到期 2026-12-04）、operator Claude、approver 負責人，只發 preview channel。
+  本段紀錄是部署後才提交的文件變更，不影響部署內容。
+
+## 2026-11-03 療程頁「先評估，再選擇」提醒卡配色與預覽頻道部署紀錄
+
+負責人（工程師）看過預覽頻道後，指著療程頁右側的提醒卡說：
+
+> 每頁的這個配色要調整
+
+在「深綠卡＋白字」「白卡＋金色左邊線」「米白卡＋深綠按鈕」三案中選了「米白卡＋深綠按鈕」。
+
+- 提醒卡底色由 `--clinic-sage-200` 改 `--clinic-cream`；「安排門診評估」按鈕改成
+  `--clinic-forest` 實心底、`--clinic-white` 字。四個療程頁共用同一張卡。只用既有 token，
+  依本條再重算 `clinic-site.css` 的凍結基準值一次。
+- 同日負責人在 1920 外接螢幕上看預覽，說「整體好像過於置中左右有點空」，並要求
+  「醫師區特別注意圖可能過小，還有內頁字體」。逐項選擇如下：
+  - 內容欄上限：選「1344px（84rem）」。`--clinic-shell` 由 76rem 改 84rem；首屏兩欄同步由
+    30rem＋46rem 改 33rem＋51rem，合計仍等於上限。手機斷點的寬度不變。
+  - 首頁醫師卡：照片與文字由 2:3 改 1:1，桌機照片寬約 233px 變約 291px（原圖寬 760px，
+    兩倍密度仍清晰）。手機斷點維持 2:3。
+  - 內頁字體：選「太小，桌機放大」。療程頁段落與清單、醫師頁內文由 1rem 改 `--clinic-text-md`
+    （1.2rem），手機在 48rem 斷點改回 1rem；成因卡、器材卡、比較表等卡片裡的小字不動。
+  - 這會讓官網各頁的總傳輸量超過 314 KiB 幾個位元組。負責人選擇「預算調到 315 KiB」；
+    `apps/web/performance-budget.json` 裡 `/clinic.html` 與所有 `/clinic-route/*` 的 total
+    一起改為 315，其他欄位不變。
+- 部署紀錄（依[合成資料線上預覽操作手冊](../runbooks/synthetic-online-preview.md)）：
+  負責人 2026-11-03 在 CI 全綠後核准「部署30日的」。operator 為 Claude、approver 為負責人；
+  exact commit `9542238f`（PR #393 當時的 head）、Firebase project `beauessence-clinic-staging`、
+  channel `synthetic-review`、`--expires 30d`（到期 2026-12-03）。只發 preview channel，
+  沒有發 live。手冊範例寫 7d，30d 是負責人這次指定。本條的配色修改是之後的新 commit，
+  重新部署要另行核准。
+- 第二次部署：負責人 2026-11-03 核准「好，CI 綠了就發」，2026-11-04 發出。exact commit `e397e3bb`
+  （PR #393 當時的 head，CI 13 項全綠），其餘同上：project `beauessence-clinic-staging`、
+  channel `synthetic-review`、`--expires 30d`（Firebase 回報到期 2026-12-04）、operator Claude、approver
+  負責人，只發 preview channel。本段紀錄是部署後才提交的文件變更，不影響部署內容。
+
+## 2026-11-02 官網淺色系加中間色帶（首頁與療程頁底色）
+
+負責人（工程師）看過官網後表示：
+
+> 我目前看起來有點單調，很多地方背景都是白的
+
+審查結果：療程頁首屏以下整片純白，首頁每段底色亮度都在 84～96%，相鄰段色差約 1.04:1，
+白卡放在淺底上沒有邊線與陰影。負責人在選項中選「在淺色系內加中間色帶，先改療程頁和首頁的底色」
+（不是改回深綠），並指示：
+
+> 好，先改這兩處
+
+- 首頁：「看診會怎麼進行」改成霧綠中間色帶（`--clinic-sage-200`），說明字改 `--clinic-ink`、
+  序號改 `--clinic-gold-ink` 以保住對比，步驟卡加輕陰影，箭頭改 `--clinic-sage-400` 到
+  `--clinic-green` 的漸層；服務卡與醫師卡的邊線改 `--clinic-line` 並補 `--clinic-elevation-card`
+  陰影（被選中的服務卡仍是 2px 深綠框）；FAQ 底色改 `--clinic-cream`。
+- 療程頁（`/clinic/nasal/*`）：內文區底色改淡綠漸層（`--clinic-sage-50` 到 `--clinic-sage-100`），
+  每個內文段落改成白色面板（邊線、圓角、輕陰影），段落間距縮為 1.5rem；右側「先評估，再選擇」
+  提醒卡改 `--clinic-sage-200`，文字改 `--clinic-ink`，連結改 `--clinic-forest`（原本的 green 在
+  sage-200 上只有 4.04:1）。類名 `.clinic-section--white` 因 JS 凍結而保留，
+  現在不是白色。
+- 只用 `clinic-site.css` 既有 token，不新增顏色；沒有改回深綠；不動 JS、文案、素材、`clinic-booking.css`。
+  面板內距上下 1.5rem、左右 1.25rem，讓桌機內文欄裡五張成因卡仍排成一列。
+- 依本條再重算 `clinic-site.css` 的凍結基準值。本條不授權部署，預覽頻道另依
+  [合成資料線上預覽操作手冊](../runbooks/synthetic-online-preview.md) 逐次核准。
+
 ## 2026-11-04：INGRESS K6 與 LIST 清單契約
 
 決策人：負責人；Claude 轉達負責人原話「都照建議」。未另提供 approval ID，不另造。
