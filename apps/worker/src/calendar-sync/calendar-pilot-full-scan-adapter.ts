@@ -80,8 +80,12 @@ export class FirestoreCalendarPilotFullScanPort implements CalendarPilotFullScan
       await this.options.reconciler.recordConflict(snapshot);
       return 'conflict';
     }
-    if (action.kind === 'no-op')
-      return await this.options.reconciler.settleIfUnchanged(snapshot) ? 'no-op' : 'conflict';
+    if (action.kind === 'no-op') {
+      const changed = this.options.reconciler.hasJobsToSettle(snapshot);
+      if (await this.options.reconciler.settleIfUnchanged(snapshot)) return changed ? 'changed' : 'no-op';
+      await this.options.reconciler.recordConflict(snapshot);
+      return 'conflict';
+    }
     await this.options.reconciler.apply(linkId, action);
     return 'changed';
   }

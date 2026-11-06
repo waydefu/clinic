@@ -203,6 +203,7 @@ interface PilotLeaseContext extends CalendarPilotWorkerLease {
   readonly document?: DocumentSnapshot;
   readonly dispatch: { pending: number };
   readonly timing: { readonly wall: number; readonly monotonic: number };
+  readonly reconciliationDeadline?: number;
 }
 
 interface StoredAppointment {
@@ -443,6 +444,7 @@ export class CalendarPilotRuntime {
   private readonly readToken: () => Promise<string>;
   private readonly writeToken: () => Promise<string>;
   private readonly reconciliationWorkerAccount: string | undefined;
+  private readonly syntheticReconcileAllowed: boolean;
 
   public constructor(
     private readonly db: Firestore,
@@ -452,6 +454,7 @@ export class CalendarPilotRuntime {
     private readonly monotonicClock: () => number = () => performance.now()
   ) {
     const configuration = resolveCalendarPilotRuntimeConfiguration(environment);
+    this.syntheticReconcileAllowed = configuration.auth === 'cloud_adc';
     this.reconciliationWorkerAccount = environment['CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL'];
     this.pseudonymKey = configuration.pseudonymKey;
     this.repository = new FirestoreCalendarSyncRepository(
@@ -577,6 +580,9 @@ export class CalendarPilotRuntime {
       const beforeDispatch = await this.withLease(lease);
       if (lease.dispatch.pending !== 0) throw new CalendarPilotLeaseLostError();
       // Even the transaction reply may arrive after the checked deadline.
+      if (lease.reconciliationDeadline !== undefined &&
+          this.monotonicClock() >= lease.reconciliationDeadline)
+        throw new CalendarPilotLeaseLostError();
       beforeDispatch(true);
       lease.dispatch.pending += 1;
       try {
@@ -952,6 +958,8 @@ export class CalendarPilotRuntime {
 
   public runReconciliationRound(previous?: CalendarPilotFullScanState) {
     return this.maintenanceControl.run(async () => {
+      if (!this.syntheticReconcileAllowed)
+        throw new Error('CAL-PILOT reconciliation is restricted to the synthetic C1 runtime.');
       const workerAccount = this.reconciliationWorkerAccount;
       if (workerAccount === undefined || workerAccount === '' || workerAccount !== workerAccount.trim())
         throw new Error('CAL-PILOT reconciliation worker identity is not configured.');
@@ -969,7 +977,8 @@ export class CalendarPilotRuntime {
       }
       const lease: PilotLeaseContext = {
         owner, generation, now: this.clock, dispatch: { pending: 0 },
-        timing: { wall: Date.parse(anchor), monotonic }
+        timing: { wall: Date.parse(anchor), monotonic },
+        reconciliationDeadline: monotonic + 15_000
       };
       try {
         await this.withLease(lease);

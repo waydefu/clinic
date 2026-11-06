@@ -536,9 +536,11 @@ describe('Firestore CAL-PILOT reconciliation adapter', () => {
     }
   });
 
-  it('fully scans a completed job and a second complete pass is a no-op', async () => {
+  it.each(['completed', 'failed'] as const)(
+    'fully scans a %s job and a second complete pass is a no-op', async (initialStatus: 'completed' | 'failed') => {
     await seedMirror();
-    await seedJob(JOB_A, LINK_A, { status: 'completed', lastErrorCode: null });
+    if (initialStatus === 'completed')
+      await seedJob(JOB_A, LINK_A, { status: 'completed', lastErrorCode: null });
     const title = formatSyntheticAppointmentTitle({
       patientCode: 'A17', bookingKind: 'initial', serviceId: 'service_snoring'
     });
@@ -572,6 +574,7 @@ describe('Firestore CAL-PILOT reconciliation adapter', () => {
       throw new Error('Synthetic full scan did not complete.');
     }
     expect(await fullPass()).toBe(false);
+    expect((await job(JOB_A).get()).data()?.['status']).toBe('completed');
     expect(writes).toEqual([`delete:${duplicateId}`]);
     expect(await fullPass()).toBe(true);
     expect(writes).toEqual([`delete:${duplicateId}`]);

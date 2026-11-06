@@ -10,6 +10,7 @@ import {
   type CalendarPilotHttpRuntime
 } from './calendar-pilot-health.js';
 import { CalendarPilotRuntime } from './calendar-pilot-runtime.js';
+import { scheduleCalendarPilotReconciliation } from './calendar-pilot-reconcile-schedule.js';
 
 function send(
   response: import('node:http').ServerResponse,
@@ -66,6 +67,8 @@ export function startCalendarPilotWorker(): void {
   if (getApps().length === 0) initializeApp();
   const db = getFirestore();
   const runtime = new CalendarPilotRuntime(db);
+  if (process.env['CALENDAR_PILOT_SYNTHETIC_RECONCILE_ENABLED'] === 'true')
+    scheduleCalendarPilotReconciliation(runtime);
   createCalendarPilotServer({
     run: () => runtime.run(),
     inspect: (nowUtc) =>

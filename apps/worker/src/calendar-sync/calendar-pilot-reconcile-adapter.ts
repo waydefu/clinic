@@ -559,6 +559,11 @@ export class FirestoreCalendarPilotReconciliationAdapter
     }
   }
 
+  public hasJobsToSettle(snapshot: ReconcileSnapshot): boolean {
+    const context = this.contexts.get(snapshot);
+    return context === undefined || context.settleJobs.length > 0;
+  }
+
   public async settleIfUnchanged(snapshot: ReconcileSnapshot): Promise<boolean> {
     const context = this.contexts.get(snapshot);
     if (
