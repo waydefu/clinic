@@ -725,7 +725,9 @@ describe('Firestore CAL-PILOT reconciliation adapter', () => {
           .get();
         await Promise.all(
           after.docs
-            .filter((document: DocumentSnapshot) => !previousIds.has(document.id))
+            .filter(
+              (document: DocumentSnapshot) => !previousIds.has(document.id)
+            )
             .map((document: DocumentSnapshot) => document.ref.delete())
         );
       }
