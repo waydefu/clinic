@@ -17,6 +17,39 @@ function response(body: unknown, status = 200): Response {
 }
 
 describe('GoogleCalendarEventReader', () => {
+  it('reads a strict paginated reconciliation inventory by link', async () => {
+    const fetchImpl = vi.fn(() => Promise.resolve(response({
+      items: [{
+        id: 'event-a', etag: '"v1"', status: 'confirmed', summary: 'synthetic',
+        start: { dateTime: '2026-11-06T01:00:00Z' },
+        end: { dateTime: '2026-11-06T01:30:00Z' },
+        extendedProperties: { private: { beauessenceLinkId: 'link_a' } }
+      }], nextPageToken: 'next-page'
+    })));
+    const reader = new GoogleCalendarEventReader('synthetic', async () => 'synthetic-token', fetchImpl);
+    await expect(reader.listReconciliationEvents('link_a', 'page-a')).resolves.toEqual({
+      events: [{ id: 'event-a', etag: '"v1"', status: 'confirmed', title: 'synthetic',
+        linkId: 'link_a', startsAt: '2026-11-06T01:00:00Z', endsAt: '2026-11-06T01:30:00Z' }],
+      nextPageToken: 'next-page'
+    });
+    const url = new URL(String(fetchImpl.mock.calls[0]?.[0]));
+    expect(url.searchParams.get('privateExtendedProperty')).toBe('beauessenceLinkId=link_a');
+    expect(url.searchParams.get('pageToken')).toBe('page-a');
+    expect(url.searchParams.get('showDeleted')).toBe('true');
+    expect(url.searchParams.has('timeMin')).toBe(false);
+    expect(url.searchParams.has('timeMax')).toBe(false);
+  });
+
+  it.each([
+    { items: [{ id: 'event-a', etag: '"v1"', status: 'cancelled' }] },
+    { items: [{ id: 'event-a', etag: 'W/"v1"', status: 'cancelled', extendedProperties: { private: { beauessenceLinkId: 'link_a' } } }] },
+    { items: [], nextPageToken: '' },
+    { items: 'invalid' }
+  ])('fails closed on malformed reconciliation inventory', async (body: unknown) => {
+    const reader = new GoogleCalendarEventReader('synthetic', async () => 'synthetic-token', vi.fn(() => Promise.resolve(response(body))));
+    await expect(reader.listReconciliationEvents('link_a')).rejects.toThrow();
+  });
+
   it('uses bounded filters only for full sync and never logs raw error bodies', async () => {
     const fetchImpl = vi.fn(() =>
       Promise.resolve(response({ items: [], nextSyncToken: 'next-token' }))

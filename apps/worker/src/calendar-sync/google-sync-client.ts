@@ -1,3 +1,6 @@
+import { OpaqueIdentifierSchema } from '@beauessence/contracts';
+
+import type { ReconcileEvent } from './calendar-pilot-reconciler.js';
 import {
   CalendarSyncTokenExpiredError,
   type CalendarEventPage,
@@ -167,6 +170,69 @@ export class GoogleCalendarEventReader implements CalendarEventReader {
       ...(nextPageToken === undefined ? {} : { nextPageToken }),
       ...(nextSyncToken === undefined ? {} : { nextSyncToken })
     };
+  }
+
+  public async listReconciliationEvents(
+    linkId: string,
+    pageToken?: string
+  ): Promise<{ readonly events: readonly ReconcileEvent[]; readonly nextPageToken?: string }> {
+    OpaqueIdentifierSchema.parse(linkId);
+    if (pageToken !== undefined && pageToken.trim() === '')
+      throw new Error('Calendar reconciliation page token is invalid.');
+    const url = new URL(`${API_BASE}/calendars/${encodeURIComponent(this.calendarId)}/events`);
+    url.searchParams.set('singleEvents', 'true');
+    url.searchParams.set('showDeleted', 'true');
+    url.searchParams.set('maxResults', '100');
+    url.searchParams.set('privateExtendedProperty', `beauessenceLinkId=${linkId}`);
+    if (pageToken !== undefined) url.searchParams.set('pageToken', pageToken);
+    const token = await this.getAccessToken();
+    const response = await this.fetchImpl(url.toString(), {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS)
+    });
+    if (!response.ok)
+      throw new GoogleCalendarSyncError(`Google Calendar list failed (${response.status}).`, response.status, retryableStatus(response.status));
+    const raw = await responseJson(response);
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw))
+      throw new Error('Calendar reconciliation inventory is invalid.');
+    const body = raw as Record<string, unknown>;
+    const next = body['nextPageToken'];
+    if ((next !== undefined && (typeof next !== 'string' || next.trim() === '')) ||
+        (body['items'] !== undefined && !Array.isArray(body['items'])))
+      throw new Error('Calendar reconciliation inventory is invalid.');
+    const events: ReconcileEvent[] = [];
+    for (const item of (body['items'] ?? []) as unknown[]) {
+      if (typeof item !== 'object' || item === null || Array.isArray(item))
+        throw new Error('Calendar reconciliation event is invalid.');
+      const event = item as Record<string, unknown>;
+      const extended = event['extendedProperties'];
+      const privateFields = typeof extended === 'object' && extended !== null
+        ? (extended as Record<string, unknown>)['private'] : undefined;
+      const start = event['start'];
+      const end = event['end'];
+      if (typeof event['id'] !== 'string' || event['id'] === '' ||
+          typeof event['etag'] !== 'string' || !/^"[\x21\x23-\x7e]*"$/u.test(event['etag']) ||
+          (event['status'] !== 'confirmed' && event['status'] !== 'cancelled') ||
+          typeof privateFields !== 'object' || privateFields === null ||
+          (privateFields as Record<string, unknown>)['beauessenceLinkId'] !== linkId)
+        throw new Error('Calendar reconciliation event identity is invalid.');
+      if (event['status'] === 'cancelled') {
+        events.push({ id: event['id'], etag: event['etag'], linkId, status: 'cancelled' });
+        continue;
+      }
+      const startsAt = typeof start === 'object' && start !== null
+        ? (start as Record<string, unknown>)['dateTime'] : undefined;
+      const endsAt = typeof end === 'object' && end !== null
+        ? (end as Record<string, unknown>)['dateTime'] : undefined;
+      if (typeof event['summary'] !== 'string' || typeof startsAt !== 'string' || typeof endsAt !== 'string')
+        throw new Error('Calendar reconciliation event fields are invalid.');
+      events.push({
+        id: event['id'], etag: event['etag'], linkId, status: 'confirmed', title: event['summary'],
+        startsAt, endsAt
+      });
+    }
+    return { events, ...(typeof next === 'string' ? { nextPageToken: next } : {}) };
   }
 }
 
