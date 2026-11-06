@@ -26,7 +26,7 @@ describe('GoogleCalendarEventReader', () => {
         extendedProperties: { private: { beauessenceLinkId: 'link_a' } }
       }], nextPageToken: 'next-page'
     })));
-    const reader = new GoogleCalendarEventReader('synthetic', async () => 'synthetic-token', fetchImpl);
+    const reader = new GoogleCalendarEventReader('synthetic', () => Promise.resolve('synthetic-token'), fetchImpl);
     await expect(reader.listReconciliationEvents('link_a', 'page-a')).resolves.toEqual({
       events: [{ id: 'event-a', etag: '"v1"', status: 'confirmed', title: 'synthetic',
         linkId: 'link_a', startsAt: '2026-11-06T01:00:00Z', endsAt: '2026-11-06T01:30:00Z' }],
@@ -46,7 +46,7 @@ describe('GoogleCalendarEventReader', () => {
     { items: [], nextPageToken: '' },
     { items: 'invalid' }
   ])('fails closed on malformed reconciliation inventory', async (body: unknown) => {
-    const reader = new GoogleCalendarEventReader('synthetic', async () => 'synthetic-token', vi.fn(() => Promise.resolve(response(body))));
+    const reader = new GoogleCalendarEventReader('synthetic', () => Promise.resolve('synthetic-token'), vi.fn(() => Promise.resolve(response(body))));
     await expect(reader.listReconciliationEvents('link_a')).rejects.toThrow();
   });
 
