@@ -628,6 +628,112 @@ describe('Firestore CAL-PILOT reconciliation adapter', () => {
     }
   );
 
+  it.each([412, 503])(
+    'leaves the link unconverged after provider %i, then a healthy round leaves one event equal to Firestore',
+    async (status: number) => {
+      await seedMirror();
+      const title = formatSyntheticAppointmentTitle({
+        patientCode: 'A17',
+        bookingKind: 'initial',
+        serviceId: 'service_snoring'
+      });
+      const providerEvents: ReconcileEvent[] = [
+        event({
+          id: 'synthetic_original_event',
+          etag: '"original-v1"',
+          title: 'synthetic outdated title',
+          startsAt: '2026-11-06T01:00:00.000Z',
+          endsAt: '2026-11-06T01:30:00.000Z'
+        })
+      ];
+      const reader = {
+        listReconciliationEvents: () => Promise.resolve({ events: [] }),
+        getReconciliationOriginal: () => Promise.resolve(providerEvents[0])
+      };
+      const failing = makeAdapter({
+        reader,
+        writer: {
+          upsert: () => Promise.reject(new Error('unexpected insert')),
+          update: () =>
+            Promise.reject(
+              new GoogleCalendarSyncError(
+                'synthetic provider error',
+                status,
+                true
+              )
+            ),
+          removeWithEtag: () => Promise.reject(new Error('unexpected delete'))
+        }
+      });
+      const before = await db
+        .collection('calendar_pilot_outbox')
+        .where('localRecordId', '==', LINK_A)
+        .get();
+      const previousIds = new Set(
+        before.docs.map((document: DocumentSnapshot) => document.id)
+      );
+      const failedAction = planCalendarPilotReconciliation(
+        await failing.read(LINK_A)
+      );
+      if (failedAction.kind !== 'patch')
+        throw new Error('Expected conditional patch.');
+      try {
+        await expect(failing.apply(LINK_A, failedAction)).rejects.toThrow(
+          'synthetic provider error'
+        );
+        // Excluded from convergence evidence: the provider event is still stale.
+        expect(providerEvents[0]?.title).toBe('synthetic outdated title');
+
+        const healthy = makeAdapter({
+          reader,
+          writer: {
+            upsert: () => Promise.reject(new Error('unexpected insert')),
+            update: (patch, etag) => {
+              expect(etag).toBe('"original-v1"');
+              providerEvents[0] = event({
+                id: 'synthetic_original_event',
+                etag: '"original-v2"',
+                title: patch.title,
+                startsAt: '2026-11-06T01:00:00.000Z',
+                endsAt: '2026-11-06T01:30:00.000Z'
+              });
+              return Promise.resolve();
+            },
+            removeWithEtag: () => Promise.reject(new Error('unexpected delete'))
+          }
+        });
+        const retry = planCalendarPilotReconciliation(
+          await healthy.read(LINK_A)
+        );
+        if (retry.kind !== 'patch') throw new Error('Expected a later patch.');
+        await healthy.apply(LINK_A, retry);
+        expect(
+          planCalendarPilotReconciliation(await healthy.read(LINK_A)).kind
+        ).toBe('no-op');
+        const stored = (await appointment().get()).data();
+        expect(providerEvents).toHaveLength(1);
+        expect(providerEvents[0]).toMatchObject({
+          id: 'synthetic_original_event',
+          title,
+          startsAt: stored?.['startsAt'],
+          endsAt: stored?.['endsAt']
+        });
+      } finally {
+        const after = await db
+          .collection('calendar_pilot_outbox')
+          .where('localRecordId', '==', LINK_A)
+          .get();
+        await Promise.all(
+          after.docs
+            .filter(
+              (document: DocumentSnapshot) => !previousIds.has(document.id)
+            )
+            .map((document: DocumentSnapshot) => document.ref.delete())
+        );
+      }
+    }
+  );
+
   it.each(['completed', 'failed'] as const)(
     'fully scans a %s job and a second complete pass is a no-op',
     async (initialStatus: 'completed' | 'failed') => {
@@ -658,12 +764,31 @@ describe('Firestore CAL-PILOT reconciliation adapter', () => {
         creatorEmail: 'worker@synthetic.invalid'
       });
       const writes: string[] = [];
+      const providerEvents = [original, duplicate];
       const reconciler = makeAdapter({
         writes,
+        writer: {
+          upsert: () => Promise.reject(new Error('unexpected insert')),
+          update: () => Promise.reject(new Error('unexpected patch')),
+          removeWithEtag: (id, etag) => {
+            expect(id).toBe(duplicateId);
+            expect(etag).toBe('"duplicate-v1"');
+            const index = providerEvents.findIndex((item) => item.id === id);
+            expect(index).toBeGreaterThanOrEqual(0);
+            writes.push(`delete:${id}`);
+            providerEvents.splice(index, 1);
+            return Promise.resolve();
+          }
+        },
         reader: {
           listReconciliationEvents: () =>
-            Promise.resolve({ events: writes.length === 0 ? [duplicate] : [] }),
-          getReconciliationOriginal: () => Promise.resolve(original)
+            Promise.resolve({
+              events: providerEvents.filter((item) => item.id !== original.id)
+            }),
+          getReconciliationOriginal: () =>
+            Promise.resolve(
+              providerEvents.find((item) => item.id === original.id)
+            )
         }
       });
       const conflicts: string[] = [];
@@ -685,16 +810,13 @@ describe('Firestore CAL-PILOT reconciliation adapter', () => {
                     nextPageToken: 'page_2'
                   }
                 : {
-                    events:
-                      writes.length === 0
-                        ? [
-                            {
-                              id: duplicateId,
-                              linkId: LINK_A,
-                              recurring: false
-                            }
-                          ]
-                        : []
+                    events: providerEvents
+                      .filter((item) => item.id !== original.id)
+                      .map((item) => ({
+                        id: item.id,
+                        linkId: item.linkId,
+                        recurring: false
+                      }))
                   }
             )
         }
@@ -726,6 +848,21 @@ describe('Firestore CAL-PILOT reconciliation adapter', () => {
       expect(await fullPass()).toBe(true);
       expect(writes).toEqual([`delete:${duplicateId}`]);
       expect(conflicts).toEqual([]);
+      const stored = (await appointment().get()).data();
+      expect(stored).toMatchObject({
+        patientCode: 'A17',
+        bookingKind: 'initial',
+        serviceId: 'service_snoring'
+      });
+      expect(providerEvents).toHaveLength(1);
+      expect(providerEvents[0]).toMatchObject({
+        id: 'synthetic_original_event',
+        linkId: LINK_A,
+        status: 'confirmed',
+        title,
+        startsAt: stored?.['startsAt'],
+        endsAt: stored?.['endsAt']
+      });
     }
   );
 

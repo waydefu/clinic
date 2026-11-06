@@ -187,6 +187,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [管理者操作手冊（繁體中文，source-readiness draft）](runbooks/manager-operations-manual.md) — merged L3 UI 的操作標籤與 fresh reauth 邊界；C1 runtime、盲走、CP-08 captures 與 owner acceptance 仍待完成
 - [Luna 開發環境與額度使用流程](runbooks/luna-development-environment.md) — 固定工具、明確依賴安裝、cache／網路準備；已從官方 GitHub 查證 Luna 定位並試派有界文件工作。
 - [Stage E operational runbook](runbooks/stage-e-operational.md) — API outage, booking write, Firestore, Calendar 410/watch, dead-letter, backup verbs, auth, rate-limit, IAM, rollback, isolated preview; not apply
+- [CAL-PILOT synthetic fault observations](runbooks/calendar-pilot-synthetic-fault-observations.md) — unexecuted 50-trial observation protocol and offline sanitized-evidence checker; no authority to operate real services
 - [Public mirror sync runbook](runbooks/public-mirror-sync.md) — what the mirror actually is, the transform each file class needs, the patterns the public gate rejects outright, the default disposition table and the stop conditions; read this before touching the public repository
 - [Synthetic online preview runbook](runbooks/synthetic-online-preview.md) — deploying and expiring the static Hosting preview
 - [C1 local execution packet](runbooks/c1-local-execution-packet.md) — ADC/CLI commands for the new isolated C1 project; no secrets; C1 foundation smoke PASSed on `beauessence-clinic-stg-c1a01`
