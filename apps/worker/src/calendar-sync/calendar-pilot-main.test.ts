@@ -43,8 +43,14 @@ describe('calendar-pilot HTTP surface (no watch webhook)', () => {
     const calls: string[] = [];
     const server = createCalendarPilotServer({
       inspect: () => Promise.resolve(CLEAN_INSPECTION),
-      run: () => { calls.push('sync'); return Promise.resolve({ ok: true }); },
-      reconcile: () => { calls.push('reconcile'); return Promise.resolve(); }
+      run: () => {
+        calls.push('sync');
+        return Promise.resolve({ ok: true });
+      },
+      reconcile: () => {
+        calls.push('reconcile');
+        return Promise.resolve();
+      }
     });
     server.listen(0, '127.0.0.1');
     await once(server, 'listening');
@@ -84,12 +90,19 @@ describe('calendar-pilot HTTP surface (no watch webhook)', () => {
     const server = createCalendarPilotServer({
       inspect: () => Promise.resolve(CLEAN_INSPECTION),
       run: () => Promise.reject(new Error('sync failed')),
-      reconcile: () => { reconciled = true; return Promise.resolve(); }
+      reconcile: () => {
+        reconciled = true;
+        return Promise.resolve();
+      }
     });
     server.listen(0, '127.0.0.1');
     await once(server, 'listening');
     try {
-      const result = await http((server.address() as AddressInfo).port, '/tasks/calendar-sync', 'POST');
+      const result = await http(
+        (server.address() as AddressInfo).port,
+        '/tasks/calendar-sync',
+        'POST'
+      );
       expect(result.status).toBe(503);
       expect(reconciled).toBe(false);
     } finally {

@@ -36,7 +36,10 @@ import {
 } from '../google-calendar.js';
 import { calendarEventId } from './calendar-pilot-event-id.js';
 import { FirestoreCalendarPilotReconciliationAdapter } from './calendar-pilot-reconcile-adapter.js';
-import { CalendarPilotInvalidPageTokenError, FirestoreCalendarPilotFullScanPort } from './calendar-pilot-full-scan-adapter.js';
+import {
+  CalendarPilotInvalidPageTokenError,
+  FirestoreCalendarPilotFullScanPort
+} from './calendar-pilot-full-scan-adapter.js';
 import {
   isCalendarPilotFullScanState,
   runCalendarPilotFullScanRound,
@@ -559,39 +562,91 @@ export class CalendarPilotRuntime {
     });
   }
 
-  private async beginReconciliationSlice(lease: PilotLeaseContext, scope: string, now: string) {
-    const ref = this.db.collection('calendar_pilot_configuration').doc('active');
+  private async beginReconciliationSlice(
+    lease: PilotLeaseContext,
+    scope: string,
+    now: string
+  ) {
+    const ref = this.db
+      .collection('calendar_pilot_configuration')
+      .doc('active');
     return this.db.runTransaction(async (transaction: Transaction) => {
       const document = await transaction.get(ref);
-      const record = parseCalendarPilotRecord(CalendarPilotLeaseConfigurationRecordSchema, document.data());
+      const record = parseCalendarPilotRecord(
+        CalendarPilotLeaseConfigurationRecordSchema,
+        document.data()
+      );
       assertCalendarPilotWorkerLease(record, lease);
       const raw: unknown = record['reconciliationScan'];
-      const stored = typeof raw === 'object' && raw !== null && !Array.isArray(raw)
-        ? raw as Record<string, unknown> : undefined;
+      const stored =
+        typeof raw === 'object' && raw !== null && !Array.isArray(raw)
+          ? (raw as Record<string, unknown>)
+          : undefined;
       const startedAt = stored?.['startedAt'];
       const state = stored?.['state'];
-      const valid = stored !== undefined && typeof startedAt === 'string' && isUtcIsoTimestamp(startedAt) &&
-        Date.parse(now) >= Date.parse(startedAt) && Date.parse(now) - Date.parse(startedAt) < RECONCILIATION_CURSOR_MAX_AGE_MS &&
-        isCalendarPilotFullScanState(state) && state.scope === scope && state.pageSize === JOB_BATCH_SIZE &&
-        state.phase !== 'complete' && stored['inFlight'] === null;
-      const completed = stored !== undefined && isCalendarPilotFullScanState(state) && state.phase === 'complete' && stored['inFlight'] === null;
+      const valid =
+        stored !== undefined &&
+        typeof startedAt === 'string' &&
+        isUtcIsoTimestamp(startedAt) &&
+        Date.parse(now) >= Date.parse(startedAt) &&
+        Date.parse(now) - Date.parse(startedAt) <
+          RECONCILIATION_CURSOR_MAX_AGE_MS &&
+        isCalendarPilotFullScanState(state) &&
+        state.scope === scope &&
+        state.pageSize === JOB_BATCH_SIZE &&
+        state.phase !== 'complete' &&
+        stored['inFlight'] === null;
+      const completed =
+        stored !== undefined &&
+        isCalendarPilotFullScanState(state) &&
+        state.phase === 'complete' &&
+        stored['inFlight'] === null;
       const discarded = raw !== undefined && !valid && !completed;
       const start = valid ? startedAt : now;
-      const expected = { startedAt: start, state: valid ? state : null, inFlight: lease.owner };
+      const expected = {
+        startedAt: start,
+        state: valid ? state : null,
+        inFlight: lease.owner
+      };
       transaction.update(ref, { reconciliationScan: expected });
-      return { state: valid ? state : undefined, startedAt: start, discarded, expected };
+      return {
+        state: valid ? state : undefined,
+        startedAt: start,
+        discarded,
+        expected
+      };
     });
   }
 
-  private async finishReconciliationSlice(lease: PilotLeaseContext, expected: { startedAt: string; state: CalendarPilotFullScanState | null; inFlight: string }, state: CalendarPilotFullScanState | null) {
-    const ref = this.db.collection('calendar_pilot_configuration').doc('active');
+  private async finishReconciliationSlice(
+    lease: PilotLeaseContext,
+    expected: {
+      startedAt: string;
+      state: CalendarPilotFullScanState | null;
+      inFlight: string;
+    },
+    state: CalendarPilotFullScanState | null
+  ) {
+    const ref = this.db
+      .collection('calendar_pilot_configuration')
+      .doc('active');
     await this.db.runTransaction(async (transaction: Transaction) => {
       const document = await transaction.get(ref);
-      const record = parseCalendarPilotRecord(CalendarPilotLeaseConfigurationRecordSchema, document.data());
+      const record = parseCalendarPilotRecord(
+        CalendarPilotLeaseConfigurationRecordSchema,
+        document.data()
+      );
       assertCalendarPilotWorkerLease(record, lease);
       const raw: unknown = record['reconciliationScan'];
-      if (!isDeepStrictEqual(raw, expected)) throw new CalendarPilotLeaseLostError();
-      transaction.update(ref, { reconciliationScan: { startedAt: expected.startedAt, state, inFlight: null } });
+      if (!isDeepStrictEqual(raw, expected))
+        throw new CalendarPilotLeaseLostError();
+      transaction.update(ref, {
+        reconciliationScan: {
+          startedAt: expected.startedAt,
+          state,
+          inFlight: null
+        }
+      });
     });
   }
 
@@ -1109,19 +1164,47 @@ export class CalendarPilotRuntime {
           reconciler,
           recordUnattributedConflict: audit
         });
-        const checkpoint = await this.beginReconciliationSlice(lease, scope, anchor);
+        const checkpoint = await this.beginReconciliationSlice(
+          lease,
+          scope,
+          anchor
+        );
         try {
           const result = await runCalendarPilotFullScanRound(
             port,
-            { scope, maxItems: JOB_BATCH_SIZE, deadline, now: this.monotonicClock },
+            {
+              scope,
+              maxItems: JOB_BATCH_SIZE,
+              deadline,
+              now: this.monotonicClock
+            },
             checkpoint.state
           );
-          await this.finishReconciliationSlice(lease, checkpoint.expected, result.state);
-          return { acquired: true, blocked: undefined, ...result, converged: result.converged && !checkpoint.discarded };
+          await this.finishReconciliationSlice(
+            lease,
+            checkpoint.expected,
+            result.state
+          );
+          return {
+            acquired: true,
+            blocked: undefined,
+            ...result,
+            converged: result.converged && !checkpoint.discarded
+          };
         } catch (error) {
-          if (!(error instanceof CalendarPilotInvalidPageTokenError)) throw error;
-          await this.finishReconciliationSlice(lease, checkpoint.expected, null);
-          return { acquired: true, blocked: 'page_token_expired', processed: 0, converged: false };
+          if (!(error instanceof CalendarPilotInvalidPageTokenError))
+            throw error;
+          await this.finishReconciliationSlice(
+            lease,
+            checkpoint.expected,
+            null
+          );
+          return {
+            acquired: true,
+            blocked: 'page_token_expired',
+            processed: 0,
+            converged: false
+          };
         }
       } finally {
         if (lease.dispatch.pending === 0) await this.release(owner);

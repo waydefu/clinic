@@ -21,7 +21,10 @@ import type {
   CalendarPilotFullScanPort,
   FullScanCalendarEvent
 } from './calendar-pilot-full-scan.js';
-import { GoogleCalendarSyncError, type GoogleCalendarEventReader } from './google-sync-client.js';
+import {
+  GoogleCalendarSyncError,
+  type GoogleCalendarEventReader
+} from './google-sync-client.js';
 
 type Source = 'a' | 'm' | 'j';
 export class CalendarPilotInvalidPageTokenError extends Error {}
@@ -59,10 +62,16 @@ export class FirestoreCalendarPilotFullScanPort implements CalendarPilotFullScan
   public async calendarPage(limit: number, pageToken?: string) {
     await this.assertLease();
     try {
-      return await this.options.reader.listWholeCalendarInventory(limit, pageToken);
+      return await this.options.reader.listWholeCalendarInventory(
+        limit,
+        pageToken
+      );
     } catch (error) {
-      if (pageToken !== undefined && error instanceof GoogleCalendarSyncError &&
-          (error.status === 400 || error.status === 410))
+      if (
+        pageToken !== undefined &&
+        error instanceof GoogleCalendarSyncError &&
+        (error.status === 400 || error.status === 410)
+      )
         throw new CalendarPilotInvalidPageTokenError();
       throw error;
     }
@@ -117,7 +126,8 @@ export class FirestoreCalendarPilotFullScanPort implements CalendarPilotFullScan
           ].includes(data['kind']))
       )
         return `s:${document.id}`;
-      const link: unknown = source === 'm' ? data['linkId'] : data['localRecordId'];
+      const link: unknown =
+        source === 'm' ? data['linkId'] : data['localRecordId'];
       return typeof link === 'string' &&
         OpaqueIdentifierSchema.safeParse(link).success
         ? `l:${link}`
