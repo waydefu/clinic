@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { syntheticOpenMaintenanceControl } from '../helpers/synthetic-maintenance.js';
@@ -27,6 +28,7 @@ vi.mock('../../apps/worker/src/google-calendar.js', () => ({
 requireLocalFirestoreEmulatorTarget(process.env['FIRESTORE_EMULATOR_HOST']);
 const NOW = '2026-09-01T00:00:00.000Z';
 const DEADLINE = '2026-09-01T00:04:00.000Z';
+const SYNTHETIC_ETAG = '"synthetic-etag"';
 const PAGE_SIZE = 20; // Independent acceptance bound, not imported from the SUT.
 const DATASET_SIZE = 45;
 const JOB = 'activation_job';
@@ -55,6 +57,13 @@ let clock: string;
 let effects: Effect[];
 let conflictOnInsert = false;
 let afterEffect: (effect: Effect) => void | Promise<void>;
+let mutationFailure:
+  | {
+      readonly method: 'PATCH' | 'DELETE';
+      readonly status?: number;
+      readonly unknown?: boolean;
+    }
+  | undefined;
 let engineCallCount = () => 0;
 let restoreEngine = () => {};
 const dispatch = vi.fn<typeof fetch>();
@@ -62,6 +71,13 @@ const now = () => clock;
 const jobRef = () => db.collection(OUTBOX).doc(JOB);
 const configuration = () => db.collection(CONFIG).doc('active');
 const state = async () => (await jobRef().get()).data();
+function requestsForEvent(eventId: string) {
+  return dispatch.mock.calls.filter(([url]) => {
+    const target =
+      typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
+    return new URL(target).pathname.endsWith(`/events/${eventId}`);
+  });
+}
 const tick = () =>
   new CalendarPilotRuntime(
     db,
@@ -144,6 +160,7 @@ beforeEach(async () => {
   effects = [];
   conflictOnInsert = false;
   afterEffect = () => {};
+  mutationFailure = undefined;
   dispatch.mockReset();
   dispatch.mockImplementation(async (url, init) => {
     const target =
@@ -159,8 +176,31 @@ beforeEach(async () => {
         'Unexpected Calendar test destination, no network fallback.'
       );
     const method = init?.method ?? 'GET';
+    if (method === 'GET') {
+      if (path[2] === undefined) return Response.json({ items: [] });
+      const linkId = Array.from(
+        { length: DATASET_SIZE },
+        (_, index) => `record_${String(index).padStart(3, '0')}`
+      ).find(
+        (id) =>
+          path[2] ===
+          `calpilot${createHash('sha256').update(id).digest('hex').slice(0, 40)}`
+      );
+      if (linkId === undefined) throw new Error('Unknown synthetic event.');
+      return Response.json({
+        id: path[2],
+        etag: SYNTHETIC_ETAG,
+        status: 'confirmed',
+        summary: 'Synthetic event',
+        start: { dateTime: '2026-09-01T04:00:00.000Z' },
+        end: { dateTime: '2026-09-01T04:30:00.000Z' },
+        extendedProperties: { private: { beauessenceLinkId: linkId } }
+      });
+    }
     if (method !== 'POST' && method !== 'DELETE' && method !== 'PATCH')
       throw new Error('Unexpected Calendar test method.');
+    if (method === 'PATCH' || method === 'DELETE')
+      expect(new Headers(init?.headers).get('If-Match')).toBe(SYNTHETIC_ETAG);
     const body =
       method === 'POST' && typeof init?.body === 'string'
         ? record(JSON.parse(init.body))
@@ -171,6 +211,13 @@ beforeEach(async () => {
     const effect = { method, calendar: path[1]!, eventId };
     effects.push(effect);
     await afterEffect(effect);
+    const failure = mutationFailure;
+    if (failure !== undefined && failure.method === method) {
+      mutationFailure = undefined;
+      if (failure.unknown)
+        throw new Error('synthetic mutation outcome unknown');
+      return new Response(null, { status: failure.status });
+    }
     if (method === 'POST' && conflictOnInsert)
       return new Response(null, { status: 409 });
     return method === 'DELETE'
@@ -286,6 +333,54 @@ describe('bounded CAL-PILOT source activation', () => {
     expect(engineCallCount()).toBe(0);
   });
 
+  it.each([
+    { name: '412 precondition failure', status: 412, leaseRetained: false },
+    { name: '503 retryable response', status: 503, leaseRetained: true },
+    { name: 'unknown transport outcome', unknown: true, leaseRetained: true }
+  ])(
+    'quarantines a conditional PATCH on $name without refetching or retrying',
+    async ({
+      status,
+      unknown,
+      leaseRetained
+    }: {
+      status?: number;
+      unknown?: boolean;
+      leaseRetained: boolean;
+    }) => {
+      await tick();
+      conflictOnInsert = true;
+      mutationFailure = {
+        method: 'PATCH',
+        ...(status === undefined ? {} : { status }),
+        ...(unknown === true ? { unknown: true } : {})
+      };
+      await expect(tick()).rejects.toThrow(/lease/iu);
+      expect(await state()).toMatchObject({
+        status: 'failed',
+        lastErrorCode: 'needs_reconcile',
+        attemptCount: 0
+      });
+      const owner = (await configuration().get()).data()?.['workerLeaseOwner'];
+      if (leaseRetained) expect(owner).toEqual(expect.any(String));
+      else expect(owner).toBeNull();
+      expect(effects.filter((effect) => effect.method === 'POST')).toHaveLength(
+        1
+      );
+      const patches = effects.filter((effect) => effect.method === 'PATCH');
+      expect(patches).toHaveLength(1);
+      const requests = requestsForEvent(patches[0]!.eventId);
+      expect(requests.map(([, init]) => init?.method)).toEqual([
+        'GET',
+        'PATCH'
+      ]);
+      expect(new Headers(requests[1]?.[1]?.headers).get('If-Match')).toBe(
+        SYNTHETIC_ETAG
+      );
+      expect(dispatch.mock.calls).toHaveLength(3);
+    }
+  );
+
   it.each(['copy target', 'cleanup source'])(
     'refuses to resume when a physical source mapping changes: %s',
     async (changed) => {
@@ -340,7 +435,7 @@ describe('bounded CAL-PILOT source activation', () => {
     expect((await state())?.['attemptCount']).toBe(0);
   });
 
-  it('retains copy ACKs and retry backoff without publishing inbound health before the activation finishes', async () => {
+  it('retains copy ACKs without retry or inbound health after an unknown outcome', async () => {
     await tick();
     const transport = dispatch.getMockImplementation();
     if (transport === undefined)
@@ -360,10 +455,7 @@ describe('bounded CAL-PILOT source activation', () => {
       GoogleCalendarEventReader.prototype,
       'listEvents'
     ).mockResolvedValue({ events: [], nextSyncToken: 'test-next' });
-    await expect(tick()).resolves.toMatchObject({
-      processedJobs: 0,
-      failedJobs: 0
-    });
+    await expect(tick()).rejects.toThrow(/lease/iu);
     const retained = await progress();
     const acknowledged = effects
       .filter((effect) => effect.method === 'POST')
@@ -371,37 +463,36 @@ describe('bounded CAL-PILOT source activation', () => {
     expect(acknowledged).toHaveLength(2);
     expect(retained?.['pendingCopyIds']).toHaveLength(2);
     expect(await state()).toMatchObject({
-      status: 'pending',
-      attemptCount: 1,
-      nextAttemptAt: '2026-09-01T00:00:20.000Z',
+      status: 'failed',
+      lastErrorCode: 'needs_reconcile',
+      attemptCount: 0,
       leaseOwner: null,
       leaseExpiresAt: null
     });
-    expect(await state()).not.toHaveProperty('completedAt');
+    expect((await configuration().get()).data()?.['workerLeaseOwner']).toEqual(
+      expect.any(String)
+    );
     expect((await configuration().get()).data()).not.toHaveProperty(
       'lastSuccessfulSyncAt'
     );
     const before = dispatch.mock.calls.length;
-    await expect(tick()).resolves.toMatchObject({
-      processedJobs: 0,
-      failedJobs: 0
-    });
+    await expect(tick()).resolves.toMatchObject({ acquired: false });
     expect(dispatch).toHaveBeenCalledTimes(before);
     expect(await progress()).toEqual(retained);
     expect((await configuration().get()).data()).not.toHaveProperty(
       'lastSuccessfulSyncAt'
     );
-    clock = '2026-09-01T00:00:20.000Z';
-    await finish();
-    expect((await state())?.['attemptCount']).toBe(1);
+    clock = '2026-09-01T00:05:00.000Z';
+    await expect(tick()).resolves.toMatchObject({ acquired: false });
+    expect(dispatch).toHaveBeenCalledTimes(before);
     for (const id of acknowledged)
       expect(
         effects.filter(
           (effect) => effect.method === 'POST' && effect.eventId === id
         )
       ).toHaveLength(1);
-    expect((await configuration().get()).data()?.['lastSuccessfulSyncAt']).toBe(
-      clock
+    expect((await configuration().get()).data()).not.toHaveProperty(
+      'lastSuccessfulSyncAt'
     );
   });
 

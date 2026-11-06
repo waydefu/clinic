@@ -1,5 +1,16 @@
 # Phase 1 Decision Register
 
+## 2026-11-06：合成日曆 reconciler 正本與刪除邊界
+
+決策人：Claude（依負責人授權做的技術判斷，非負責人業務決定）。未另提供 approval ID，不另造。
+此決定僅適用 Gate 2 的來源實作與合成測試，不授權真實日曆、資料或部署。
+
+- 正本以 Firestore 為準：mirror 已保存原始 `externalEventId` 時，該事件是正本，不能刪除。
+- 只有可證明由我方自建的 synthetic projection，才以 deterministic ID 為正本。
+- 同一 `linkId` 有多筆時，只能刪除可證明由我方建立且非正本的事件；
+  即使 deterministic ID 與 Firestore 的原始正本不同，也須先以 `If-Match` 條件刪除。
+- 無法判定 ownership 時 fail-closed，不刪除、記錄 conflict，該 `linkId` 不計入收斂證據。
+
 ## 2026-11-04 官網按鈕改淺綠框白底
 
 負責人（工程師）看過預覽頻道後指示：

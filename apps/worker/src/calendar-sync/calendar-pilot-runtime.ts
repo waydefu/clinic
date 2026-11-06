@@ -16,6 +16,7 @@ import {
   CalendarPilotRuntimeAppointmentRecordSchema,
   CalendarPilotRuntimeConfigurationRecordSchema,
   CalendarPilotRuntimeJobRecordSchema,
+  hasCalendarPilotWorkerLease,
   parseCalendarPilotRecord,
   type CalendarPilotRuntimeJobRecord
 } from '@beauessence/contracts';
@@ -59,7 +60,11 @@ export const C1_SYNTHETIC_CALENDAR_SOURCE_ID = 'c1_synthetic_calendar';
 export const C1_SYNTHETIC_ADC_MODE = 'C1_SYNTHETIC_ADC';
 export const C1_SYNTHETIC_PROJECT_ID = 'beauessence-clinic-stg-c1a01';
 const LEASE_MS = 4 * 60_000;
+// Conservative dispatch cutoff, not an extension of any lease or timeout.
+const DISPATCH_SAFETY_MARGIN_MS = 1_000;
 const JOB_BATCH_SIZE = 20;
+
+class CalendarPilotOutcomeUnknownError extends CalendarPilotLeaseLostError {}
 
 interface SourceSecret {
   readonly calendarId: string;
@@ -192,6 +197,7 @@ export async function claimCalendarPilotJobs(
 interface PilotLeaseContext extends CalendarPilotWorkerLease {
   readonly document?: DocumentSnapshot;
   readonly dispatch: { pending: number };
+  readonly timing: { readonly wall: number; readonly monotonic: number };
 }
 
 interface StoredAppointment {
@@ -443,7 +449,8 @@ export class CalendarPilotRuntime {
     private readonly db: Firestore,
     environment: NodeJS.ProcessEnv = process.env,
     private readonly clock: () => string = () => new Date().toISOString(),
-    public readonly maintenanceControl = new SharedMaintenanceControl()
+    public readonly maintenanceControl = new SharedMaintenanceControl(),
+    private readonly monotonicClock: () => number = () => performance.now()
   ) {
     const configuration = resolveCalendarPilotRuntimeConfiguration(environment);
     this.pseudonymKey = configuration.pseudonymKey;
@@ -490,7 +497,7 @@ export class CalendarPilotRuntime {
       now: string,
       currentJob?: Record<string, unknown>
     ) => void
-  ): Promise<() => void> {
+  ): Promise<(dispatch?: boolean) => void> {
     return this.db.runTransaction(async (transaction) => {
       const configuration = await transaction.get(
         this.db.collection('calendar_pilot_configuration').doc('active')
@@ -518,28 +525,75 @@ export class CalendarPilotRuntime {
         jobData
       );
       write?.(transaction, now, jobData);
-      return () => {
+      return (dispatch = false) => {
         assertCalendarPilotWorkerLease(configurationData, lease, jobData);
+        if (dispatch) {
+          const deadline = Math.min(
+            Date.parse(configurationData.expiresAt),
+            Date.parse(String(configurationData.workerLeaseExpiresAt)),
+            jobData === undefined
+              ? Number.POSITIVE_INFINITY
+              : Date.parse(String(jobData.leaseExpiresAt))
+          );
+          const elapsed = this.monotonicClock() - lease.timing.monotonic;
+          if (
+            !Number.isFinite(deadline) ||
+            !Number.isFinite(lease.timing.wall) ||
+            !Number.isFinite(elapsed) ||
+            elapsed < 0 ||
+            lease.timing.wall + elapsed >= deadline - DISPATCH_SAFETY_MARGIN_MS
+          )
+            throw new CalendarPilotLeaseLostError();
+        }
       };
     });
   }
 
   private guardedFetch(lease: PilotLeaseContext): typeof fetch {
     return async (input, init) => {
+      const url = new URL(
+        input instanceof Request ? input.url : input.toString()
+      );
+      const allowed = Object.values(this.sources).some(({ calendarId }) => {
+        const events = `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`;
+        const event = url.pathname.slice(events.length + 1);
+        return (
+          url.pathname === events ||
+          (url.pathname.startsWith(`${events}/`) &&
+            event !== '' &&
+            !event.includes('/') &&
+            !/%2f/iu.test(event))
+        );
+      });
+      if (
+        url.origin !== 'https://www.googleapis.com' ||
+        url.username !== '' ||
+        url.password !== '' ||
+        !allowed
+      )
+        throw new Error('CAL-PILOT Calendar transport is not allowlisted.');
+      if (lease.dispatch.pending !== 0) throw new CalendarPilotLeaseLostError();
       // Tokens may be slow: check here, after the client obtains its token.
       const beforeDispatch = await this.withLease(lease);
+      if (lease.dispatch.pending !== 0) throw new CalendarPilotLeaseLostError();
       // Even the transaction reply may arrive after the checked deadline.
-      beforeDispatch();
+      beforeDispatch(true);
       lease.dispatch.pending += 1;
       try {
-        const response = await fetch(input, init);
+        const response = await fetch(
+          input instanceof Request ? input : url.href,
+          {
+            ...init,
+            redirect: 'error'
+          }
+        );
         const afterResponse = await this.withLease(lease);
         afterResponse();
         lease.dispatch.pending -= 1;
         return response;
       } catch {
         // An unknown transport outcome must not release this owner for reuse.
-        throw new CalendarPilotLeaseLostError();
+        throw new CalendarPilotOutcomeUnknownError();
       }
     };
   }
@@ -608,13 +662,7 @@ export class CalendarPilotRuntime {
       )
         return undefined;
       // Expiry alone cannot prove that the previous dispatcher has stopped.
-      if (
-        (configuration.workerLeaseOwner !== null &&
-          configuration.workerLeaseOwner !== undefined) ||
-        (configuration.workerLeaseExpiresAt !== null &&
-          configuration.workerLeaseExpiresAt !== undefined)
-      )
-        return undefined;
+      if (hasCalendarPilotWorkerLease(configuration)) return undefined;
       const version = configuration['version'];
       if (
         typeof version !== 'number' ||
@@ -665,26 +713,6 @@ export class CalendarPilotRuntime {
         leaseOwner: null,
         leaseExpiresAt: null,
         ...(errorCode === undefined ? {} : { lastErrorCode: errorCode })
-      });
-    });
-  }
-
-  private async retryJob(
-    document: DocumentSnapshot,
-    lease: PilotLeaseContext,
-    attemptCount: number,
-    errorCode: string
-  ): Promise<void> {
-    await this.withLease({ ...lease, document }, (transaction, now) => {
-      transaction.update(document.ref, {
-        status: 'pending',
-        attemptCount,
-        nextAttemptAt: new Date(
-          Date.parse(now) + Math.min(5 * 60_000, 10_000 * 2 ** attemptCount)
-        ).toISOString(),
-        leaseOwner: null,
-        leaseExpiresAt: null,
-        lastErrorCode: errorCode
       });
     });
   }
@@ -791,7 +819,7 @@ export class CalendarPilotRuntime {
           });
         },
         removeOld: (localRecordId) =>
-          oldWriter.remove(calendarEventId(localRecordId)),
+          oldWriter.remove(calendarEventId(localRecordId), localRecordId),
         checkpoint: async (change) => {
           await this.withLease(lease, (transaction, _now, currentJob) => {
             assertSameCalendarActivationProgress(
@@ -872,7 +900,10 @@ export class CalendarPilotRuntime {
     if (job.localRecordId === undefined)
       throw new Error('Local record is missing.');
     if (job.kind === 'calendar_projection_delete') {
-      await writer.remove(calendarEventId(job.localRecordId));
+      await writer.remove(
+        calendarEventId(job.localRecordId),
+        job.localRecordId
+      );
       return 'completed';
     }
     const appointment = await this.db
@@ -924,6 +955,10 @@ export class CalendarPilotRuntime {
   }
 
   private async runAdmitted(now: string): Promise<CalendarPilotRunSummary> {
+    const monotonic = this.monotonicClock();
+    const anchor = this.clock();
+    if (!Number.isFinite(monotonic) || !isUtcIsoTimestamp(anchor))
+      throw new CalendarPilotLeaseLostError();
     const owner = randomUUID();
     const generation = await this.acquire(owner, now);
     if (generation === undefined)
@@ -932,7 +967,8 @@ export class CalendarPilotRuntime {
       owner,
       generation,
       now: this.clock,
-      dispatch: { pending: 0 }
+      dispatch: { pending: 0 },
+      timing: { wall: Date.parse(anchor), monotonic }
     };
     let processedJobs = 0;
     let failedJobs = 0;
@@ -961,28 +997,30 @@ export class CalendarPilotRuntime {
           await this.completeJob(document, lease, status);
           processedJobs += 1;
         } catch (error) {
-          if (error instanceof CalendarPilotLeaseLostError) throw error;
-          const nextAttempt = (job.attemptCount ?? 0) + 1;
           if (
-            error instanceof GoogleCalendarSyncError &&
-            error.retryable &&
-            nextAttempt < 5
-          )
-            await this.retryJob(
-              document,
-              lease,
-              nextAttempt,
-              safeFailureCode(error)
-            );
-          else {
+            error instanceof CalendarPilotOutcomeUnknownError ||
+            (error instanceof GoogleCalendarSyncError &&
+              (error.status === 412 || error.retryable))
+          ) {
+            // Retain the owner if a provider mutation may still take effect.
+            if (error instanceof GoogleCalendarSyncError && error.retryable)
+              lease.dispatch.pending += 1;
             await this.completeJob(
               document,
               lease,
               'failed',
-              safeFailureCode(error)
+              'needs_reconcile'
             );
-            failedJobs += 1;
+            throw new CalendarPilotLeaseLostError();
           }
+          if (error instanceof CalendarPilotLeaseLostError) throw error;
+          await this.completeJob(
+            document,
+            lease,
+            'failed',
+            safeFailureCode(error)
+          );
+          failedJobs += 1;
         }
       }
       // Do not run inbound sync or advertise its healthy checkpoint while the
