@@ -116,6 +116,27 @@ function run() {
   ).run(NOW);
 }
 
+function reconcile() {
+  return new CalendarPilotRuntime(
+    db,
+    {
+      ...environment,
+      CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL: 'worker@synthetic.invalid'
+    },
+    now,
+    syntheticOpenMaintenanceControl()
+  ).runReconciliationRound();
+}
+
+async function completeReconciliation() {
+  for (let i = 0; i < 20; i += 1) {
+    const result = await reconcile();
+    if ('state' in result && result.state?.phase === 'complete') return result;
+    expect(result.converged).toBe(false);
+  }
+  throw new Error('Synthetic reconciliation did not complete.');
+}
+
 beforeAll(() => {
   app = initializeApp(
     { projectId: LOCAL_FIREBASE_PROJECT_ID },
@@ -211,6 +232,186 @@ afterAll(async () => {
 });
 
 describe('CAL-PILOT dispatch and completion use live lease state', () => {
+  it('reports a stuck reconciliation owner without touching the provider', async () => {
+    await configuration().update({
+      workerLeaseOwner: 'synthetic_previous_owner',
+      workerLeaseExpiresAt: '2026-08-31T23:59:59.000Z'
+    });
+    const runtime = new CalendarPilotRuntime(
+      db,
+      {
+        ...environment,
+        CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL: 'worker@synthetic.invalid'
+      },
+      now,
+      syntheticOpenMaintenanceControl()
+    );
+    await expect(runtime.runReconciliationRound()).resolves.toMatchObject({
+      acquired: false,
+      blocked: 'owner_present',
+      converged: false
+    });
+    expect(dispatch).not.toHaveBeenCalled();
+    expect((await configuration().get()).data()?.['workerLeaseOwner']).toBe(
+      'synthetic_previous_owner'
+    );
+  });
+
+  it('runs two independent synthetic full scans without provider mutations', async () => {
+    await db.collection(OUTBOX).doc('job_a').delete();
+    await db.collection(OUTBOX).doc('job_b').delete();
+    const runtime = () =>
+      new CalendarPilotRuntime(
+        db,
+        {
+          ...environment,
+          CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL:
+            'worker@synthetic.invalid'
+        },
+        now,
+        syntheticOpenMaintenanceControl()
+      );
+    async function fullPass() {
+      for (let i = 0; i < 10; i += 1) {
+        const result = await runtime().runReconciliationRound();
+        expect(result.acquired).toBe(true);
+        if (!('state' in result) || result.state === undefined)
+          throw new Error('Expected synthetic scan state.');
+        const next = result.state;
+        if (next.phase === 'complete') return result;
+        expect(result.converged).toBe(false);
+      }
+      throw new Error('Synthetic scan did not complete.');
+    }
+    expect(await fullPass()).toMatchObject({ acquired: true, converged: true });
+    expect(await fullPass()).toMatchObject({ acquired: true, converged: true });
+    expect(dispatch).toHaveBeenCalledTimes(2);
+    expect(
+      dispatch.mock.calls.every(
+        (call: [RequestInfo | URL, RequestInit?]) => call[1]?.method === 'GET'
+      )
+    ).toBe(true);
+  });
+  it('resumes a saved page after restart and resets an invalid page token', async () => {
+    const tokens: (string | null)[] = [];
+    dispatch.mockImplementation((url: RequestInfo | URL) => {
+      const target =
+        typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
+      const token = new URL(target).searchParams.get('pageToken');
+      tokens.push(token);
+      return Promise.resolve(
+        token === 'next'
+          ? new Response(null, { status: 410 })
+          : Response.json(
+              tokens.length === 1
+                ? { items: [], nextPageToken: 'next' }
+                : { items: [] }
+            )
+      );
+    });
+    const runtime = () =>
+      new CalendarPilotRuntime(
+        db,
+        {
+          ...environment,
+          CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL:
+            'worker@synthetic.invalid'
+        },
+        now,
+        syntheticOpenMaintenanceControl()
+      );
+    expect(await runtime().runReconciliationRound()).toMatchObject({
+      converged: false
+    });
+    expect(
+      (await configuration().get()).data()?.['reconciliationScan']
+    ).toMatchObject({
+      startedAt: NOW,
+      inFlight: null,
+      state: { pageToken: 'next' }
+    });
+    expect(await runtime().runReconciliationRound()).toMatchObject({
+      blocked: 'page_token_expired',
+      converged: false
+    });
+    expect(
+      (await configuration().get()).data()?.['reconciliationScan']
+    ).toMatchObject({ state: null, inFlight: null });
+    expect(await runtime().runReconciliationRound()).toMatchObject({
+      converged: false
+    });
+    expect(tokens).toEqual([null, 'next', null]);
+    expect(await completeReconciliation()).toMatchObject({ converged: false });
+    const conflicts = await db
+      .collection('calendar_pilot_audit_events')
+      .where('action', '==', 'calendar_reconciliation_conflict')
+      .get();
+    expect(conflicts.size).toBeGreaterThan(0);
+  });
+
+  it('discards an expired cursor without reporting convergence', async () => {
+    const tokens: (string | null)[] = [];
+    dispatch.mockImplementation((url: RequestInfo | URL) => {
+      const target =
+        typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
+      tokens.push(new URL(target).searchParams.get('pageToken'));
+      return Promise.resolve(
+        Response.json(
+          tokens.length === 1
+            ? { items: [], nextPageToken: 'next' }
+            : { items: [] }
+        )
+      );
+    });
+    const runtime = () =>
+      new CalendarPilotRuntime(
+        db,
+        {
+          ...environment,
+          CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL:
+            'worker@synthetic.invalid'
+        },
+        now,
+        syntheticOpenMaintenanceControl()
+      );
+    await runtime().runReconciliationRound();
+    await configuration().update({
+      'reconciliationScan.startedAt': '2026-08-30T00:00:00.000Z'
+    });
+    expect(await runtime().runReconciliationRound()).toMatchObject({
+      converged: false
+    });
+    expect(tokens).toEqual([null, null]);
+    expect(await completeReconciliation()).toMatchObject({ converged: false });
+    const conflicts = await db
+      .collection('calendar_pilot_audit_events')
+      .where('action', '==', 'calendar_reconciliation_conflict')
+      .get();
+    expect(conflicts.size).toBeGreaterThan(0);
+  });
+
+  it('rejects a checkpoint changed after its lease-protected read', async () => {
+    dispatch.mockImplementation(async () => {
+      await configuration().update({
+        'reconciliationScan.state': { changed: true }
+      });
+      return Response.json({ items: [] });
+    });
+    const runtime = new CalendarPilotRuntime(
+      db,
+      {
+        ...environment,
+        CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL: 'worker@synthetic.invalid'
+      },
+      now,
+      syntheticOpenMaintenanceControl()
+    );
+    await expect(runtime.runReconciliationRound()).rejects.toThrow();
+    expect(
+      (await configuration().get()).data()?.['reconciliationScan']
+    ).toMatchObject({ state: { changed: true } });
+  });
+
   it('does not reclaim an expired owner without proof it stopped', async () => {
     await configuration().update({
       workerLeaseOwner: 'previous-worker',
@@ -499,6 +700,23 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
         SYNTHETIC_ETAG
       );
       expect(dispatch).toHaveBeenCalledTimes(2);
+      if (leaseRetained) {
+        await expect(reconcile()).resolves.toMatchObject({
+          acquired: false,
+          blocked: 'owner_present',
+          converged: false
+        });
+        expect(dispatch).toHaveBeenCalledTimes(2);
+      } else {
+        expect(await completeReconciliation()).toMatchObject({
+          converged: false
+        });
+        const conflicts = await db
+          .collection('calendar_pilot_audit_events')
+          .where('action', '==', 'calendar_reconciliation_conflict')
+          .get();
+        expect(conflicts.size).toBeGreaterThan(0);
+      }
     }
   );
 
@@ -698,6 +916,12 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
     expect((await configuration().get()).data()?.['workerLeaseOwner']).toBe(
       'successor'
     );
+    await expect(reconcile()).resolves.toMatchObject({
+      acquired: false,
+      blocked: 'owner_present',
+      converged: false
+    });
+    expect(dispatch).toHaveBeenCalledTimes(2);
   });
 
   it('cannot complete or keep dispatching after the current job is taken over', async () => {

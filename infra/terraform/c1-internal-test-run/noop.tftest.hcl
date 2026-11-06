@@ -401,6 +401,11 @@ run "calendar_sync_is_opt_in_keyless_and_paused" {
   }
 
   assert {
+    condition     = length([for e in google_cloud_run_v2_service.calendar_sync["enabled"].template[0].containers[0].env : e if e.name == "CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL"]) == 1
+    error_message = "C1 inbound sync must expose exactly one worker service identity for ownership checks."
+  }
+
+  assert {
     condition     = google_cloud_scheduler_job.calendar_sync["enabled"].paused == true
     error_message = "C1 inbound sync scheduler must remain paused."
   }
