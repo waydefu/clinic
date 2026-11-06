@@ -58,6 +58,26 @@ describe('calendar pilot full scan', () => {
     expect(tokens).toEqual([undefined, 'page-2', undefined, 'page-2']);
   });
 
+  it('keeps page size fixed across continuation requests', async () => {
+    const limits: number[] = [];
+    const port: CalendarPilotFullScanPort = {
+      calendarPage: (limit, token) => {
+        limits.push(limit);
+        return Promise.resolve(token === undefined
+          ? { events: [{ id: 'a', recurring: false }], nextPageToken: 'next' }
+          : { events: [{ id: 'b', recurring: false }] });
+      },
+      firestorePage: () => Promise.resolve({ linkIds: [] }),
+      reconcileCalendarEvent: () => Promise.resolve('no-op'),
+      reconcileFirestoreLink: () => Promise.resolve('no-op')
+    };
+    const options = { scope: 'synthetic', maxItems: 2, deadline: 10, now: () => 0 };
+    const first = await runCalendarPilotFullScanRound(port, options);
+    expect(first.converged).toBe(false);
+    await runCalendarPilotFullScanRound(port, options, first.state);
+    expect(limits).toEqual([2, 2]);
+  });
+
   it('does not fetch or report convergence after the round deadline', async () => {
     const calendarPage = vi.fn<CalendarPilotFullScanPort['calendarPage']>();
     const port: CalendarPilotFullScanPort = {
@@ -83,9 +103,13 @@ describe('calendar pilot full scan', () => {
       reconcileFirestoreLink: () => Promise.resolve('no-op')
     };
     const bounds = { scope: 'synthetic-source-v1', maxItems: 2, deadline: 10, now: () => 0 };
-    await expect(runCalendarPilotFullScanRound(port, bounds)).rejects.toThrow('page token');
+    const first = await runCalendarPilotFullScanRound(port, bounds);
+    expect(first.converged).toBe(false);
+    await expect(runCalendarPilotFullScanRound(port, bounds, first.state)).rejects.toThrow('page token');
     await expect(runCalendarPilotFullScanRound(port, { ...bounds, scope: 'another-source' }, {
-      scope: bounds.scope, phase: 'calendar', pageLoaded: false, pending: [], clean: true
+      scope: bounds.scope, pageSize: bounds.maxItems, phase: 'calendar', pageLoaded: false, pending: [], clean: true
     })).rejects.toThrow('bounds or scope');
+    await expect(runCalendarPilotFullScanRound(port, { ...bounds, maxItems: 1 }, first.state))
+      .rejects.toThrow('bounds or scope');
   });
 });

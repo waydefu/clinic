@@ -230,11 +230,21 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
     const runtime = new CalendarPilotRuntime(db,
       { ...environment, CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL: 'worker@synthetic.invalid' },
       now, syntheticOpenMaintenanceControl());
-    const first = await runtime.runReconciliationRound();
-    expect(first).toMatchObject({ acquired: true, converged: true });
-    if (!('state' in first)) throw new Error('Expected synthetic scan state.');
-    const second = await runtime.runReconciliationRound(first.state);
-    expect(second).toMatchObject({ acquired: true, converged: true });
+    async function fullPass() {
+      let state: import('../../apps/worker/src/calendar-sync/calendar-pilot-full-scan.js').CalendarPilotFullScanState | undefined;
+      for (let i = 0; i < 10; i += 1) {
+        const result = await runtime.runReconciliationRound(state);
+        expect(result.acquired).toBe(true);
+        if (!('state' in result) || result.state === undefined) throw new Error('Expected synthetic scan state.');
+        const next = result.state;
+        if (next.phase === 'complete') return result;
+        state = next;
+        expect(result.converged).toBe(false);
+      }
+      throw new Error('Synthetic scan did not complete.');
+    }
+    expect(await fullPass()).toMatchObject({ acquired: true, converged: true });
+    expect(await fullPass()).toMatchObject({ acquired: true, converged: true });
     expect(dispatch).toHaveBeenCalledTimes(2);
     expect(dispatch.mock.calls.every((call: [RequestInfo | URL, RequestInit?]) => call[1]?.method === 'GET')).toBe(true);
   });

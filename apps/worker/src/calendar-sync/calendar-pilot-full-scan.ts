@@ -11,6 +11,7 @@ type ScanItem =
 
 export interface CalendarPilotFullScanState {
   readonly scope: string;
+  readonly pageSize: number;
   readonly phase: 'calendar' | 'firestore' | 'complete';
   readonly pageToken?: string;
   readonly pageLoaded: boolean;
@@ -43,7 +44,7 @@ export async function runCalendarPilotFullScanRound(
 ): Promise<{ readonly state: CalendarPilotFullScanState; readonly processed: number; readonly converged: boolean }> {
   if (options.scope.trim() === '' || !Number.isSafeInteger(options.maxItems) ||
       options.maxItems < 1 || options.maxItems > 100 || !Number.isFinite(options.deadline) ||
-      (previous !== undefined && previous.scope !== options.scope))
+      (previous !== undefined && (previous.scope !== options.scope || previous.pageSize !== options.maxItems)))
     throw new Error('Invalid full-scan bounds or scope.');
   let phase = previous?.phase ?? 'calendar';
   let pageToken = previous?.pageToken;
@@ -64,8 +65,9 @@ export async function runCalendarPilotFullScanRound(
   };
   while (!expired()) {
     if (!pageLoaded) {
-      if (pageRequests >= options.maxItems || processed >= options.maxItems) break;
-      const limit = options.maxItems - processed;
+      if (pageRequests > 0 || processed > 0) break;
+      // Calendar page tokens require the same request parameters across pages.
+      const limit = options.maxItems;
       const requested = pageToken;
       if (phase === 'calendar') {
         const page = await port.calendarPage(limit, requested);
@@ -110,7 +112,7 @@ export async function runCalendarPilotFullScanRound(
     }
   }
   const state: CalendarPilotFullScanState = {
-    scope: options.scope, phase, ...(pageToken !== undefined ? { pageToken } : {}), pageLoaded, pending, clean
+    scope: options.scope, pageSize: options.maxItems, phase, ...(pageToken !== undefined ? { pageToken } : {}), pageLoaded, pending, clean
   };
   return { state, processed, converged: phase === 'complete' && clean };
 }

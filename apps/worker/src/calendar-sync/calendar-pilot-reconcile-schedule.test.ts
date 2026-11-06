@@ -12,11 +12,11 @@ describe('synthetic calendar reconciliation schedule', () => {
   it('resumes interrupted scans and resets the cursor only after a complete pass', async () => {
     vi.useFakeTimers();
     const partial: CalendarPilotFullScanState = {
-      scope: 'synthetic', phase: 'calendar', pageLoaded: false,
+      scope: 'synthetic', pageSize: 1, phase: 'calendar', pageLoaded: false,
       pageToken: 'page_2', pending: [], clean: true
     };
     const complete: CalendarPilotFullScanState = {
-      scope: 'synthetic', phase: 'complete', pageLoaded: true, pending: [], clean: true
+      scope: 'synthetic', pageSize: 1, phase: 'complete', pageLoaded: true, pending: [], clean: true
     };
     const runReconciliationRound = vi.fn((state?: CalendarPilotFullScanState) => Promise.resolve({
       acquired: true as const, blocked: undefined,
