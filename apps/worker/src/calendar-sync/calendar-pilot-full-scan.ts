@@ -19,6 +19,26 @@ export interface CalendarPilotFullScanState {
   readonly clean: boolean;
 }
 
+export function isCalendarPilotFullScanState(value: unknown): value is CalendarPilotFullScanState {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const state = value as Record<string, unknown>;
+  if (typeof state['scope'] !== 'string' || !Number.isSafeInteger(state['pageSize']) ||
+      (state['phase'] !== 'calendar' && state['phase'] !== 'firestore' && state['phase'] !== 'complete') ||
+      typeof state['pageLoaded'] !== 'boolean' || typeof state['clean'] !== 'boolean' ||
+      (state['pageToken'] !== undefined && (typeof state['pageToken'] !== 'string' || state['pageToken'].length > 4096)) ||
+      !Array.isArray(state['pending']) || state['pending'].length > 100) return false;
+  return state['pending'].every((item: unknown) => {
+    if (typeof item !== 'object' || item === null || Array.isArray(item)) return false;
+    const entry = item as Record<string, unknown>;
+    if (entry['kind'] === 'firestore') return typeof entry['linkId'] === 'string';
+    if (entry['kind'] !== 'calendar' || typeof entry['event'] !== 'object' ||
+        entry['event'] === null || Array.isArray(entry['event'])) return false;
+    const event = entry['event'] as Record<string, unknown>;
+    return typeof event['id'] === 'string' && typeof event['recurring'] === 'boolean' &&
+      (event['linkId'] === undefined || typeof event['linkId'] === 'string');
+  });
+}
+
 export interface CalendarPilotFullScanPort {
   calendarPage(
     limit: number,

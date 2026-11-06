@@ -613,6 +613,10 @@ resource "google_cloud_run_v2_service" "calendar_sync" {
         value = "C1_SYNTHETIC_ADC"
       }
       env {
+        name  = "CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL"
+        value = google_service_account.calendar_sync["enabled"].email
+      }
+      env {
         name  = "GOOGLE_CALENDAR_AUTH"
         value = "CLOUD_ADC"
       }

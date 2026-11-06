@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 import { SharedMaintenanceControl } from '@beauessence/domain/maintenance-control.node';
 
 import type {
@@ -35,8 +36,9 @@ import {
 } from '../google-calendar.js';
 import { calendarEventId } from './calendar-pilot-event-id.js';
 import { FirestoreCalendarPilotReconciliationAdapter } from './calendar-pilot-reconcile-adapter.js';
-import { FirestoreCalendarPilotFullScanPort } from './calendar-pilot-full-scan-adapter.js';
+import { CalendarPilotInvalidPageTokenError, FirestoreCalendarPilotFullScanPort } from './calendar-pilot-full-scan-adapter.js';
 import {
+  isCalendarPilotFullScanState,
   runCalendarPilotFullScanRound,
   type CalendarPilotFullScanState
 } from './calendar-pilot-full-scan.js';
@@ -71,6 +73,7 @@ const LEASE_MS = 4 * 60_000;
 // Conservative dispatch cutoff, not an extension of any lease or timeout.
 const DISPATCH_SAFETY_MARGIN_MS = 1_000;
 const JOB_BATCH_SIZE = 20;
+const RECONCILIATION_CURSOR_MAX_AGE_MS = 24 * 60 * 60_000;
 
 class CalendarPilotOutcomeUnknownError extends CalendarPilotLeaseLostError {}
 
@@ -556,6 +559,42 @@ export class CalendarPilotRuntime {
     });
   }
 
+  private async beginReconciliationSlice(lease: PilotLeaseContext, scope: string, now: string) {
+    const ref = this.db.collection('calendar_pilot_configuration').doc('active');
+    return this.db.runTransaction(async (transaction: Transaction) => {
+      const document = await transaction.get(ref);
+      const record = parseCalendarPilotRecord(CalendarPilotLeaseConfigurationRecordSchema, document.data());
+      assertCalendarPilotWorkerLease(record, lease);
+      const raw: unknown = record['reconciliationScan'];
+      const stored = typeof raw === 'object' && raw !== null && !Array.isArray(raw)
+        ? raw as Record<string, unknown> : undefined;
+      const startedAt = stored?.['startedAt'];
+      const state = stored?.['state'];
+      const valid = stored !== undefined && typeof startedAt === 'string' && isUtcIsoTimestamp(startedAt) &&
+        Date.parse(now) >= Date.parse(startedAt) && Date.parse(now) - Date.parse(startedAt) < RECONCILIATION_CURSOR_MAX_AGE_MS &&
+        isCalendarPilotFullScanState(state) && state.scope === scope && state.pageSize === JOB_BATCH_SIZE &&
+        state.phase !== 'complete' && stored['inFlight'] === null;
+      const completed = stored !== undefined && isCalendarPilotFullScanState(state) && state.phase === 'complete' && stored['inFlight'] === null;
+      const discarded = raw !== undefined && !valid && !completed;
+      const start = valid ? startedAt : now;
+      const expected = { startedAt: start, state: valid ? state : null, inFlight: lease.owner };
+      transaction.update(ref, { reconciliationScan: expected });
+      return { state: valid ? state : undefined, startedAt: start, discarded, expected };
+    });
+  }
+
+  private async finishReconciliationSlice(lease: PilotLeaseContext, expected: { startedAt: string; state: CalendarPilotFullScanState | null; inFlight: string }, state: CalendarPilotFullScanState | null) {
+    const ref = this.db.collection('calendar_pilot_configuration').doc('active');
+    await this.db.runTransaction(async (transaction: Transaction) => {
+      const document = await transaction.get(ref);
+      const record = parseCalendarPilotRecord(CalendarPilotLeaseConfigurationRecordSchema, document.data());
+      assertCalendarPilotWorkerLease(record, lease);
+      const raw: unknown = record['reconciliationScan'];
+      if (!isDeepStrictEqual(raw, expected)) throw new CalendarPilotLeaseLostError();
+      transaction.update(ref, { reconciliationScan: { startedAt: expected.startedAt, state, inFlight: null } });
+    });
+  }
+
   private guardedFetch(lease: PilotLeaseContext): typeof fetch {
     return async (input, init) => {
       const url = new URL(
@@ -962,7 +1001,7 @@ export class CalendarPilotRuntime {
     });
   }
 
-  public runReconciliationRound(previous?: CalendarPilotFullScanState) {
+  public runReconciliationRound() {
     return this.maintenanceControl.run(async () => {
       if (!this.syntheticReconcileAllowed)
         throw new Error(
@@ -995,8 +1034,7 @@ export class CalendarPilotRuntime {
             ? 'owner_present'
             : 'not_enabled',
           processed: 0,
-          converged: false,
-          ...(previous === undefined ? {} : { state: previous })
+          converged: false
         };
       }
       const lease: PilotLeaseContext = {
@@ -1018,11 +1056,10 @@ export class CalendarPilotRuntime {
             acquired: true,
             blocked: 'source_or_activation',
             processed: 0,
-            converged: false,
-            ...(previous === undefined ? {} : { state: previous })
+            converged: false
           };
         const sourceId = configuration.activeSourceId;
-        const scope = `${sourceId}_${generation}_${createHash('sha256').update(workerAccount).digest('hex')}`;
+        const scope = `${sourceId}_${generation}_${createHash('sha256').update(workerAccount).update('\0').update(this.source(sourceId).calendarId).digest('hex')}`;
         const reader = this.reader(sourceId, lease);
         const writer = this.writer(sourceId, lease);
         const deadline = monotonic + 15_000;
@@ -1072,21 +1109,20 @@ export class CalendarPilotRuntime {
           reconciler,
           recordUnattributedConflict: audit
         });
-        const resume =
-          previous?.scope === scope && previous.phase !== 'complete'
-            ? previous
-            : undefined;
-        const result = await runCalendarPilotFullScanRound(
-          port,
-          {
-            scope,
-            maxItems: JOB_BATCH_SIZE,
-            deadline,
-            now: this.monotonicClock
-          },
-          resume
-        );
-        return { acquired: true, blocked: undefined, ...result };
+        const checkpoint = await this.beginReconciliationSlice(lease, scope, anchor);
+        try {
+          const result = await runCalendarPilotFullScanRound(
+            port,
+            { scope, maxItems: JOB_BATCH_SIZE, deadline, now: this.monotonicClock },
+            checkpoint.state
+          );
+          await this.finishReconciliationSlice(lease, checkpoint.expected, result.state);
+          return { acquired: true, blocked: undefined, ...result, converged: result.converged && !checkpoint.discarded };
+        } catch (error) {
+          if (!(error instanceof CalendarPilotInvalidPageTokenError)) throw error;
+          await this.finishReconciliationSlice(lease, checkpoint.expected, null);
+          return { acquired: true, blocked: 'page_token_expired', processed: 0, converged: false };
+        }
       } finally {
         if (lease.dispatch.pending === 0) await this.release(owner);
       }

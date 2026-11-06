@@ -9,8 +9,7 @@ import {
   inspectCalendarPilotHealth,
   type CalendarPilotHttpRuntime
 } from './calendar-pilot-health.js';
-import { CalendarPilotRuntime } from './calendar-pilot-runtime.js';
-import { scheduleCalendarPilotReconciliation } from './calendar-pilot-reconcile-schedule.js';
+import { CalendarPilotRuntime, C1_SYNTHETIC_ADC_MODE } from './calendar-pilot-runtime.js';
 
 function send(
   response: import('node:http').ServerResponse,
@@ -56,7 +55,10 @@ export function createCalendarPilotServer(runtime: CalendarPilotHttpRuntime) {
       send(response, 404, { error: 'not_found' });
       return;
     }
-    void runtime.run().then(
+    void runtime.run().then(async (summary) => {
+      if (runtime.reconcile !== undefined) await runtime.reconcile();
+      return summary;
+    }).then(
       (summary) => send(response, 200, summary),
       () => send(response, 503, { error: 'worker_unavailable' })
     );
@@ -67,10 +69,14 @@ export function startCalendarPilotWorker(): void {
   if (getApps().length === 0) initializeApp();
   const db = getFirestore();
   const runtime = new CalendarPilotRuntime(db);
-  if (process.env['CALENDAR_PILOT_SYNTHETIC_RECONCILE_ENABLED'] === 'true')
-    scheduleCalendarPilotReconciliation(runtime);
   createCalendarPilotServer({
     run: () => runtime.run(),
+    ...(process.env['CALENDAR_PILOT_RUNTIME_MODE'] === C1_SYNTHETIC_ADC_MODE
+      ? { reconcile: async () => {
+          const result = await runtime.runReconciliationRound();
+          if (result.blocked !== undefined) console.warn('calendar_reconciliation_blocked', result.blocked);
+        } }
+      : {}),
     inspect: (nowUtc) =>
       inspectCalendarPilotHealth(db, nowUtc ?? new Date().toISOString())
   }).listen(

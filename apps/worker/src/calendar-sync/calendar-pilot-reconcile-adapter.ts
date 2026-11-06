@@ -253,7 +253,7 @@ export class FirestoreCalendarPilotReconciliationAdapter implements CalendarPilo
         data['lastErrorCode'] !== 'needs_reconcile'
       )
         continue;
-      const linkId = data['localRecordId'];
+      const linkId: unknown = data['localRecordId'];
       if (
         typeof linkId !== 'string' ||
         !OpaqueIdentifierSchema.safeParse(linkId).success
@@ -421,7 +421,7 @@ export class FirestoreCalendarPilotReconciliationAdapter implements CalendarPilo
         !Array.isArray(raw) &&
         (raw as Record<string, unknown>)['appointmentId'] === linkId
       ) {
-        appointmentData = raw as Record<string, unknown>;
+        appointmentData = raw;
       } else complete = false;
     } else complete = false;
 

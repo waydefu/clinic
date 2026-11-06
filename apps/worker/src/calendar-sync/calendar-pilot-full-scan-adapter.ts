@@ -21,9 +21,10 @@ import type {
   CalendarPilotFullScanPort,
   FullScanCalendarEvent
 } from './calendar-pilot-full-scan.js';
-import type { GoogleCalendarEventReader } from './google-sync-client.js';
+import { GoogleCalendarSyncError, type GoogleCalendarEventReader } from './google-sync-client.js';
 
 type Source = 'a' | 'm' | 'j';
+export class CalendarPilotInvalidPageTokenError extends Error {}
 
 export class FirestoreCalendarPilotFullScanPort implements CalendarPilotFullScanPort {
   public constructor(
@@ -57,7 +58,14 @@ export class FirestoreCalendarPilotFullScanPort implements CalendarPilotFullScan
 
   public async calendarPage(limit: number, pageToken?: string) {
     await this.assertLease();
-    return this.options.reader.listWholeCalendarInventory(limit, pageToken);
+    try {
+      return await this.options.reader.listWholeCalendarInventory(limit, pageToken);
+    } catch (error) {
+      if (pageToken !== undefined && error instanceof GoogleCalendarSyncError &&
+          (error.status === 400 || error.status === 410))
+        throw new CalendarPilotInvalidPageTokenError();
+      throw error;
+    }
   }
 
   public async firestorePage(limit: number, cursor?: string) {
@@ -109,7 +117,7 @@ export class FirestoreCalendarPilotFullScanPort implements CalendarPilotFullScan
           ].includes(data['kind']))
       )
         return `s:${document.id}`;
-      const link = source === 'm' ? data['linkId'] : data['localRecordId'];
+      const link: unknown = source === 'm' ? data['linkId'] : data['localRecordId'];
       return typeof link === 'string' &&
         OpaqueIdentifierSchema.safeParse(link).success
         ? `l:${link}`
@@ -164,7 +172,7 @@ export class FirestoreCalendarPilotFullScanPort implements CalendarPilotFullScan
       return 'conflict' as const;
     }
     const original = originals.docs[0]?.data();
-    const originalLink = original?.['linkId'];
+    const originalLink: unknown = original?.['linkId'];
     if (
       original !== undefined &&
       (original['sourceId'] !== this.options.sourceId ||
@@ -174,7 +182,7 @@ export class FirestoreCalendarPilotFullScanPort implements CalendarPilotFullScan
       await this.options.recordUnattributedConflict(event.id);
       return 'conflict' as const;
     }
-    const linkId = event.linkId ?? originalLink;
+    const linkId: unknown = event.linkId ?? originalLink;
     if (
       typeof linkId !== 'string' ||
       !OpaqueIdentifierSchema.safeParse(linkId).success
