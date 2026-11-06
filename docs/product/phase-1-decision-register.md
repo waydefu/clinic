@@ -2,7 +2,7 @@
 
 ## 2026-11-06：合成日曆 reconciler 正本與刪除邊界
 
-決策人：負責人；由 Claude 轉達。未另提供 approval ID，不另造。
+決策人：Claude（依負責人授權做的技術判斷，非負責人業務決定）。未另提供 approval ID，不另造。
 此決定僅適用 Gate 2 的來源實作與合成測試，不授權真實日曆、資料或部署。
 
 - 正本以 Firestore 為準：mirror 已保存原始 `externalEventId` 時，該事件是正本，不能刪除。
