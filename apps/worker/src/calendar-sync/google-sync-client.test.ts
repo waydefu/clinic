@@ -17,6 +17,42 @@ function response(body: unknown, status = 200): Response {
 }
 
 describe('GoogleCalendarEventReader', () => {
+  it('pages the whole calendar without hiding events without our marker', async () => {
+    const fetchImpl = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
+      Promise.resolve(response({
+        items: [
+          { id: 'owned', extendedProperties: { private: { beauessenceLinkId: 'link_a' } } },
+          { id: 'unmarked', recurrence: ['RRULE:FREQ=DAILY'] }
+        ],
+        nextPageToken: 'next-page'
+      }))
+    );
+    const reader = new GoogleCalendarEventReader('synthetic', () => Promise.resolve('synthetic-token'), fetchImpl);
+    await expect(reader.listWholeCalendarInventory(2, 'page-a')).resolves.toEqual({
+      events: [
+        { id: 'owned', linkId: 'link_a', recurring: false },
+        { id: 'unmarked', recurring: true }
+      ],
+      nextPageToken: 'next-page'
+    });
+    const request = fetchImpl.mock.calls[0]?.[0];
+    if (typeof request !== 'string') throw new Error('Expected URL string.');
+    const url = new URL(request);
+    expect(url.searchParams.get('maxResults')).toBe('2');
+    expect(url.searchParams.get('pageToken')).toBe('page-a');
+    expect(url.searchParams.get('singleEvents')).toBe('false');
+    expect(url.searchParams.get('showDeleted')).toBe('true');
+    expect(url.searchParams.has('privateExtendedProperty')).toBe(false);
+    expect(url.searchParams.has('timeMin')).toBe(false);
+    expect(url.searchParams.has('timeMax')).toBe(false);
+  });
+
+  it('fails closed on an oversized full-calendar page', async () => {
+    const fetchImpl = vi.fn(() => Promise.resolve(response({ items: [{ id: 'a' }, { id: 'b' }] })));
+    const reader = new GoogleCalendarEventReader('synthetic', () => Promise.resolve('synthetic-token'), fetchImpl);
+    await expect(reader.listWholeCalendarInventory(1)).rejects.toThrow('exceeded its bound');
+  });
+
   it('reads a Firestore-designated original even without link metadata', async () => {
     const fetchImpl = vi.fn(() =>
       Promise.resolve(
@@ -79,6 +115,7 @@ describe('GoogleCalendarEventReader', () => {
               summary: 'synthetic',
               start: { dateTime: '2026-11-06T01:00:00Z' },
               end: { dateTime: '2026-11-06T01:30:00Z' },
+              creator: { email: 'worker@synthetic.invalid' },
               extendedProperties: { private: { beauessenceLinkId: 'link_a' } }
             }
           ],
@@ -101,6 +138,8 @@ describe('GoogleCalendarEventReader', () => {
           status: 'confirmed',
           title: 'synthetic',
           linkId: 'link_a',
+          linkMarker: 'link_a',
+          creatorEmail: 'worker@synthetic.invalid',
           startsAt: '2026-11-06T01:00:00Z',
           endsAt: '2026-11-06T01:30:00Z'
         }

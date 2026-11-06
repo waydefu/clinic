@@ -1,3 +1,4 @@
+import { calendarEventId } from './calendar-pilot-event-id.js';
 import type { CalendarWriteEvent } from './google-sync-client.js';
 
 export interface ReconcileEvent {
@@ -5,6 +6,9 @@ export interface ReconcileEvent {
   readonly etag: string;
   readonly linkId: string;
   readonly status: 'confirmed' | 'cancelled';
+  readonly linkMarker?: string;
+  readonly creatorEmail?: string;
+  readonly organizerEmail?: string;
   readonly title?: string;
   readonly startsAt?: string;
   readonly endsAt?: string;
@@ -17,6 +21,7 @@ export interface ReconcileSnapshot {
   readonly mirrorEventId?: string;
   readonly projectionEventId: string;
   readonly projectionOwned: boolean;
+  readonly workerServiceAccount?: string;
   readonly desired?: CalendarWriteEvent | undefined;
   readonly events: readonly ReconcileEvent[];
 }
@@ -61,7 +66,8 @@ export function planCalendarPilotReconciliation(
   snapshot: ReconcileSnapshot
 ): ReconcileAction {
   if (snapshot.blockedByOwner) return { kind: 'blocked' };
-  if (!snapshot.inventoryComplete) return { kind: 'conflict' };
+  if (!snapshot.inventoryComplete || snapshot.projectionEventId !== calendarEventId(snapshot.linkId))
+    return { kind: 'conflict' };
   const canonicalId = snapshot.mirrorEventId ?? snapshot.projectionEventId;
   if (snapshot.mirrorEventId === undefined && !snapshot.projectionOwned)
     return { kind: 'conflict' };
@@ -73,14 +79,22 @@ export function planCalendarPilotReconciliation(
     return { kind: 'conflict' };
   if (snapshot.desired !== undefined && !('startsAt' in snapshot.desired))
     return { kind: 'conflict' };
+  const ownedProjection = (event: ReconcileEvent): boolean =>
+    snapshot.projectionOwned &&
+    event.id === snapshot.projectionEventId &&
+    event.linkMarker === snapshot.linkId &&
+    typeof snapshot.workerServiceAccount === 'string' &&
+    snapshot.workerServiceAccount.trim() !== '' &&
+    (event.creatorEmail === snapshot.workerServiceAccount ||
+      event.organizerEmail === snapshot.workerServiceAccount);
   const seen = new Set<string>();
   for (const event of snapshot.events) {
     if (
       event.linkId !== snapshot.linkId ||
       seen.has(event.id) ||
       !/^"[\x21\x23-\x7e]*"$/u.test(event.etag) ||
-      (event.id !== canonicalId &&
-        (event.id !== snapshot.projectionEventId || !snapshot.projectionOwned))
+      (event.id !== canonicalId && !ownedProjection(event)) ||
+      (snapshot.mirrorEventId === undefined && !ownedProjection(event))
     )
       return { kind: 'conflict' };
     seen.add(event.id);
@@ -115,6 +129,7 @@ export interface CalendarPilotReconciliationPort {
   ): Promise<void>;
   settleIfUnchanged(snapshot: ReconcileSnapshot): Promise<boolean>;
   recordConflict(snapshot: ReconcileSnapshot): Promise<void>;
+  hasCompletedCleanFullScan?(): boolean;
 }
 
 export async function runCalendarPilotReconciliation(
@@ -149,8 +164,13 @@ export async function runCalendarPilotReconciliation(
   const ids = await port.scan(options.maxItems);
   if (ids.length > options.maxItems || new Set(ids).size !== ids.length)
     throw new Error('Invalid calendar reconciliation scan.');
+  let incomplete = false;
+  let mutated = false;
   for (const linkId of ids) {
-    if (expired()) break;
+    if (expired()) {
+      incomplete = true;
+      break;
+    }
     const snapshot = await port.read(linkId);
     if (snapshot.linkId !== linkId)
       throw new Error('Calendar reconciliation link changed.');
@@ -161,18 +181,31 @@ export async function runCalendarPilotReconciliation(
       continue;
     }
     if (action.kind === 'conflict') {
-      if (expired()) break;
+      if (expired()) {
+        incomplete = true;
+        break;
+      }
       await port.recordConflict(snapshot);
       result.conflicts += 1;
       continue;
     }
     if (action.kind !== 'no-op') {
-      if (expired()) break;
+      if (expired()) {
+        incomplete = true;
+        break;
+      }
       await port.apply(linkId, action);
+      mutated = true;
       continue;
     }
-    if (!expired() && (await port.settleIfUnchanged(snapshot)))
-      result.converged += 1;
+    if (expired()) {
+      incomplete = true;
+      break;
+    }
+    if (await port.settleIfUnchanged(snapshot)) result.converged += 1;
+    else incomplete = true;
   }
+  if (incomplete || mutated || result.conflicts > 0 || result.blocked > 0 ||
+      port.hasCompletedCleanFullScan?.() !== true) result.converged = 0;
   return result;
 }

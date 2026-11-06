@@ -21,6 +21,37 @@ function unchanged(before: DocumentSnapshot, after: DocumentSnapshot): boolean {
   );
 }
 
+export interface ReconciliationDocuments {
+  readonly sourceId: string;
+  readonly appointment: DocumentSnapshot;
+  readonly mirrors: readonly DocumentSnapshot[];
+}
+
+export async function verifyReconciliationDocuments(
+  db: Firestore,
+  lease: CalendarPilotWorkerLease,
+  expected: ReconciliationDocuments
+): Promise<boolean> {
+  if (!expected.appointment.exists ||
+      expected.appointment.ref.parent.path !== 'calendar_pilot_appointments' ||
+      expected.mirrors.some((mirror) => mirror.ref.parent.path !== 'calendar_pilot_mirrors') ||
+      expected.mirrors.length > 1) return false;
+  const mirrors = db.collection('calendar_pilot_mirrors')
+    .where('sourceId', '==', expected.sourceId)
+    .where('linkId', '==', expected.appointment.id).limit(2);
+  return db.runTransaction(async (transaction) => {
+    const configuration = await transaction.get(db.collection('calendar_pilot_configuration').doc('active'));
+    const appointment = await transaction.get(expected.appointment.ref);
+    const currentMirrors = await transaction.get(mirrors);
+    const record = parseCalendarPilotRecord(CalendarPilotLeaseConfigurationRecordSchema, configuration.data());
+    assertCalendarPilotWorkerLease(record, lease);
+    return record['activeSourceId'] === expected.sourceId &&
+      unchanged(expected.appointment, appointment) &&
+      currentMirrors.size === expected.mirrors.length &&
+      expected.mirrors.every((mirror) => currentMirrors.docs.some((current) => unchanged(mirror, current)));
+  });
+}
+
 export async function settleReconciledCalendarPilotJob(
   db: Firestore,
   lease: CalendarPilotWorkerLease,

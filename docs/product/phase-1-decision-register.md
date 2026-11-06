@@ -10,6 +10,12 @@
 - 同一 `linkId` 有多筆時，只能刪除可證明由我方建立且非正本的事件；
   即使 deterministic ID 與 Firestore 的原始正本不同，也須先以 `If-Match` 條件刪除。
 - 無法判定 ownership 時 fail-closed，不刪除、記錄 conflict，該 `linkId` 不計入收斂證據。
+- 判斷事件可由我方刪除前，必須同時符合：事件 ID 是該 `linkId` 的 deterministic ID；
+  `extendedProperties.private` 的 link marker 相符；`creator.email` 或 `organizer.email`
+  等於 pilot 設定的 worker service account。任一條不足就視為 ownership 不明。
+- 獨立 reconciler 必須使用 `pageToken` 分頁掃描整個 pilot 日曆，對照 Firestore 全部
+  `linkId`，並另外處理 `needs_reconcile` 的 failed job。每輪限制筆數與時間；未完成
+  整輪掃描時不算收斂證據。正本和 stuck owner 的既有保護不變。
 
 ## 2026-11-04：INGRESS K6 與 LIST 清單契約
 

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { calendarEventId } from './calendar-pilot-event-id.js';
 import {
   planCalendarPilotReconciliation,
   runCalendarPilotReconciliation,
@@ -10,6 +11,8 @@ import {
   GoogleCalendarEventWriter,
   type CalendarWriteEvent
 } from './google-sync-client.js';
+
+const projectionId = calendarEventId('link_a');
 
 const desired: CalendarWriteEvent = {
   eventId: 'original',
@@ -33,8 +36,9 @@ function snapshot(): ReconcileSnapshot {
     blockedByOwner: false,
     inventoryComplete: true,
     mirrorEventId: 'original',
-    projectionEventId: 'projection',
+    projectionEventId: projectionId,
     projectionOwned: true,
+    workerServiceAccount: 'worker@synthetic.invalid',
     desired,
     events: [current]
   };
@@ -57,7 +61,13 @@ describe('calendar pilot reconciliation', () => {
 
   it('conditionally removes only owned duplicates and reports unknown ownership', () => {
     const matching = { ...current, title: desired.title };
-    const duplicate = { ...matching, id: 'projection', etag: '"v2"' };
+    const duplicate = {
+      ...matching,
+      id: projectionId,
+      etag: '"v2"',
+      linkMarker: 'link_a',
+      creatorEmail: 'worker@synthetic.invalid'
+    };
     expect(
       planCalendarPilotReconciliation({
         ...snapshot(),
@@ -65,9 +75,57 @@ describe('calendar pilot reconciliation', () => {
       })
     ).toEqual({
       kind: 'delete',
-      id: 'projection',
+      id: projectionId,
       etag: '"v2"'
     });
+    expect(
+      planCalendarPilotReconciliation({
+        ...snapshot(),
+        events: [matching, {
+          ...matching,
+          id: projectionId,
+          etag: '"v2"',
+          linkMarker: 'link_a'
+        }]
+      })
+    ).toEqual({ kind: 'conflict' });
+    expect(
+      planCalendarPilotReconciliation({
+        ...snapshot(),
+        mirrorEventId: projectionId,
+        desired: undefined,
+        events: [duplicate]
+      })
+    ).toEqual({ kind: 'conflict' });
+    expect(
+      planCalendarPilotReconciliation({
+        ...snapshot(),
+        events: [matching, { ...duplicate, creatorEmail: 'other@synthetic.invalid' }]
+      })
+    ).toEqual({ kind: 'conflict' });
+    expect(
+      planCalendarPilotReconciliation({
+        ...snapshot(),
+        events: [matching, { ...duplicate, linkMarker: 'another_link' }]
+      })
+    ).toEqual({ kind: 'conflict' });
+    expect(
+      planCalendarPilotReconciliation({
+        ...snapshot(),
+        events: [matching, {
+          ...duplicate,
+          creatorEmail: 'other@synthetic.invalid',
+          organizerEmail: 'worker@synthetic.invalid'
+        }]
+      })
+    ).toEqual({ kind: 'delete', id: projectionId, etag: '"v2"' });
+    expect(
+      planCalendarPilotReconciliation({
+        ...snapshot(),
+        projectionEventId: 'forged_event_id',
+        events: [matching, { ...duplicate, id: 'forged_event_id' }]
+      })
+    ).toEqual({ kind: 'conflict' });
     expect(
       planCalendarPilotReconciliation({
         ...snapshot(),
@@ -146,7 +204,8 @@ describe('calendar pilot reconciliation', () => {
         failed = false;
         return Promise.resolve(true);
       },
-      recordConflict: () => Promise.reject(new Error('unexpected conflict'))
+      recordConflict: () => Promise.reject(new Error('unexpected conflict')),
+      hasCompletedCleanFullScan: () => true
     };
     const bounds = { maxItems: 1, deadline: 100, now: () => 0 };
     expect(await runCalendarPilotReconciliation(port, bounds)).toEqual({
@@ -165,6 +224,19 @@ describe('calendar pilot reconciliation', () => {
     expect(failed).toBe(false);
     expect(apply).toHaveBeenCalledTimes(1);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not count a no-op as convergence while the full scan is incomplete', async () => {
+    const port: CalendarPilotReconciliationPort = {
+      scan: () => Promise.resolve(['link_a']),
+      read: () => Promise.resolve({ ...snapshot(), events: [{ ...current, title: desired.title }] }),
+      apply: () => Promise.reject(new Error('unexpected mutation')),
+      settleIfUnchanged: () => Promise.resolve(true),
+      recordConflict: () => Promise.reject(new Error('unexpected conflict')),
+      hasCompletedCleanFullScan: () => false
+    };
+    expect(await runCalendarPilotReconciliation(port, { maxItems: 1, deadline: 10, now: () => 0 }))
+      .toEqual({ processed: 1, converged: 0, conflicts: 0, blocked: 0 });
   });
 
   it('does not mutate or settle blocked and conflicted links', async () => {
@@ -264,6 +336,37 @@ describe('calendar pilot reconciliation', () => {
     expect(settleIfUnchanged).not.toHaveBeenCalled();
   });
 
+  it('sends an If-Match delete only for a fully proven duplicate', async () => {
+    const matching = { ...current, title: desired.title };
+    const duplicate = {
+      ...matching,
+      id: projectionId,
+      etag: '"v2"',
+      linkMarker: 'link_a',
+      creatorEmail: 'worker@synthetic.invalid'
+    };
+    const fetchImpl = vi.fn<typeof fetch>((_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(init?.method).toBe('DELETE');
+      expect(new Headers(init?.headers).get('If-Match')).toBe('"v2"');
+      return Promise.resolve(new Response(null, { status: 204 }));
+    });
+    const writer = new GoogleCalendarEventWriter(
+      'synthetic-calendar', () => Promise.resolve('synthetic-token'), fetchImpl
+    );
+    const denied = planCalendarPilotReconciliation({
+      ...snapshot(),
+      events: [matching, { ...duplicate, creatorEmail: '' }]
+    });
+    expect(denied).toEqual({ kind: 'conflict' });
+    expect(fetchImpl).not.toHaveBeenCalled();
+    const permitted = planCalendarPilotReconciliation({
+      ...snapshot(), events: [matching, duplicate]
+    });
+    if (permitted.kind !== 'delete') throw new Error('Expected conditional delete.');
+    await writer.removeWithEtag(permitted.id, permitted.etag);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
   it('uses the planned version for a duplicate delete without a replacement GET', async () => {
     const fetchImpl = vi.fn<typeof fetch>(
       (_input: RequestInfo | URL, init?: RequestInit) => {
@@ -277,7 +380,7 @@ describe('calendar pilot reconciliation', () => {
       () => Promise.resolve('synthetic-token'),
       fetchImpl
     );
-    await expect(writer.removeWithEtag('projection', '"v2"')).rejects.toThrow(
+    await expect(writer.removeWithEtag(projectionId, '"v2"')).rejects.toThrow(
       'Google Calendar write failed (412).'
     );
     expect(fetchImpl).toHaveBeenCalledTimes(1);

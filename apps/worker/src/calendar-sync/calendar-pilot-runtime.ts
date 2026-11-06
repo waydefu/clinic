@@ -33,6 +33,7 @@ import {
   createCloudAdcTokenProvider,
   createServiceAccountTokenProvider
 } from '../google-calendar.js';
+import { calendarEventId } from './calendar-pilot-event-id.js';
 import { FirestoreCalendarSyncRepository } from './firestore-calendar-sync.repository.js';
 import {
   GoogleCalendarEventReader,
@@ -428,13 +429,6 @@ export function assertExpectedMirrorEtag(
     mirror.etag !== expectedEtag
   )
     throw new Error('Calendar event version is stale.');
-}
-
-function calendarEventId(localRecordId: string): string {
-  return `calpilot${createHash('sha256')
-    .update(localRecordId)
-    .digest('hex')
-    .slice(0, 40)}`;
 }
 
 /** Private Cloud Run worker; only its service identity receives Calendar secrets. */

@@ -2,7 +2,10 @@ import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { settleReconciledCalendarPilotJob } from '../../apps/worker/src/calendar-sync/calendar-pilot-reconcile-store.js';
+import {
+  settleReconciledCalendarPilotJob,
+  verifyReconciliationDocuments
+} from '../../apps/worker/src/calendar-sync/calendar-pilot-reconcile-store.js';
 import {
   LOCAL_FIREBASE_PROJECT_ID,
   requireLocalFirestoreEmulatorTarget
@@ -73,6 +76,13 @@ async function expected() {
 }
 
 describe('CAL-PILOT reconciled job settlement', () => {
+  it('requires the appointment and mirror snapshot to remain current', async () => {
+    const before = await expected();
+    expect(await verifyReconciliationDocuments(db, lease, before)).toBe(true);
+    await mirror().set({ sourceId: 'source_a', linkId: 'synthetic_reconcile_link' });
+    expect(await verifyReconciliationDocuments(db, lease, before)).toBe(false);
+  });
+
   it('settles a matching failed job under the current lease', async () => {
     expect(
       await settleReconciledCalendarPilotJob(db, lease, await expected())

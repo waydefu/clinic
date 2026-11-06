@@ -111,12 +111,24 @@ function parseReconcileEvent(
       : storedLink !== undefined && storedLink !== linkId)
   )
     throw new Error('Calendar reconciliation event identity is invalid.');
+  const creator = event['creator'];
+  const organizer = event['organizer'];
+  const creatorEmail = typeof creator === 'object' && creator !== null
+    ? (creator as Record<string, unknown>)['email'] : undefined;
+  const organizerEmail = typeof organizer === 'object' && organizer !== null
+    ? (organizer as Record<string, unknown>)['email'] : undefined;
+  const proof = {
+    ...(typeof storedLink === 'string' ? { linkMarker: storedLink } : {}),
+    ...(typeof creatorEmail === 'string' ? { creatorEmail } : {}),
+    ...(typeof organizerEmail === 'string' ? { organizerEmail } : {})
+  };
   if (event['status'] === 'cancelled')
     return {
       id: event['id'],
       etag: event['etag'],
       linkId,
-      status: 'cancelled'
+      status: 'cancelled',
+      ...proof
     };
   const start = event['start'];
   const end = event['end'];
@@ -141,7 +153,8 @@ function parseReconcileEvent(
     status: 'confirmed',
     title: event['summary'],
     startsAt,
-    endsAt
+    endsAt,
+    ...proof
   };
 }
 
@@ -299,6 +312,69 @@ export class GoogleCalendarEventReader implements CalendarEventReader {
       events,
       ...(typeof next === 'string' ? { nextPageToken: next } : {})
     };
+  }
+
+  public async listWholeCalendarInventory(
+    maxItems: number,
+    pageToken?: string
+  ): Promise<{
+    readonly events: readonly { readonly id: string; readonly linkId?: string; readonly recurring: boolean }[];
+    readonly nextPageToken?: string;
+  }> {
+    if (!Number.isSafeInteger(maxItems) || maxItems < 1 || maxItems > 100 ||
+        (pageToken !== undefined && pageToken.trim() === ''))
+      throw new Error('Calendar reconciliation inventory bounds are invalid.');
+    const url = new URL(`${API_BASE}/calendars/${encodeURIComponent(this.calendarId)}/events`);
+    url.searchParams.set('singleEvents', 'false');
+    url.searchParams.set('showDeleted', 'true');
+    url.searchParams.set('maxResults', String(maxItems));
+    if (pageToken !== undefined) url.searchParams.set('pageToken', pageToken);
+    const token = await this.getAccessToken();
+    const response = await this.fetchImpl(url.toString(), {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS)
+    });
+    if (!response.ok)
+      throw new GoogleCalendarSyncError(
+        `Google Calendar list failed (${response.status}).`,
+        response.status,
+        retryableStatus(response.status)
+      );
+    const raw = await responseJson(response);
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw))
+      throw new Error('Calendar reconciliation inventory is invalid.');
+    const body = raw as Record<string, unknown>;
+    const next = body['nextPageToken'];
+    if ((next !== undefined && (typeof next !== 'string' || next.trim() === '')) ||
+        (body['items'] !== undefined && !Array.isArray(body['items'])))
+      throw new Error('Calendar reconciliation inventory is invalid.');
+    const items = (body['items'] ?? []) as unknown[];
+    if (items.length > maxItems) throw new Error('Calendar reconciliation inventory exceeded its bound.');
+    const events = items.map((item) => {
+      if (typeof item !== 'object' || item === null || Array.isArray(item))
+        throw new Error('Calendar reconciliation inventory event is invalid.');
+      const event = item as Record<string, unknown>;
+      if (typeof event['id'] !== 'string' || event['id'].trim() === '')
+        throw new Error('Calendar reconciliation inventory event is invalid.');
+      const extended = event['extendedProperties'];
+      if (extended !== undefined && (typeof extended !== 'object' || extended === null || Array.isArray(extended)))
+        throw new Error('Calendar reconciliation inventory event is invalid.');
+      const privateFields = typeof extended === 'object' && extended !== null
+        ? (extended as Record<string, unknown>)['private'] : undefined;
+      if (privateFields !== undefined && (typeof privateFields !== 'object' || privateFields === null || Array.isArray(privateFields)))
+        throw new Error('Calendar reconciliation inventory event is invalid.');
+      const link = typeof privateFields === 'object' && privateFields !== null
+        ? (privateFields as Record<string, unknown>)['beauessenceLinkId'] : undefined;
+      if (link !== undefined && !OpaqueIdentifierSchema.safeParse(link).success)
+        throw new Error('Calendar reconciliation inventory event is invalid.');
+      return {
+        id: event['id'],
+        recurring: event['recurrence'] !== undefined || event['recurringEventId'] !== undefined,
+        ...(typeof link === 'string' ? { linkId: link } : {})
+      };
+    });
+    return { events, ...(typeof next === 'string' ? { nextPageToken: next } : {}) };
   }
 
   public async getReconciliationOriginal(
