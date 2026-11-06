@@ -28,3 +28,15 @@ node scripts/calendar-pilot-observation-check.mjs <sanitized-json-path>
 ```
 
 輸出只有次數、blocked、conflict 和 `allConverged`；blocked 或 conflict 會使程序非零退出。檢查器無法證明觀察來源、操作確實執行、JSON 真實或外部寫入安全；不得把人工輸入當成 provider 實測。將 exact SHA、授權引用、隔離目標、觀察時間、完整分頁與獨立核對結果交由負責人驗收。此準備工作不授權或執行真實環境測試。
+
+## 操作者執行腳本（未執行）
+
+`scripts/calendar-pilot-fault-trials.mjs` 是供**另行獲准的操作者**使用的試驗執行器；本儲存庫與 CI 不執行它，也不含任何 Calendar 或 Firestore 存取程式。預設為 dry-run，只印出 50 次以上的試驗計畫（八種故障輪流），不碰任何外部系統：
+
+```text
+node scripts/calendar-pilot-fault-trials.mjs --links synthetic_a,synthetic_b [--trials 50]
+```
+
+實際執行須同時具備旗標 `--execute-synthetic-trials`、`--driver <path>`（操作者自備、經授權的 ESM 模組，匯出 `runTrial({ trial, scenario, links })`，回傳每個 link 的 `{ id, outcome, eventCount, expected, observed }`）、`--out <新檔路徑>`（已存在則拒寫），以及環境變數 `CALENDAR_PILOT_TRIAL_PROJECT_ID=beauessence-clinic-stg-c1a01`、`CALENDAR_PILOT_TRIAL_CALENDAR_ID`（須為 `synthetic…@group.calendar.google.com` 的專用合成日曆，`primary` 或一般信箱一律拒絕）、`CALENDAR_PILOT_TRIAL_AUTHORIZATION`（授權引用編號）。缺任一項即拒絕。腳本只把 expected／observed 欄位依上節規則算成 SHA-256 後寫出，不保存原始事件；輸出可直接交給 `calendar-pilot-observation-check.mjs`。
+
+參數防護自檢（離線、不連外）：`node scripts/calendar-pilot-fault-trials.selfcheck.mjs`；與 `calendar-pilot-observation-check.selfcheck.mjs` 一樣，目前須手動執行，未接入 package.json 或 CI。真實 50 次以上試驗**尚未執行**。
