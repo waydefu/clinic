@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { syntheticOpenMaintenanceControl } from '../helpers/synthetic-maintenance.js';
@@ -43,6 +44,7 @@ requireLocalFirestoreEmulatorTarget(process.env['FIRESTORE_EMULATOR_HOST']);
 
 const NOW = '2026-09-01T00:00:00.000Z';
 const DEADLINE = '2026-09-01T00:04:00.000Z';
+const SYNTHETIC_ETAG = '"synthetic-etag"';
 const SOURCE = C1_SYNTHETIC_CALENDAR_SOURCE_ID;
 const CONFIG = 'calendar_pilot_configuration';
 const OUTBOX = 'calendar_pilot_outbox';
@@ -72,6 +74,21 @@ const dispatch = vi.fn<typeof fetch>();
 let afterDispatch: () => void | Promise<void>;
 let restoreEngine = () => {};
 let engineCallCount = () => 0;
+let mutationFailure:
+  | {
+      readonly method: 'PATCH' | 'DELETE';
+      readonly status?: number;
+      readonly unknown?: boolean;
+    }
+  | undefined;
+
+function requestsForEvent(eventId: string) {
+  return dispatch.mock.calls.filter(([url]) => {
+    const target =
+      typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
+    return new URL(target).pathname.endsWith(`/events/${eventId}`);
+  });
+}
 
 async function wipe(): Promise<void> {
   for (const collection of collections) {
@@ -99,6 +116,27 @@ function run() {
   ).run(NOW);
 }
 
+function reconcile() {
+  return new CalendarPilotRuntime(
+    db,
+    {
+      ...environment,
+      CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL: 'worker@synthetic.invalid'
+    },
+    now,
+    syntheticOpenMaintenanceControl()
+  ).runReconciliationRound();
+}
+
+async function completeReconciliation() {
+  for (let i = 0; i < 20; i += 1) {
+    const result = await reconcile();
+    if ('state' in result && result.state?.phase === 'complete') return result;
+    expect(result.converged).toBe(false);
+  }
+  throw new Error('Synthetic reconciliation did not complete.');
+}
+
 beforeAll(() => {
   app = initializeApp(
     { projectId: LOCAL_FIREBASE_PROJECT_ID },
@@ -111,15 +149,48 @@ beforeEach(async () => {
   clock = NOW;
   providers.beforeToken = () => {};
   afterDispatch = () => {};
+  mutationFailure = undefined;
   dispatch.mockReset();
-  dispatch.mockImplementation(async (url) => {
+  dispatch.mockImplementation(async (url, init) => {
     // Unexpected provider destinations are test failures, not a network fallback.
     const target =
       typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
     expect(target.startsWith('https://www.googleapis.com/calendar/v3/')).toBe(
       true
     );
+    const method = init?.method ?? 'GET';
+    if (method === 'GET' && new URL(target).pathname.includes('/events/')) {
+      const eventId = new URL(target).pathname.split('/').at(-1);
+      const linkId =
+        ['job_a', 'job_b'].find(
+          (id) =>
+            eventId ===
+            `calpilot${createHash('sha256').update(id).digest('hex').slice(0, 40)}`
+        ) ??
+        (eventId?.startsWith('calpilotpreflight')
+          ? `preflight_${eventId.slice('calpilotpreflight'.length)}`
+          : undefined);
+      if (linkId === undefined) throw new Error('Unknown synthetic event.');
+      return Response.json({
+        id: eventId,
+        etag: SYNTHETIC_ETAG,
+        status: 'confirmed',
+        summary: 'Synthetic event',
+        start: { dateTime: '2026-09-01T04:00:00.000Z' },
+        end: { dateTime: '2026-09-01T04:30:00.000Z' },
+        extendedProperties: { private: { beauessenceLinkId: linkId } }
+      });
+    }
+    if (method === 'PATCH' || method === 'DELETE')
+      expect(new Headers(init?.headers).get('If-Match')).toBe(SYNTHETIC_ETAG);
     await afterDispatch();
+    const failure = mutationFailure;
+    if (failure !== undefined && failure.method === method) {
+      mutationFailure = undefined;
+      if (failure.unknown)
+        throw new Error('synthetic mutation outcome unknown');
+      return new Response(null, { status: failure.status });
+    }
     return Response.json({ items: [] });
   });
   vi.stubGlobal('fetch', dispatch);
@@ -161,6 +232,311 @@ afterAll(async () => {
 });
 
 describe('CAL-PILOT dispatch and completion use live lease state', () => {
+  it('reports a stuck reconciliation owner without touching the provider', async () => {
+    await configuration().update({
+      workerLeaseOwner: 'synthetic_previous_owner',
+      workerLeaseExpiresAt: '2026-08-31T23:59:59.000Z'
+    });
+    const runtime = new CalendarPilotRuntime(
+      db,
+      {
+        ...environment,
+        CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL: 'worker@synthetic.invalid'
+      },
+      now,
+      syntheticOpenMaintenanceControl()
+    );
+    await expect(runtime.runReconciliationRound()).resolves.toMatchObject({
+      acquired: false,
+      blocked: 'owner_present',
+      converged: false
+    });
+    expect(dispatch).not.toHaveBeenCalled();
+    expect((await configuration().get()).data()?.['workerLeaseOwner']).toBe(
+      'synthetic_previous_owner'
+    );
+  });
+
+  it('runs two independent synthetic full scans without provider mutations', async () => {
+    await db.collection(OUTBOX).doc('job_a').delete();
+    await db.collection(OUTBOX).doc('job_b').delete();
+    const runtime = () =>
+      new CalendarPilotRuntime(
+        db,
+        {
+          ...environment,
+          CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL:
+            'worker@synthetic.invalid'
+        },
+        now,
+        syntheticOpenMaintenanceControl()
+      );
+    async function fullPass() {
+      for (let i = 0; i < 10; i += 1) {
+        const result = await runtime().runReconciliationRound();
+        expect(result.acquired).toBe(true);
+        if (!('state' in result) || result.state === undefined)
+          throw new Error('Expected synthetic scan state.');
+        const next = result.state;
+        if (next.phase === 'complete') return result;
+        expect(result.converged).toBe(false);
+      }
+      throw new Error('Synthetic scan did not complete.');
+    }
+    expect(await fullPass()).toMatchObject({ acquired: true, converged: true });
+    expect(await fullPass()).toMatchObject({ acquired: true, converged: true });
+    expect(dispatch).toHaveBeenCalledTimes(2);
+    expect(
+      dispatch.mock.calls.every(
+        (call: [RequestInfo | URL, RequestInit?]) => call[1]?.method === 'GET'
+      )
+    ).toBe(true);
+  });
+  it('resumes a saved page after restart and resets an invalid page token', async () => {
+    const tokens: (string | null)[] = [];
+    dispatch.mockImplementation((url: RequestInfo | URL) => {
+      const target =
+        typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
+      const token = new URL(target).searchParams.get('pageToken');
+      tokens.push(token);
+      return Promise.resolve(
+        token === 'next'
+          ? new Response(null, { status: 410 })
+          : Response.json(
+              tokens.length === 1
+                ? { items: [], nextPageToken: 'next' }
+                : { items: [] }
+            )
+      );
+    });
+    const runtime = () =>
+      new CalendarPilotRuntime(
+        db,
+        {
+          ...environment,
+          CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL:
+            'worker@synthetic.invalid'
+        },
+        now,
+        syntheticOpenMaintenanceControl()
+      );
+    expect(await runtime().runReconciliationRound()).toMatchObject({
+      converged: false
+    });
+    expect(
+      (await configuration().get()).data()?.['reconciliationScan']
+    ).toMatchObject({
+      startedAt: NOW,
+      inFlight: null,
+      state: { pageToken: 'next' }
+    });
+    expect(await runtime().runReconciliationRound()).toMatchObject({
+      blocked: 'page_token_expired',
+      converged: false
+    });
+    expect(
+      (await configuration().get()).data()?.['reconciliationScan']
+    ).toMatchObject({ state: null, inFlight: null });
+    expect(await runtime().runReconciliationRound()).toMatchObject({
+      converged: false
+    });
+    expect(tokens).toEqual([null, 'next', null]);
+    expect(await completeReconciliation()).toMatchObject({ converged: false });
+    const conflicts = await db
+      .collection('calendar_pilot_audit_events')
+      .where('action', '==', 'calendar_reconciliation_conflict')
+      .get();
+    expect(conflicts.size).toBeGreaterThan(0);
+  });
+
+  it('discards an expired cursor without reporting convergence', async () => {
+    const tokens: (string | null)[] = [];
+    dispatch.mockImplementation((url: RequestInfo | URL) => {
+      const target =
+        typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
+      tokens.push(new URL(target).searchParams.get('pageToken'));
+      return Promise.resolve(
+        Response.json(
+          tokens.length === 1
+            ? { items: [], nextPageToken: 'next' }
+            : { items: [] }
+        )
+      );
+    });
+    const runtime = () =>
+      new CalendarPilotRuntime(
+        db,
+        {
+          ...environment,
+          CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL:
+            'worker@synthetic.invalid'
+        },
+        now,
+        syntheticOpenMaintenanceControl()
+      );
+    await runtime().runReconciliationRound();
+    await configuration().update({
+      'reconciliationScan.startedAt': '2026-08-30T00:00:00.000Z'
+    });
+    expect(await runtime().runReconciliationRound()).toMatchObject({
+      converged: false
+    });
+    expect(tokens).toEqual([null, null]);
+    expect(await completeReconciliation()).toMatchObject({ converged: false });
+    const conflicts = await db
+      .collection('calendar_pilot_audit_events')
+      .where('action', '==', 'calendar_reconciliation_conflict')
+      .get();
+    expect(conflicts.size).toBeGreaterThan(0);
+  });
+
+  it('rejects a checkpoint changed after its lease-protected read', async () => {
+    dispatch.mockImplementation(async () => {
+      await configuration().update({
+        'reconciliationScan.state': { changed: true }
+      });
+      return Response.json({ items: [] });
+    });
+    const runtime = new CalendarPilotRuntime(
+      db,
+      {
+        ...environment,
+        CALENDAR_PILOT_WORKER_SERVICE_ACCOUNT_EMAIL: 'worker@synthetic.invalid'
+      },
+      now,
+      syntheticOpenMaintenanceControl()
+    );
+    await expect(runtime.runReconciliationRound()).rejects.toThrow();
+    expect(
+      (await configuration().get()).data()?.['reconciliationScan']
+    ).toMatchObject({ state: { changed: true } });
+  });
+
+  it('does not reclaim an expired owner without proof it stopped', async () => {
+    await configuration().update({
+      workerLeaseOwner: 'previous-worker',
+      workerLeaseExpiresAt: '2026-08-31T23:59:59.000Z'
+    });
+
+    await expect(run()).resolves.toMatchObject({ acquired: false });
+    expect(dispatch).not.toHaveBeenCalled();
+    expect((await configuration().get()).data()).toMatchObject({
+      workerLeaseOwner: 'previous-worker'
+    });
+    expect(await state('job_a')).toMatchObject({ status: 'pending' });
+  });
+
+  it('keeps the owner after an unknown transport outcome and denies takeover', async () => {
+    dispatch.mockRejectedValue(new Error('synthetic transport failure'));
+
+    await expect(run()).rejects.toThrow(/lease/iu);
+    const quarantined = (await configuration().get()).data();
+    expect(quarantined?.['workerLeaseOwner']).toEqual(expect.any(String));
+    expect(await state('job_a')).toMatchObject({
+      status: 'failed',
+      lastErrorCode: 'needs_reconcile'
+    });
+    expect(dispatch).toHaveBeenCalledTimes(1);
+
+    clock = '2026-09-01T00:05:00.000Z';
+    const successor = new CalendarPilotRuntime(
+      db,
+      environment,
+      now,
+      syntheticOpenMaintenanceControl()
+    );
+    await expect(successor.run(clock)).resolves.toMatchObject({
+      acquired: false
+    });
+    expect((await configuration().get()).data()).toMatchObject({
+      workerLeaseOwner: quarantined?.['workerLeaseOwner']
+    });
+    expect(dispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not start cleanup after an uncertain preflight write', async () => {
+    await db.collection(OUTBOX).doc('job_b').delete();
+    await seedJob('job_a', 'calendar_source_preflight');
+    dispatch
+      .mockResolvedValueOnce(Response.json({ items: [] }))
+      .mockRejectedValueOnce(new Error('synthetic transport failure'));
+
+    await expect(run()).rejects.toThrow(/lease/iu);
+    expect(dispatch).toHaveBeenCalledTimes(2);
+    expect(dispatch.mock.calls[0]?.[1]?.method).toBe('GET');
+    expect(dispatch.mock.calls[1]?.[1]?.method).toBe('POST');
+    expect(await state('job_a')).toMatchObject({
+      status: 'failed',
+      lastErrorCode: 'needs_reconcile'
+    });
+    expect((await configuration().get()).data()?.['workerLeaseOwner']).toEqual(
+      expect.any(String)
+    );
+  });
+
+  it('denies a second transport while the first is in flight', async () => {
+    await configuration().update({
+      workerLeaseOwner: 'worker_a',
+      workerLeaseExpiresAt: DEADLINE
+    });
+    let release = () => {};
+    let started = () => {};
+    const barrier = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const reached = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    dispatch.mockImplementationOnce(async () => {
+      started();
+      await barrier;
+      const eventId = `calpilot${createHash('sha256')
+        .update('job_a')
+        .digest('hex')
+        .slice(0, 40)}`;
+      return Response.json({
+        id: eventId,
+        etag: SYNTHETIC_ETAG,
+        status: 'confirmed',
+        summary: 'Synthetic event',
+        start: { dateTime: '2026-09-01T04:00:00.000Z' },
+        end: { dateTime: '2026-09-01T04:30:00.000Z' },
+        extendedProperties: { private: { beauessenceLinkId: 'job_a' } }
+      });
+    });
+    const runtime = new CalendarPilotRuntime(
+      db,
+      environment,
+      now,
+      syntheticOpenMaintenanceControl()
+    );
+    const guarded = runtime['guardedFetch']({
+      owner: 'worker_a',
+      generation: 1,
+      now,
+      dispatch: { pending: 0 },
+      timing: { wall: Date.parse(now()), monotonic: performance.now() }
+    });
+    const url =
+      'https://www.googleapis.com/calendar/v3/calendars/synthetic-calendar-id/events';
+    const first = guarded(url);
+    try {
+      await Promise.race([
+        reached,
+        first.then(() => {
+          throw new Error('The first transport did not reach the barrier.');
+        })
+      ]);
+      await expect(guarded(url)).rejects.toThrow(/lease/iu);
+      expect(dispatch).toHaveBeenCalledTimes(1);
+    } finally {
+      release();
+    }
+    await expect(first).resolves.toMatchObject({ status: 200 });
+    await expect(guarded(url)).resolves.toMatchObject({ status: 200 });
+    expect(dispatch).toHaveBeenCalledTimes(2);
+  });
+
   it('serializes concurrent complete runs behind the global lease', async () => {
     let releaseToken = () => {};
     let signalToken = () => {};
@@ -223,7 +599,7 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
         processedJobs: 2,
         failedJobs: 0
       });
-      expect(dispatch).toHaveBeenCalledTimes(2);
+      expect(dispatch).toHaveBeenCalledTimes(4);
       expect(engineCallCount()).toBe(1);
       expect(await state('job_a')).toMatchObject({
         status: 'completed',
@@ -280,54 +656,110 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
       processedJobs: 2,
       failedJobs: 0
     });
-    expect(dispatch).toHaveBeenCalledTimes(2);
+    expect(dispatch).toHaveBeenCalledTimes(4);
   });
 
-  it('retains retry backoff and does not count a requeued job as a terminal failure', async () => {
-    dispatch.mockResolvedValueOnce(new Response(null, { status: 503 }));
-    await expect(run()).resolves.toMatchObject({
-      processedJobs: 1,
-      failedJobs: 0
-    });
-    expect(await state('job_a')).toMatchObject({
-      status: 'pending',
-      attemptCount: 1,
-      nextAttemptAt: '2026-09-01T00:00:20.000Z',
-      leaseOwner: null
-    });
-    expect((await state('job_b'))?.['status']).toBe('completed');
-  });
+  it.each([
+    { name: '412 precondition failure', status: 412, leaseRetained: false },
+    { name: '503 retryable response', status: 503, leaseRetained: true },
+    { name: 'unknown transport outcome', unknown: true, leaseRetained: true }
+  ])(
+    'quarantines a conditional DELETE on $name without retrying other jobs',
+    async ({
+      status,
+      unknown,
+      leaseRetained
+    }: {
+      status?: number;
+      unknown?: boolean;
+      leaseRetained: boolean;
+    }) => {
+      mutationFailure = {
+        method: 'DELETE',
+        ...(status === undefined ? {} : { status }),
+        ...(unknown === true ? { unknown: true } : {})
+      };
+      await expect(run()).rejects.toThrow(/lease/iu);
+      expect(await state('job_a')).toMatchObject({
+        status: 'failed',
+        lastErrorCode: 'needs_reconcile',
+        attemptCount: 0,
+        leaseOwner: null
+      });
+      expect((await state('job_b'))?.['status']).toBe('processing');
+      const owner = (await configuration().get()).data()?.['workerLeaseOwner'];
+      if (leaseRetained) expect(owner).toEqual(expect.any(String));
+      else expect(owner).toBeNull();
+      const eventId = `calpilot${createHash('sha256').update('job_a').digest('hex').slice(0, 40)}`;
+      const requests = requestsForEvent(eventId);
+      expect(requests.map(([, init]) => init?.method)).toEqual([
+        'GET',
+        'DELETE'
+      ]);
+      expect(new Headers(requests[1]?.[1]?.headers).get('If-Match')).toBe(
+        SYNTHETIC_ETAG
+      );
+      expect(dispatch).toHaveBeenCalledTimes(2);
+      if (leaseRetained) {
+        await expect(reconcile()).resolves.toMatchObject({
+          acquired: false,
+          blocked: 'owner_present',
+          converged: false
+        });
+        expect(dispatch).toHaveBeenCalledTimes(2);
+      } else {
+        expect(await completeReconciliation()).toMatchObject({
+          converged: false
+        });
+        const conflicts = await db
+          .collection('calendar_pilot_audit_events')
+          .where('action', '==', 'calendar_reconciliation_conflict')
+          .get();
+        expect(conflicts.size).toBeGreaterThan(0);
+      }
+    }
+  );
 
-  it('retains the fifth-attempt terminal failure limit', async () => {
+  it('does not retry a provider error even after earlier attempts', async () => {
     await db.collection(OUTBOX).doc('job_a').update({ attemptCount: 4 });
-    dispatch.mockResolvedValueOnce(new Response(null, { status: 503 }));
-    await expect(run()).resolves.toMatchObject({
-      processedJobs: 1,
-      failedJobs: 1
-    });
+    mutationFailure = { method: 'DELETE', status: 503 };
+    await expect(run()).rejects.toThrow(/lease/iu);
     expect(await state('job_a')).toMatchObject({
       status: 'failed',
       leaseOwner: null,
-      lastErrorCode: 'calendar_api_error'
+      lastErrorCode: 'needs_reconcile',
+      attemptCount: 4
     });
     expect(await state('job_a')).not.toHaveProperty('nextAttemptAt');
+    expect(dispatch).toHaveBeenCalledTimes(2);
   });
 
-  it('lets a later owner recover both still-processing expired jobs', async () => {
+  it('recovers expired jobs only after simulated stub isolation', async () => {
     afterDispatch = () => {
       clock = DEADLINE;
     };
     await expect(run()).rejects.toThrow(/lease/iu);
     const oldOwner = (await state('job_a'))?.['leaseOwner'];
     afterDispatch = () => {};
-    await expect(
-      new CalendarPilotRuntime(
-        db,
-        environment,
-        now,
-        syntheticOpenMaintenanceControl()
-      ).run(clock)
-    ).resolves.toMatchObject({ processedJobs: 2, failedJobs: 0 });
+    const successor = new CalendarPilotRuntime(
+      db,
+      environment,
+      now,
+      syntheticOpenMaintenanceControl()
+    );
+    await expect(successor.run(clock)).resolves.toMatchObject({
+      acquired: false
+    });
+    expect(dispatch).toHaveBeenCalledTimes(2);
+    // Test-only: the awaited stub has settled; this is not a real recovery path.
+    await configuration().update({
+      workerLeaseOwner: null,
+      workerLeaseExpiresAt: null
+    });
+    await expect(successor.run(clock)).resolves.toMatchObject({
+      processedJobs: 2,
+      failedJobs: 0
+    });
     expect(oldOwner).toEqual(expect.any(String));
     expect(await state('job_a')).toMatchObject({
       status: 'completed',
@@ -364,7 +796,7 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
       processedJobs: 2,
       failedJobs: 0
     });
-    expect(dispatch).toHaveBeenCalledTimes(2);
+    expect(dispatch).toHaveBeenCalledTimes(4);
     expect(await state('job_a')).toMatchObject({
       status: 'completed',
       completedAt: NOW,
@@ -384,7 +816,7 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
       clock = DEADLINE;
     };
     await expect(run()).rejects.toThrow(/lease/iu);
-    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledTimes(2);
     expect(await state('job_a')).toMatchObject({
       status: 'processing',
       leaseExpiresAt: DEADLINE
@@ -441,13 +873,16 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
           return result;
         }
       );
+      let tokenCalls = 0;
       providers.beforeToken = () => {
-        changeAfterNextReply = true;
+        tokenCalls += 1;
+        if (tokenCalls === 2) changeAfterNextReply = true;
       };
       await expect(run()).rejects.toThrow(/lease/iu);
       // The closure rechecks the clock, not the database snapshot. One request
       // can cross this window; the post-response check prevents later work.
-      expect(dispatch).toHaveBeenCalledTimes(1);
+      expect(dispatch).toHaveBeenCalledTimes(2);
+      expect(dispatch.mock.calls[1]?.[1]?.method).toBe('DELETE');
       expect((await state('job_a'))?.['status']).toBe('processing');
       expect((await state('job_b'))?.['status']).toBe('processing');
       expect((await configuration().get()).data()).toMatchObject(change);
@@ -456,15 +891,15 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
   );
 
   it('cannot complete or dispatch a later job after configuration expiry', async () => {
-    await configuration().update({ expiresAt: '2026-09-01T00:00:01.000Z' });
+    await configuration().update({ expiresAt: '2026-09-01T00:00:10.000Z' });
     afterDispatch = () => {
-      clock = '2026-09-01T00:00:01.000Z';
+      clock = '2026-09-01T00:00:10.000Z';
     };
     await expect(run()).rejects.toThrow(/lease/iu);
-    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledTimes(2);
     expect((await state('job_a'))?.['status']).toBe('processing');
     expect((await configuration().get()).data()?.['expiresAt']).toBe(
-      '2026-09-01T00:00:01.000Z'
+      '2026-09-01T00:00:10.000Z'
     );
   });
 
@@ -476,11 +911,17 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
       });
     };
     await expect(run()).rejects.toThrow(/lease/iu);
-    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledTimes(2);
     expect((await state('job_a'))?.['status']).toBe('processing');
     expect((await configuration().get()).data()?.['workerLeaseOwner']).toBe(
       'successor'
     );
+    await expect(reconcile()).resolves.toMatchObject({
+      acquired: false,
+      blocked: 'owner_present',
+      converged: false
+    });
+    expect(dispatch).toHaveBeenCalledTimes(2);
   });
 
   it('cannot complete or keep dispatching after the current job is taken over', async () => {
@@ -491,7 +932,7 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
         .update({ leaseOwner: 'successor' });
     };
     await expect(run()).rejects.toThrow(/lease/iu);
-    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledTimes(2);
     expect(await state('job_a')).toMatchObject({
       status: 'processing',
       leaseOwner: 'successor'
@@ -509,24 +950,24 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
         await configuration().update(change);
       };
       await expect(run()).rejects.toThrow(/lease/iu);
-      expect(dispatch).toHaveBeenCalledTimes(1);
+      expect(dispatch).toHaveBeenCalledTimes(2);
       expect((await state('job_a'))?.['status']).toBe('processing');
       expect(engineCallCount()).toBe(0);
     }
   );
 
   it('does not requeue an expired worker after a retryable provider failure', async () => {
-    dispatch.mockImplementation(() => {
+    mutationFailure = { method: 'DELETE', status: 503 };
+    afterDispatch = () => {
       clock = DEADLINE;
-      return Promise.resolve(new Response(null, { status: 503 }));
-    });
+    };
     await expect(run()).rejects.toThrow(/lease/iu);
     expect(await state('job_a')).toMatchObject({
       status: 'processing',
       attemptCount: 0
     });
     expect(await state('job_a')).not.toHaveProperty('nextAttemptAt');
-    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledTimes(2);
   });
 
   it.each([NOW, 'not-a-timestamp'])(
@@ -546,10 +987,10 @@ describe('CAL-PILOT dispatch and completion use live lease state', () => {
     await db.collection(OUTBOX).doc('job_b').delete();
     await seedJob('job_a', 'calendar_source_preflight');
     afterDispatch = () => {
-      if (dispatch.mock.calls.length === 3) clock = DEADLINE;
+      if (dispatch.mock.calls.length === 4) clock = DEADLINE;
     };
     await expect(run()).rejects.toThrow(/lease/iu);
-    expect(dispatch).toHaveBeenCalledTimes(3);
+    expect(dispatch).toHaveBeenCalledTimes(4);
     expect(
       (await db.collection('calendar_pilot_preflights').doc('job_a').get())
         .exists

@@ -10,6 +10,7 @@ import {
   CalendarPilotSourceRecordSchema,
   CalendarPilotSyncStateRecordSchema,
   CalendarSourcePreflightResponseSchema,
+  hasCalendarPilotWorkerLease,
   parseCalendarPilotRecord
 } from '@beauessence/contracts';
 import {
@@ -623,6 +624,8 @@ export class FirestoreCalendarSyncRepository
       );
       if (configuration.version !== input.expectedVersion)
         throw new Error('CAL-PILOT source generation changed.');
+      if (hasCalendarPilotWorkerLease(configuration))
+        throw new Error('CAL-PILOT worker lease is held.');
       transaction.update(this.configRef(), {
         activeSourceId: input.sourceId,
         previousSourceId: configuration.activeSourceId,
