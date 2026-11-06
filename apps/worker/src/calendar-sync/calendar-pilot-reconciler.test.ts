@@ -51,6 +51,14 @@ describe('calendar pilot reconciliation', () => {
     expect(planCalendarPilotReconciliation({ ...snapshot(), blockedByOwner: true })).toEqual({ kind: 'blocked' });
   });
 
+  it('treats equivalent provider timestamp representations as a no-op', () => {
+    const event = {
+      ...current, title: desired.title,
+      startsAt: '2026-11-06T09:00:00+08:00', endsAt: '2026-11-06T09:30:00+08:00'
+    };
+    expect(planCalendarPilotReconciliation({ ...snapshot(), events: [event] })).toEqual({ kind: 'no-op' });
+  });
+
   it('patches in the first round and only settles after the second round is a no-op', async () => {
     let state: ReconcileSnapshot = { ...snapshot(), events: [{ ...current, status: 'cancelled' as const }] };
     let failed = true;

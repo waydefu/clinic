@@ -29,13 +29,20 @@ export type ReconcileAction =
   | { readonly kind: 'patch'; readonly event: CalendarWriteEvent; readonly etag: string }
   | { readonly kind: 'delete'; readonly id: string; readonly etag: string };
 
+function sameInstant(left: string | undefined, right: string): boolean {
+  if (left === undefined || !/(?:Z|[+-]\d{2}:\d{2})$/u.test(left) || !/(?:Z|[+-]\d{2}:\d{2})$/u.test(right))
+    return false;
+  const instant = Date.parse(left);
+  return Number.isFinite(instant) && instant === Date.parse(right);
+}
+
 function sameEvent(event: ReconcileEvent, desired: CalendarWriteEvent): boolean {
   return (
     event.status === 'confirmed' &&
     event.title === desired.title &&
     'startsAt' in desired &&
-    event.startsAt === desired.startsAt &&
-    event.endsAt === desired.endsAt
+    sameInstant(event.startsAt, desired.startsAt) &&
+    sameInstant(event.endsAt, desired.endsAt)
   );
 }
 
