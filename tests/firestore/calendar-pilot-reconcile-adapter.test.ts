@@ -10,13 +10,15 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import {
   CalendarPilotLeaseConfigurationRecordSchema,
   parseCalendarPilotRecord
-} from '@beauessence/contracts';
-import { formatSyntheticAppointmentTitle } from '@beauessence/domain';
+} from '../../packages/contracts/src/index.js';
+import { formatSyntheticAppointmentTitle } from '../../packages/domain/src/index.js';
 
 import {
   FirestoreCalendarPilotReconciliationAdapter,
   type CalendarPilotReconcileExpectation
 } from '../../apps/worker/src/calendar-sync/calendar-pilot-reconcile-adapter.js';
+import { FirestoreCalendarPilotFullScanPort } from '../../apps/worker/src/calendar-sync/calendar-pilot-full-scan-adapter.js';
+import { runCalendarPilotFullScanRound, type CalendarPilotFullScanState } from '../../apps/worker/src/calendar-sync/calendar-pilot-full-scan.js';
 import {
   planCalendarPilotReconciliation,
   runCalendarPilotReconciliation,
@@ -232,6 +234,9 @@ function event(
     etag: values.etag,
     linkId: values.linkId ?? LINK_A,
     status: values.status ?? 'confirmed',
+    ...(values.linkMarker === undefined ? {} : { linkMarker: values.linkMarker }),
+    ...(values.creatorEmail === undefined ? {} : { creatorEmail: values.creatorEmail }),
+    ...(values.organizerEmail === undefined ? {} : { organizerEmail: values.organizerEmail }),
     ...(values.title === undefined ? {} : { title: values.title }),
     ...(values.startsAt === undefined ? {} : { startsAt: values.startsAt }),
     ...(values.endsAt === undefined ? {} : { endsAt: values.endsAt })
@@ -490,6 +495,48 @@ describe('Firestore CAL-PILOT reconciliation adapter', () => {
         'Calendar reconciliation changed before apply.'
       );
     expect(writes).toEqual([]);
+  });
+
+  it('fully scans a completed job and a second complete pass is a no-op', async () => {
+    await seedMirror();
+    await seedJob(JOB_A, LINK_A, { status: 'completed', lastErrorCode: null });
+    const title = formatSyntheticAppointmentTitle({
+      patientCode: 'A17', bookingKind: 'initial', serviceId: 'service_snoring'
+    });
+    const original = event({ id: 'synthetic_original_event', etag: '"original-v1"', title,
+      startsAt: '2026-11-06T01:00:00.000Z', endsAt: '2026-11-06T01:30:00.000Z' });
+    const duplicateId = `calpilot${createHash('sha256').update(LINK_A).digest('hex').slice(0, 40)}`;
+    const duplicate = event({ ...original, id: duplicateId, etag: '"duplicate-v1"',
+      linkMarker: LINK_A, creatorEmail: 'worker@synthetic.invalid' });
+    const writes: string[] = [];
+    const reconciler = makeAdapter({ writes, reader: {
+      listReconciliationEvents: () => Promise.resolve({ events: writes.length === 0 ? [duplicate] : [] }),
+      getReconciliationOriginal: () => Promise.resolve(original)
+    } });
+    const conflicts: string[] = [];
+    const port = new FirestoreCalendarPilotFullScanPort({
+      db, lease, sourceId: 'source_a', reconciler,
+      recordUnattributedConflict: (id) => { conflicts.push(id); return Promise.resolve(); },
+      reader: { listWholeCalendarInventory: (_limit, token) => Promise.resolve(token === undefined
+        ? { events: [{ id: original.id, recurring: false }], nextPageToken: 'page_2' }
+        : { events: writes.length === 0 ? [{ id: duplicateId, linkId: LINK_A, recurring: false }] : [] }) }
+    });
+    const options = { scope: 'synthetic-source-v1', maxItems: 2, deadline: 100, now: () => 0 };
+    async function fullPass(): Promise<boolean> {
+      let state: CalendarPilotFullScanState | undefined;
+      for (let i = 0; i < 100; i += 1) {
+        const result = await runCalendarPilotFullScanRound(port, options, state);
+        if (result.state.phase !== 'complete') expect(result.converged).toBe(false);
+        state = result.state;
+        if (state.phase === 'complete') return result.converged;
+      }
+      throw new Error('Synthetic full scan did not complete.');
+    }
+    expect(await fullPass()).toBe(false);
+    expect(writes).toEqual([`delete:${duplicateId}`]);
+    expect(await fullPass()).toBe(true);
+    expect(writes).toEqual([`delete:${duplicateId}`]);
+    expect(conflicts).toEqual([]);
   });
 
   it('resumes bounded scans from its opaque document cursor', async () => {
