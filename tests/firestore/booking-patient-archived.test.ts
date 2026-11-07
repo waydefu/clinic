@@ -425,7 +425,7 @@ describe('archive identity-review attention before explicit relink', () => {
         await db.collection(PATIENT_COLLECTIONS.patients).doc(oldId).get()
       ).data()
     ).toEqual(oldSnapshot);
-    const listed = await directory.listClinic(10);
+    const { records: listed } = await directory.listClinic(10);
     expect(listed).toHaveLength(1);
     expect(listed[0]).toHaveProperty('identityReviewRequired', true);
     expect(JSON.stringify(listed)).not.toContain(oldId);

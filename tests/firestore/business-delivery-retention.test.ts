@@ -354,7 +354,7 @@ describe('archive and restore', () => {
     ).toMatchObject({ patientArchived: true });
 
     const directory = new FirestorePatientDirectory(db);
-    await expect(directory.listClinic(50)).resolves.toEqual([]);
+    await expect(directory.listClinic(50)).resolves.toEqual({ records: [] });
     await expect(
       directory.lookupReturn(
         '0900000001',

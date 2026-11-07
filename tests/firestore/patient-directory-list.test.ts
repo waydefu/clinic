@@ -5,9 +5,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { COLLECTIONS } from '../../apps/api/src/firestore/booking.repository.js';
 import {
   FirestorePatientDirectory,
-  type AppointmentListPosition
+  type AppointmentListPosition,
+  type AppointmentListResult
 } from '../../apps/api/src/patients/patient-directory.js';
-import type { AppointmentRecord } from '../../apps/api/src/appointments/appointment.repository-port.js';
 import {
   LOCAL_FIREBASE_PROJECT_ID,
   requireLocalFirestoreEmulatorTarget
@@ -97,7 +97,7 @@ describe('staff appointment lists and archived rows (AUD-07, partial)', () => {
   it('listClinic still returns `limit` active rows when archived rows sort earlier', async () => {
     await seedArchivedThenActive(7, 5);
 
-    const rows = await directory.listClinic(3);
+    const { records: rows } = await directory.listClinic(3);
 
     expect(rows.map((row) => row.appointmentId)).toEqual([
       'appt_live_0',
@@ -113,7 +113,7 @@ describe('staff appointment lists and archived rows (AUD-07, partial)', () => {
       patientId: 'patient_list_other'
     });
 
-    const rows = await directory.listByPatient(PATIENT_ID, 3);
+    const { records: rows } = await directory.listByPatient(PATIENT_ID, 3);
 
     expect(rows.map((row) => row.appointmentId)).toEqual([
       'appt_live_0',
@@ -125,8 +125,8 @@ describe('staff appointment lists and archived rows (AUD-07, partial)', () => {
   it('returns every active row, in startsAt order, when fewer than `limit` exist', async () => {
     await seedArchivedThenActive(7, 5);
 
-    const clinic = await directory.listClinic(50);
-    const mine = await directory.listByPatient(PATIENT_ID, 50);
+    const { records: clinic } = await directory.listClinic(50);
+    const { records: mine } = await directory.listByPatient(PATIENT_ID, 50);
 
     const expected = [0, 1, 2, 3, 4].map((index) => `appt_live_${index}`);
     expect(clinic.map((row) => row.appointmentId)).toEqual(expected);
@@ -141,7 +141,7 @@ describe('staff appointment lists and archived rows (AUD-07, partial)', () => {
     await seedAppointment('appt_e', 4, { archived: true });
     await seedAppointment('appt_f', 5, {});
 
-    const rows = await directory.listClinic(2);
+    const { records: rows } = await directory.listClinic(2);
 
     expect(rows.map((row) => row.appointmentId)).toEqual(['appt_a', 'appt_d']);
   });
@@ -154,7 +154,7 @@ describe('staff appointment lists and archived rows (AUD-07, partial)', () => {
       patientId: ARCHIVED_PATIENT_ID
     });
 
-    const rows = await directory.listClinic(50);
+    const { records: rows } = await directory.listClinic(50);
 
     expect(rows.map((row) => row.appointmentId)).toEqual([
       'appt_missing',
@@ -165,14 +165,16 @@ describe('staff appointment lists and archived rows (AUD-07, partial)', () => {
   it('returns nothing, without looping, when every row is archived', async () => {
     await seedArchivedThenActive(9, 0);
 
-    await expect(directory.listClinic(3)).resolves.toEqual([]);
-    await expect(directory.listByPatient(PATIENT_ID, 3)).resolves.toEqual([]);
+    await expect(directory.listClinic(3)).resolves.toEqual({ records: [] });
+    await expect(directory.listByPatient(PATIENT_ID, 3)).resolves.toEqual({
+      records: []
+    });
   });
 
   it('is unchanged when no row is archived and the page is exactly full', async () => {
     await seedArchivedThenActive(0, 3);
 
-    const rows = await directory.listClinic(3);
+    const { records: rows } = await directory.listClinic(3);
 
     expect(rows.map((row) => row.appointmentId)).toEqual([
       'appt_live_0',
@@ -210,7 +212,7 @@ describe('staff appointment lists bounded by the caller window', () => {
   it('returns the in-window rows when more than `limit` older rows sort first', async () => {
     await seedAroundWindow({ before: 12, inside: [100, 103, 105] });
 
-    const rows = await directory.listClinic(5, WINDOW);
+    const { records: rows } = await directory.listClinic(5, WINDOW);
 
     expect(rows.map((row) => row.appointmentId)).toEqual([
       'appt_in_100',
@@ -222,7 +224,7 @@ describe('staff appointment lists bounded by the caller window', () => {
   it('does not return older rows to fill the page', async () => {
     await seedAroundWindow({ before: 12, inside: [100] });
 
-    const rows = await directory.listClinic(5, WINDOW);
+    const { records: rows } = await directory.listClinic(5, WINDOW);
 
     expect(rows.map((row) => row.appointmentId)).toEqual(['appt_in_100']);
   });
@@ -234,7 +236,7 @@ describe('staff appointment lists bounded by the caller window', () => {
       after: [300, 301]
     });
 
-    const rows = await directory.listClinic(50, WINDOW);
+    const { records: rows } = await directory.listClinic(50, WINDOW);
 
     expect(rows.map((row) => row.appointmentId)).toEqual([
       'appt_in_100',
@@ -249,7 +251,7 @@ describe('staff appointment lists bounded by the caller window', () => {
       archivedInside: [101, 102, 103]
     });
 
-    const rows = await directory.listClinic(3, WINDOW);
+    const { records: rows } = await directory.listClinic(3, WINDOW);
 
     expect(rows.map((row) => row.appointmentId)).toEqual([
       'appt_in_100',
@@ -264,7 +266,11 @@ describe('staff appointment lists bounded by the caller window', () => {
       patientId: 'patient_list_other'
     });
 
-    const rows = await directory.listByPatient(PATIENT_ID, 5, WINDOW);
+    const { records: rows } = await directory.listByPatient(
+      PATIENT_ID,
+      5,
+      WINDOW
+    );
 
     expect(rows.map((row) => row.appointmentId)).toEqual([
       'appt_in_100',
@@ -275,7 +281,7 @@ describe('staff appointment lists bounded by the caller window', () => {
   it('is unchanged when no window is given', async () => {
     await seedAroundWindow({ before: 4, inside: [100] });
 
-    const rows = await directory.listClinic(3);
+    const { records: rows } = await directory.listClinic(3);
 
     expect(rows.map((row) => row.appointmentId)).toEqual([
       'appt_old_0',
@@ -304,13 +310,13 @@ describe('staff appointment lists continue after a position', () => {
   }
 
   async function pageThrough(
-    read: (after?: AppointmentListPosition) => Promise<AppointmentRecord[]>,
+    read: (after?: AppointmentListPosition) => Promise<AppointmentListResult>,
     pageSize: number
   ): Promise<string[][]> {
     const pages: string[][] = [];
     let after: AppointmentListPosition | undefined;
     for (let guard = 0; guard < 10; guard += 1) {
-      const rows = await read(after);
+      const { records: rows } = await read(after);
       if (rows.length > 0) pages.push(rows.map((row) => row.appointmentId));
       const last = rows.at(-1);
       if (rows.length < pageSize || last?.startsAt === undefined) break;
@@ -354,10 +360,15 @@ describe('staff appointment lists continue after a position', () => {
     await seedTies();
     await seedAppointment('appt_t_late', 50, {});
 
-    const rows = await directory.listByPatient(PATIENT_ID, 50, WINDOW, {
-      startsAt: startsAtOf(-5),
-      appointmentId: 'appt_nothing'
-    });
+    const { records: rows } = await directory.listByPatient(
+      PATIENT_ID,
+      50,
+      WINDOW,
+      {
+        startsAt: startsAtOf(-5),
+        appointmentId: 'appt_nothing'
+      }
+    );
 
     expect(rows.map((row) => row.appointmentId)).not.toContain('appt_t_late');
     expect(rows).toHaveLength(7);

@@ -359,18 +359,22 @@ describe('manager-confirmed archived identity restore and relink', () => {
     expect(restoreJobs[0]).toMatchObject({ retentionOperation: 'restore' });
 
     // Staff list and patient-side reads follow the restored record only.
-    const listed = await directory.listClinic(10);
+    const { records: listed } = await directory.listClinic(10);
     expect(listed.map((row) => row.appointmentId)).toEqual([
       OLD_APPOINTMENT_ID,
       NEW_APPOINTMENT_ID
     ]);
     expect(JSON.stringify(listed)).not.toContain('identityReviewRequired');
     expect(
-      (await directory.listByPatient(OLD_ID, 10)).map(
+      (await directory.listByPatient(OLD_ID, 10)).records.map(
         (row) => row.appointmentId
       )
     ).toEqual([OLD_APPOINTMENT_ID, NEW_APPOINTMENT_ID]);
-    expect(await directory.listByPatient(PENDING_ID, 10)).toEqual([]);
+    const { records: pendingRows } = await directory.listByPatient(
+      PENDING_ID,
+      10
+    );
+    expect(pendingRows).toEqual([]);
     // The old provisional return session no longer authorizes anything.
     await expect(
       directory.readReturnSession('rs_relink_pending', CONFIRM_NOW)
@@ -415,7 +419,7 @@ describe('manager-confirmed archived identity restore and relink', () => {
       directory.readReturnSession('rs_relink_unrelated', CONFIRM_NOW)
     ).resolves.toBe('patient_relink_unrelated');
     expect(
-      await directory.listByPatient('patient_relink_unrelated', 10)
+      (await directory.listByPatient('patient_relink_unrelated', 10)).records
     ).toEqual([]);
   });
 
@@ -835,9 +839,15 @@ describe('isolation of archived and retired records', () => {
     await retention.confirmArchivedIdentity(confirmCommand());
     // Workbench list and patient-side reads follow the restored record only.
     expect(
-      (await directory.listClinic(10)).every((row) => row.patientId === OLD_ID)
+      (await directory.listClinic(10)).records.every(
+        (row) => row.patientId === OLD_ID
+      )
     ).toBe(true);
-    expect(await directory.listByPatient(PENDING_ID, 10)).toEqual([]);
+    const { records: pendingRows } = await directory.listByPatient(
+      PENDING_ID,
+      10
+    );
+    expect(pendingRows).toEqual([]);
     await db.collection(COLLECTIONS.followUpState).doc(OLD_ID).set({
       required: true
     });

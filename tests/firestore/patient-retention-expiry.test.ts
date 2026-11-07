@@ -264,7 +264,7 @@ describe('synthetic automatic patient-retention expiry', () => {
       expect(serializedJobs).not.toContain(value);
     }
 
-    const clinicList = await directory.listClinic(100);
+    const { records: clinicList } = await directory.listClinic(100);
     const lookupReturn = await directory.lookupReturn(
       PHONE,
       BIRTH_MONTH_DAY,
