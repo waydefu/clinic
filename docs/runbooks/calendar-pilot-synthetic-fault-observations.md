@@ -9,6 +9,16 @@
 - 定義固定的 synthetic linkId 集合；每次必須完整列出該集合。建立和保護 mirror 原始 event ID；重複事件只有在三項 ownership 證明齊全且帶 If-Match 時才可刪。
 - 準備故障個案：dispatch 中 lease 遺失、412、503、回覆結果不明、重複事件、cursor 失效、進程重啟續掃、stuck owner。現階段沒有獲准的真實 provider 故障注入方法；未另獲授權前不得製造這些故障。
 
+## 合成日曆設定過期時的續期
+
+`calendar_pilot_configuration/active` 的 `expiresAt` 過期後，所有日曆寫入路由（含 preflight／activate）都回 503，且 bootstrap 預設模式拒絕覆寫既有文件。續期須有負責人核准，且只能在已獲授權的 C1 視窗內進行；仍未過期的設定一律拒絕續期。
+
+`--renew-expired` 只在同一個 transaction 內更新 `expiresAt`（須為未來且不超過 31 天）並把 `version` 加 1，另新增一筆 `c1_calendar_sync_renewed` 稽核紀錄（含前後到期時間、操作者、原因）。設定與來源不是 synthetic C1、`workerLeaseOwner` 有值、文件缺漏時，整筆不寫入。不改 health、啟用旗標、來源或 lease。
+
+```text
+GOOGLE_CLOUD_PROJECT=beauessence-clinic-stg-c1a01 C1_CALENDAR_SYNC_BOOTSTRAP_CONFIRM=YES C1_CALENDAR_SYNC_AUTHORITY_SHA=<40 位 exact SHA> C1_CALENDAR_SYNC_EXPIRES_AT=<未來 31 天內的 UTC，如 2026-12-07T12:00:00.000Z> C1_CALENDAR_SYNC_OPERATOR=<操作者> C1_CALENDAR_SYNC_RENEW_REASON=<原因與核准引用> node scripts/c1-calendar-sync-bootstrap.mjs --renew-expired
+```
+
 ## 觀察與停止條件
 
 逐次在獲准範圍內完成至少 50 次有唯一流水號的操作與獨立觀察，包含上述有授權的故障案例，並等待完整一輪掃描；不要把一次掃描的多個 slice 當成多次操作。每次逐 linkId 核對 Calendar 全部分頁與 Firestore 正本：

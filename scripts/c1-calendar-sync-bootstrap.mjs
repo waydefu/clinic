@@ -111,6 +111,102 @@ export async function bootstrapC1CalendarSync(environment = process.env) {
   };
 }
 
+function requiredText(environment, name) {
+  const value = environment[name];
+  if (typeof value !== 'string' || value.trim() === '')
+    throw new Error(`${name} is required for C1 Calendar sync renewal.`);
+  return value.trim();
+}
+
+export function planC1CalendarSyncRenewal(environment, now = new Date()) {
+  const plan = planC1CalendarSyncBootstrap(environment, now);
+  return {
+    sourceSha: plan.sourceSha,
+    expiresAt: plan.configuration.expiresAt,
+    operator: requiredText(environment, 'C1_CALENDAR_SYNC_OPERATOR'),
+    reason: requiredText(environment, 'C1_CALENDAR_SYNC_RENEW_REASON')
+  };
+}
+
+export function assertC1CalendarSyncRenewable(
+  configuration,
+  source,
+  now = new Date()
+) {
+  if (!configuration.exists || !source.exists)
+    throw new Error('C1 Calendar sync renewal requires existing state.');
+  const config = configuration.data();
+  const sourceData = source.data();
+  if (
+    config['synthetic'] !== true ||
+    config['activeSourceId'] !== C1_CALENDAR_SYNC_SOURCE_ID ||
+    sourceData['synthetic'] !== true
+  )
+    throw new Error('C1 Calendar sync renewal refuses non-C1 state.');
+  if (config['workerLeaseOwner'] != null)
+    throw new Error('C1 Calendar sync renewal refuses a held worker lease.');
+  const expiresAt = config['expiresAt'];
+  if (
+    typeof expiresAt !== 'string' ||
+    !isUtcIsoTimestamp(expiresAt) ||
+    Date.parse(expiresAt) > now.getTime()
+  )
+    throw new Error('C1 Calendar sync renewal refuses an unexpired config.');
+  if (typeof config['version'] !== 'number')
+    throw new Error('C1 Calendar sync renewal requires a numeric version.');
+  return { previousExpiresAt: expiresAt, version: config['version'] };
+}
+
+export async function renewC1CalendarSync(
+  environment = process.env,
+  now = new Date(),
+  database = undefined
+) {
+  const plan = planC1CalendarSyncRenewal(environment, now);
+  let db = database;
+  if (db === undefined) {
+    if (getApps().length === 0)
+      initializeApp({ projectId: C1_CALENDAR_SYNC_PROJECT });
+    db = getFirestore();
+  }
+  const configurationRef = db
+    .collection('calendar_pilot_configuration')
+    .doc('active');
+  const sourceRef = db
+    .collection('calendar_pilot_sources')
+    .doc(C1_CALENDAR_SYNC_SOURCE_ID);
+  const auditRef = db
+    .collection('calendar_pilot_audit_events')
+    .doc(randomUUID());
+
+  await db.runTransaction(async (transaction) => {
+    const [configuration, source] = await Promise.all([
+      transaction.get(configurationRef),
+      transaction.get(sourceRef)
+    ]);
+    const current = assertC1CalendarSyncRenewable(configuration, source, now);
+    transaction.update(configurationRef, {
+      expiresAt: plan.expiresAt,
+      version: current.version + 1
+    });
+    transaction.create(auditRef, {
+      action: 'c1_calendar_sync_renewed',
+      sourceId: C1_CALENDAR_SYNC_SOURCE_ID,
+      sourceSha: plan.sourceSha,
+      occurredAt: now.toISOString(),
+      previousExpiresAt: current.previousExpiresAt,
+      expiresAt: plan.expiresAt,
+      operator: plan.operator,
+      reason: plan.reason
+    });
+  });
+  return {
+    projectId: C1_CALENDAR_SYNC_PROJECT,
+    sourceId: C1_CALENDAR_SYNC_SOURCE_ID,
+    expiresAt: plan.expiresAt
+  };
+}
+
 function isDirectRun() {
   const invoked = process.argv[1];
   return (
@@ -121,7 +217,10 @@ function isDirectRun() {
 }
 
 if (isDirectRun()) {
-  bootstrapC1CalendarSync().then(
+  (process.argv.includes('--renew-expired')
+    ? renewC1CalendarSync()
+    : bootstrapC1CalendarSync()
+  ).then(
     (result) => process.stdout.write(`${JSON.stringify(result)}\n`),
     (error) => {
       process.stderr.write(
