@@ -22,7 +22,6 @@ Load the matching route only; avoid backend/security/deployment evidence for UI-
 | governance-change | [GOVERNANCE.md](../GOVERNANCE.md); AGENTS Safety Floor; this file | do not add ADRs for meta-governance | [state/conflicts.md](state/conflicts.md); waivers `docs/governance/waivers.json` | `.claude/README.md`; `check:governance` |
 
 [SOL-00](plans/2026-10-06-sol00-safe-manifest-closeout-plan.md) (v3 plan-only).
-Current plan entry and ledger (2026-11-08, plan-only): [Phase 1 RC delivery plan](plans/2026-11-08-phase1-rc-delivery-plan.md).
 
 D-series answers are only in the [decision register](product/phase-1-decision-register.md).
 Owner input is not approval. Do not guess.
