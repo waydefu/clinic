@@ -123,6 +123,17 @@ export interface AppointmentListPosition {
   readonly appointmentId: string;
 }
 
+/**
+ * Active rows of one list call. `resumeAfter` is set only when the scan bound
+ * stopped the call before the rows ran out: it is the last row scanned
+ * (archived or not), so the caller can continue after it. A page may thus be
+ * short, even empty, and still have more behind it.
+ */
+export interface AppointmentListResult {
+  readonly records: AppointmentRecord[];
+  readonly resumeAfter?: AppointmentListPosition;
+}
+
 export interface PreparedPatientIntake {
   readonly patientId: string;
   readonly intake: PatientIntake;
@@ -166,12 +177,12 @@ export interface PatientDirectoryPort {
     limit: number,
     window?: AppointmentListWindow,
     after?: AppointmentListPosition
-  ): Promise<AppointmentRecord[]>;
+  ): Promise<AppointmentListResult>;
   listClinic(
     limit: number,
     window?: AppointmentListWindow,
     after?: AppointmentListPosition
-  ): Promise<AppointmentRecord[]>;
+  ): Promise<AppointmentListResult>;
 }
 
 function isMonthDay(birthDate: string): boolean {
@@ -640,7 +651,7 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
     limit: number,
     window?: AppointmentListWindow,
     after?: AppointmentListPosition
-  ): Promise<AppointmentRecord[]> {
+  ): Promise<AppointmentListResult> {
     return this.listActiveAppointments(
       withinWindow(
         this.db.collection('appointments').where('patientId', '==', patientId),
@@ -663,7 +674,7 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
     limit: number,
     window?: AppointmentListWindow,
     after?: AppointmentListPosition
-  ): Promise<AppointmentRecord[]> {
+  ): Promise<AppointmentListResult> {
     return this.listActiveAppointments(
       withinWindow(this.db.collection('appointments'), window)
         .orderBy('startsAt', 'asc')
@@ -677,21 +688,19 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
    * Archived rows must not consume the page. The query is paged with a cursor
    * (same ordering, so no new index) and archived rows are skipped until
    * `limit` active rows are collected, the rows run out, or the scan bound is
-   * reached. Past the bound a call returns the active rows it found; archived
-   * rows are never returned either way.
-   *
-   * shortcut: more than LIST_SCAN_LIMIT archived rows in a row end the page with
-   * no continuation (the caller sees fewer than `limit` rows), upgrade by
-   * returning the last scanned position when runs that long can occur.
+   * reached. Past the bound the call returns the active rows it found plus
+   * `resumeAfter`, the last row scanned, so the caller can continue after a
+   * long run of archived rows; archived rows are never returned either way.
    */
   private async listActiveAppointments(
     ordered: Query,
     limit: number,
     after?: AppointmentListPosition
-  ): Promise<AppointmentRecord[]> {
+  ): Promise<AppointmentListResult> {
     const records: AppointmentRecord[] = [];
     let scanned = 0;
     let cursor: QueryDocumentSnapshot | undefined;
+    let ranOut = false;
     // The order is (`startsAt`, document ID), so a position is the pair.
     const first =
       after === undefined
@@ -710,10 +719,22 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
         if (records.length === limit) break;
       }
       scanned += page.size;
-      if (page.size < limit) break;
+      if (page.size < limit) {
+        ranOut = true;
+        break;
+      }
       cursor = page.docs[page.docs.length - 1];
     }
-    return records;
+    const lastStartsAt = cursor?.data()['startsAt'];
+    return !ranOut &&
+      records.length < limit &&
+      cursor !== undefined &&
+      typeof lastStartsAt === 'string'
+      ? {
+          records,
+          resumeAfter: { startsAt: lastStartsAt, appointmentId: cursor.id }
+        }
+      : { records };
   }
 }
 
@@ -896,9 +917,9 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
     limit: number,
     window?: AppointmentListWindow,
     after?: AppointmentListPosition
-  ): Promise<AppointmentRecord[]> {
+  ): Promise<AppointmentListResult> {
     await Promise.resolve();
-    return this.appointments
+    const records = this.appointments
       .filter(
         (item) =>
           item.patientId === patientId &&
@@ -907,20 +928,22 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
       )
       .sort(compareListOrder)
       .slice(0, limit);
+    return { records };
   }
 
   public async listClinic(
     limit: number,
     window?: AppointmentListWindow,
     after?: AppointmentListPosition
-  ): Promise<AppointmentRecord[]> {
+  ): Promise<AppointmentListResult> {
     await Promise.resolve();
-    return this.appointments
+    const records = this.appointments
       .filter(
         (item) =>
           isInsideWindow(item.startsAt, window) && isAfterPosition(item, after)
       )
       .sort(compareListOrder)
       .slice(0, limit);
+    return { records };
   }
 }

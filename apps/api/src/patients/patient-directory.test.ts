@@ -780,3 +780,78 @@ describe('patient contact storage (EXPORT-CONTACT-STORAGE-2026-09-29)', () => {
     expect(directory.patients.has('patient_c04')).toBe(false);
   });
 });
+
+describe('FirestorePatientDirectory.listClinic past the scan bound', () => {
+  type FakeDoc = { id: string; data: () => Record<string, unknown> };
+
+  // Ordered (startsAt, id) documents behind a query that honours startAfter/limit.
+  function directoryOver(docs: FakeDoc[]) {
+    const query = (after?: { startsAt: string; id: string }, max = 0) => ({
+      orderBy: () => query(after, max),
+      startAfter: (...args: unknown[]) =>
+        query(
+          typeof args[0] === 'string'
+            ? { startsAt: args[0], id: String(args[1]) }
+            : {
+                startsAt: String(
+                  (args[0] as FakeDoc).data()['startsAt']
+                ),
+                id: (args[0] as FakeDoc).id
+              },
+          max
+        ),
+      limit: (n: number) => query(after, n),
+      get: () => {
+        const rest = docs.filter(
+          (doc) =>
+            after === undefined ||
+            String(doc.data()['startsAt']) + doc.id >
+              after.startsAt + after.id
+        );
+        const page = rest.slice(0, max);
+        return Promise.resolve({ docs: page, size: page.length });
+      }
+    });
+    return new FirestorePatientDirectory({
+      collection: () => query()
+    } as unknown as Firestore);
+  }
+
+  const doc = (index: number, archived: boolean): FakeDoc => ({
+    id: `a${String(index).padStart(5, '0')}`,
+    data: () => ({
+      startsAt: '2026-07-24T04:00:00.000Z',
+      patientId: 'patient_opaque_001',
+      ...(archived ? { patientArchived: true } : {})
+    })
+  });
+
+  it('returns the last scanned row to resume after, then reaches the active rows behind it', async () => {
+    const docs = [
+      ...Array.from({ length: 1200 }, (_, index) => doc(index, true)),
+      doc(1200, false),
+      doc(1201, false)
+    ];
+    const directory = directoryOver(docs);
+
+    const first = await directory.listClinic(51);
+
+    expect(first.records).toEqual([]);
+    expect(first.resumeAfter?.appointmentId).toBe('a01019');
+    const second = await directory.listClinic(51, undefined, first.resumeAfter);
+    expect(second.records.map((row) => row.appointmentId)).toEqual([
+      'a01200',
+      'a01201'
+    ]);
+    expect(second.resumeAfter).toBeUndefined();
+  });
+
+  it('has no resume position when the rows ran out, and never returns archived rows', async () => {
+    const directory = directoryOver([doc(0, true), doc(1, false)]);
+
+    const result = await directory.listClinic(51);
+
+    expect(result.records.map((row) => row.appointmentId)).toEqual(['a00001']);
+    expect(result.resumeAfter).toBeUndefined();
+  });
+});

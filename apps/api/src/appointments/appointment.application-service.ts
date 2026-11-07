@@ -511,22 +511,24 @@ export class AppointmentApplicationService {
             window,
             after
           );
-    const records = fetched.slice(0, limit);
+    const records = fetched.records.slice(0, limit);
     const response = {
       appointments: records.flatMap((record) =>
         this.toListItem(record, scope === 'mine')
       )
     };
     const last = records.at(-1);
-    return fetched.length > limit && last?.startsAt !== undefined
-      ? {
-          response,
-          nextCursor: encodeListCursor({
-            startsAt: last.startsAt,
-            appointmentId: last.appointmentId
-          })
-        }
-      : { response };
+    // A cut page continues after its last row; a page the scan bound cut short
+    // (possibly empty) continues after the last row scanned.
+    const next =
+      fetched.records.length > limit
+        ? last?.startsAt === undefined
+          ? undefined
+          : { startsAt: last.startsAt, appointmentId: last.appointmentId }
+        : fetched.resumeAfter;
+    return next === undefined
+      ? { response }
+      : { response, nextCursor: encodeListCursor(next) };
   }
 
   public async lookupReturn(

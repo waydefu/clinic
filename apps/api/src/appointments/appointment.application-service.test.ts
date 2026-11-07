@@ -43,6 +43,7 @@ import type {
   ReservationResult,
   TransitionResult
 } from './appointment.repository-port.js';
+import { encodeListCursor } from './list-cursor.js';
 import {
   assertFollowUpBookable,
   InMemoryPatientDirectory
@@ -1969,8 +1970,8 @@ describe('AppointmentApplicationService canonical UTC admission', () => {
       const { service } = createBoundService(patients);
       const records = [{ ...OPEN_RECORD, startsAt }];
       // Exercise the application boundary even if an adapter ignores its window.
-      vi.spyOn(patients, 'listClinic').mockResolvedValue(records);
-      vi.spyOn(patients, 'listByPatient').mockResolvedValue(records);
+      vi.spyOn(patients, 'listClinic').mockResolvedValue({ records });
+      vi.spyOn(patients, 'listByPatient').mockResolvedValue({ records });
 
       await expect(
         service.list('clinic', AUTHENTICATION)
@@ -2108,7 +2109,7 @@ describe('AppointmentApplicationService list reads only the rows it will return'
     );
     // A directory that ignores the window, like the in-memory one before.
     vi.spyOn(patients, 'listClinic').mockImplementation(() =>
-      Promise.resolve([...patients.appointments])
+      Promise.resolve({ records: [...patients.appointments] })
     );
     const { service } = createBoundService(patients);
 
@@ -2282,5 +2283,25 @@ describe('AppointmentApplicationService list continuation', () => {
 
     expect(Object.keys(body)).toEqual(['appointments']);
     expect(body.appointments).toHaveLength(50);
+  });
+
+  it('carries a cursor on a short or empty page when the scan bound cut the call', async () => {
+    const patients = new InMemoryPatientDirectory();
+    const resumeAfter = {
+      startsAt: '2026-07-24T05:00:00.000Z',
+      appointmentId: 'appointment_scanned_last'
+    };
+    const listClinic = vi
+      .spyOn(patients, 'listClinic')
+      .mockResolvedValueOnce({ records: [], resumeAfter })
+      .mockResolvedValueOnce({ records: rows(2) });
+    const { service } = createBoundService(patients);
+
+    const first = await service.listPage('clinic', STAFF);
+
+    expect(first.response.appointments).toEqual([]);
+    expect(first.nextCursor).toBe(encodeListCursor(resumeAfter));
+    await service.listPage('clinic', STAFF, { cursor: first.nextCursor });
+    expect(listClinic).toHaveBeenLastCalledWith(51, expect.anything(), resumeAfter);
   });
 });

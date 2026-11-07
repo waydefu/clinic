@@ -103,8 +103,9 @@ continuation, **not** numbered pagination: the API has no page number and no
 total count. The staff workbench's "第 N 頁，共 M 頁" is client-side paging of
 the rows it loaded; one load follows the cursor for at most five pages (250
 rows), and if the server still has more it labels its count "至少 N 筆" rather
-than showing the loaded count as the total. Known limit: a run of more than
-1,000 consecutive archived rows ends a page without a cursor.
+than showing the loaded count as the total. When a call hits its scan bound (1,000
+rows) while skipping archived rows, the page may be short or empty but still
+carries `x-next-cursor` while rows remain.
 
 The patient booking page and staff workbench stay on the local synthetic
 store unless the operator opts in with `?internalTestBooking=1` on a host
