@@ -1027,6 +1027,7 @@ merge、部署、secret、IAM、資料轉換與其他受保護動作，仍各自
 - **Q4 Google 登入畫面的支援信箱**（同一計畫的 Q4）：`firebase.json` 的 `supportEmail` 目前是
   業主個人信箱。選「之後提供診所公用信箱（建議）」：業主建好或決定公用信箱後告知，再只替換
   `firebase.json` 與文件中的現行值；在那之前不動。W1-01 第 4 步維持等待。
+  - 2026-11-07：負責人指示先填 beauessence@gmail.com，原話「先填beauessence@gmail.com「我也不確定」」；屬暫定值，負責人之後可再改。W1-01 第 4 步據此完成，`firebase.json` 的 `supportEmail` 已改為該信箱，守門測試不再放行 `firebase.json`。
 - **K3 停用帳號的登入失敗訊息**（2026-10-11）：業主選「分開顯示」，不再與一般驗證失敗共用
   同一則對外訊息。業主的決定只有這一句。
   - Claude 在同次對話提出以下實作構想，業主回覆「紀錄即可」，未逐項另行核准：只有完成 Google
@@ -2920,6 +2921,15 @@ clinic's own site. The owner selected the repository schedule later on
   data-controller name, plus the privacy contact channel and patient-rights
   request process.
 - Status: pending
+
+## 2026-11-07 醫師照片同意紀錄
+
+範圍：`apps/web/clinic-source/doctor-yan.png`、`doctor-yang.png`，以及 `apps/web/public/clinic-assets/` 的對應 webp。
+
+- 負責人原話：「沒有但現有網站有，應該是同意過」。
+- 記錄：目前沒有書面同意紀錄；負責人認為現行官網已使用這些照片，即屬醫師已同意。這不是已取得同意的證明。
+- 風險：個資法第 7 條第 4 項規定，同意的舉證責任在蒐集者。建議日後補書面或 email 同意，並存放在 repo 外。
+- Status: 待補同意紀錄
 
 ## Approval record template
 

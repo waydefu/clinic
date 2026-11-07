@@ -19,10 +19,6 @@ const OWNER_CONTACT_FINGERPRINTS = new Set([
   '31e387d5a85e0a644e999ac683ceaa8a7c76f33b7025b448f9a9f85b92285382'
 ]);
 
-// Owner decision Q4: firebase.json `supportEmail` keeps the owner's address
-// until the owner provides a clinic mailbox. Remove this entry in that change.
-const ALLOWED_PATHS = new Set(['firebase.json']);
-
 const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 const DIGIT_RUN = /\+?\d+(?:[ -]\d+)*/g;
 // Reserved or machine-account domains can never be a person's mailbox.
@@ -101,7 +97,6 @@ describe('owner personal contact guard (Q3)', () => {
     const cache = new Map();
     const offenders = [];
     for (const file of tracked) {
-      if (ALLOWED_PATHS.has(file)) continue;
       let buffer;
       try {
         buffer = readFileSync(`${root}/${file}`);
