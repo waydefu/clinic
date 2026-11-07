@@ -725,7 +725,7 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
       }
       cursor = page.docs[page.docs.length - 1];
     }
-    const lastStartsAt = cursor?.data()['startsAt'];
+    const lastStartsAt: unknown = cursor?.data()['startsAt'];
     return !ranOut &&
       records.length < limit &&
       cursor !== undefined &&
