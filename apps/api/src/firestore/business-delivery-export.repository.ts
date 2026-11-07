@@ -56,6 +56,19 @@ interface StoredExportJob {
   readonly policyVersion: string;
 }
 
+function versionOneJob(data: unknown): StoredExportJob {
+  if (
+    typeof data !== 'object' ||
+    data === null ||
+    !('schemaVersion' in data) ||
+    data.schemaVersion !== 1
+  ) {
+    throw new ConflictError();
+  }
+  // shortcut: version gate only; replace the cast when E4-15 field decoding is completed.
+  return data as StoredExportJob;
+}
+
 export interface CreateExportCommand {
   readonly idempotencyKey: string;
   readonly from: string;
@@ -156,7 +169,7 @@ export class FirestoreBusinessExportRepository {
     return this.db.runTransaction(async (transaction) => {
       const existing = await transaction.get(jobRef);
       if (existing.exists) {
-        const stored = existing.data() as StoredExportJob;
+        const stored = versionOneJob(existing.data());
         if (stored.requestHash !== requestHash) throw new ConflictError();
         return view(stored, command.now, true);
       }
@@ -293,7 +306,7 @@ export class FirestoreBusinessExportRepository {
       .doc(exportId)
       .get();
     return snapshot.exists
-      ? view(snapshot.data() as StoredExportJob, now)
+      ? view(versionOneJob(snapshot.data()), now)
       : undefined;
   }
 
@@ -311,7 +324,7 @@ export class FirestoreBusinessExportRepository {
     return this.db.runTransaction(async (transaction) => {
       const snapshot = await transaction.get(jobRef);
       if (!snapshot.exists) return undefined;
-      const job = snapshot.data() as StoredExportJob;
+      const job = versionOneJob(snapshot.data());
       if (exportStatus(job, now) !== 'ready') throw new ConflictError();
       const chunks = await transaction.getAll(
         ...chunkIds(exportId, job.chunkCount).map((id) =>
@@ -343,7 +356,7 @@ export class FirestoreBusinessExportRepository {
     return this.db.runTransaction(async (transaction) => {
       const snapshot = await transaction.get(jobRef);
       if (!snapshot.exists) return undefined;
-      const job = snapshot.data() as StoredExportJob;
+      const job = versionOneJob(snapshot.data());
       if (job.revokedAt !== null) {
         if (job.revokeIdempotencyKey !== idempotencyKey)
           throw new ConflictError();
