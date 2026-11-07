@@ -784,29 +784,27 @@ describe('patient contact storage (EXPORT-CONTACT-STORAGE-2026-09-29)', () => {
 describe('FirestorePatientDirectory.listClinic past the scan bound', () => {
   type FakeDoc = { id: string; data: () => Record<string, unknown> };
 
+  const positionOf = (item: FakeDoc) => ({
+    startsAt: String(item.data()['startsAt']),
+    id: item.id
+  });
+
   // Ordered (startsAt, id) documents behind a query that honours startAfter/limit.
   function directoryOver(docs: FakeDoc[]) {
     const query = (after?: { startsAt: string; id: string }, max = 0) => ({
       orderBy: () => query(after, max),
-      startAfter: (...args: unknown[]) =>
-        query(
+      startAfter: (...args: unknown[]) => {
+        const position =
           typeof args[0] === 'string'
             ? { startsAt: args[0], id: String(args[1]) }
-            : {
-                startsAt: String(
-                  (args[0] as FakeDoc).data()['startsAt']
-                ),
-                id: (args[0] as FakeDoc).id
-              },
-          max
-        ),
+            : positionOf(args[0] as FakeDoc);
+        return query(position, max);
+      },
       limit: (n: number) => query(after, n),
       get: () => {
+        const key = (p: { startsAt: string; id: string }) => p.startsAt + p.id;
         const rest = docs.filter(
-          (doc) =>
-            after === undefined ||
-            String(doc.data()['startsAt']) + doc.id >
-              after.startsAt + after.id
+          (doc) => after === undefined || key(positionOf(doc)) > key(after)
         );
         const page = rest.slice(0, max);
         return Promise.resolve({ docs: page, size: page.length });

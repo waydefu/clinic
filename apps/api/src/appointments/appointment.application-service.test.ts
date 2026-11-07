@@ -2302,6 +2302,10 @@ describe('AppointmentApplicationService list continuation', () => {
     expect(first.response.appointments).toEqual([]);
     expect(first.nextCursor).toBe(encodeListCursor(resumeAfter));
     await service.listPage('clinic', STAFF, { cursor: first.nextCursor });
-    expect(listClinic).toHaveBeenLastCalledWith(51, expect.anything(), resumeAfter);
+    expect(listClinic).toHaveBeenLastCalledWith(
+      51,
+      expect.anything(),
+      resumeAfter
+    );
   });
 });
