@@ -130,6 +130,22 @@ node scripts/terraform-sha-gate.mjs
 
 三種身分（gcloud CLI、ADC、Firebase CLI）分別確認由已核准 operator 使用，目標都只指向 `beauessence-clinic-stg-c1a01`。不得複製 token 作為證據。`origin/main`、實際建置 checkout 的 `HEAD`、Terraform SHA 與 Cloud Build source SHA 必須一字不差相等；只有核對 remote ref 或通過 Terraform source gate 不足以證明 build input。任何差異停止並更新／重批 packet。
 
+### A2. Cloud Run 流量分配核對（唯讀，apply 前與 apply 後各一次）
+
+Terraform 宣告三個服務 `TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST` 100%，但為保留 Hosting pinTag 的 0% tag 設了 `ignore_changes = [traffic]`。所以只要有人曾手動把流量固定在某個 revision，Terraform 不會改回來，之後 apply 的新映像建得出 revision 卻永遠不接流量；Hosting pinTag 綁「正在接流量的 revision」，`/v1` 也就一直打到舊映像。2026-11-07 C1 第一輪的 503 有一半就是這個原因（API 卡在 2026-09-27 的 `00050-gis`）。
+
+```bash
+for s in internal-test-api internal-test-outbox internal-test-calendar-sync; do
+  gcloud run services describe "$s" --region asia-east1 \
+    --project beauessence-clinic-stg-c1a01 \
+    --format='value(metadata.name,spec.traffic)'
+done
+```
+
+- apply 前：每個服務 `percent: 100` 那一筆必須是 `latestRevision: true`。任何一個是固定 `revisionName` 就停止；由 owner 對該服務單獨核准並執行 `gcloud run services update-traffic <service> --region asia-east1 --project beauessence-clinic-stg-c1a01 --to-latest`，再重新讀回。不得改 Terraform 的 `ignore_changes` 繞過。
+- apply 後：`status.latestReadyRevisionName` 必須是本次 apply 建出的 revision，且其 image digest 等於本次 tfvars 的 digest；不符就停止新增測試。
+- §E Hosting 部署後：讀回 `fh-*` tag 指向的 revision，必須等於 apply 後的最新 revision，否則 `/v1` 仍在舊映像。
+
 ### B. 建置 immutable API／worker images
 
 **目前 `BLOCKED_MACHINE_TYPE_UNVERIFIED`，不提供可執行的 submit 指令。** `containers/internal-test.cloudbuild.yaml` 目前只設定 logging，未明確設定 machine type；不能因此聲稱它已落實核准的 e2-standard-2。先按安裝版本與 provider 行為核實對應 build options／pool、10 分鐘 timeout、source upload 排除與成本，產生具體 submission 清單並另核准；不猜 CLI flag、不換機型或改 build config 來繞過此阻擋。本 PR 不改 build config、不提交 build。
