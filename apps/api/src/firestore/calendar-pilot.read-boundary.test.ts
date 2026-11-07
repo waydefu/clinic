@@ -1,15 +1,20 @@
+import { CalendarAvailabilityResponseSchema } from '@beauessence/contracts';
 import type { Firestore } from 'firebase-admin/firestore';
 import { describe, expect, it, vi } from 'vitest';
 
 import { FirestoreCalendarPilotRepository } from './calendar-pilot.repository.js';
 
-function store(value: unknown, blocks: readonly unknown[] = []) {
+function store(
+  value: unknown,
+  blocks: readonly unknown[] = [],
+  documentIds: readonly string[] = []
+) {
   const snapshot = { exists: value !== undefined, data: () => value };
   const query = {
     get: () =>
       Promise.resolve({
         docs: blocks.map((block, index) => ({
-          id: `synthetic_block_${index}`,
+          id: documentIds[index] ?? `synthetic_block_${index}`,
           exists: true,
           data: () => block
         }))
@@ -22,8 +27,10 @@ function store(value: unknown, blocks: readonly unknown[] = []) {
           name === 'calendar_pilot_sources' ? { exists: false } : snapshot
         )
     }),
+    orderBy: () => ({ limit: () => query }),
     where: () => ({
-      orderBy: () => ({ limit: () => query }),
+      get: query.get,
+      orderBy: () => ({ ...query, select: () => query, limit: () => query }),
       count: () => ({
         get: () => Promise.resolve({ data: () => ({ count: 0 }) })
       })
@@ -63,6 +70,130 @@ const preflight = {
 };
 
 describe('CAL-PILOT API stored read boundary', () => {
+  describe.each([
+    {
+      method: 'listSources',
+      record: { displayName: 'Synthetic source' },
+      malformedRecord: { displayName: 42 },
+      expected: { displayName: 'Synthetic source' }
+    },
+    {
+      method: 'listCandidates',
+      record: {
+        candidateId: 'synthetic_candidate',
+        kind: 'create_block',
+        status: 'pending',
+        displayLabel: 'Synthetic busy',
+        startsAt: '2030-01-02T00:00:00Z',
+        endsAt: '2030-01-02T00:30:00Z',
+        sourceVersion: 1,
+        expectedVersion: 0,
+        validationErrors: [],
+        createdAt: '2030-01-02T00:00:00Z',
+        before: null,
+        mirrorId: 'synthetic_mirror',
+        expectedEtag: 'synthetic_etag',
+        sourceId: 'synthetic_source',
+        parsed: {
+          ok: true,
+          kind: 'busy',
+          busyReason: 'other',
+          displayLabel: 'Synthetic busy',
+          startsAt: '2030-01-02T00:00:00Z',
+          endsAt: '2030-01-02T00:30:00Z'
+        }
+      },
+      malformedRecord: {
+        candidateId: 'synthetic_candidate',
+        kind: 'unknown',
+        status: 'pending',
+        displayLabel: 'Synthetic busy',
+        startsAt: '2030-01-02T00:00:00Z',
+        endsAt: '2030-01-02T00:30:00Z',
+        sourceVersion: 1,
+        expectedVersion: 0,
+        validationErrors: [],
+        createdAt: '2030-01-02T00:00:00Z',
+        before: null,
+        mirrorId: 'synthetic_mirror',
+        expectedEtag: 'synthetic_etag',
+        sourceId: 'synthetic_source',
+        parsed: {
+          ok: true,
+          kind: 'busy',
+          busyReason: 'other',
+          displayLabel: 'Synthetic busy',
+          startsAt: '2030-01-02T00:00:00Z',
+          endsAt: '2030-01-02T00:30:00Z'
+        }
+      },
+      expected: { candidateId: 'synthetic_candidate', kind: 'create_block' }
+    },
+    {
+      method: 'listSyntheticAppointments',
+      record: {
+        appointmentId: 'synthetic_appointment',
+        patientCode: 'A17',
+        bookingKind: 'initial',
+        serviceId: 'service_snoring',
+        startsAt: '2030-01-02T00:00:00Z',
+        endsAt: '2030-01-02T00:30:00Z',
+        displayLabel: 'Synthetic appointment',
+        version: 1,
+        status: 'confirmed',
+        sourceId: 'synthetic_source',
+        mirrorId: 'synthetic_mirror'
+      },
+      malformedRecord: { appointmentId: 42 },
+      expected: { appointmentId: 'synthetic_appointment', patientCode: 'A17' }
+    }
+  ] as const)(
+    '$method stored read codec',
+    ({ method, record, malformedRecord, expected }) => {
+      it('decodes valid records without changing them or transacting', async () => {
+        const before = structuredClone(record);
+        const { repository, runTransaction } = store(configuration, [record]);
+        await expect(repository[method]()).resolves.toMatchObject([expected]);
+        expect(record).toEqual(before);
+        expect(runTransaction).not.toHaveBeenCalled();
+      });
+
+      it('does not forward uncontracted stored fields into public query results', async () => {
+        const stored = { ...record, syntheticInternalOnly: 'synthetic marker' };
+        const before = structuredClone(stored);
+        const { repository, runTransaction } = store(configuration, [stored]);
+        const result = await repository[method]();
+        expect(result).toMatchObject([expected]);
+        expect(result[0]).not.toHaveProperty('syntheticInternalOnly');
+        expect(stored).toEqual(before);
+        expect(runTransaction).not.toHaveBeenCalled();
+      });
+
+      it.each([1, 2])(
+        'rejects schemaVersion %s without transacting',
+        async (schemaVersion) => {
+          const { repository, runTransaction } = store(configuration, [
+            { ...record, schemaVersion }
+          ]);
+          await expect(repository[method]()).rejects.toThrow(
+            'Unreadable CAL-PILOT record.'
+          );
+          expect(runTransaction).not.toHaveBeenCalled();
+        }
+      );
+
+      it('rejects malformed records without transacting', async () => {
+        const { repository, runTransaction } = store(configuration, [
+          malformedRecord
+        ]);
+        await expect(repository[method]()).rejects.toThrow(
+          'Unreadable CAL-PILOT record.'
+        );
+        expect(runTransaction).not.toHaveBeenCalled();
+      });
+    }
+  );
+
   it('accepts the existing configuration and empty availability', async () => {
     const { repository, runTransaction } = store(configuration);
     await expect(
@@ -72,6 +203,82 @@ describe('CAL-PILOT API stored read boundary', () => {
       sourceVersion: 1,
       blocks: []
     });
+    expect(runTransaction).not.toHaveBeenCalled();
+  });
+
+  it('accepts contract-valid synthetic patient codes without rewriting records', async () => {
+    const patient = { enabled: true };
+    const before = structuredClone(patient);
+    const { repository, runTransaction } = store(undefined, [patient], ['A17']);
+    await expect(repository.listSyntheticPatients()).resolves.toEqual([
+      { patientCode: 'A17' }
+    ]);
+    expect(patient).toEqual(before);
+    expect(runTransaction).not.toHaveBeenCalled();
+  });
+
+  it('reads enabled patients by ID only, with no stored fields (D-16)', async () => {
+    const data = vi.fn(() => {
+      throw new Error('Patient fields must not be consumed.');
+    });
+    const get = vi.fn().mockResolvedValue({ docs: [{ id: 'A17', data }] });
+    const select = vi.fn(() => ({ get }));
+    const orderBy = vi.fn(() => ({ select, get }));
+    const where = vi.fn(() => ({ orderBy, select, get }));
+    const collection = vi.fn(() => ({ where }));
+    const repository = new FirestoreCalendarPilotRepository({
+      collection
+    } as unknown as Firestore);
+
+    await expect(repository.listSyntheticPatients()).resolves.toEqual([
+      { patientCode: 'A17' }
+    ]);
+
+    expect(collection).toHaveBeenCalledExactlyOnceWith(
+      'calendar_pilot_patients'
+    );
+    expect(where).toHaveBeenCalledExactlyOnceWith('enabled', '==', true);
+    expect(orderBy).toHaveBeenCalledExactlyOnceWith('__name__', 'asc');
+    expect(select).toHaveBeenCalledExactlyOnceWith();
+    expect(get).toHaveBeenCalledOnce();
+    expect(data).not.toHaveBeenCalled();
+  });
+
+  it.each(['A00', 'A31', 'synthetic_patient'])(
+    'refuses a patient document ID outside the existing summary contract: %s',
+    async (patientCode) => {
+      const patient = { enabled: true };
+      const before = structuredClone(patient);
+      const { repository, runTransaction } = store(
+        undefined,
+        [patient],
+        [patientCode]
+      );
+      await expect(repository.listSyntheticPatients()).rejects.toThrow(
+        'Unreadable CAL-PILOT record.'
+      );
+      expect(patient).toEqual(before);
+      expect(runTransaction).not.toHaveBeenCalled();
+    }
+  );
+
+  it('refuses an availability document ID outside the existing wire contract', async () => {
+    const block = {
+      kind: 'busy',
+      startsAt: '2030-01-02T00:00:00Z',
+      endsAt: '2030-01-02T00:30:00Z',
+      displayLabel: 'Synthetic busy'
+    };
+    const before = structuredClone(block);
+    const { repository, runTransaction } = store(
+      configuration,
+      [block],
+      ['x'.repeat(256)]
+    );
+    await expect(
+      repository.getAvailability('2030-01-02T00:00:00Z')
+    ).rejects.toThrow('Unreadable CAL-PILOT record.');
+    expect(block).toEqual(before);
     expect(runTransaction).not.toHaveBeenCalled();
   });
 
@@ -86,9 +293,11 @@ describe('CAL-PILOT API stored read boundary', () => {
     };
     const before = structuredClone(block);
     const { repository, runTransaction } = store(configuration, [block]);
-    await expect(
-      repository.getAvailability(block.startsAt)
-    ).resolves.toMatchObject({
+    const availability = await repository.getAvailability(block.startsAt);
+    expect(
+      CalendarAvailabilityResponseSchema.safeParse(availability).success
+    ).toBe(true);
+    expect(availability).toMatchObject({
       blocks: [
         {
           blockId: 'synthetic_block_0',

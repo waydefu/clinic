@@ -1,6 +1,7 @@
 import {
   assertUtcTimestamp,
   DomainError,
+  isUtcIsoTimestamp,
   normalisePatientIdentity,
   PATIENT_NATIONALITIES,
   patientPhoneDigits,
@@ -10,11 +11,12 @@ import {
   type PatientCandidate
 } from '@beauessence/domain';
 import { opaqueLookupIdentity } from '@beauessence/domain/patient-lookup-identity.node';
-import type {
-  Firestore,
-  Transaction,
-  Query,
-  QueryDocumentSnapshot
+import {
+  Timestamp,
+  type Firestore,
+  type Transaction,
+  type Query,
+  type QueryDocumentSnapshot
 } from 'firebase-admin/firestore';
 
 import type { PatientIntake } from '@beauessence/contracts';
@@ -38,6 +40,36 @@ export const PATIENT_COLLECTIONS = {
 } as const;
 
 const RETURN_SESSION_MS = 15 * 60 * 1000;
+/** A return session's row stays 24 hours past its expiry (decision register). */
+const RETURN_SESSION_RETENTION_MS = 24 * 60 * 60 * 1000;
+const RETURN_SESSION_ID = /^[A-Za-z0-9_-]{1,128}$/;
+
+/**
+ * The typed field a Firestore TTL policy would act on (A05): a Timestamp, which
+ * a string cannot be. `expiresAt` stays the ISO string the service checks and
+ * alone decides whether a session can be used, so a late or absent TTL deletion
+ * never keeps an expired session alive. A missing or malformed expiry throws
+ * rather than inventing a purge time.
+ */
+export function returnSessionPurgeAt(expiresAt: string): Timestamp {
+  assertUtcTimestamp(expiresAt, 'expiresAt');
+  return Timestamp.fromMillis(
+    Date.parse(expiresAt) + RETURN_SESSION_RETENTION_MS
+  );
+}
+
+function isUnexpiredReturnSession(expiresAt: unknown, nowUtc: string): boolean {
+  if (typeof expiresAt !== 'string' || !isUtcIsoTimestamp(expiresAt))
+    return false;
+  const expirySecond = expiresAt.slice(0, 19);
+  const nowSecond = nowUtc.slice(0, 19);
+  if (expirySecond !== nowSecond) return expirySecond > nowSecond;
+  // Date.parse loses sub-millisecond precision admitted by the UTC validator.
+  const expiryFraction = expiresAt.slice(20, -1);
+  const nowFraction = nowUtc.slice(20, -1);
+  const width = Math.max(expiryFraction.length, nowFraction.length);
+  return expiryFraction.padEnd(width, '0') > nowFraction.padEnd(width, '0');
+}
 
 /**
  * Upper bound on appointment documents one staff list call may scan while
@@ -81,9 +113,26 @@ export interface AppointmentListWindow {
   readonly to: string;
 }
 
+/**
+ * Where a list page stopped: the last row returned, by the order the lists
+ * use (`startsAt`, then document ID). The next page starts strictly after it,
+ * so rows that share a start time are neither skipped nor repeated.
+ */
+export interface AppointmentListPosition {
+  readonly startsAt: string;
+  readonly appointmentId: string;
+}
+
 export interface PreparedPatientIntake {
   readonly patientId: string;
   readonly intake: PatientIntake;
+}
+
+/** Transaction-local metadata; preparation must not make it authoritative. */
+interface PatientIntakePlan {
+  readonly patientId: string;
+  readonly identityReviewRequired?: true;
+  apply(): void;
 }
 
 export interface PatientDirectoryPort {
@@ -115,11 +164,13 @@ export interface PatientDirectoryPort {
   listByPatient(
     patientId: string,
     limit: number,
-    window?: AppointmentListWindow
+    window?: AppointmentListWindow,
+    after?: AppointmentListPosition
   ): Promise<AppointmentRecord[]>;
   listClinic(
     limit: number,
-    window?: AppointmentListWindow
+    window?: AppointmentListWindow,
+    after?: AppointmentListPosition
   ): Promise<AppointmentRecord[]>;
 }
 
@@ -219,6 +270,29 @@ function isInsideWindow(
   );
 }
 
+interface ListOrderKey {
+  readonly startsAt?: string | undefined;
+  readonly appointmentId: string;
+}
+
+/** The order both lists use: start time, then document ID (code-unit order). */
+function compareListOrder(left: ListOrderKey, right: ListOrderKey): number {
+  const leftStart = left.startsAt ?? '';
+  const rightStart = right.startsAt ?? '';
+  if (leftStart !== rightStart) return leftStart < rightStart ? -1 : 1;
+  if (left.appointmentId === right.appointmentId) return 0;
+  return left.appointmentId < right.appointmentId ? -1 : 1;
+}
+
+/** Mirrors Firestore's `startAfter(startsAt, id)` for the process-local directory. */
+function isAfterPosition(
+  item: AppointmentRecord,
+  after: AppointmentListPosition | undefined
+): boolean {
+  if (after === undefined) return true;
+  return compareListOrder(item, after) > 0;
+}
+
 function isArchivedPatient(data: Record<string, unknown> | undefined): boolean {
   return data?.['archivedAt'] !== undefined && data['archivedAt'] !== null;
 }
@@ -259,6 +333,9 @@ export function toListRecord(
       ? { startsAt: data['startsAt'] }
       : {}),
     ...(intakeNationality === undefined ? {} : { intakeNationality }),
+    ...(data?.['identityReviewRequired'] === true
+      ? { identityReviewRequired: true as const }
+      : {}),
     ...(typeof data?.['patientNote'] === 'string' &&
     data['patientNote'] !== '' &&
     data['patientNote'].length <= 120
@@ -308,7 +385,7 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
     intake: PatientIntake,
     nowUtc: string,
     allocateId: () => string
-  ) {
+  ): Promise<PatientIntakePlan> {
     const identity = normalisePatientIdentity(intake);
     const lookupKey = opaqueLookupIdentity(identity.phone, identity.birthDate);
     const lookupRef = this.db
@@ -327,6 +404,17 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
               this.db.collection(PATIENT_COLLECTIONS.patients).doc(id)
             )
           );
+    // Archive candidates stay private. A new intake may raise staff attention,
+    // but must not revive an archive or disclose its identity/history.
+    const pendingArchivedPatientIds = snapshots
+      .filter(
+        (snapshot) => snapshot.exists && isArchivedPatient(snapshot.data())
+      )
+      .map((snapshot) => snapshot.id);
+    const pendingReview =
+      pendingArchivedPatientIds.length > 0
+        ? { identityReviewRequired: true as const }
+        : {};
     const candidates: PatientCandidate[] = snapshots.flatMap((snapshot, i) => {
       const data = snapshot.data();
       if (!snapshot.exists || isArchivedPatient(data)) return [];
@@ -340,27 +428,46 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
     const decision = resolveIntakeCandidate(candidates, identity.name);
     const contact = patientContactOf(identity);
     if (decision.kind === 'reuse') {
-      // Same key means the same phone digits and month-day, freshly given in
-      // this booking. Fill them only when missing; nothing is derived from
-      // the hash and no other record is touched (no batch backfill).
+      // Only this freshly matched active record is updated. Archived records
+      // are never revived or copied; old and newly found private refs remain
+      // pending until an explicit identity-confirmation operation.
       const reused = snapshots[ids.indexOf(decision.patientId)];
-      if (
-        reused?.exists === true &&
-        stringField(reused.data(), 'phoneDigits') === undefined
-      ) {
-        return {
-          patientId: decision.patientId,
-          apply: () => {
-            transaction.update(reused.ref, { ...contact, updatedAt: nowUtc });
+      const pendingIds = [
+        ...new Set([
+          ...stringArrayField(reused?.data(), 'pendingArchivedPatientIds'),
+          ...pendingArchivedPatientIds
+        ])
+      ].filter((id) => id !== decision.patientId);
+      const needsReview =
+        reused?.data()?.['identityReviewRequired'] === true ||
+        pendingIds.length > 0;
+      const review = needsReview
+        ? { identityReviewRequired: true as const }
+        : {};
+      const missingContact =
+        stringField(reused?.data(), 'phoneDigits') === undefined;
+      return {
+        patientId: decision.patientId,
+        ...review,
+        apply: () => {
+          if (reused?.exists === true && (missingContact || needsReview)) {
+            transaction.update(reused.ref, {
+              ...(missingContact ? contact : {}),
+              ...review,
+              ...(pendingIds.length > 0
+                ? { pendingArchivedPatientIds: pendingIds }
+                : {}),
+              updatedAt: nowUtc
+            });
           }
-        };
-      }
-      return { patientId: decision.patientId, apply: () => {} };
+        }
+      };
     }
     if (decision.kind === 'ambiguous') throw ambiguousIdentity();
     const patientId = allocateId();
     return {
       patientId,
+      ...pendingReview,
       apply: () => {
         transaction.set(lookupRef, {
           ...(index.data() ?? {}),
@@ -374,6 +481,10 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
             patientId,
             name: identity.name,
             ...contact,
+            ...pendingReview,
+            ...(pendingArchivedPatientIds.length > 0
+              ? { pendingArchivedPatientIds }
+              : {}),
             createdAt: nowUtc,
             updatedAt: nowUtc
           }
@@ -447,7 +558,8 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
       .create({
         patientId,
         createdAt: nowUtc,
-        expiresAt
+        expiresAt,
+        purgeAt: returnSessionPurgeAt(expiresAt)
       });
     if (existing !== undefined)
       return {
@@ -464,13 +576,17 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
     sessionId: string,
     nowUtc: string
   ): Promise<string | undefined> {
+    assertUtcTimestamp(nowUtc, 'nowUtc');
+    // Defence in depth (NEW-05): the authenticator already bounds the header;
+    // never let other text become a document path.
+    if (!RETURN_SESSION_ID.test(sessionId)) return undefined;
     const snapshot = await this.db
       .collection(PATIENT_COLLECTIONS.returnSessions)
       .doc(sessionId)
       .get();
     if (!snapshot.exists) return undefined;
     const data = snapshot.data() ?? {};
-    if (typeof data['expiresAt'] !== 'string' || data['expiresAt'] <= nowUtc) {
+    if (!isUnexpiredReturnSession(data['expiresAt'], nowUtc)) {
       return undefined;
     }
     const patientId = stringField(data, 'patientId');
@@ -516,19 +632,24 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
   /**
    * With a window the query carries `startsAt >= from` and `startsAt <= to`
    * on the field it already orders by, so the existing (patientId, startsAt)
-   * composite index serves it and no index is added.
+   * composite index serves it and no index is added. The trailing
+   * `__name__` order is the tail every Firestore index already has.
    */
   public async listByPatient(
     patientId: string,
     limit: number,
-    window?: AppointmentListWindow
+    window?: AppointmentListWindow,
+    after?: AppointmentListPosition
   ): Promise<AppointmentRecord[]> {
     return this.listActiveAppointments(
       withinWindow(
         this.db.collection('appointments').where('patientId', '==', patientId),
         window
-      ).orderBy('startsAt', 'asc'),
-      limit
+      )
+        .orderBy('startsAt', 'asc')
+        .orderBy('__name__', 'asc'),
+      limit,
+      after
     );
   }
 
@@ -540,14 +661,15 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
    */
   public async listClinic(
     limit: number,
-    window?: AppointmentListWindow
+    window?: AppointmentListWindow,
+    after?: AppointmentListPosition
   ): Promise<AppointmentRecord[]> {
     return this.listActiveAppointments(
-      withinWindow(this.db.collection('appointments'), window).orderBy(
-        'startsAt',
-        'asc'
-      ),
-      limit
+      withinWindow(this.db.collection('appointments'), window)
+        .orderBy('startsAt', 'asc')
+        .orderBy('__name__', 'asc'),
+      limit,
+      after
     );
   }
 
@@ -557,17 +679,27 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
    * `limit` active rows are collected, the rows run out, or the scan bound is
    * reached. Past the bound a call returns the active rows it found; archived
    * rows are never returned either way.
+   *
+   * shortcut: more than LIST_SCAN_LIMIT archived rows in a row end the page with
+   * no continuation (the caller sees fewer than `limit` rows), upgrade by
+   * returning the last scanned position when runs that long can occur.
    */
   private async listActiveAppointments(
     ordered: Query,
-    limit: number
+    limit: number,
+    after?: AppointmentListPosition
   ): Promise<AppointmentRecord[]> {
     const records: AppointmentRecord[] = [];
     let scanned = 0;
     let cursor: QueryDocumentSnapshot | undefined;
+    // The order is (`startsAt`, document ID), so a position is the pair.
+    const first =
+      after === undefined
+        ? ordered
+        : ordered.startAfter(after.startsAt, after.appointmentId);
     while (records.length < limit && scanned < LIST_SCAN_LIMIT) {
       const page = await (
-        cursor === undefined ? ordered : ordered.startAfter(cursor)
+        cursor === undefined ? first : ordered.startAfter(cursor)
       )
         .limit(limit)
         .get();
@@ -729,9 +861,15 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
     sessionId: string,
     nowUtc: string
   ): Promise<string | undefined> {
+    assertUtcTimestamp(nowUtc, 'nowUtc');
     await Promise.resolve();
+    if (!RETURN_SESSION_ID.test(sessionId)) return undefined;
     const session = this.sessions.get(sessionId);
-    if (session === undefined || session.expiresAt <= nowUtc) return undefined;
+    if (
+      session === undefined ||
+      !isUnexpiredReturnSession(session.expiresAt, nowUtc)
+    )
+      return undefined;
     return this.patients.has(session.patientId) &&
       this.patients.get(session.patientId)?.archivedAt === undefined
       ? session.patientId
@@ -756,32 +894,33 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
   public async listByPatient(
     patientId: string,
     limit: number,
-    window?: AppointmentListWindow
+    window?: AppointmentListWindow,
+    after?: AppointmentListPosition
   ): Promise<AppointmentRecord[]> {
     await Promise.resolve();
     return this.appointments
       .filter(
         (item) =>
-          item.patientId === patientId && isInsideWindow(item.startsAt, window)
+          item.patientId === patientId &&
+          isInsideWindow(item.startsAt, window) &&
+          isAfterPosition(item, after)
       )
-      .slice()
-      .sort((left, right) =>
-        (left.startsAt ?? '').localeCompare(right.startsAt ?? '')
-      )
+      .sort(compareListOrder)
       .slice(0, limit);
   }
 
   public async listClinic(
     limit: number,
-    window?: AppointmentListWindow
+    window?: AppointmentListWindow,
+    after?: AppointmentListPosition
   ): Promise<AppointmentRecord[]> {
     await Promise.resolve();
     return this.appointments
-      .filter((item) => isInsideWindow(item.startsAt, window))
-      .slice()
-      .sort((left, right) =>
-        (left.startsAt ?? '').localeCompare(right.startsAt ?? '')
+      .filter(
+        (item) =>
+          isInsideWindow(item.startsAt, window) && isAfterPosition(item, after)
       )
+      .sort(compareListOrder)
       .slice(0, limit);
   }
 }

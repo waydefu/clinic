@@ -3,7 +3,11 @@ import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { COLLECTIONS } from '../../apps/api/src/firestore/booking.repository.js';
-import { FirestorePatientDirectory } from '../../apps/api/src/patients/patient-directory.js';
+import {
+  FirestorePatientDirectory,
+  type AppointmentListPosition
+} from '../../apps/api/src/patients/patient-directory.js';
+import type { AppointmentRecord } from '../../apps/api/src/appointments/appointment.repository-port.js';
 import {
   LOCAL_FIREBASE_PROJECT_ID,
   requireLocalFirestoreEmulatorTarget
@@ -278,5 +282,84 @@ describe('staff appointment lists bounded by the caller window', () => {
       'appt_old_1',
       'appt_old_2'
     ]);
+  });
+});
+
+// K7 (SOL-LIST): a page now continues after the last row it returned, ordered
+// by (startsAt, document ID), so rows that share a start time and archived rows
+// in between neither drop out nor repeat.
+describe('staff appointment lists continue after a position', () => {
+  const WINDOW = { from: startsAtOf(0), to: startsAtOf(10) };
+
+  /** Active rows: 0a 0b 0c | 1b 1c | 2a 2b, with 1a archived. */
+  async function seedTies(): Promise<void> {
+    for (const id of ['0a', '0b', '0c'])
+      await seedAppointment(`appt_t_${id}`, 0, {});
+    await seedAppointment('appt_t_1a', 1, { archived: true });
+    for (const id of ['1b', '1c']) await seedAppointment(`appt_t_${id}`, 1, {});
+    for (const id of ['2a', '2b']) await seedAppointment(`appt_t_${id}`, 2, {});
+    await seedAppointment('appt_t_other', 1, {
+      patientId: 'patient_list_other'
+    });
+  }
+
+  async function pageThrough(
+    read: (after?: AppointmentListPosition) => Promise<AppointmentRecord[]>,
+    pageSize: number
+  ): Promise<string[][]> {
+    const pages: string[][] = [];
+    let after: AppointmentListPosition | undefined;
+    for (let guard = 0; guard < 10; guard += 1) {
+      const rows = await read(after);
+      if (rows.length > 0) pages.push(rows.map((row) => row.appointmentId));
+      const last = rows.at(-1);
+      if (rows.length < pageSize || last?.startsAt === undefined) break;
+      after = { startsAt: last.startsAt, appointmentId: last.appointmentId };
+    }
+    return pages;
+  }
+
+  it('listClinic pages across equal start times and archived rows without omissions or repeats', async () => {
+    await seedTies();
+
+    const pages = await pageThrough(
+      (after) => directory.listClinic(3, WINDOW, after),
+      3
+    );
+
+    // 'appt_t_other' belongs to another patient, so the clinic list has it.
+    expect(pages).toEqual([
+      ['appt_t_0a', 'appt_t_0b', 'appt_t_0c'],
+      ['appt_t_1b', 'appt_t_1c', 'appt_t_other'],
+      ['appt_t_2a', 'appt_t_2b']
+    ]);
+  });
+
+  it('listByPatient pages the same way and never returns another patient', async () => {
+    await seedTies();
+
+    const pages = await pageThrough(
+      (after) => directory.listByPatient(PATIENT_ID, 3, WINDOW, after),
+      3
+    );
+
+    expect(pages).toEqual([
+      ['appt_t_0a', 'appt_t_0b', 'appt_t_0c'],
+      ['appt_t_1b', 'appt_t_1c', 'appt_t_2a'],
+      ['appt_t_2b']
+    ]);
+  });
+
+  it('a position outside the window cannot widen the window', async () => {
+    await seedTies();
+    await seedAppointment('appt_t_late', 50, {});
+
+    const rows = await directory.listByPatient(PATIENT_ID, 50, WINDOW, {
+      startsAt: startsAtOf(-5),
+      appointmentId: 'appt_nothing'
+    });
+
+    expect(rows.map((row) => row.appointmentId)).not.toContain('appt_t_late');
+    expect(rows).toHaveLength(7);
   });
 });

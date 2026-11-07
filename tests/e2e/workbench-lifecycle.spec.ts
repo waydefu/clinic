@@ -52,6 +52,18 @@ async function recordLabelsDuring(
   });
 }
 
+test('工作臺首次載入不下載患者自助管理模組', async ({ page }) => {
+  const requests: string[] = [];
+  page.on('request', (request) => requests.push(request.url()));
+  await page.goto('/staff', { waitUntil: 'load' });
+  await expect(page.locator('#login-account')).toBeVisible();
+  expect(
+    requests.filter((url) =>
+      /patient-booking-management(?:\.[a-f0-9]+)?\.js/.test(url)
+    )
+  ).toEqual([]);
+});
+
 // 階段 4：首頁從「功能目錄」改成「情境式指揮中心」。這一組驗的是三條原則本身
 // ——零筆不出現、依急迫性排序、全部清空時保持安靜——而不是某一張卡片的文案。
 test.describe('營運首頁指揮中心', () => {

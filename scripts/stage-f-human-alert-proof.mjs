@@ -31,7 +31,7 @@ export function planStageFHumanAlertProof(options = {}) {
   }
   if (projectId !== ISOLATED_C1_PROJECT_ID) {
     throw new Error(
-      'Stage F human-alert proof requires isolated C1 project beauessence-clinic-stg-c1a01.'
+      `Stage F human-alert proof requires isolated C1 project ${ISOLATED_C1_PROJECT_ID}.`
     );
   }
   const definitions = inspectWpB4AlertDefinitions();

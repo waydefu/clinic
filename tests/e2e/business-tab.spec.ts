@@ -1,4 +1,5 @@
 import { expect, test, type Route } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 import { gzipSync } from 'node:zlib';
 import { CANDIDATE_ROLE_PERMISSIONS } from '../../apps/api/src/platform/authorization/rbac.js';
 import { ROLES } from '../../packages/domain/src/roles.js';
@@ -202,6 +203,46 @@ function json(route: Route, body: unknown, status = 200) {
 }
 
 test.describe('商務與驗收工作區', () => {
+  test('hides an already-rendered account list when session revalidation fails', async ({
+    page
+  }) => {
+    const manifest: unknown = JSON.parse(
+      await readFile('apps/web/asset-manifest.json', 'utf8')
+    );
+    if (
+      typeof manifest !== 'object' ||
+      manifest === null ||
+      !('modules/pilot-google-totp-session.js' in manifest)
+    ) {
+      throw new Error('Built session module missing from manifest.');
+    }
+    const modulePath = manifest['modules/pilot-google-totp-session.js'];
+    if (typeof modulePath !== 'string')
+      throw new Error('Built session module path is invalid.');
+
+    await enableServerSession(page);
+    await page.goto('/staff');
+    await expect(page.locator('.app-shell')).toBeVisible();
+    await page.locator('a[href="#accounts-section"]').click();
+    const rows = page.locator('#account-list [data-account-row]');
+    await expect(rows.first()).toBeVisible();
+
+    await page.unroute('**/v1/calendar-session/me');
+    await page.route('**/v1/calendar-session/me', (route) =>
+      route.fulfill({ status: 401, json: {} })
+    );
+    const response = page.waitForResponse('**/v1/calendar-session/me');
+    const rejected = await page.evaluate(async (url) => {
+      const session = await import(url);
+      return (await session.verifyCalendarPilotClientSession()) === undefined;
+    }, `/${modulePath}`);
+    expect((await response).status()).toBe(401);
+    expect(rejected).toBe(true);
+    await expect(page.locator('.app-shell')).toBeHidden();
+    await expect(page.locator('#current-account-label')).toBeEmpty();
+    await expect(rows.first()).toBeHidden();
+  });
+
   test('loads the deferred panel only after a manager selects its tab', async ({
     page
   }, testInfo) => {
@@ -897,7 +938,15 @@ test.describe('商務與驗收工作區', () => {
       .first()
       .fill('patient_test_archive_001');
     await page.getByRole('button', { name: '重新登入並封存' }).click();
-    await expect(page.locator('#business-section')).toContainText('可復原至');
+    await expect(page.locator('#business-section')).toContainText(
+      '管理者可復原'
+    );
+    await expect(page.locator('#business-section')).toContainText(
+      '不會自動刪除'
+    );
+    await expect(page.locator('#business-section')).not.toContainText(
+      '可復原至'
+    );
     await page
       .getByLabel('患者不透明識別碼')
       .nth(1)
@@ -943,6 +992,75 @@ test.describe('商務與驗收工作區', () => {
       expect(write.headers['x-reauth-id-token']).toBe('synthetic-fresh-token');
       expect(write.headers['x-csrf-token']).toBe('csrf_synthetic_test');
     }
+  });
+
+  test('confirms an archived identity for a flagged record without re-authentication', async ({
+    page
+  }) => {
+    await enableServerSession(page);
+    const writes = [];
+    const lookups = [];
+    await page.route('**/v1/business-delivery/**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      const path = url.pathname;
+      if (path.endsWith('/monthly-usage')) return json(route, MONTHLY_USAGE);
+      if (path.endsWith('/milestones')) return json(route, INITIAL_MILESTONES);
+      if (path.endsWith('/pending-deletion'))
+        return json(route, { patients: [] });
+      if (path.endsWith('/identity-candidates')) {
+        lookups.push(url.searchParams.get('patientId'));
+        return json(route, {
+          patientId: url.searchParams.get('patientId'),
+          candidates: [
+            {
+              patientId: 'patient_test_candidate_001',
+              archivedAt: '2026-09-01T00:00:00.000Z',
+              legalHold: false
+            }
+          ]
+        });
+      }
+      if (request.method() === 'POST' && path.endsWith('/confirm-identity')) {
+        const body = request.postDataJSON();
+        writes.push({ path, body, headers: request.headers() });
+        return json(route, {
+          patientId: body.archivedPatientId,
+          provisionalPatientId: body.provisionalPatientId,
+          state: 'active'
+        });
+      }
+      return json(route, { error: { message: '找不到指定的資料。' } }, 404);
+    });
+
+    await page.goto('/staff#business-section');
+    await page
+      .getByLabel('待確認新紀錄 ID')
+      .fill('patient_test_provisional_001');
+    await page.getByRole('button', { name: '查詢候選封存身分' }).click();
+    await expect(page.locator('#business-section')).toContainText(
+      'patient_test_candidate_001'
+    );
+    await expect(page.locator('#business-section')).not.toContainText('王小明');
+    await page.getByRole('button', { name: '選用此候選' }).click();
+    await expect(page.getByLabel('候選封存紀錄 ID')).toHaveValue(
+      'patient_test_candidate_001'
+    );
+    await page.getByLabel('確認原因').selectOption('duplicate_record');
+    await expect(
+      page.getByLabel('確認原因').locator('option[value="retention_expired"]')
+    ).toHaveCount(0);
+    await page.getByRole('button', { name: '確認為同一人並復原' }).click();
+    await expect(page.locator('#business-section')).toContainText('身分已確認');
+    expect(lookups).toEqual(['patient_test_provisional_001']);
+    expect(writes).toHaveLength(1);
+    expect(writes[0].body).toMatchObject({
+      provisionalPatientId: 'patient_test_provisional_001',
+      archivedPatientId: 'patient_test_candidate_001',
+      reasonCode: 'duplicate_record'
+    });
+    expect(writes[0].headers['x-csrf-token']).toBe('csrf_synthetic_test');
+    expect(writes[0].headers['x-reauth-id-token']).toBeUndefined();
   });
 
   test('records attributed termination receipts and sends close to manual review', async ({

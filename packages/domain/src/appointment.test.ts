@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  COMPLETION_ACTOR_ROLES,
   DomainError,
+  LEGACY_ROLE_ALIASES,
+  SYSTEM_ROLES,
   markAppointmentCompleted,
   requestCancellation,
   reserveSlot
@@ -84,6 +87,88 @@ describe('appointment invariants', () => {
       markAppointmentCompleted(
         arrivedAppointment,
         'case_manager' as never,
+        '2026-07-21T02:00:00.000Z'
+      )
+    ).toThrow(
+      expect.objectContaining<Partial<DomainError>>({
+        code: 'COMPLETION_NOT_AUTHORIZED'
+      })
+    );
+  });
+
+  it('accepts the canonical administrator role from the shared role mapping', () => {
+    const arrived = { ...confirmedAppointment, status: 'arrived' as const };
+    const result = markAppointmentCompleted(
+      arrived,
+      LEGACY_ROLE_ALIASES.admin as never,
+      '2026-07-21T02:00:00.000Z'
+    );
+    expect(result.status).toBe('completed');
+    expect(result.completedAt).toBe('2026-07-21T02:00:00.000Z');
+    expect(arrived.status).toBe('arrived');
+  });
+
+  it.each(COMPLETION_ACTOR_ROLES)(
+    'preserves completion for the approved or compatible role %s',
+    (role) => {
+      expect(
+        markAppointmentCompleted(
+          { ...confirmedAppointment, status: 'arrived' },
+          role,
+          '2026-07-21T02:00:00.000Z'
+        ).status
+      ).toBe('completed');
+    }
+  );
+
+  it.each(SYSTEM_ROLES)('denies technical or nonhuman role %s', (role) => {
+    const arrived = { ...confirmedAppointment, status: 'arrived' as const };
+    expect(() =>
+      markAppointmentCompleted(
+        arrived,
+        role as never,
+        '2026-07-21T02:00:00.000Z'
+      )
+    ).toThrow(
+      expect.objectContaining<Partial<DomainError>>({
+        code: 'COMPLETION_NOT_AUTHORIZED'
+      })
+    );
+    expect(arrived.status).toBe('arrived');
+  });
+
+  it('executes the same completion boundary in the generated browser module', async () => {
+    const browser =
+      await import('../../../apps/web/public/vendor/domain/index.js');
+    for (const role of COMPLETION_ACTOR_ROLES) {
+      expect(
+        browser.markAppointmentCompleted(
+          { ...confirmedAppointment, status: 'arrived' },
+          role,
+          '2026-07-21T02:00:00.000Z'
+        ).status
+      ).toBe('completed');
+    }
+    for (const role of SYSTEM_ROLES) {
+      expect(() =>
+        browser.markAppointmentCompleted(
+          { ...confirmedAppointment, status: 'arrived' },
+          role as never,
+          '2026-07-21T02:00:00.000Z'
+        )
+      ).toThrow(
+        expect.objectContaining<Partial<DomainError>>({
+          code: 'COMPLETION_NOT_AUTHORIZED'
+        })
+      );
+    }
+  });
+
+  it('rejects system completion of an arrived appointment', () => {
+    expect(() =>
+      markAppointmentCompleted(
+        { ...confirmedAppointment, status: 'arrived' },
+        'system' as never,
         '2026-07-21T02:00:00.000Z'
       )
     ).toThrow(

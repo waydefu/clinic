@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 
 import type { z } from 'zod';
 import {
+  CalendarAvailabilityResponseSchema,
   CalendarPilotAppointmentIdentityRecordSchema,
   CalendarPilotAppointmentRecordSchema,
   CalendarPilotAvailabilityOverlapRecordSchema,
@@ -17,6 +18,8 @@ import {
   CalendarSourcePreflightResponseSchema,
   ReviewCalendarCandidateResponseSchema,
   SyntheticAppointmentCommandResponseSchema,
+  SyntheticPatientSummarySchema,
+  hasCalendarPilotWorkerLease,
   parseCalendarPilotRecord
 } from '@beauessence/contracts';
 import type {
@@ -250,7 +253,7 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
         appointmentStartsAtAtDetection: _startsAtAtDetection,
         sourceId: _sourceId,
         ...publicRecord
-      } = documentData(CalendarPilotCandidateRecordSchema, document);
+      } = documentData(CalendarPilotCandidateRecordSchema.strip(), document);
       return publicRecord;
     });
     const suggestedPatientIds = [
@@ -322,7 +325,7 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       .orderBy('endsAt', 'asc')
       .limit(500)
       .get();
-    return {
+    return parseCalendarPilotRecord(CalendarAvailabilityResponseSchema, {
       generatedAt: now,
       sourceVersion: configuration.version,
       blocks: blocks.docs.map((document) => {
@@ -340,7 +343,7 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
           displayLabel: data.displayLabel
         };
       })
-    };
+    });
   }
 
   public async listSyntheticAppointments(): Promise<
@@ -352,7 +355,7 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       .limit(200)
       .get();
     return documents.docs.map((document) =>
-      documentData(CalendarPilotAppointmentRecordSchema, document)
+      documentData(CalendarPilotAppointmentRecordSchema.strip(), document)
     );
   }
 
@@ -363,8 +366,14 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       .collection(COLLECTIONS.patients)
       .where('enabled', '==', true)
       .orderBy('__name__', 'asc')
+      // Only the document ID is used, so read no stored fields (D-16).
+      .select()
       .get();
-    return documents.docs.map((document) => ({ patientCode: document.id }));
+    return documents.docs.map((document) =>
+      parseCalendarPilotRecord(SyntheticPatientSummarySchema, {
+        patientCode: document.id
+      })
+    );
   }
 
   public async getSourcePreflight(
@@ -511,6 +520,7 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
       }
       if (configuration.version !== command.expectedVersion)
         throw new ConflictError();
+      if (hasCalendarPilotWorkerLease(configuration)) throw new ConflictError();
       const sourceId = requestedSourceId ?? configuration.previousSourceId;
       if (sourceId === undefined) throw new ConflictError();
       const [source, preflight] = await Promise.all([

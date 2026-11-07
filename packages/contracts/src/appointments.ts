@@ -107,14 +107,26 @@ export const GetAppointmentResponseSchema = z
     patientId: OpaqueIdentifierSchema.optional(),
     intakeNationality: NationalitySchema.optional(),
     /** Staff clinic list only, like `intakeNationality`. */
-    patientNote: z.string().max(120).optional()
+    patientNote: z.string().max(120).optional(),
+    /** Staff-only attention flag; private archive candidate IDs stay server-side. */
+    identityReviewRequired: z.literal(true).optional()
   })
   .strict();
 
+/**
+ * `cursor` is the opaque `x-next-cursor` response header of the previous page
+ * (the body stays `{ appointments }`). It only positions the read; scope and
+ * window are applied on every page. It replaces `startAfter`, which no caller
+ * sent and the service never read.
+ */
 export const ListAppointmentsQuerySchema = z
   .object({
     scope: z.enum(['mine', 'clinic']).optional(),
-    startAfter: UtcIsoTimestampSchema.optional(),
+    cursor: z
+      .string()
+      .max(256)
+      .regex(/^[A-Za-z0-9_-]+$/)
+      .optional(),
     limit: z.coerce.number().int().min(1).max(50).optional()
   })
   .strict();

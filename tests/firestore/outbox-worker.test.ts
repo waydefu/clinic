@@ -1,6 +1,14 @@
 import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it
+} from 'vitest';
 
 import {
   calendarEventIdForAppointment,
@@ -1332,12 +1340,24 @@ describe('follow-up reminder projection follows the latest stored decision', () 
 
   // Patient retention (PR #222) enqueues reminder jobs from the planner.
   describe('retention jobs from planRetentionCalendarProjections', () => {
+    const PATIENT_ID = 'patient_cal_stage3';
+    const EPISODE = '2026-06-01T00:00:00.000Z';
+    const LATER_EPISODE = '2026-07-01T00:00:00.000Z';
+    const FUTURE_VISIT = '2030-06-01T03:00:00.000Z';
+
     function plannedJobs(operation: RetentionOperation, dueAt: string | null) {
       return planRetentionCalendarProjections({
         operation,
         requestId: `req_${operation}_001`,
         at: NOW,
-        appointments: [{ id: 'appointment_001', status: 'completed' }],
+        ...(operation === 'archive' ? { archivedAt: EPISODE } : {}),
+        appointments: [
+          {
+            id: 'appointment_001',
+            status: 'completed',
+            startsAt: '2030-01-02T04:00:00.000Z'
+          }
+        ],
         followUps:
           dueAt === null
             ? []
@@ -1348,6 +1368,22 @@ describe('follow-up reminder projection follows the latest stored decision', () 
                   dueAt
                 }
               ]
+      });
+    }
+
+    function plannedRestoreOfOpenBooking(requestId: string) {
+      return planRetentionCalendarProjections({
+        operation: 'restore',
+        requestId,
+        at: NOW,
+        appointments: [
+          {
+            id: 'appointment_001',
+            status: 'confirmed',
+            startsAt: FUTURE_VISIT
+          }
+        ],
+        followUps: []
       });
     }
 
@@ -1364,25 +1400,269 @@ describe('follow-up reminder projection follows the latest stored decision', () 
       );
     }
 
-    it.each(['archive', 'restore'] as const)(
-      'on %s re-upserts the reminder at the current stored due date',
-      async (operation) => {
-        await seedCompletedVisit();
-        await projectExistingReminder(DUE_OLD);
-        // The decision was changed after the old reminder was projected.
-        await seedFollowUpDecision('required', DUE_NEW);
-        await enqueue(plannedJobs(operation, DUE_NEW));
-
-        const summary = await processor.processDue(NOW);
-
-        expect(summary).toMatchObject({ claimed: 2, completed: 2 });
-        expect(calendar.events.get(FOLLOW_UP_KEY)).toMatchObject({
-          action: 'upsert',
-          appointmentStatus: 'follow_up_required',
-          startsAt: DUE_NEW
+    async function seedPatientRecord(archivedAt?: string): Promise<void> {
+      await db
+        .collection('patients')
+        .doc(PATIENT_ID)
+        .set({
+          patientId: PATIENT_ID,
+          ...(archivedAt === undefined ? {} : { archivedAt })
         });
+    }
+
+    async function seedOwnedVisit(
+      status: string,
+      startsAt: string
+    ): Promise<void> {
+      await db.collection(APPOINTMENTS_COLLECTION).doc('appointment_001').set({
+        status,
+        startsAt,
+        bookingKind: 'initial',
+        patientId: PATIENT_ID
+      });
+    }
+
+    async function projectExistingVisit(startsAt: string): Promise<void> {
+      await calendar.project({
+        idempotencyKey: CONFIRMED_KEY,
+        action: 'upsert',
+        appointmentId: 'appointment_001',
+        correlationId: 'corr_existing_visit',
+        causationId: 'audit_existing_visit',
+        appointmentStatus: 'confirmed',
+        startsAt,
+        endsAt: new Date(Date.parse(startsAt) + 3_600_000).toISOString(),
+        bookingKind: 'initial',
+        colorId: CLINIC_EVENT_COLOR_ID
+      });
+    }
+
+    async function projectExistingReminder(startsAt: string): Promise<void> {
+      await calendar.project({
+        idempotencyKey: FOLLOW_UP_KEY,
+        action: 'upsert',
+        appointmentId: 'appointment_001',
+        correlationId: 'corr_existing_reminder',
+        causationId: 'audit_existing_reminder',
+        appointmentStatus: 'follow_up_required',
+        startsAt,
+        endsAt: new Date(Date.parse(startsAt) + 3_600_000).toISOString(),
+        bookingKind: 'follow_up',
+        colorId: CLINIC_EVENT_COLOR_ID
+      });
+    }
+
+    afterEach(async () => {
+      await db.collection('patients').doc(PATIENT_ID).delete();
+    });
+
+    it('on archive removes the visit event and the reminder instead of re-projecting them', async () => {
+      await seedPatientRecord(EPISODE);
+      await seedOwnedVisit('completed', '2030-01-02T04:00:00.000Z');
+      await seedFollowUpDecision('required', DUE_NEW);
+      await projectExistingVisit('2030-01-02T04:00:00.000Z');
+      await projectExistingReminder(DUE_NEW);
+      await enqueue(plannedJobs('archive', DUE_NEW));
+      calendar.callCount = 0;
+
+      const summary = await processor.processDue(NOW);
+
+      expect(summary).toMatchObject({ claimed: 2, completed: 2 });
+      expect(calendar.events.size).toBe(0);
+      expect(calendar.cancelCount).toBe(2);
+      expect(calendar.callCount).toBe(2);
+    });
+
+    it('treats an event that is already gone as a finished removal on archive', async () => {
+      await seedPatientRecord(EPISODE);
+      await seedOwnedVisit('completed', '2030-01-02T04:00:00.000Z');
+      await seedFollowUpDecision('required', DUE_NEW);
+      await enqueue(plannedJobs('archive', DUE_NEW));
+
+      const summary = await processor.processDue(NOW);
+
+      expect(summary).toMatchObject({ claimed: 2, completed: 2 });
+      expect(calendar.cancelMissCount).toBe(2);
+      expect(calendar.events.size).toBe(0);
+    });
+
+    it('retries a failed removal and still ends with no event', async () => {
+      await seedPatientRecord(EPISODE);
+      await seedOwnedVisit('completed', '2030-01-02T04:00:00.000Z');
+      await projectExistingVisit('2030-01-02T04:00:00.000Z');
+      await enqueue(plannedJobs('archive', null));
+      calendar.failNext(1);
+
+      const first = await processor.processDue(NOW);
+      expect(first).toMatchObject({ claimed: 1, retried: 1 });
+      expect(calendar.events.size).toBe(1);
+
+      const second = await processor.processDue(later(3600));
+      expect(second).toMatchObject({ claimed: 1, completed: 1 });
+      expect(calendar.events.size).toBe(0);
+    });
+
+    it('on restore re-adds the reminder at the current stored due date', async () => {
+      await seedPatientRecord();
+      await seedOwnedVisit('completed', '2030-01-02T04:00:00.000Z');
+      await projectExistingReminder(DUE_OLD);
+      // The decision was changed after the old reminder was projected.
+      await seedFollowUpDecision('required', DUE_NEW);
+      await enqueue(plannedJobs('restore', DUE_NEW));
+
+      const summary = await processor.processDue(NOW);
+
+      expect(summary).toMatchObject({ claimed: 1, completed: 1 });
+      expect(calendar.events.get(FOLLOW_UP_KEY)).toMatchObject({
+        action: 'upsert',
+        appointmentStatus: 'follow_up_required',
+        startsAt: DUE_NEW
+      });
+      // The two-year-old visit is not rebuilt.
+      expect(calendar.events.has(CONFIRMED_KEY)).toBe(false);
+    });
+
+    it('on restore adds back an open booking the return visit still needs', async () => {
+      await seedPatientRecord();
+      await seedOwnedVisit('confirmed', FUTURE_VISIT);
+      await enqueue(plannedRestoreOfOpenBooking('req_restore_booking'));
+
+      await processor.processDue(NOW);
+
+      expect(calendar.events.get(CONFIRMED_KEY)).toMatchObject({
+        action: 'upsert',
+        startsAt: FUTURE_VISIT
+      });
+    });
+
+    it('on restore keeps a booking cancelled in the meantime cancelled', async () => {
+      await seedPatientRecord();
+      await seedOwnedVisit('cancelled', FUTURE_VISIT);
+      await projectExistingVisit(FUTURE_VISIT);
+      await enqueue(plannedRestoreOfOpenBooking('req_restore_cancelled'));
+
+      await processor.processDue(NOW);
+
+      expect(calendar.events.size).toBe(0);
+    });
+
+    it('lets a late archive job do nothing once the patient was restored', async () => {
+      await seedPatientRecord();
+      await seedOwnedVisit('confirmed', FUTURE_VISIT);
+      await projectExistingVisit(FUTURE_VISIT);
+      await enqueue(plannedJobs('archive', null));
+      calendar.callCount = 0;
+
+      const summary = await processor.processDue(NOW);
+
+      expect(summary).toMatchObject({ claimed: 1, completed: 1 });
+      expect(calendar.callCount).toBe(0);
+      expect(calendar.events.has(CONFIRMED_KEY)).toBe(true);
+    });
+
+    it('lets a job of an earlier archive episode do nothing after a later archive', async () => {
+      await seedPatientRecord(LATER_EPISODE);
+      await seedOwnedVisit('confirmed', FUTURE_VISIT);
+      await projectExistingVisit(FUTURE_VISIT);
+      await enqueue(plannedJobs('archive', null));
+      calendar.callCount = 0;
+
+      await processor.processDue(NOW);
+
+      expect(calendar.callCount).toBe(0);
+      expect(calendar.events.has(CONFIRMED_KEY)).toBe(true);
+    });
+
+    it('never resurrects an event from a restore job after the patient is archived again', async () => {
+      await seedPatientRecord(LATER_EPISODE);
+      await seedOwnedVisit('confirmed', FUTURE_VISIT);
+      await enqueue(plannedRestoreOfOpenBooking('req_restore_stale'));
+
+      const summary = await processor.processDue(NOW);
+
+      expect(summary).toMatchObject({ claimed: 1, completed: 1 });
+      expect(calendar.callCount).toBe(0);
+      expect(calendar.events.size).toBe(0);
+    });
+
+    it('deletes instead of upserting when an ordinary job queued before the archive runs after it', async () => {
+      await seedJob();
+      await db
+        .collection(APPOINTMENTS_COLLECTION)
+        .doc('appointment_001')
+        .update({ patientId: PATIENT_ID });
+      await seedPatientRecord(EPISODE);
+      await projectExistingVisit('2030-01-02T04:00:00.000Z');
+      calendar.insertCount = 0;
+
+      const summary = await processor.processDue(NOW);
+
+      expect(summary).toMatchObject({ claimed: 1, completed: 1 });
+      expect(calendar.events.size).toBe(0);
+      expect(calendar.cancelCount).toBe(1);
+      expect(calendar.insertCount).toBe(0);
+    });
+
+    it('does not re-create a reminder for an archived patient from an older reminder job', async () => {
+      await seedPatientRecord(EPISODE);
+      await seedOwnedVisit('completed', '2030-01-02T04:00:00.000Z');
+      await seedFollowUpDecision('required', DUE_NEW);
+      await projectExistingReminder(DUE_NEW);
+      await db.collection(OUTBOX_COLLECTION).doc('outbox_reminder_old').set({
+        appointmentId: 'appointment_001',
+        followUpSourceId: 'appointment_001',
+        correlationId: 'corr_reminder_old',
+        causationId: 'audit_reminder_old',
+        appointmentStatus: 'follow_up_required',
+        idempotencyKey: FOLLOW_UP_KEY,
+        type: 'calendar_projection_requested',
+        status: 'pending',
+        attempts: 0,
+        nextAttemptAt: NOW,
+        startsAt: DUE_NEW
+      });
+
+      await processor.processDue(NOW);
+
+      expect(calendar.events.has(FOLLOW_UP_KEY)).toBe(false);
+    });
+
+    it('takes back an upsert whose patient was archived while the call was in flight', async () => {
+      class ArchivingMidFlightCalendar extends InMemoryCalendar {
+        public override async project(
+          request: CalendarProjectionRequest,
+          options?: CalendarProjectionOptions
+        ): Promise<void> {
+          if (request.action === 'upsert' && this.insertCount === 0) {
+            await db
+              .collection('patients')
+              .doc(PATIENT_ID)
+              .update({ archivedAt: EPISODE });
+          }
+          return super.project(request, options);
+        }
       }
-    );
+      const racing = new ArchivingMidFlightCalendar();
+      const racingProcessor = new OutboxProcessor(
+        db,
+        racing,
+        metrics,
+        () => 0.5
+      );
+      await seedPatientRecord();
+      await seedJob();
+      await db
+        .collection(APPOINTMENTS_COLLECTION)
+        .doc('appointment_001')
+        .update({ patientId: PATIENT_ID });
+
+      const summary = await racingProcessor.processDue(NOW);
+
+      expect(summary).toMatchObject({ claimed: 1, completed: 1 });
+      expect(racing.insertCount).toBe(1);
+      expect(racing.cancelCount).toBe(1);
+      expect(racing.events.size).toBe(0);
+    });
 
     it('on permanent delete cancels the reminder and the visit event after the decision document is gone', async () => {
       await seedCompletedVisit();

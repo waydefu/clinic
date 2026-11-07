@@ -176,6 +176,12 @@ overrides:
   # All three releases predate the unchanged 24-hour maturity window.
   # Remove each pin when its parent's normal resolution carries the fix.
   compression@^1: '1.8.2'
+  # GHSA-3g3m-2fjr-6pw4 / GHSA-g3hv-75wg-m249: patch only the
+  # gaxios/google-gax > rimraf branch, without upgrading either SDK.
+  'rimraf@5.0.10>glob': '14.0.2'
+  'glob@14.0.2>minimatch': '11.0.1'
+  # The new minimatch branch must not inherit the older global ^5 pin.
+  'minimatch@11.0.1>brace-expansion': '5.0.12'
 
 # 2026-08-01：本檔曾經有一筆 `auditConfig.ignoreGhsas` 例外
 # （GHSA-mh99-v99m-4gvg，SEC-03）。當時的解除條件寫的是「1.x／2.x 出現修補版」，

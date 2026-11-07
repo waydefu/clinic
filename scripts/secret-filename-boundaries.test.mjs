@@ -131,6 +131,16 @@ describe('filename boundaries without reading any credential content', () => {
     expect(lines).not.toContain('!**/.env.example');
   });
 
+  it('declares cal-pilot-keys denies (declaration only; not live enforcement)', () => {
+    expect(policy.permissions.deny).toEqual(
+      expect.arrayContaining([
+        'Read(**/cal-pilot-keys/**)',
+        'Edit(**/cal-pilot-keys/**)',
+        'Write(**/cal-pilot-keys/**)'
+      ])
+    );
+  });
+
   it('declares Read/Edit/Write denies for all file kinds (not agent-engine proof)', () => {
     const patterns = [
       '**/.env*',

@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 import { resolveListenHost } from './main.js';
 
@@ -49,6 +51,18 @@ describe('resolveListenHost', () => {
     expect(resolveListenHost({ HOST: ' localhost ' })).toBe('localhost');
     expect(() => resolveListenHost({ HOST: '   ' })).toThrow(
       /must not be empty/u
+    );
+  });
+});
+
+describe('API bootstrap maintenance wiring', () => {
+  it('passes the Firestore maintenance control to createApplication', () => {
+    const source = readFileSync(
+      fileURLToPath(new URL('./main.ts', import.meta.url)),
+      'utf8'
+    );
+    expect(source).toMatch(
+      /createApplication\(\s*createFirestoreMaintenanceControl\(getFirestore\(defaultFirebaseApp\(\)\)\)\s*\)/u
     );
   });
 });

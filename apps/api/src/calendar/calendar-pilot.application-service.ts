@@ -1,3 +1,4 @@
+import { assertUtcTimestamp } from '@beauessence/domain';
 import type {
   ActivateCalendarSourceRequest,
   CalendarAvailabilityResponse,
@@ -58,11 +59,17 @@ export class CalendarPilotApplicationService {
     private readonly clinicReview?: ClinicCalendarReviewApplicationService
   ) {}
 
+  private nowUtc(): string {
+    const now = this.clock.nowUtc();
+    assertUtcTimestamp(now, 'calendarPilot.nowUtc');
+    return now;
+  }
+
   public status(
     authentication: AuthenticationContext
   ): Promise<CalendarSyncStatus> {
     requireRole(authentication, ['manager', 'front_desk']);
-    return this.repository.getStatus(this.clock.nowUtc());
+    return this.repository.getStatus(this.nowUtc());
   }
 
   public sources(
@@ -83,7 +90,7 @@ export class CalendarPilotApplicationService {
     authentication: AuthenticationContext
   ): Promise<CalendarAvailabilityResponse> {
     requireRole(authentication, ['manager', 'front_desk']);
-    return this.repository.getAvailability(this.clock.nowUtc());
+    return this.repository.getAvailability(this.nowUtc());
   }
 
   public appointments(authentication: AuthenticationContext) {
@@ -112,7 +119,7 @@ export class CalendarPilotApplicationService {
     return this.repository.requestSourcePreflight({
       ...command,
       actorId: authentication.actorId,
-      occurredAt: this.clock.nowUtc()
+      occurredAt: this.nowUtc()
     });
   }
 
@@ -124,7 +131,7 @@ export class CalendarPilotApplicationService {
     return this.repository.activateSource({
       ...command,
       actorId: authentication.actorId,
-      occurredAt: this.clock.nowUtc()
+      occurredAt: this.nowUtc()
     });
   }
 
@@ -138,7 +145,7 @@ export class CalendarPilotApplicationService {
     return this.repository.rollbackSource({
       ...command,
       actorId: authentication.actorId,
-      occurredAt: this.clock.nowUtc()
+      occurredAt: this.nowUtc()
     });
   }
 
@@ -164,7 +171,7 @@ export class CalendarPilotApplicationService {
       ...command,
       actorId: authentication.actorId,
       actorRole: role,
-      occurredAt: this.clock.nowUtc()
+      occurredAt: this.nowUtc()
     });
   }
 
@@ -182,7 +189,7 @@ export class CalendarPilotApplicationService {
       idempotencyKey: command.idempotencyKey,
       actorId: authentication.actorId,
       actorRole: role,
-      occurredAt: this.clock.nowUtc()
+      occurredAt: this.nowUtc()
     });
   }
 
@@ -197,7 +204,7 @@ export class CalendarPilotApplicationService {
       ...command,
       actorId: authentication.actorId,
       actorRole: role,
-      occurredAt: this.clock.nowUtc()
+      occurredAt: this.nowUtc()
     });
   }
 
@@ -209,7 +216,7 @@ export class CalendarPilotApplicationService {
     return this.repository.createSyntheticAppointment({
       ...command,
       actorId: authentication.actorId,
-      occurredAt: this.clock.nowUtc()
+      occurredAt: this.nowUtc()
     });
   }
 
@@ -222,7 +229,7 @@ export class CalendarPilotApplicationService {
     return this.repository.rescheduleSyntheticAppointment(appointmentId, {
       ...command,
       actorId: authentication.actorId,
-      occurredAt: this.clock.nowUtc()
+      occurredAt: this.nowUtc()
     });
   }
 
@@ -235,7 +242,7 @@ export class CalendarPilotApplicationService {
     return this.repository.cancelSyntheticAppointment(appointmentId, {
       ...command,
       actorId: authentication.actorId,
-      occurredAt: this.clock.nowUtc()
+      occurredAt: this.nowUtc()
     });
   }
 }

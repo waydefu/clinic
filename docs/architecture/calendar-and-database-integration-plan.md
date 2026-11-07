@@ -133,7 +133,7 @@ worker runner 或實際 Calendar 連線。D-009 核准日曆擁有者、授權�
 change-plan review、deployment authority 與 apply approval。C1 isolated
 foundation 明確不含 IdP、Firestore、backup/PITR 或 runtime；Firestore 只能在
 後續 C5/C6 獨立獲准 slice 建立。D-006
-（全員 MFA、自管帳號 TOTP、30m idle／8h absolute session、立即停權、授權碼
+（全員 MFA、自管帳號 TOTP、30m idle／8h absolute session（2026-10-03 起改為絕對 12 小時、無閒置登出，見 `STAFF-SESSION-12H-2026-10-03`；敏感操作 10 分鐘再驗證不變；此為歷史原文）、立即停權、授權碼
 雜湊／撤銷／錯誤限制、永久 audit）及 D-010 的環境、主要區域及 RPO／RTO target
 已於 2026-07-28 核准，但均尚未實作；實際 IAM、備份、監控與跨區復原也尚未建立
 或驗證。

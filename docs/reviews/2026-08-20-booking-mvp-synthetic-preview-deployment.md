@@ -10,7 +10,7 @@ real data.
 | Field | Evidence |
 | --- | --- |
 | Approver | Project owner; one controlled exact-C retry with process-scoped `CI=true` was authorised on 2026-08-20 |
-| Operator | `wayde.fu@gmail.com` |
+| Operator | `診所負責人的 Google 帳號（依 Q3 隱去個人信箱）` |
 | Project / site | `beauessence-clinic-staging` (project number `781119800251`) |
 | Channel | `synthetic-review` |
 | Deployed SHA | `7e0add8079b37da2e1c11ef4f59660554b9b66d8` (candidate C) |

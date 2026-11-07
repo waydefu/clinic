@@ -5,6 +5,8 @@ import {
 } from '@beauessence/domain';
 import type {
   PatientArchivedResponse,
+  PatientIdentityCandidatesResponse,
+  PatientIdentityConfirmedResponse,
   PatientLegalHoldResponse,
   PatientPermanentlyDeletedResponse,
   PatientRestoredResponse,
@@ -16,6 +18,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { AuthenticationContext } from '../auth/authentication-context.js';
 import type {
   ArchivePatientCommand,
+  ConfirmArchivedIdentityCommand,
   PermanentlyDeletePatientCommand,
   RestorePatientCommand,
   SetPatientLegalHoldCommand
@@ -28,6 +31,10 @@ import {
 import type { BusinessDeliveryConfig } from './business-delivery.config.js';
 import { BusinessRetentionApplicationService } from './business-retention.application-service.js';
 import type { BusinessRetentionRepositoryPort } from './business-retention.application-service.js';
+import {
+  decodePendingDeletionCursor,
+  encodePendingDeletionCursor
+} from './pending-deletion-cursor.js';
 
 const POLICY = resolveApprovedBusinessDeliveryPolicy(
   'BD-POLICY-2026-09-29',
@@ -49,6 +56,22 @@ const ARCHIVED: PatientArchivedResponse = {
 const RESTORED: PatientRestoredResponse = {
   patientId: PATIENT_ID,
   state: 'active'
+};
+const PROVISIONAL_ID = 'patient_ret_provisional';
+const CONFIRMED: PatientIdentityConfirmedResponse = {
+  patientId: PATIENT_ID,
+  provisionalPatientId: PROVISIONAL_ID,
+  state: 'active'
+};
+const CANDIDATES: PatientIdentityCandidatesResponse = {
+  patientId: PROVISIONAL_ID,
+  candidates: [
+    {
+      patientId: PATIENT_ID,
+      archivedAt: '2030-10-01T00:00:00.000Z',
+      legalHold: false
+    }
+  ]
 };
 const DELETED: PatientPermanentlyDeletedResponse = {
   patientId: PATIENT_ID,
@@ -94,12 +117,16 @@ function setup(
   const calls: {
     archive: ArchivePatientCommand[];
     restore: RestorePatientCommand[];
+    confirm: ConfirmArchivedIdentityCommand[];
+    candidates: string[];
     permanentlyDelete: PermanentlyDeletePatientCommand[];
     setLegalHold: SetPatientLegalHoldCommand[];
     pendingDeletion: string[];
   } = {
     archive: [],
     restore: [],
+    confirm: [],
+    candidates: [],
     permanentlyDelete: [],
     setLegalHold: [],
     pendingDeletion: []
@@ -112,6 +139,14 @@ function setup(
     restore: vi.fn((command) => {
       calls.restore.push(command);
       return Promise.resolve(RESTORED);
+    }),
+    confirmArchivedIdentity: vi.fn((command) => {
+      calls.confirm.push(command);
+      return Promise.resolve(CONFIRMED);
+    }),
+    identityCandidates: vi.fn((patientId) => {
+      calls.candidates.push(patientId);
+      return Promise.resolve(CANDIDATES);
     }),
     permanentlyDelete: vi.fn((command) => {
       calls.permanentlyDelete.push(command);
@@ -135,6 +170,13 @@ function setup(
   );
   return { service, repository, calls, assertFresh };
 }
+
+const confirmRequest = {
+  idempotencyKey: 'confirm-identity-key-01',
+  provisionalPatientId: PROVISIONAL_ID,
+  archivedPatientId: PATIENT_ID,
+  reasonCode: 'duplicate_record'
+};
 
 const patientRequest = {
   idempotencyKey: 'retention-key-000001',
@@ -173,6 +215,14 @@ describe('BusinessRetentionApplicationService authorization', () => {
       await expect(service.pendingDeletion(staff(role))).rejects.toBeInstanceOf(
         AuthorizationDeniedError
       );
+      await expect(
+        service.confirmArchivedIdentity(confirmRequest, staff(role))
+      ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+      await expect(
+        service.identityCandidates(PROVISIONAL_ID, staff(role))
+      ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+      expect(repository.confirmArchivedIdentity).not.toHaveBeenCalled();
+      expect(repository.identityCandidates).not.toHaveBeenCalled();
       expect(repository.archive).not.toHaveBeenCalled();
       expect(repository.restore).not.toHaveBeenCalled();
       expect(repository.permanentlyDelete).not.toHaveBeenCalled();
@@ -189,9 +239,17 @@ describe('BusinessRetentionApplicationService authorization', () => {
     await expect(
       service.pendingDeletion(staff(MANAGER))
     ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      service.confirmArchivedIdentity(confirmRequest, staff(MANAGER))
+    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      service.identityCandidates(PROVISIONAL_ID, staff(MANAGER))
+    ).rejects.toBeInstanceOf(NotFoundException);
     expect(assertFresh).not.toHaveBeenCalled();
     expect(repository.archive).not.toHaveBeenCalled();
     expect(repository.pendingDeletion).not.toHaveBeenCalled();
+    expect(repository.confirmArchivedIdentity).not.toHaveBeenCalled();
+    expect(repository.identityCandidates).not.toHaveBeenCalled();
   });
 });
 
@@ -272,6 +330,56 @@ describe('BusinessRetentionApplicationService operations', () => {
     ).rejects.toBeInstanceOf(ZodError);
   });
 
+  it('confirms an archived identity with the server actor, no re-authentication and no client-chosen audit fields', async () => {
+    const { service, calls, assertFresh } = setup();
+    await expect(
+      service.confirmArchivedIdentity(confirmRequest, staff(MANAGER))
+    ).resolves.toEqual(CONFIRMED);
+    expect(assertFresh).not.toHaveBeenCalled();
+    expect(calls.confirm[0]).toMatchObject({
+      idempotencyKey: confirmRequest.idempotencyKey,
+      patientId: PATIENT_ID,
+      provisionalPatientId: PROVISIONAL_ID,
+      reasonCode: 'duplicate_record',
+      actorRef: expect.stringMatching(/^[a-f0-9]{64}$/),
+      now: NOW,
+      scope: 'internal_synthetic',
+      policy: POLICY
+    });
+  });
+
+  it.each([
+    ['the system-only expiry reason', { reasonCode: 'retention_expired' }],
+    ['an unknown reason', { reasonCode: 'arbitrary' }],
+    ['a client-supplied actor', { actorRef: 'x'.repeat(64) }],
+    ['a client-supplied archive list', { pendingArchivedPatientIds: ['a'] }],
+    ['a non-opaque candidate id', { archivedPatientId: '../patients/x' }]
+  ])('rejects %s before storage access', async (_label, extra) => {
+    const { service, repository } = setup();
+    await expect(
+      service.confirmArchivedIdentity(
+        { ...confirmRequest, ...extra },
+        staff(MANAGER)
+      )
+    ).rejects.toBeInstanceOf(ZodError);
+    expect(repository.confirmArchivedIdentity).not.toHaveBeenCalled();
+  });
+
+  it('lists identity candidates for managers only and validates the opaque id', async () => {
+    const { service, calls } = setup();
+    await expect(
+      service.identityCandidates(PROVISIONAL_ID, staff(MANAGER))
+    ).resolves.toEqual(CANDIDATES);
+    expect(calls.candidates).toEqual([PROVISIONAL_ID]);
+    await expect(
+      service.identityCandidates('../x', staff(MANAGER))
+    ).rejects.toBeInstanceOf(ZodError);
+    await expect(
+      service.identityCandidates(undefined, staff(MANAGER))
+    ).rejects.toBeInstanceOf(ZodError);
+    expect(JSON.stringify(CANDIDATES)).not.toContain('name');
+  });
+
   it('returns pending deletion records without patient names', async () => {
     const { service, calls } = setup();
     await expect(service.pendingDeletion(staff(MANAGER))).resolves.toEqual(
@@ -279,5 +387,83 @@ describe('BusinessRetentionApplicationService operations', () => {
     );
     expect(calls.pendingDeletion).toEqual([NOW]);
     expect(JSON.stringify(PENDING)).not.toContain('name');
+  });
+});
+
+// A03 (SOL-RETENTION): the manual-review list read every expired archived
+// patient in one unbounded query. Auto-archive keeps archiving and nothing is
+// auto-deleted, so that list only grows. It now pages, with the cursor in the
+// x-next-cursor header and the body left as { patients }.
+describe('BusinessRetentionApplicationService pending-deletion paging', () => {
+  const NEXT = {
+    restorableUntil: '2030-10-31T00:00:00.000Z',
+    patientId: PATIENT_ID
+  };
+
+  it('asks the repository for one bounded page and turns its position into a cursor', async () => {
+    const { service, repository } = setup();
+    vi.mocked(repository.pendingDeletion).mockResolvedValueOnce({
+      patients: PENDING.patients,
+      next: NEXT
+    });
+
+    const page = await service.pendingDeletionPage(staff(MANAGER), {
+      limit: '2'
+    });
+
+    expect(repository.pendingDeletion).toHaveBeenCalledWith(NOW, { limit: 2 });
+    expect(page.response).toEqual(PENDING);
+    expect(Object.keys(page.response)).toEqual(['patients']);
+    expect(decodePendingDeletionCursor(page.nextCursor as string)).toEqual(
+      NEXT
+    );
+  });
+
+  it('continues after a cursor and reports no cursor on the last page', async () => {
+    const { service, repository } = setup();
+
+    const page = await service.pendingDeletionPage(staff(MANAGER), {
+      cursor: encodePendingDeletionCursor(NEXT)
+    });
+
+    expect(repository.pendingDeletion).toHaveBeenCalledWith(NOW, {
+      after: NEXT
+    });
+    expect(page.nextCursor).toBeUndefined();
+    expect(page.response).toEqual(PENDING);
+  });
+
+  it('refuses a bad limit, cursor or extra field before reading', async () => {
+    const { service, repository } = setup();
+
+    for (const query of [
+      { limit: '0' },
+      { limit: '101' },
+      { limit: 'many' },
+      { cursor: 'a/b' },
+      { patientId: PATIENT_ID }
+    ])
+      await expect(
+        service.pendingDeletionPage(staff(MANAGER), query)
+      ).rejects.toBeInstanceOf(ZodError);
+    // Well-formed text that is not a position this service issued.
+    await expect(
+      service.pendingDeletionPage(staff(MANAGER), { cursor: 'e30' })
+    ).rejects.toMatchObject({ code: 'INVALID_VALUE' });
+    expect(repository.pendingDeletion).not.toHaveBeenCalled();
+  });
+
+  it('checks the feature and the role before it looks at the cursor', async () => {
+    const off = setup({ enabled: false });
+    await expect(
+      off.service.pendingDeletionPage(staff(MANAGER), { cursor: 'a/b' })
+    ).rejects.toBeInstanceOf(NotFoundException);
+    const denied = setup();
+    const nonManager = ROLES.find((role) => !managers.includes(role)) ?? '';
+    await expect(
+      denied.service.pendingDeletionPage(staff(nonManager), { cursor: 'a/b' })
+    ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+    expect(off.repository.pendingDeletion).not.toHaveBeenCalled();
+    expect(denied.repository.pendingDeletion).not.toHaveBeenCalled();
   });
 });

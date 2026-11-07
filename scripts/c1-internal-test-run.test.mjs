@@ -139,9 +139,7 @@ describe('C1 internal-test Cloud Run Terraform source', () => {
 
   it('parameterizes firebase_auth_domain and does not hardcode firebaseapp.com', () => {
     expect(variables).toContain('variable "firebase_auth_domain"');
-    expect(variables).toContain(
-      'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app'
-    );
+    expect(variables).toContain('beauessence-clinic-stg-c1a01.web.app');
     expect(variables).toContain('firebaseapp.com');
     expect(variables).toContain('beauessence-clinic-staging');
     expect(variables).toContain('beauessence.com.tw');
@@ -152,7 +150,7 @@ describe('C1 internal-test Cloud Run Terraform source', () => {
     expect(main).not.toContain('check "auth_domain_required_on_apply"');
     expect(main).not.toContain('${var.project_id}.firebaseapp.com');
     expect(example).toContain(
-      'firebase_auth_domain                 = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"'
+      'firebase_auth_domain                 = "beauessence-clinic-stg-c1a01.web.app"'
     );
     expect(example).toContain(
       'Do not substitute ${project_id}.firebaseapp.com.'
@@ -432,6 +430,12 @@ describe('B-26 container source provenance without image build', () => {
     );
     expect(source).toMatch(/^ {2}_SOURCE_SHA: unset$/m);
     expect(source).not.toContain('SOURCE_SHA=${_TAG}');
+  });
+
+  it('bounds the C1 image build to the default worker for 10 minutes', () => {
+    const source = read('containers/internal-test.cloudbuild.yaml');
+    expect(source).toMatch(/^timeout: 600s$/m);
+    expect(source).not.toMatch(/machineType|pool:/);
   });
 
   it.each([

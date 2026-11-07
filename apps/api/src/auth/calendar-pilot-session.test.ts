@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { STAFF_ABSOLUTE_SESSION_MS } from '@beauessence/domain';
+import {
+  OPERATIONAL_ROLES,
+  STAFF_ABSOLUTE_SESSION_MS
+} from '@beauessence/domain';
 
 import { CalendarPilotSessionController } from './calendar-pilot-session.controller.js';
 import {
@@ -157,6 +160,72 @@ describe('CAL-PILOT session policy', () => {
   });
 });
 
+describe('CAL-PILOT active-session UTC admission', () => {
+  const record = {
+    actorId: 'synthetic-session-utc',
+    actorRole: OPERATIONAL_ROLES[0],
+    csrfHash: '00',
+    createdAt: '2028-02-29T18:00:00.000Z',
+    lastSeenAt: '2028-02-29T18:00:00.000Z',
+    expiresAt: '2028-03-01T06:00:00.000Z',
+    revokedAt: null
+  };
+  const now = '2028-03-01T01:00:00.000Z';
+
+  it.each([
+    ['seconds', ''],
+    ['milliseconds', '.000'],
+    ['sub-millisecond precision', '.123456789']
+  ])('accepts canonical UTC with %s', (_label, fraction) => {
+    const issuedAt = `2028-02-29T18:00:00${fraction}Z`;
+    expect(
+      isCalendarPilotSessionActive(
+        {
+          ...record,
+          createdAt: issuedAt,
+          lastSeenAt: issuedAt,
+          expiresAt: `2028-03-01T06:00:00${fraction}Z`
+        },
+        record.actorId,
+        record.actorRole,
+        `2028-03-01T01:00:00${fraction}Z`
+      )
+    ).toBe(true);
+  });
+
+  it.each([
+    ['now', '2028-03-01T01:00:00+00:00'],
+    ['now', '2028-03-01t01:00:00z'],
+    ['now', '2028-02-30T01:00:00.000Z'],
+    ['now', 'March 1, 2028 01:00:00 GMT'],
+    ['now', ''],
+    ['createdAt', '2028-02-29T18:00:00+00:00'],
+    ['createdAt', '2028-02-29t18:00:00z'],
+    ['createdAt', '2028-02-30T00:00:00.000Z'],
+    ['createdAt', 'February 29, 2028 18:00:00 GMT'],
+    ['createdAt', ''],
+    ['lastSeenAt', '2028-02-29T18:00:00+00:00'],
+    ['lastSeenAt', '2028-02-29t18:00:00z'],
+    ['lastSeenAt', '2028-02-30T00:00:00.000Z'],
+    ['lastSeenAt', 'February 29, 2028 18:00:00 GMT'],
+    ['lastSeenAt', ''],
+    ['expiresAt', '2028-03-01T06:00:00+00:00'],
+    ['expiresAt', '2028-03-01t06:00:00z'],
+    ['expiresAt', '2028-02-30T06:00:00.000Z'],
+    ['expiresAt', 'March 1, 2028 06:00:00 GMT'],
+    ['expiresAt', '']
+  ] as const)('denies noncanonical %s=%s', (field, value) => {
+    expect(
+      isCalendarPilotSessionActive(
+        field === 'now' ? record : { ...record, [field]: value },
+        record.actorId,
+        record.actorRole,
+        field === 'now' ? value : now
+      )
+    ).toBe(false);
+  });
+});
+
 describe('CAL-PILOT Hosting-forwarded session cookie contract', () => {
   it('uses exactly __session as the runtime cookie name', () => {
     expect(CALENDAR_PILOT_COOKIE).toBe('__session');
@@ -283,11 +352,10 @@ describe('isolated C1 staff client-config authDomain', () => {
       process.env['CALENDAR_PILOT_FIREBASE_WEB_API_KEY'] = 'synthetic-api-key';
       process.env['GOOGLE_CLOUD_PROJECT'] = 'beauessence-clinic-stg-c1a01';
       process.env['CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN'] =
-        'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app';
+        'beauessence-clinic-stg-c1a01.web.app';
       expect(controller.clientConfig()).toEqual({
         apiKey: 'synthetic-api-key',
-        authDomain:
-          'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app',
+        authDomain: 'beauessence-clinic-stg-c1a01.web.app',
         projectId: 'beauessence-clinic-stg-c1a01'
       });
       process.env['CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN'] =

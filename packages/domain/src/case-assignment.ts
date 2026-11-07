@@ -107,6 +107,7 @@ export function planCaseAssignment(
         'The current assignment is already closed; there is nothing to supersede.'
       );
     }
+    assertUtcTimestamp(current.activeFrom, 'current.activeFrom');
     if (Date.parse(request.requestedAt) <= Date.parse(current.activeFrom)) {
       throw new DomainError(
         'INVALID_ASSIGNMENT',

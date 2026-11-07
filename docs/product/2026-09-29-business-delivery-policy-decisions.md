@@ -10,7 +10,7 @@
 的六組缺口，以及測試期天數一題。已有答案直接引用、未重問：
 價格與三期／維護金額、「完全未使用」＝無員工登入 AND 無病患完成預約（`COMMERCIAL-AUTHORITY-2026-09-22`）、
 預約資料就診後保存 2 年且刪除由負責人並留紀錄（D-002）、RPO 1 小時／RTO 4 小時（D-010）、
-員工工作階段閒置 30 分鐘／絕對 8 小時（D-006）、AWS 在 CURRENT_PROJECT_ACCEPTANCE 之後
+員工工作階段閒置 30 分鐘／絕對 8 小時（D-006）（2026-10-03 起改為絕對 12 小時、無閒置登出，見 `STAFF-SESSION-12H-2026-10-03`；敏感操作 10 分鐘再驗證不變；此為歷史原文）、AWS 在 CURRENT_PROJECT_ACCEPTANCE 之後
 （`CURRENT-PROJECT-SEQUENCE-2026-09-22`）、欄位最小化（`BOOKING-MINIMIZATION-2026-09-22`）。
 
 ## 1. 匯出（CP-04）

@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.8.0"
+  required_version = ">= 1.9.0"
 
   # Bucket/prefix only at init. This module is source-only until an exact
   # SHA apply packet names them.

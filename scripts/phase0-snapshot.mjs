@@ -14,65 +14,27 @@
  *   1 = mismatch / NO-HARD-STOP (read-only only)
  */
 
-import { spawnSync } from 'node:child_process';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { ISOLATED_C1_PROJECT_ID } from './internal-test-c1-identity.mjs';
 import {
+  commandSucceeds,
+  outputLines,
   parseFirebaseLoginAccount,
-  redactAccount
+  redactAccount,
+  runCommand
 } from './phase0-snapshot-utils.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 const EVIDENCE_DIR = join(ROOT, 'output', 'evidence');
 
-function run(cmd, { silent = false, ignoreError = false } = {}) {
-  const [exe, ...args] = cmd.split(' ');
-  const result = spawnSync(exe, args, {
-    cwd: ROOT,
-    encoding: 'utf8',
-    stdio: silent ? 'pipe' : 'inherit',
-    shell: false
-  });
-  if (result.error) {
-    if (ignoreError) return '';
-    throw result.error;
-  }
-  if (result.status !== 0 && !ignoreError) {
-    const err = new Error(`Command failed: ${cmd}`);
-    err.status = result.status;
-    err.stderr = result.stderr;
-    throw err;
-  }
-  return result.stdout.trim();
-}
-
-function runSilent(cmd) {
-  return run(cmd, { silent: true, ignoreError: true });
-}
-
-function runShell(cmd, { silent = true, ignoreError = true } = {}) {
-  // For commands that need shell features (pipes, redirections)
-  const result = spawnSync('bash', ['-c', cmd], {
-    cwd: ROOT,
-    encoding: 'utf8',
-    stdio: silent ? 'pipe' : 'inherit'
-  });
-  if (result.error && !ignoreError) throw result.error;
-  if (result.status !== 0 && !ignoreError) {
-    const err = new Error(`Shell command failed: ${cmd}`);
-    err.status = result.status;
-    err.stderr = result.stderr;
-    throw err;
-  }
-  return result.stdout.trim();
-}
-
-function runShellSilent(cmd) {
-  return runShell(cmd, { silent: true, ignoreError: true });
-}
+// Every command is an argv array run without a shell (E2-07). What the old
+// pipes did (grep, head, awk) is done on the output here.
+const run = (argv) => runCommand(argv, { cwd: ROOT });
+const firstLine = (text) => outputLines(text)[0] ?? '';
 
 mkdirSync(EVIDENCE_DIR, { recursive: true });
 
@@ -84,43 +46,62 @@ lines.push(
 );
 
 // gcloud configuration
-const gcloudConfig = runShellSilent(
-  'gcloud config configurations list --filter="is_active=true" --format="value(name)" | grep -x clinic-staging'
-);
+const gcloudConfig =
+  outputLines(
+    run([
+      'gcloud',
+      'config',
+      'configurations',
+      'list',
+      '--filter=is_active=true',
+      '--format=value(name)'
+    ])
+  ).find((name) => name === 'clinic-staging') ?? '';
 lines.push(`gcloud configuration: ${gcloudConfig || 'MISSING'}`);
 
 // gcloud identity
-const gcloudAccount = runSilent('gcloud config get-value account');
+const gcloudAccount = run(['gcloud', 'config', 'get-value', 'account']);
 lines.push(
   `gcloud identity: ${gcloudAccount ? redactAccount(gcloudAccount) : 'UNVERIFIED'}`
 );
 
 // gcloud project
-const gcloudProject = runSilent('gcloud config get-value project');
+const gcloudProject = run(['gcloud', 'config', 'get-value', 'project']);
 lines.push(`gcloud project: ${gcloudProject || 'UNSET'}`);
 
 // organization
-const orgId = runShellSilent(
-  "gcloud organizations list --format='value(name)' | awk 'NR==1'"
+const orgId = firstLine(
+  run(['gcloud', 'organizations', 'list', '--format=value(name)'])
 );
 let orgLine = 'ORG_VISIBLE=no';
 if (orgId) {
-  const folders = runShellSilent(
-    `gcloud resource-manager folders list --organization="${orgId}" --format='value(name)' | head -5`
-  );
-  orgLine = `org=${orgId}${folders ? ` folders=${folders.replace(/\n/g, ',')}` : ''}`;
+  const folders = outputLines(
+    run([
+      'gcloud',
+      'resource-manager',
+      'folders',
+      'list',
+      `--organization=${orgId}`,
+      '--format=value(name)'
+    ])
+  ).slice(0, 5);
+  orgLine = `org=${orgId}${folders.length > 0 ? ` folders=${folders.join(',')}` : ''}`;
 }
 lines.push(`organization: ${orgLine}`);
 
 // folder (from project parent)
-const projectParent = runShellSilent(
-  "gcloud projects describe beauessence-clinic-stg-c1a01 --format='value(parent)' 2>/dev/null"
-);
+const projectParent = run([
+  'gcloud',
+  'projects',
+  'describe',
+  ISOLATED_C1_PROJECT_ID,
+  '--format=value(parent)'
+]);
 lines.push(`folder: ${projectParent || 'unknown'}`);
 
 // billing account
-const billing = runShellSilent(
-  'gcloud billing accounts list --format="value(name)" | head -1'
+const billing = firstLine(
+  run(['gcloud', 'billing', 'accounts', 'list', '--format=value(name)'])
 );
 lines.push(`billing account: ${billing ? 'present' : 'absent'}`);
 
@@ -129,15 +110,17 @@ const gac = process.env.GOOGLE_APPLICATION_CREDENTIALS || 'unset';
 lines.push(`GOOGLE_APPLICATION_CREDENTIALS: ${gac}`);
 
 let adcIdentity = 'UNVERIFIED';
-let adcToken = '';
+let adcTokenOk = false;
 let adcSource;
 if (gac !== 'unset') {
   adcSource = 'GAC-env';
 } else {
-  adcToken = runShellSilent(
-    'gcloud auth application-default print-access-token >/dev/null 2>&1 && echo ADC_TOKEN_OK || echo ADC_MISSING'
+  // Exit status only: the access token is never captured.
+  adcTokenOk = commandSucceeds(
+    ['gcloud', 'auth', 'application-default', 'print-access-token'],
+    { cwd: ROOT }
   );
-  if (adcToken.includes('ADC_TOKEN_OK')) {
+  if (adcTokenOk) {
     adcSource = 'user-adc'; // could be impersonation too; we don't distinguish here
     adcIdentity = 'token-present';
   } else {
@@ -147,17 +130,17 @@ if (gac !== 'unset') {
 lines.push(`ADC identity / source: ${adcIdentity} / ${adcSource}`);
 
 // Firebase CLI
-const firebaseLoginOutput = runShellSilent('firebase login:list 2>/dev/null');
+const firebaseLoginOutput = run(['firebase', 'login:list']);
 const firebaseAccount = parseFirebaseLoginAccount(firebaseLoginOutput);
 lines.push(
   `Firebase CLI account: ${firebaseAccount ? redactAccount(firebaseAccount) : 'UNSET'}`
 );
 
-const firebaseProjects = runShellSilent(
-  'firebase projects:list 2>/dev/null | grep -F beauessence-clinic-stg-c1a01'
-);
+const firebaseProjects = outputLines(run(['firebase', 'projects:list']))
+  .filter((line) => line.includes(ISOLATED_C1_PROJECT_ID))
+  .join('\n');
 lines.push(
-  `Firebase project: beauessence-clinic-stg-c1a01 listed? ${firebaseProjects ? 'yes' : 'no'}`
+  `Firebase project: ${ISOLATED_C1_PROJECT_ID} listed? ${firebaseProjects ? 'yes' : 'no'}`
 );
 
 // Browser (manual check reminder)
@@ -169,9 +152,9 @@ lines.push(
 lines.push(`Terraform target: none this card (no apply)`);
 
 // Agreement check
-const hasAdcToken = gac !== 'unset' || adcToken.includes('ADC_TOKEN_OK');
+const hasAdcToken = gac !== 'unset' || adcTokenOk;
 const agree =
-  gcloudProject === 'beauessence-clinic-stg-c1a01' &&
+  gcloudProject === ISOLATED_C1_PROJECT_ID &&
   hasAdcToken &&
   firebaseProjects &&
   gcloudConfig === 'clinic-staging'

@@ -1,5 +1,407 @@
 # Phase 1 Decision Register
 
+## 2026-11-06：合成日曆 reconciler 正本與刪除邊界
+
+決策人：Claude（依負責人授權做的技術判斷，非負責人業務決定）。未另提供 approval ID，不另造。
+此決定僅適用 Gate 2 的來源實作與合成測試，不授權真實日曆、資料或部署。
+
+- 正本以 Firestore 為準：mirror 已保存原始 `externalEventId` 時，該事件是正本，不能刪除。
+- 只有可證明由我方自建的 synthetic projection，才以 deterministic ID 為正本。
+- 同一 `linkId` 有多筆時，只能刪除可證明由我方建立且非正本的事件；
+  即使 deterministic ID 與 Firestore 的原始正本不同，也須先以 `If-Match` 條件刪除。
+- 無法判定 ownership 時 fail-closed，不刪除、記錄 conflict，該 `linkId` 不計入收斂證據。
+- 判斷事件可由我方刪除前，必須同時符合：事件 ID 是該 `linkId` 的 deterministic ID；
+  `extendedProperties.private` 的 link marker 相符；`creator.email` 或 `organizer.email`
+  等於 pilot 設定的 worker service account。任一條不足就視為 ownership 不明。
+- 獨立 reconciler 必須使用 `pageToken` 分頁掃描整個 pilot 日曆，對照 Firestore 全部
+  `linkId`，並另外處理 `needs_reconcile` 的 failed job。每輪限制筆數與時間；未完成
+  整輪掃描時不算收斂證據。正本和 stuck owner 的既有保護不變。
+- 既有 `calendar_sync` tick 完成原工作後執行一個 slice，不使用 process-local timer；
+  排程仍維持 PAUSED。cursor 與本輪起始時間在 pilot 文件以 lease/CAS 保存；24 小時
+  到期、失效 pageToken 或中斷中的 cursor 重新掃描，原輪不計收斂。
+- 有界 T 的定義為「排程間隔 × 掃完一輪所需的 slice 數上限」；須先證明資料量、
+  分頁及每個 slice 的進度上限，且排程可用與 provider 有回應，才可宣稱該 T。
+  blocked（包括 503 保留 owner 與 stuck owner）不計收斂，不能用 lease 過期接管。
+
+## 2026-11-04 官網按鈕改淺綠框白底
+
+負責人（工程師）看過預覽頻道後指示：
+
+> 按鈕都改成淺綠色框白底
+
+沒有另行提供 approval ID，不另造。
+
+- 實心深綠的主要按鈕（頁首與首屏「線上預約」、「顯示 Google 地圖」、App 推薦段等）、外框按鈕、
+  圓角連結鈕（電話、地址、醫師介紹、頁尾）一律改為白底、`--clinic-sage-300` 細框、深綠字；
+  懸停改 `--clinic-sage-50` 底、`--clinic-green` 框。症狀選單未選的按鈕框也改 `--clinic-sage-300`。
+- 全部同款會分不出主次，淺框在白卡上對比也只有約 1.9:1；負責人選「主要按鈕框加深」：
+  頁首「線上預約」與 `.clinic-button--primary` 改 `--clinic-green` 框加一道 1px inset 線（看起來 2px；懸停 `--clinic-forest`），
+  仍是白底。
+- 療程頁「先評估，再選擇」提醒卡的按鈕跟著改成白底淺綠框，取代 2026-11-03 條選的深綠實心按鈕；
+  米白卡底不變。
+- 沒改的：症狀選單「已選」的那一顆維持深綠實心，那是目前選了哪一項的狀態提示；鍵盤才會出現的
+  「跳至主要內容」維持深綠；社群圖示維持品牌色；預約頁（`/booking`）是另一套樣式，不在此列。
+- 部署紀錄（依[合成資料線上預覽操作手冊](../runbooks/synthetic-online-preview.md)）：負責人
+  2026-11-04 核准「部署」。exact commit `0b9ce4f5`（PR #393 當時的 head，CI 13 項全綠）、
+  project `beauessence-clinic-staging`、channel `synthetic-review`、`--expires 30d`
+  （Firebase 回報到期 2026-12-04）、operator Claude、approver 負責人，只發 preview channel。
+  本段紀錄是部署後才提交的文件變更，不影響部署內容。
+
+## 2026-11-04 官網背景不用單色（療程頁內文鋪背景圖、首頁 FAQ 改漸層）
+
+負責人（工程師）看過預覽頻道後指示：
+
+> 背景不要單色，圖片庫或原官網不是有背景，再不行就用漸層
+
+沒有另行提供 approval ID，不另造。
+
+- 圖片庫裡的背景圖只有 `soft-green-bg`（首屏、內頁頁首、App 推薦段、預約橫幅已在用），
+  沒有別張可選；重用同一個檔案不增加傳輸量。
+- 療程頁內文區（`.clinic-section--white`，面積最大）：頂部鋪 `soft-green-bg`，寬度貼齊畫面，
+  往下用漸層淡成 `--clinic-sage-100`；內文仍在白色面板裡，文字對比不變。
+- 首頁 FAQ（唯一的純色區）：前後兩區已用同一張圖，三區連用會更單調，所以改奶油到
+  `--clinic-sage-100` 的斜向漸層加一處白色光暈。
+- 只用既有 token，不新增顏色；`/clinic.html` 與內頁的 315 KiB 預算不變（約多 16 B）。
+- 部署紀錄（依[合成資料線上預覽操作手冊](../runbooks/synthetic-online-preview.md)）：負責人
+  2026-11-04 核准「好，CI 綠了就發」。exact commit `4afc8908`（PR #393 當時的 head，CI 13 項
+  全綠）、project `beauessence-clinic-staging`、channel `synthetic-review`、`--expires 30d`
+  （Firebase 回報到期 2026-12-04）、operator Claude、approver 負責人，只發 preview channel。
+  本段紀錄是部署後才提交的文件變更，不影響部署內容。
+
+## 2026-11-03 療程頁「先評估，再選擇」提醒卡配色與預覽頻道部署紀錄
+
+負責人（工程師）看過預覽頻道後，指著療程頁右側的提醒卡說：
+
+> 每頁的這個配色要調整
+
+在「深綠卡＋白字」「白卡＋金色左邊線」「米白卡＋深綠按鈕」三案中選了「米白卡＋深綠按鈕」。
+
+- 提醒卡底色由 `--clinic-sage-200` 改 `--clinic-cream`；「安排門診評估」按鈕改成
+  `--clinic-forest` 實心底、`--clinic-white` 字。四個療程頁共用同一張卡。只用既有 token，
+  依本條再重算 `clinic-site.css` 的凍結基準值一次。
+- 同日負責人在 1920 外接螢幕上看預覽，說「整體好像過於置中左右有點空」，並要求
+  「醫師區特別注意圖可能過小，還有內頁字體」。逐項選擇如下：
+  - 內容欄上限：選「1344px（84rem）」。`--clinic-shell` 由 76rem 改 84rem；首屏兩欄同步由
+    30rem＋46rem 改 33rem＋51rem，合計仍等於上限。手機斷點的寬度不變。
+  - 首頁醫師卡：照片與文字由 2:3 改 1:1，桌機照片寬約 233px 變約 291px（原圖寬 760px，
+    兩倍密度仍清晰）。手機斷點維持 2:3。
+  - 內頁字體：選「太小，桌機放大」。療程頁段落與清單、醫師頁內文由 1rem 改 `--clinic-text-md`
+    （1.2rem），手機在 48rem 斷點改回 1rem；成因卡、器材卡、比較表等卡片裡的小字不動。
+  - 這會讓官網各頁的總傳輸量超過 314 KiB 幾個位元組。負責人選擇「預算調到 315 KiB」；
+    `apps/web/performance-budget.json` 裡 `/clinic.html` 與所有 `/clinic-route/*` 的 total
+    一起改為 315，其他欄位不變。
+- 部署紀錄（依[合成資料線上預覽操作手冊](../runbooks/synthetic-online-preview.md)）：
+  負責人 2026-11-03 在 CI 全綠後核准「部署30日的」。operator 為 Claude、approver 為負責人；
+  exact commit `9542238f`（PR #393 當時的 head）、Firebase project `beauessence-clinic-staging`、
+  channel `synthetic-review`、`--expires 30d`（到期 2026-12-03）。只發 preview channel，
+  沒有發 live。手冊範例寫 7d，30d 是負責人這次指定。本條的配色修改是之後的新 commit，
+  重新部署要另行核准。
+- 第二次部署：負責人 2026-11-03 核准「好，CI 綠了就發」，2026-11-04 發出。exact commit `e397e3bb`
+  （PR #393 當時的 head，CI 13 項全綠），其餘同上：project `beauessence-clinic-staging`、
+  channel `synthetic-review`、`--expires 30d`（Firebase 回報到期 2026-12-04）、operator Claude、approver
+  負責人，只發 preview channel。本段紀錄是部署後才提交的文件變更，不影響部署內容。
+
+## 2026-11-02 官網淺色系加中間色帶（首頁與療程頁底色）
+
+負責人（工程師）看過官網後表示：
+
+> 我目前看起來有點單調，很多地方背景都是白的
+
+審查結果：療程頁首屏以下整片純白，首頁每段底色亮度都在 84～96%，相鄰段色差約 1.04:1，
+白卡放在淺底上沒有邊線與陰影。負責人在選項中選「在淺色系內加中間色帶，先改療程頁和首頁的底色」
+（不是改回深綠），並指示：
+
+> 好，先改這兩處
+
+- 首頁：「看診會怎麼進行」改成霧綠中間色帶（`--clinic-sage-200`），說明字改 `--clinic-ink`、
+  序號改 `--clinic-gold-ink` 以保住對比，步驟卡加輕陰影，箭頭改 `--clinic-sage-400` 到
+  `--clinic-green` 的漸層；服務卡與醫師卡的邊線改 `--clinic-line` 並補 `--clinic-elevation-card`
+  陰影（被選中的服務卡仍是 2px 深綠框）；FAQ 底色改 `--clinic-cream`。
+- 療程頁（`/clinic/nasal/*`）：內文區底色改淡綠漸層（`--clinic-sage-50` 到 `--clinic-sage-100`），
+  每個內文段落改成白色面板（邊線、圓角、輕陰影），段落間距縮為 1.5rem；右側「先評估，再選擇」
+  提醒卡改 `--clinic-sage-200`，文字改 `--clinic-ink`，連結改 `--clinic-forest`（原本的 green 在
+  sage-200 上只有 4.04:1）。類名 `.clinic-section--white` 因 JS 凍結而保留，
+  現在不是白色。
+- 只用 `clinic-site.css` 既有 token，不新增顏色；沒有改回深綠；不動 JS、文案、素材、`clinic-booking.css`。
+  面板內距上下 1.5rem、左右 1.25rem，讓桌機內文欄裡五張成因卡仍排成一列。
+- 依本條再重算 `clinic-site.css` 的凍結基準值。本條不授權部署，預覽頻道另依
+  [合成資料線上預覽操作手冊](../runbooks/synthetic-online-preview.md) 逐次核准。
+
+## 2026-11-04：INGRESS K6 與 LIST 清單契約
+
+決策人：負責人；Claude 轉達負責人原話「都照建議」。未另提供 approval ID，不另造。
+此處記錄方向與後續來源工作，不宣稱兩包完成，也不授權部署、真實資料或雲端操作。
+
+- **INGRESS K6**：IPv6 限流身分維持使用完整位址，不以 `/64` 分組。
+  後續 source 工作核對實作與正反測試，不將 IP 當作身分保證。
+- **LIST K7／C07／E4-24**：員工預約清單每頁最多 50 筆，以 cursor 續載；
+  尚未載完時顯示「至少 N 筆」。沿用 [#369](https://github.com/waydefu/clinic/pull/369)
+  介面，另補連續超過 1,000 筆封存資料時提前結束且沒有 cursor 的存取缺口。
+- **順序**：Gate 2 下一片先處理卡住 lease owner 的安全復原；上述 source 工作
+  排在 Gate 2 接線之後，或在不衝突時另開 PR。復原須有明確條件與紀錄，
+  不能只靠到期時間。任何外部操作或實測仍須另行明確授權。
+
+## 2026-11-04：SOL-CALENDAR-LEASE Gate 2 核准
+
+決策人：負責人；Claude 轉達負責人原話「核准 Gate2」。未另提供 approval ID，不另造。
+此決定取代下方 2026-10-29 的 Gate 2 未核准狀態，但不改 D-05／D-12 的整體狀態。
+
+- 授權 Gate 2 的 source 接線、Firestore Emulator 跨程序測試與 provider stub；
+  授權不等於接線、隔離、嚴格零派送或任何 runtime 驗收已完成。
+- 真實 Calendar 寫入只能寫測試用日曆，且只在負責人另核的 C1 雲端批次內進行。
+- 不授權正式日曆、真實資料、IAM 或部署；雲端操作及其範圍仍須另行明確核准。
+- [協調計畫](../plans/2026-10-22-sol-calendar-lease-coordination.md) 保留原設計、
+  風險與逐項證據邊界；未知的排空或隔離不得靠到期或重啟假設安全。
+
+## 2026-11-04：D-42 排班發布預約日期界線
+
+決策人：負責人；Claude 轉達負責人原話「B. 只看今天以後的預約，再合併」。
+沒有另附 approval ID，不另造。
+
+- 發布時的孤立預約檢查納入 `arrived`，只計入預約日期為台北今天或以後的未結預約；今天包含在內，昨天以前不計。
+- 今天以發布請求的時間換算 `Asia/Taipei` 日曆日。此決定只授權來源與合成測試修改，不授權合併、部署或真實資料操作。
+
+## 2026-11-02：C1 固定前端 host（僅來源修改）
+
+決策人：負責人 `wayde.fu`；Claude 代為記錄負責人原話「改用固定網址」。
+來源：[OWNER-DECISION](https://github.com/waydefu/clinic/pull/268#issuecomment-6569852361)。
+未另提供 approval ID，不另造；本節不改變 D-001～D-016 的整體狀態。
+
+- C1 唯一核准前端 host 的來源設定，由已過期的 preview host
+  `beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app`
+  改為固定 host `beauessence-clinic-stg-c1a01.web.app`。
+  負責人的選擇是 Hosting live channel 的固定網址，不是新 preview channel。
+- 來源仍採 exact-host：只接受上述單一 host，不接受萬用字元、其他 host 或已過期 preview host。
+- 固定網址本身不會自動到期；測試期停止仍由既有
+  `INTERNAL_TEST_BOOKING_EXPIRES_AT_UTC` 的 UTC 到期 gate 與測完收尾負責。
+  本決定不設定或延長該到期值，也不把網址當成登入或授權。
+- **只授權 source-only 修改與合成測試**。部署、Hosting 發布、Firebase Auth
+  授權網域及其他雲端變更，仍須負責人另對該批精確操作明確同意。
+  本節不是 live Hosting 發布、production backend、公開營運、真實資料、IAM
+  或憑證操作的授權；Sol 不執行任何上述外部操作。
+- 本次先記錄決定；程式的 exact-host 替換與正反測試另以來源 PR 提交。
+  尚未宣稱前端已發布、網域已設定、登入已實測或 INGRESS 整包已完成。
+
+## 2026-11-02 Sol：INGRESS 方案 A 的來源驗收單更正
+
+決策人：負責人；Claude 依授權在
+[CLAUDE-CHECKPOINT](https://github.com/waydefu/clinic/pull/268#issuecomment-6562141735)
+轉達既定方案 A，Sol 在本輪續跑記錄。沒有另附 approval ID，不另造。
+這是既有 Q5／Q7 選 A 的驗收標準確認，不重開入口選項，也不擴大下節 10-31 的施工授權。
+既有核定原句仍為「先做不依賴 IP 作身分保證的來源方案、HMAC 原始碼及測試；secret、轉換與部署另次逐項核准」。
+
+- 測試期維持 Hosting 入口與方案 A；直連 Run 可達本身不是 B-03 失敗，不能要求所有直連一律在 handler 前拒絕。
+  核准正門正常；直連、偽造最左側 X-Forwarded-For、格式錯誤／多地址及換 IP 仍受既有 WP-B2A 第二桶的同身分限制，
+  換 IP 不能重置鎖定；未核准 host、關閉／逾期 gate 仍拒絕。來源選取不是身分保證，安全控制不依賴 IP 或入口。
+  這不判定目前任何端點已公開或封閉，也不授權實際 IAM／ingress 改動。
+- Sol 只更正外部驗收單的判定標準、安全計數缺口與負向案例；未找到既有完整觀測就列 `NOT_PROVEN`，
+  不發明 endpoint／工具，未到驗收日不送請求、不測 C1。今天 C1 部署取消，日期由負責人另排。
+- 同一來源補件只從 repo 既有 `api_secret_env`／`worker_secret_env` 列 API 三個與 worker 一個掛載名稱、
+  `variables.tf` 的數字版本必填驗證行號；所有實際版本 pin 保持 `UNKNOWN`。
+  不開本機參數檔、不讀 Secret Manager、不回填秘密值或猜版本。
+- 外部驗收、部署、provider／store 接線與實際秘密操作仍由負責人另排；本更正不把 INGRESS 標完成。
+
+## 2026-10-31 Sol：四項來源決定及剩餘等待邊界
+
+決策人：負責人；Claude 依授權轉達，Sol 依本輪明確指示記錄。
+來源：[最新 CLAUDE-CHECKPOINT](https://github.com/waydefu/clinic/pull/268#issuecomment-6544167115)
+及負責人要求接續來源工作的指示。未另提供 approval ID，不另造。
+本節只記錄 source-only 施工邊界，不是部署、實際 IAM 或外部驗收授權。
+
+| 項目 | 已定案的來源工作 | 仍不得執行 |
+| --- | --- | --- |
+| B-05／LUNA-B09 | 將既有 Terraform mock／noop tests 接入既有 required workflow；不改 permissions、required aggregate 或既有 Action 版本 | 本機執行 Terraform、apply、雲端或憑證操作 |
+| IAM 清理 | 只回滾本次確認建立的 binding；既有 binding 保留，未知或 lost-reply 狀態隔離，不盲刪。role／bucket 只採 repo 既有 IaC 已列範圍，未知項不納入 | 操作實際 binding、金鑰、principal 或擴大權限 |
+| B-08 | 以正常來源 PR 提案並測試 publisher、subscription、DLQ 與 worker consumer 的配對；提案不冒充完成雲端接線 | 建立或修改實際 Pub/Sub、IAM、通知或 worker 接線 |
+| E3-07 | 提出 source-only 共用停寫控制 PR，保留可測的 API／worker 停寫與在途工作邊界 | 建立 store、接 provider、改實際維護控制或部署 |
+
+- #268 等待點 **[B]、[C]、[D]、[G] 已有答案**；來源缺口繼續施工，
+  不再標為 `BLOCKED-OWNER`，也不將等待依賴合併冒充等待新決策。
+- **[E] 維持未核准**；不藉本節啟用該受保護範圍。
+- **[H] 只等診所審告知文字**；保存期間、核准人與公開電話等已有答案不重問。
+- **[I]、[J] 是外部驗收當天的步驟**；來源未完成前不要求提供憑證、
+  操作環境或提前授權，也不將來源／合成測試當成外部驗收證據。
+- #374／#375 已由負責人合併；共同 audit 阻擋依合併後 exact-head CI 已解除。
+  PR 是否可合併仍逐一看自己的 head 與 required aggregate，不沿用舊 run。
+- 逐包終態依 #268 最新 checkpoint 記錄；本節不替任何整包加上 closure credit，
+  不變更 D-001～D-016 整體狀態，也不授權 Sol 合併或做受保護動作。
+
+## 2026-10-30 Sol：既有答案更正、滿兩年封存與法條自行查核
+
+來源：本輪由 Claude 代負責人轉達的更正與追加決定；以下保留負責人原話。
+未另提供 approval ID，不另造；不變更 D-001～D-016 的整體狀態。
+本節記錄決定及工程提案，沒有宣稱程式、排程、雲端設定或正式告知已完成。
+
+### 已有答案，不再重問
+
+- **完成看診權限已決：** D-006（2026-07-28）明定櫃台與管理員可完成看診，
+  未列動作拒絕。`clinic_admin` 與唯一角色來源 `packages/domain/src/roles.ts`
+  的管理員對應屬工程核對，不是新的業務問題。#342 已由 Claude 按負責人
+  「能可逆就合」核准合併（2026-10-29，merge `8054d45`）；不以此宣稱整包完成。
+- **保存分類已有答案：** D-002 的 2026-07-27／2026-08-16 答案、IP-001
+  與 2026-10-10～11 紀錄已給預約資料 2 年、稽核／安全紀錄 3 年、
+  `return_sessions` 24 小時。刪除由診所負責人執行，須有理由及系統刪除紀錄。
+  下節的新決定將預約／病患滿兩年的日常處置改為封存，**不是兩年自動刪除**。
+- **備份、legal hold、還原重播已有答案：** IP-001 及
+  [BD-POLICY §2](2026-09-29-business-delivery-policy-decisions.md#2-保存封存與刪除cp-05)
+  規定備份／PITR 隨各自保存期自然過期；還原必須重套刪除紀錄，不能使已刪資料復活；
+  legal hold 僅由診所負責人設定、解除。永久刪除是主要營運資料庫移除，
+  不表示所有副本即時刪除。負責人轉述 2026-10-01 Drive 的資安政策 v2、
+  刪除程序及 DPA v2 與此一致；每日備份約 30 天、PITR 約 7 天是設計目標，
+  本輪未讀 Drive、未核實際設定，不將轉述當成雲端證據。
+- **Google 條款是剩餘外部證據：** 只待確認診所帳號已接受標準 Firebase／Cloud
+  資料處理條款，記錄所接受的版本與可公開引用；不要求憑證、私人文件或帳號內容。
+- **隱私聯絡已決：** 先用診所電話 **02-2577-1314／0800-000-913**，
+  不用佔位符或私人信箱。D-001 的 2026-07-27 輸入與 2026-10-29 再確認相同；
+  本輪再讀[診所官網](https://www.beauessence.com.tw/)確認兩支公開電話。
+  公開角色信箱依 2026-10-10／2026-10-19 選 A，診所建立後再提供，
+  不是本次告知草稿的阻擋；既有登入支援信箱不在此擅改。電話權利請求仍須留下可稽核紀錄。
+- **告知核准人已決：** 2026-08-16 答案指定**診所負責人**簽核，
+  舊告知版本及同意紀錄保存 2 年；負責人依 2026-10-24 規則轉達。
+  草稿留診所負責人的簽核欄，不填個人姓名。正式簽核是後續診所步驟，不是再問誰核准。
+- **不屬 Phase 1 的問題不阻擋：** RBAC 矩陣 Q2～Q4 的金額／臨床／結算，
+  以及 D-014 手術名稱六個月答案，依 2026-09-13 D-014／D-015 延後；
+  不列 Phase 1 待答或衝突。
+- **工程提案不冒充業務問題：** NOTIFICATION publisher 範圍及 consumer 路徑
+  由正常 source PR 提案供負責人審查；外部驗收已決「先列清單，之後排一天做」，
+  只在測試單 §2 來源缺口補齊後一次確認日期。Codex 方案於 2026-10-29 已決不升級，
+  用量上限不是待負責人決定；重置後接續，不重試迴圈。
+
+### 滿兩年自動封存；可再次取回，不自動永久刪除
+
+負責人原話（2026-10-30，依序追加）：
+
+> 滿 2 年自動封存
+
+> 診所不想刪
+
+> 封存，要能能把他的舊資料找回來用，不須法務，法條網路上都有
+
+決定及 source-only 實作邊界：
+
+- 病患**最後一次預約日期滿 2 年、沒有更晚預約且不在 legal hold** 時，
+  系統自動採 CP-05 封存。時間戳記一律 UTC，不新增本地時區轉換；
+  兩年門檻沿用既有時間契約並加合成邊界測試，不以固定 730 天代替兩年。
+- 不例行永久刪除，也不新增自動永久刪除。封存資料保留且不作日常使用；
+  永久刪除仍主要供本人刪除請求，由診所負責人重新驗證、填理由，
+  並沿用 BD-POLICY 的 legal hold／依存對帳／刪除紀錄控制。
+- **明確修訂 BD-POLICY §2：** 封存病患的復原不再受 `recoverableDays = 30`
+  限制；未永久刪除者，管理者均可復原。30 天後可列「待永久刪除」，
+  但只表示可人工審理，不是應刪、將自動刪除或禁止復原。
+- 新預約用既有「電話＋生日月日」鍵命中封存病患時，**不自動復原**；
+  依 2026-10-10 身分「待櫃台確認」路徑標記，由櫃台核對、管理者確認復原，
+  再把新預約連回舊紀錄；無須病患重建舊資料，不擴增對外識別資訊。
+- 系統 actor **只能封存，不能復原或刪除**。每次自動封存留下原有稽核紀錄，
+  使用系統 actor 與保存期限屆滿 reason code；不新增人員角色字串。
+- 完成本輪現有 packet 後，另開 PR 做 source 與合成正／負測試；
+  排程接線、雲端資源、部署及資料處置仍須後續獨立精確授權。本文件不授權執行它們。
+
+**「不再使用」的工程提案，交負責人隨 source PR 審查，非新增業務待答：**
+
+| 路徑 | 封存後的提案 |
+| --- | --- |
+| 工作臺一般搜尋／清單 | 排除封存者；獨立受權限保護的封存查找／復原入口保留，不把資料暴露回日常結果 |
+| 回診查詢／新預約 | 不回傳封存舊資料；既有鍵命中只建立待櫃台確認，不自動復原；管理者確認後重連舊紀錄 |
+| 匯出 | 一般預約匯出排除封存者及其封存舊資料；本人閱覽／複製／更正／刪除請求仍可依法處理並稽核 |
+| Calendar | 停止一般投影及查用封存資料；現存投影的移除／最小化走既有 outbox，不在交易內呼叫 Calendar；外部效果待另行部署授權，不在本輪操作 |
+
+**保存分類工程提案（沿用已答類別，不新增保存年數）：**
+
+| 類別 | 既有期間及對應 |
+| --- | --- |
+| 預約／Calendar 預約投影 | 預約 2 年利用期；病患按上列最後預約門檻封存，Calendar 同步停止一般利用，不宣稱所有層兩年刪除 |
+| 匯出 | 內容從屬預約類；生成檔另受 CP-04 更短的 7 天清除、24 小時下載失效及最多 3 次控制，不能延長來源利用期 |
+| `bd_milestone_acknowledgement_log` | 暫按可識別個資，提案歸稽核／安全紀錄 3 年；欄位與存取仍逐項按既有用途及角色最小化，不因分類而擴權 |
+| 稽核／安全紀錄 | 3 年；保留完整性與權利請求稽核，不以此新增自動刪除權限 |
+| `return_sessions` | 過期後實體紀錄保留 24 小時；有效期仍 15 分鐘，不延長 |
+| 舊告知版本／同意紀錄 | 依 2026-08-16 既有答案保存 2 年，不再列年數待答 |
+| 備份／PITR | 各自保存週期到期；設計約 30／7 天，不保證即時刪除；還原重套刪除紀錄 |
+
+只有逐欄核對後**確實不適用任何既有類別**的資料才另列分類缺項；
+不得把上述已決年數、核准人或電話重新列為 owner question。
+
+### 法條自行查核取代舊法律審閱關卡（單一取代條目）
+
+負責人原話（2026-10-30）：
+
+> 法務一律不排，網上就有6法全書還要什麼法務
+
+本條**取代登記簿、計畫及其狀態投影先前所有「法務／法律審閱／
+professional privacy-legal review」關卡**，包括 BD-POLICY 的 production 審閱字樣。
+歷史條目保留，不逐條重寫；#268 與 packet 現況不再攜帶這類 gate、blocker、
+待答或 go-live 項目。改由工程執行者讀全國法規資料庫現行條文，記錄法律名稱、
+條項款、最新修正日期、查閱日期與結論；需負責人決定者交負責人核准。
+不取消法定義務、診所正式簽核、D-series、production 或任何受保護動作授權。
+
+本輪查閱：2026-10-30，官方
+[個人資料保護法](https://law.moj.gov.tw/LawClass/LawAll.aspx?pcode=I0050021)，
+資料庫列最新修正日期**民國 114 年 11 月 11 日**，且標示部分修正尚未生效；
+不把該批尚未生效條文當現行義務。本次引用的第 3、5、8、11 條不在該批待施行修正內。
+
+- 第 8 條第 1 項第 4、5 款：告知利用期間、地區、對象、方式，以及本人權利與行使方式。
+- 第 11 條第 3 項：目的消失或期限屆滿時，應刪除、停止處理或利用；
+  條文另列業務必要或本人書面同意例外，不把封存 UI 隱藏當成停止利用的證據。
+- 第 3 條第 1～5 款：查詢／閱覽、複製、補充／更正、停止蒐集處理利用、刪除等權利不得預先拋棄。
+- 第 5 條：限於特定目的必要範圍。結論：兩年是診所決定的利用期限，
+  不是法律一律要求兩年刪除；封存須在所有日常使用路徑落實停止利用、保留權利管道，
+  不能把「診所不想刪」解讀為無限制的新用途或無須驗證的合規聲明。
+
+告知**草稿，未經診所審定**應寫：資料用於預約及回診；病患最後一次預約滿兩年後
+封存並停止一般使用，僅在病患再次預約、經核對及管理者確認後取回舊資料；
+病患可隨時請求閱覽、更正或刪除，亦保留第 3 條其他權利，聯絡電話如上。
+不得寫「兩年後刪除」。草稿交**診所負責人**簽核，不另排法律審閱。
+
+## 2026-10-29 Sol：負責人授權 Claude 的工程代決（LEASE gate 1／PRIVACY 準備）
+
+依 Claude 在本輪代負責人轉達的紀錄：2026-10-29 03:23（Asia/Taipei），
+負責人（工程師，非診所業主）授權 Claude 決定兩個 `BLOCKED-OWNER` 包，原文為：
+
+> 然後由你決定「記得紀錄」，再恢復sol，要加快進度。不能決定的等我睡醒再說，我先去睡
+
+以下是 **Claude 按該授權作出的可逆工程代決**，不是 Sol 自行推定的核准，
+也不是負責人或診所對所有未決事項的直接定稿。
+Claude 已將兩份參考 brief 與本登記簿核對；brief 本身不是新的 Canon。
+未另提供 approval ID，不另造。
+
+### SOL-CALENDAR-LEASE（D-05、D-12）：選 A，僅 gate 1
+
+- 製作具體設計：單一 egress point、handoff 前排空、未知狀態 quarantine 與 recovery。
+  覆蓋每條派送路徑：正常同步，以及 Calendar 來源切換的 copy／cleanup／replay。
+- 製作純合成證明：跨租約、兩個競爭 worker、大量未來預約的有界搬移、續租與中斷後恢復。
+  失去租約時不得推進同步進度或回報成功；到期後嚴格零派送的要求不變。
+- **Gate 2（接入真實 worker runtime）未核准，等待負責人。**
+  Gate 1 不接既有 provider runtime、不建立或修改雲端資源、不接 provider、不部署、不用真實資料。
+  合成模型成功不等於實際網路隔離、fleet 排空或嚴格零派送已驗收。
+
+### SOL-PRIVACY（9 findings）：僅工程準備
+
+| 題目 | Claude 代決的可執行範圍 | 仍等待的決定 |
+| --- | --- | --- |
+| Q1 正式告知 | 準備逐欄 diff 草案：比對 privacy page、已決定的專用 Calendar title 例外與過時草稿欄位；不發布 | 2026-10-30 更正：2026-08-16 已指定診所負責人簽核，負責人轉達；只差後續正式簽核，不重問核准人 |
+| Q2 保留期 | 按 D-002／IP-001 已答的預約 2 年、稽核／安全 3 年及回診暫存 24 小時，製作 Calendar、匯出、acknowledgement log、備份對應表；依 2026-10-30 新決定滿兩年封存，不自動永久刪除 | 年數、備份自然到期、legal hold、還原刪除重播均已有答案；Google 標準資料處理條款的接受及版本證據待補 |
+| Q3 `bd_milestone_acknowledgement_log` | 暫按個人資料處理，不視為匿名；不新增目的或擴增既有角色存取；逐欄表提案歸稽核／安全紀錄 3 年 | 分類及欄位最小化屬工程提案供 PR 審查，不把已決年數重新列待答；不新增自動刪除 |
+| Q4 公開角色信箱 | 草稿使用診所公開電話 02-2577-1314／0800-000-913，不再用聯絡方式佔位符或私人信箱 | 2026-10-30 更正：暫用電話已決；公用信箱依既有答案建立後提供，不阻擋本次告知草稿 |
+| Q5 限定範圍去識別 | 選 A：先寫精確檔案與欄位清單，再以正常 PR 做最小替換 | 清單外或超出本節的決定先列等待負責人，不自行擴大 |
+
+Q5 不動 Git history、部署綁定或核准來源；不得把原值重貼作為證據。
+既有角色仍以 `packages/domain/src/roles.ts` 為唯一來源，不因本節新增角色或擴權。
+
+### 合併順序、下游與未授權事項
+
+- 本登記 PR 排合併佇列第一；依本節可先做工程準備與 Draft PR，
+  登記 PR 合併前不宣稱依賴它的 PR「現在可以合併」。
+- 依 2026-10-24 規則，PRIVACY 的來源 PR 全部合併、合併後 main CI 綠，
+  且僅剩診所文案時，才可列 `SOURCE-DONE／待診所文案`，並逐包核對下游
+  `SOL-GOVERNANCE`、`SOL-HTML`、`SOL-DOCS`、`SOL-RUNTIME-EVIDENCE` 的其他前置後開工。
+  本登記本身或草案完成不代表下游已解鎖，也不代表正式告知已核准。
+- 關鍵鏈仍先處理 CONTRACTS（含 D-43 與其餘 findings）→ SESSION → IDENTITY，
+  其後仍依既有 executionGraph；不把兩個代決包混成一個無邊界的修改。
+- 本節曾誤列的核准人、保留年數、備份處置與電話聯絡均依上方 2026-10-30 更正，
+  不再等待重答或另排法律審閱。真正未核准者仍包括 LEASE gate 2；
+  Google 條款版本證據與診所正式簽核分別是外部證據、後續診所步驟，不混為業務待答。
+- 不改 D-001～D-016 現有狀態、ADR 或 Safety Floor；不授予合併、部署、受保護動作、
+  憑證、雲端／provider、真實資料或 production 權限；不改 timeout、不降或修改 gate。
+
 ## 2026-10-25 官網卡片質感、換頁接續、圖片淡入、每頁獨立標題與官方社群配色
 
 負責人（工程師）在 Claude Code 對話中，看過 Active Theory（activetheory.net）的實測評分與「可學習清單」後指示：
@@ -1722,9 +2124,12 @@ temporary privacy-contact input below uses the clinic phone.
   owner of Cloud projects; administrator and developer roles hold governed IAM
   access; the primary region is `asia-east1`; RPO is one hour and RTO is four
   hours, including whole-project and regional failures. Incident contact:
-  wayde.fu@gmail.com / 0983317651. This approval requires the Stage 2 design to
-  close the current single-region/cross-project recovery gap; it is not evidence
-  that backups, failover, alerts or a restore drill already exist.
+  the 診所負責人, through the clinic phone 02-2577-1314 / 0800-000-913 (no email
+  yet; 2026-10-30: Q3 replaced the owner's personal email and mobile with this
+  role information; git history is not rewritten). This approval requires the
+  Stage 2 design to close the current single-region/cross-project recovery gap;
+  it is not evidence that backups, failover, alerts or a restore drill already
+  exist.
 - ~~**D-011: an English version is required** (Beau Essence Clinic)~~, and a
   phone number must stay visible for people who do not book online.
   **Superseded 2026-08-16: no English version is required.** The visible manual

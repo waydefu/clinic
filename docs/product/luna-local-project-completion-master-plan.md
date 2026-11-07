@@ -1286,7 +1286,7 @@ the production dependency).
 | Backup / PITR | Prove restore, not only config | Emulator restore as DR evidence |
 | Cloud Run | API + worker; loopback principles do not apply on Cloud Run — lock ingress/IAM | Unauthenticated write routes |
 | Hosting | Prepare site; **do not** attach official DNS until F | Live channel as production without J |
-| Identity Platform | Google + clinic-managed; MFA; idle 30m / absolute 8h | Shared emergency account |
+| Identity Platform | Google + clinic-managed; MFA; idle 30m / absolute 8h (since 2026-10-03: absolute 12 h, no idle timeout, per `STAFF-SESSION-12H-2026-10-03`; 10-minute reauth for sensitive operations unchanged; original text kept as history) | Shared emergency account |
 | Logging / monitoring / budget | 50/80/100 **actions** as C0-ENG-REC; never auto-detach | Silence pages |
 | Scheduler | Outbox/watch compensation | External provider calls inside transactions |
 | DR | Option A + B secondary `asia-east1`; manual failback | Option C/D (rejected) |
@@ -2026,7 +2026,7 @@ All of the following are true, with dated evidence, or explicitly
    not shipped.
 5. Official DNS/TLS for the D-011 URLs, or D-011 records “no official
    DNS this phase”.
-6. Identity: individual staff, MFA, idle 30m, absolute 8h.
+6. Identity: individual staff, MFA, idle 30m, absolute 8h (since 2026-10-03: absolute 12 h, no idle timeout, per `STAFF-SESSION-12H-2026-10-03`; 10-minute reauth for sensitive operations unchanged; original text kept as history).
 7. Backups + PITR + a restore exercise.
 8. TW-05 human AT done or accepted residual.
 9. UI/UX final pass PASS (not merely e2e green).

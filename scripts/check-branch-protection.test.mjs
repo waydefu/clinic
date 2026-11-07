@@ -109,6 +109,21 @@ describe('reading enforced status checks', () => {
     expect(enforced.size).toBe(0);
   });
 
+  it.each([401, 403, 404, 500])(
+    'reports unreadable rulesets on HTTP %i even when classic checks pass',
+    (status) => {
+      const result = enforcedChecks({
+        protection: classic({
+          required_status_checks: { contexts: ['Verification evidence'] }
+        }),
+        rulesets: { status, body: '' }
+      });
+
+      expect(result).toEqual({ unreadable: status });
+      expect(result.enforced).toBeUndefined();
+    }
+  );
+
   // 403 代表 token 權限不足。那必須是「沒查」，絕不能被當成「查了、沒設定」。
   it('reports an unreadable status instead of pretending nothing is enforced', () => {
     const result = enforcedChecks({

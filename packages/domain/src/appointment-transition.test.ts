@@ -136,6 +136,60 @@ describe('parseAppointmentSnapshot', () => {
       )
     ).toBe('INVALID_VALUE');
   });
+
+  it.each([
+    'Jul 25 2026 Z',
+    '2026-02-30T00:00:00Z',
+    '2026-02-29T00:00:00Z',
+    '2026-02-28T24:00:00Z',
+    '2026-02-28T00:00:00',
+    '2026-02-28T08:00:00+08:00',
+    '',
+    null,
+    0
+  ])(
+    'rejects invalid startsAt %j for legacy and schema version 1',
+    (startsAt) => {
+      expect(
+        codeOf(() => parseAppointmentSnapshot(id, { ...legacy, startsAt }))
+      ).toBe('INVALID_VALUE');
+      expect(
+        codeOf(() =>
+          parseAppointmentSnapshot(id, {
+            ...legacy,
+            schemaVersion: 1,
+            startsAt
+          })
+        )
+      ).toBe('INVALID_VALUE');
+    }
+  );
+
+  it.each([
+    '2028-02-29T00:00:00Z',
+    '2028-02-29T00:00:00.123Z',
+    '2028-02-29T00:00:00.123456Z',
+    '2028-02-29T00:00:00.123456789Z'
+  ])(
+    'preserves valid leap-day startsAt %s for legacy and schema version 1',
+    (startsAt) => {
+      expect(
+        parseAppointmentSnapshot(id, { ...legacy, startsAt }).startsAt
+      ).toBe(startsAt);
+      expect(
+        parseAppointmentSnapshot(id, { ...legacy, schemaVersion: 1, startsAt })
+          .startsAt
+      ).toBe(startsAt);
+    }
+  );
+
+  it('omits startsAt when absent from the legacy shape', () => {
+    const parsed = parseAppointmentSnapshot(id, {
+      ...legacy,
+      startsAt: undefined
+    });
+    expect(parsed).not.toHaveProperty('startsAt');
+  });
 });
 
 describe('planTransition', () => {
@@ -519,6 +573,94 @@ describe('planDeletion', () => {
       activeAppointmentId: appointment.id
     });
   });
+});
+
+describe('lifecycle state matrix', () => {
+  const cases = [
+    { status: 'confirmed', allowed: true },
+    { status: 'arrived', allowed: true },
+    { status: 'cancellation_requested', allowed: true },
+    { status: 'cancelled', allowed: false },
+    { status: 'completed', allowed: false },
+    { status: 'no_show', allowed: false }
+  ] as const;
+
+  it.each(cases)(
+    'no_show from $status has allowed=$allowed without mutating inputs',
+    ({ status, allowed }) => {
+      const stored = { ...appointment, status };
+      const guard = structuredClone(patientBookingGuard);
+      const before = structuredClone([stored, guard]);
+      const run = () =>
+        planTransition(
+          {
+            appointmentId: stored.id,
+            transition: 'no_show',
+            audit,
+            requestedAt: NOW,
+            idempotency: idempotencyFor()
+          },
+          stored,
+          guard
+        );
+
+      if (allowed) {
+        const plan = run();
+        expect(plan.nextStatus).toBe('no_show');
+        expect(plan.releaseSlotId).toBe(stored.slotId);
+        expect(fromCalendarEventId(plan.outboxJob.idempotencyKey)).toBe(
+          'calendar_appointment_001'
+        );
+      } else {
+        expect(codeOf(run)).toBe('TRANSITION_NOT_ALLOWED');
+      }
+      expect([stored, guard]).toEqual(before);
+    }
+  );
+
+  it.each(cases)(
+    'reschedule from $status has allowed=$allowed without mutating inputs',
+    ({ status, allowed }) => {
+      const stored = { ...appointment, status };
+      const guard = structuredClone(patientBookingGuard);
+      const target: SlotSnapshot = {
+        id: 'slot_20300102_1230',
+        kind: 'initial',
+        startsAt: '2030-01-02T04:30:00.000Z'
+      };
+      const before = structuredClone([stored, guard, target]);
+      const run = () =>
+        planReschedule(
+          {
+            appointmentId: stored.id,
+            targetSlotId: target.id,
+            audit,
+            requestedAt: WITHIN_HORIZON_AT,
+            idempotency: {
+              ...idempotencyFor(),
+              scope: `appointment:${stored.id}:reschedule`
+            }
+          },
+          stored,
+          target,
+          guard
+        );
+
+      if (allowed) {
+        const plan = run();
+        expect(plan.nextStatus).toBe('confirmed');
+        expect(plan.releaseSlotId).toBe(stored.slotId);
+        expect(plan.reserveSlotId).toBe(target.id);
+        expect(plan.patientBookingGuard.action).toBe('retain');
+        expect(fromCalendarEventId(plan.outboxJob.idempotencyKey)).toBe(
+          'calendar_appointment_001'
+        );
+      } else {
+        expect(codeOf(run)).toBe('TRANSITION_NOT_ALLOWED');
+      }
+      expect([stored, guard, target]).toEqual(before);
+    }
+  );
 });
 
 describe('planReschedule', () => {

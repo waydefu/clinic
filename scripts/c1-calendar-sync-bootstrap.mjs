@@ -5,8 +5,9 @@ import { getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
 import { isUtcIsoTimestamp } from '../apps/web/public/vendor/domain/timestamp.js';
+import { ISOLATED_C1_PROJECT_ID } from './internal-test-c1-identity.mjs';
 
-export const C1_CALENDAR_SYNC_PROJECT = 'beauessence-clinic-stg-c1a01';
+export const C1_CALENDAR_SYNC_PROJECT = ISOLATED_C1_PROJECT_ID;
 export const C1_CALENDAR_SYNC_SOURCE_ID = 'c1_synthetic_calendar';
 
 function utc(value, name) {

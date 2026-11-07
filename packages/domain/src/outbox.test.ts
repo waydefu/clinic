@@ -195,6 +195,82 @@ const codeOf = (run: () => unknown): string => {
   return 'NO_ERROR';
 };
 
+describe('outbox UTC admission', () => {
+  const invalidTimestamps = [
+    '2026-02-29T00:00:00Z',
+    '2026-02-31T00:00:00Z',
+    '2028-02-29T24:00:00Z',
+    '2028-02-29T00:00:00',
+    '2028-02-29T08:00:00+08:00',
+    '2028-02-29T00:00:00+00:00',
+    'Jul 25 2026 Z'
+  ];
+  const validTimestamps = [
+    ['2028-02-29T00:00:00Z', '2028-02-29T00:00:30.000Z'],
+    ['2028-02-29T00:00:00.123Z', '2028-02-29T00:00:30.123Z'],
+    ['2028-02-29T00:00:00.123456789Z', '2028-02-29T00:00:30.123Z']
+  ] as const;
+
+  it.each(invalidTimestamps)(
+    'rejects an invalid stored timestamp (%s)',
+    (timestamp) => {
+      for (const field of ['nextAttemptAt', 'startsAt'] as const) {
+        expect(
+          codeOf(() =>
+            parseOutboxSnapshot(job.id, { ...job, [field]: timestamp })
+          )
+        ).toBe('INVALID_VALUE');
+      }
+    }
+  );
+
+  it.each(invalidTimestamps)(
+    'does not consider work due with an invalid deadline or clock (%s)',
+    (timestamp) => {
+      expect(isDue({ ...job, nextAttemptAt: timestamp }, NOW)).toBe(false);
+      expect(isDue({ ...job, nextAttemptAt: NOW }, timestamp)).toBe(false);
+    }
+  );
+
+  it.each(invalidTimestamps)(
+    'rejects an invalid clock before completing or scheduling a retry (%s)',
+    (timestamp) => {
+      for (const outcome of [
+        { kind: 'succeeded' },
+        { kind: 'failed', reason: 'synthetic retry', retryable: true }
+      ] as const) {
+        expect(codeOf(() => planOutboxAttempt(job, outcome, timestamp))).toBe(
+          'INVALID_TIMESTAMP'
+        );
+      }
+    }
+  );
+
+  it.each(validTimestamps)(
+    'preserves valid leap-day UTC inputs and schedules millisecond retries (%s)',
+    (timestamp, nextAttemptAt) => {
+      expect(
+        parseOutboxSnapshot(job.id, {
+          ...job,
+          nextAttemptAt: timestamp,
+          startsAt: timestamp
+        })
+      ).toMatchObject({ nextAttemptAt: timestamp, startsAt: timestamp });
+      expect(isDue({ ...job, nextAttemptAt: timestamp }, timestamp)).toBe(true);
+      expect(
+        planOutboxAttempt(job, { kind: 'succeeded' }, timestamp)
+      ).toMatchObject({ status: 'completed' });
+      expect(
+        planOutboxAttempt(
+          job,
+          { kind: 'failed', reason: 'synthetic retry', retryable: true },
+          timestamp
+        )
+      ).toMatchObject({ status: 'pending', nextAttemptAt });
+    }
+  );
+});
+
 describe('parseOutboxSnapshot', () => {
   const id = 'outbox_001';
   const legacy = {
@@ -254,5 +330,31 @@ describe('parseOutboxSnapshot', () => {
       codeOf(() => parseOutboxSnapshot(id, { ...legacy, schemaVersion: 2 }))
     ).toBe('INVALID_VALUE');
     expect(codeOf(() => parseOutboxSnapshot(id, null))).toBe('INVALID_VALUE');
+  });
+
+  it('reads retention markers and refuses unreadable or unmarked ones', () => {
+    const archivedAt = '2030-01-01T00:00:00.000Z';
+    expect(
+      parseOutboxSnapshot(id, {
+        ...legacy,
+        retentionOperation: 'archive',
+        retentionArchivedAt: archivedAt
+      })
+    ).toMatchObject({
+      retentionOperation: 'archive',
+      retentionArchivedAt: archivedAt
+    });
+    expect(
+      parseOutboxSnapshot(id, { ...legacy, retentionOperation: 'restore' })
+    ).toMatchObject({ retentionOperation: 'restore' });
+    for (const bad of [
+      { retentionOperation: 'archive' },
+      { retentionOperation: 'delete' },
+      { retentionOperation: 'restore', retentionArchivedAt: 'yesterday' }
+    ]) {
+      expect(codeOf(() => parseOutboxSnapshot(id, { ...legacy, ...bad }))).toBe(
+        'INVALID_VALUE'
+      );
+    }
   });
 });

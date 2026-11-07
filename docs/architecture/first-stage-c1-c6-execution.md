@@ -59,7 +59,7 @@ Machine: `scripts/sequential-c-gate.mjs`. Live tree with C1～C6 smoke is
 | Field | Value |
 | --- | --- |
 | Prerequisites | C2 evidence; C3 authority |
-| Scope | Idle 30m; absolute 8h; server-side session; `__session` + CSRF; no shared emergency account |
+| Scope | Absolute 12h, no idle timeout (`STAFF-SESSION-12H-2026-10-03`; D-006 originally idle 30m / absolute 8h, kept as history); sensitive operations keep 10-minute fresh Google + TOTP reauthentication; server-side session; `__session` + CSRF; no shared emergency account |
 | Source in tree | domain `evaluateStaffSession` / `STAFF_ABSOLUTE_SESSION_MS` on CAL-PILOT |
 | Hosting constraint | Firebase Hosting forwards only `__session` |
 | Remaining blockers | none for C3 source evaluator |
@@ -125,6 +125,18 @@ and the valid unversioned session with case-insensitive hex matching. No new
 collection, persisted version, writer, role, migration or provider is introduced.
 This is one source boundary, not closure of historical DATA-R03, deployed alerting,
 E4-15 in full, or the SOL-CONTRACTS packet.
+
+### E4-15 existing worker candidate transaction read
+
+The sync transaction validates the consumed status, ETag and supersede reason
+before scheduling any writes. Its projection retains the existing unversioned
+partial candidate shape and the missing, null or blank ETag used by legacy
+regeneration. A known legacy supersede reason can still regenerate the candidate;
+unrelated supersedes and existing pending candidates are not overwritten.
+Synthetic codec and transaction tests reject versioned or malformed consumed
+fields before any mirror, candidate, audit or sync-state write. No stored format,
+writer or migration is added. This bounded source guard is not deployed alerting,
+provider acceptance or closure of E4-15 or SOL-CONTRACTS in full.
 
 ## Hard stop
 

@@ -268,6 +268,8 @@ export class CalendarSyncEngine {
     rebuiltAfterExpiredToken: boolean
   ): Promise<CalendarSyncSummary> {
     const configuration = await this.repository.loadConfiguration();
+    if (!isUtcIsoTimestamp(configuration.expiresAt))
+      throw new Error('CAL-PILOT sync expiry must be a UTC timestamp.');
     if (Date.parse(now) >= Date.parse(configuration.expiresAt))
       throw new Error('CAL-PILOT sync has expired.');
 

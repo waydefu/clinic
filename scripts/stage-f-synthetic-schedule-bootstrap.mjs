@@ -10,7 +10,10 @@ import {
 } from '@beauessence/domain';
 
 import { FORBIDDEN_STAGING_PROJECT } from './isolated-c1-project-id.mjs';
-import { ISOLATED_C1_PROJECT_ID } from './internal-test-c1-identity.mjs';
+import {
+  INTERNAL_TEST_WORKER_SERVICE,
+  ISOLATED_C1_PROJECT_ID
+} from './internal-test-c1-identity.mjs';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 
@@ -21,8 +24,7 @@ export const STAGE_F_SYNTHETIC_BLOCKED_TIMES = Object.freeze({
   follow_up: Object.freeze(['13:15', '15:15', '17:15'])
 });
 
-export const STAGE_F_WORKER_CALENDAR_IDENTITY =
-  'internal-test-outbox@beauessence-clinic-stg-c1a01.iam.gserviceaccount.com';
+export const STAGE_F_WORKER_CALENDAR_IDENTITY = `${INTERNAL_TEST_WORKER_SERVICE}@${ISOLATED_C1_PROJECT_ID}.iam.gserviceaccount.com`;
 
 export function stageFSyntheticPublishSchedule() {
   return {
@@ -170,7 +172,7 @@ export function planStageFSyntheticScheduleBootstrap(options = {}) {
   if (projectId !== ISOLATED_C1_PROJECT_ID) {
     throw new Error(
       'Stage F synthetic schedule bootstrap requires isolated C1 ' +
-        'project beauessence-clinic-stg-c1a01.'
+        `project ${ISOLATED_C1_PROJECT_ID}.`
     );
   }
   const canon = evaluateStageFSyntheticScheduleCanon();

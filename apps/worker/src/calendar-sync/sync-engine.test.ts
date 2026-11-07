@@ -301,6 +301,21 @@ describe('CalendarSyncEngine', () => {
     expect(reader.requests[1]).toHaveProperty('timeMin');
   });
 
+  it.each(['Jul 25 2026 Z', 'not-a-date', '2026-09-27T08:00:00'])(
+    'fails closed on a non-UTC configuration expiry %s',
+    async (expiresAt) => {
+      const repository = new MemoryRepository();
+      repository.configuration = { ...repository.configuration, expiresAt };
+      const reader = new FakeReader([]);
+      await expect(
+        new CalendarSyncEngine(reader, repository).run(
+          '2026-08-28T08:00:00.000Z'
+        )
+      ).rejects.toThrow('UTC timestamp');
+      expect(reader.requests).toEqual([]);
+    }
+  );
+
   it('fails closed after the 30-day expiry', async () => {
     const repository = new MemoryRepository();
     const reader = new FakeReader([]);
@@ -967,6 +982,31 @@ describe('bounded inbound commit and terminal checkpoint protocol', () => {
     expect(candidates).toHaveLength(47);
     expect(new Set(candidates).size).toBe(47);
     expect(repository.state.syncToken).toBe('bounded-complete');
+  });
+  it('fences a changed source generation between bounded chunks without advancing the checkpoint', async () => {
+    class GenerationChanges extends MemoryRepository {
+      override async commitSync(commit: CalendarSyncCommit): Promise<void> {
+        await super.commitSync(commit);
+        if (this.commits.length === 1) {
+          this.configuration = {
+            ...this.configuration,
+            sourceVersion: this.configuration.sourceVersion + 1
+          };
+        }
+      }
+    }
+
+    const repository = new GenerationChanges();
+    const originalState = repository.state;
+    await expect(
+      new CalendarSyncEngine(new FakeReader([page()]), repository).run(NOW)
+    ).rejects.toThrow('stale source generation');
+    expect(repository.commits).toHaveLength(1);
+    expect(repository.commits[0]?.mutations).toHaveLength(20);
+    expect(repository.mirrors.size).toBe(20);
+    expect(repository.commits[0]?.nextSyncToken).toBeUndefined();
+    expect(repository.commits[0]?.completedAt).toBeUndefined();
+    expect(repository.state).toEqual(originalState);
   });
   it.each([undefined, '', ' '])(
     'does not persist a healthy terminal checkpoint without a valid sync token: %s',

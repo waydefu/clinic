@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { accessSync, constants, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -22,6 +22,7 @@ import {
   APP_MODULE_PATH,
   loadApiModuleSources
 } from './nest-module-reachability.mjs';
+import { terraformCliStatus } from './cli-on-path.mjs';
 import { parseStageGateStatus } from './unrouted-inventory.mjs';
 import {
   GCP_PROJECT_ID_MAX_LENGTH,
@@ -59,26 +60,7 @@ const SLICE_PACKETS = {
   }
 };
 
-function hasCli(name) {
-  const dirs = (process.env.PATH ?? '').split(':').filter(Boolean);
-  for (const dir of dirs) {
-    try {
-      accessSync(join(dir, name), constants.X_OK);
-      return true;
-    } catch {
-      /* keep scanning PATH */
-    }
-  }
-  return false;
-}
-
-export function terraformCliStatus() {
-  return {
-    gcloud: hasCli('gcloud'),
-    terraform: hasCli('terraform'),
-    firebase: hasCli('firebase')
-  };
-}
+export { terraformCliStatus };
 
 export function evaluateC3Source(sessionSource) {
   const issues = [];

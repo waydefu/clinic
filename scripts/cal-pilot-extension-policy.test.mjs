@@ -5,9 +5,79 @@ import {
   CAL_PILOT_EXTENDED_EXPIRY,
   CAL_PILOT_ORIGINAL_EXPIRY,
   nextHostingExpiry,
+  validateActivationWindow,
   validateExtensionRequest,
   validateExtensionState
 } from './cal-pilot-extension-policy.mjs';
+
+const activationNow = '2026-10-28T00:00:00Z';
+const activationWindow = {
+  configurationExists: true,
+  expiresAt: CAL_PILOT_EXTENDED_EXPIRY,
+  now: activationNow
+};
+
+describe('CAL-PILOT activation time admission (pure policy only)', () => {
+  it.each([CAL_PILOT_EXTENDED_EXPIRY, '2026-11-28T04:51:37.123456789Z'])(
+    'preserves valid future UTC expiry %s',
+    (expiresAt) => {
+      expect(() =>
+        validateActivationWindow({ ...activationWindow, expiresAt })
+      ).not.toThrow();
+    }
+  );
+
+  it.each([
+    undefined,
+    null,
+    2030,
+    {},
+    '',
+    'not-a-timestamp',
+    'Jan 02 2030 Z',
+    '2030-02-30T00:00:00Z',
+    '2030-01-02T00:00:00+08:00'
+  ])('rejects missing, malformed or non-UTC stored expiry %s', (expiresAt) => {
+    expect(() =>
+      validateActivationWindow({ ...activationWindow, expiresAt })
+    ).toThrow();
+  });
+
+  it.each([activationNow, CAL_PILOT_ORIGINAL_EXPIRY])(
+    'rejects equal or expired windows %s',
+    (expiresAt) => {
+      expect(() =>
+        validateActivationWindow({ ...activationWindow, expiresAt })
+      ).toThrow('configuration is missing or expired');
+    }
+  );
+
+  it('rejects a missing configuration and an invalid comparison clock', () => {
+    expect(() =>
+      validateActivationWindow({
+        ...activationWindow,
+        configurationExists: false
+      })
+    ).toThrow('configuration is missing or expired');
+    expect(() =>
+      validateActivationWindow({ ...activationWindow, now: 'not-a-timestamp' })
+    ).toThrow();
+  });
+
+  it('wires admission before both mutations without importing the entry point', () => {
+    const source = readFileSync(
+      new URL('./activate-cal-pilot.mjs', import.meta.url),
+      'utf8'
+    );
+    expect(source).toContain(
+      "import { validateActivationWindow } from './cal-pilot-extension-policy.mjs';"
+    );
+    const admission = source.indexOf('validateActivationWindow({');
+    expect(admission).toBeGreaterThan(0);
+    expect(source.indexOf('transaction.update(')).toBeGreaterThan(admission);
+    expect(source.indexOf('transaction.create(')).toBeGreaterThan(admission);
+  });
+});
 
 describe('CAL-PILOT extension policy', () => {
   it.each(['now', 'currentExpiry'])(

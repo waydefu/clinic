@@ -54,6 +54,29 @@ for (const [name, rules] of [
       }
     };
 
+    const draft = {
+      timeZone: rules.TAIPEI_TIME_ZONE,
+      weeklyAvailability: [],
+      dateExceptions: [],
+      blockedTimes: { initial: [], follow_up: [] }
+    };
+    const publication = {
+      draft,
+      expectedVersion: 0,
+      slotGeneration: { startDate: '2030-01-01', dayCount: 1 },
+      audit: auditInput.context,
+      idempotency: {
+        actorId: auditInput.context.actorId,
+        scope: 'schedule:publish',
+        requestHash: 'a'.repeat(64),
+        recordId: 'b'.repeat(64)
+      }
+    };
+    const snapshot = { schemaVersion: 1, publishedVersion: 1, schedule: draft };
+    const invalidTimestampError = expect.objectContaining({
+      code: 'INVALID_TIMESTAMP'
+    });
+
     it.each(validTimes)('preserves legal caller input %s', (value) => {
       expect(
         rules.planAuditEvent({ ...auditInput, occurredAt: value })
@@ -61,6 +84,21 @@ for (const [name, rules] of [
         occurredAt: value,
         schemaVersion: rules.AUDIT_SCHEMA_VERSION
       });
+      expect(rules.taipeiPayrollPeriod(value)).toBe('2030-01');
+      expect(
+        rules.planSchedulePublication(
+          { ...publication, requestedAt: value },
+          { publishedVersion: 0, publishedAt: null },
+          [],
+          []
+        ).publishedAt
+      ).toBe(value);
+      expect(
+        rules.parsePublishedScheduleSnapshot({
+          ...snapshot,
+          publishedAt: value
+        }).publishedAt
+      ).toBe(value);
       expect(rules.isUtcIsoTimestamp(rules.selfCancelCutoffAt(value))).toBe(
         true
       );
@@ -81,6 +119,23 @@ for (const [name, rules] of [
         expect(() =>
           rules.planAuditEvent({ ...auditInput, occurredAt: value })
         ).toThrow(rules.DomainError);
+        expect(() => rules.taipeiPayrollPeriod(value)).toThrow(
+          invalidTimestampError
+        );
+        expect(() =>
+          rules.planSchedulePublication(
+            { ...publication, requestedAt: value },
+            { publishedVersion: 0, publishedAt: null },
+            [],
+            []
+          )
+        ).toThrow(invalidTimestampError);
+        expect(() =>
+          rules.parsePublishedScheduleSnapshot({
+            ...snapshot,
+            publishedAt: value
+          })
+        ).toThrow(invalidTimestampError);
         expect(() => rules.selfCancelCutoffAt(value)).toThrow(
           rules.DomainError
         );

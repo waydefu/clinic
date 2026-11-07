@@ -126,6 +126,14 @@
       "rationale": "CAL-PILOT expired processing lease reclaim."
     },
     {
+      "id": "calendar-pilot-outbox-activation-generation",
+      "collection": "calendar_pilot_outbox",
+      "fields": ["kind", "generation"],
+      "composite": false,
+      "owner": "apps/worker/src/calendar-sync/calendar-pilot-runtime.ts",
+      "rationale": "Equality-only lookup of activation metadata for a generation; composite index not declared."
+    },
+    {
       "id": "calendar-pilot-appointments-confirmed-future",
       "collection": "calendar_pilot_appointments",
       "fields": ["status", "startsAt"],

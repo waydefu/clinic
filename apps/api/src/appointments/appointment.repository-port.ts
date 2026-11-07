@@ -30,6 +30,8 @@ export interface AppointmentRecord {
   readonly intakeNationality?: PatientNationality;
   /** Staff-only booking note (BOOKING-NOTE-STORAGE-2026-09-29). */
   readonly patientNote?: string;
+  /** Attention only: no archive identity or history is disclosed. */
+  readonly identityReviewRequired?: true;
 }
 
 export interface TransitionResult {

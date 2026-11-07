@@ -210,13 +210,23 @@ export function evaluateRequiredCloudConfig(env, surface, contract) {
   };
 }
 
-export function redactConfigForLogs(env) {
+const LOGGABLE_CLASSES = new Set(['NON_SECRET_CONFIG', 'RUNTIME_DERIVED']);
+
+/**
+ * Redact by the contract's class, not by how a name looks (E1-15): only a name
+ * the contract lists as NON_SECRET_CONFIG or RUNTIME_DERIVED keeps its value.
+ * SECRET_REFERENCE, FORBIDDEN_TO_STORE_IN_REPO and any name the contract does
+ * not list are redacted, so a new variable is hidden until it is classified.
+ */
+export function redactConfigForLogs(env, contract = loadC1ConfigContract()) {
+  const classOf = new Map(
+    (contract.entries ?? []).map((entry) => [entry.name, entry.class])
+  );
   const redacted = {};
   for (const [key, value] of Object.entries(env ?? {})) {
-    const upper = key.toUpperCase();
-    const secretLike =
-      /SECRET|TOKEN|PASSWORD|JSON|API_KEY|ALLOWLIST|EMAILS|PRIVATE/.test(upper);
-    redacted[key] = secretLike ? '[redacted]' : value;
+    redacted[key] = LOGGABLE_CLASSES.has(classOf.get(key))
+      ? value
+      : '[redacted]';
   }
   return redacted;
 }

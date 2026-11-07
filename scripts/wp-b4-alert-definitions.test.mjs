@@ -66,6 +66,169 @@ describe('WP-B4 alert definitions', () => {
     });
   });
 
+  it('classifies synthetic alert events consistently in JSON and Terraform', () => {
+    const policies = JSON.parse(
+      readFileSync(
+        join(root, 'infra/monitoring/wp-b4-alert-policies.json'),
+        'utf8'
+      )
+    );
+    const terraform = readFileSync(
+      join(root, 'infra/terraform/wp-b4-alerting/main.tf'),
+      'utf8'
+    );
+    const filters = new Map(
+      [
+        ...terraform.matchAll(
+          /resource "google_logging_metric" "([^"]+)" \{[\s\S]*?\n\s*filter\s*=\s*("(?:\\.|[^"\\])*")/g
+        )
+      ].map(([, name, filter]) => [name, JSON.parse(filter)])
+    );
+    // shortcut: supports only these fixture filter forms; upgrade for new syntax.
+    const matches = (filter, event) =>
+      filter
+        .split(' OR ')
+        .map((alternative) => {
+          if (alternative.startsWith('(') || alternative.endsWith(')')) {
+            if (!alternative.startsWith('(') || !alternative.endsWith(')')) {
+              throw new Error(`Unsupported filter group: ${alternative}`);
+            }
+            alternative = alternative.slice(1, -1);
+          }
+          return alternative
+            .split(' AND ')
+            .map((term) => {
+              const match =
+                /^(jsonPayload|protoPayload)((?:\.[A-Za-z]+)+)(=~|!=|=)(?:"([A-Za-z0-9._]+)"|(\d+))$/.exec(
+                  term
+                );
+              if (!match) throw new Error(`Unsupported filter term: ${term}`);
+              const [, object, path, operator, text, number] = match;
+              if (operator === '=~' && text === undefined) {
+                throw new Error(`Unsupported filter term: ${term}`);
+              }
+              const value = number === undefined ? text : Number(number);
+              const actual = path
+                .slice(1)
+                .split('.')
+                .reduce((current, field) => current?.[field], event[object]);
+              if (typeof actual !== typeof value) return false;
+              if (operator === '=~') return new RegExp(text).test(actual);
+              return operator === '=' ? actual === value : actual !== value;
+            })
+            .every(Boolean);
+        })
+        .some(Boolean);
+    const cases = [
+      {
+        id: 'api_outage_or_5xx_burst',
+        metric: 'http_5xx',
+        events: [
+          [{ jsonPayload: { errorCode: 'INTERNAL_ERROR' } }, true],
+          [{ jsonPayload: { errorCode: 'SERVICE_UNAVAILABLE' } }, false],
+          [{ jsonPayload: { errorCode: 'INTERNAL' } }, true],
+          [{ jsonPayload: { errorCode: 'AUTHENTICATION_REQUIRED' } }, false],
+          [{ jsonPayload: {} }, false]
+        ]
+      },
+      {
+        id: 'persistent_firestore_transaction_failure',
+        metric: 'booking_transaction_failure',
+        events: [
+          [
+            {
+              jsonPayload: { operation: 'booking_transaction', result: 'error' }
+            },
+            true
+          ],
+          [
+            { jsonPayload: { operation: 'booking_transaction', result: 'ok' } },
+            false
+          ],
+          [{ jsonPayload: { errorCode: 'SLOT_UNAVAILABLE' } }, false],
+          [{ jsonPayload: { operation: 'other', result: 'error' } }, false]
+        ]
+      },
+      {
+        id: 'backup_failure',
+        metric: 'backup_failure',
+        events: [
+          [{ jsonPayload: { errorCode: 'BACKUP_FAILED' } }, true],
+          [
+            {
+              protoPayload: {
+                methodName:
+                  'google.firestore.admin.v1.FirestoreAdmin.CreateBackup',
+                status: { code: 0 }
+              }
+            },
+            false
+          ],
+          [
+            {
+              protoPayload: {
+                methodName:
+                  'google.firestore.admin.v1.FirestoreAdmin.CreateBackup',
+                status: { code: 7 }
+              }
+            },
+            true
+          ],
+          [
+            {
+              protoPayload: {
+                methodName:
+                  'google.firestore.admin.v1.FirestoreAdmin.CreateBackup'
+              }
+            },
+            false
+          ],
+          [
+            {
+              protoPayload: {
+                methodName: 'other.method',
+                status: { code: 7 }
+              }
+            },
+            false
+          ],
+          [{ jsonPayload: { errorCode: 'INTERNAL_ERROR' } }, false],
+          [{ jsonPayload: {} }, false]
+        ]
+      }
+    ];
+    expect(() =>
+      matches(
+        'jsonPayload.errorCode="INTERNAL" OR protoPayload.status.code>0',
+        {
+          jsonPayload: { errorCode: 'INTERNAL' }
+        }
+      )
+    ).toThrow(/Unsupported filter term/);
+    expect(() =>
+      matches('jsonPayload.errorCode="OTHER" AND unsupported', {
+        jsonPayload: { errorCode: 'INTERNAL' }
+      })
+    ).toThrow(/Unsupported filter term/);
+    expect(() => matches('(jsonPayload.errorCode="INTERNAL"', {})).toThrow(
+      /Unsupported filter group/
+    );
+    for (const { id, metric, events } of cases) {
+      const jsonFilter = policies.immediate.find(
+        (item) => item.id === id
+      )?.filter;
+      const terraformFilter = filters.get(metric);
+      expect(typeof jsonFilter).toBe('string');
+      expect(typeof terraformFilter).toBe('string');
+      for (const [event, expected] of events) {
+        expect(matches(jsonFilter, event), `${id} JSON`).toBe(expected);
+        expect(matches(terraformFilter, event), `${id} Terraform`).toBe(
+          expected
+        );
+      }
+    }
+  });
+
   it('targets the resource types real events land on, never global alone', () => {
     const cloudRun = 'AND resource.type=\\"cloud_run_revision\\""';
     const auditTypes =

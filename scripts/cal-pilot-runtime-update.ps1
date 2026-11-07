@@ -17,6 +17,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
+. "$PSScriptRoot/pinned-secret-bindings.ps1"
 $projectId = 'beauessence-clinic-staging'
 $region = 'asia-east1'
 $channel = 'cal-pilot'
@@ -123,14 +124,16 @@ function Assert-SecretVersions {
     throw 'Secret version manifest must contain exactly the six approved containers.'
   }
   foreach ($secretName in $approvedSecrets) {
-    if (-not $manifest.ContainsKey($secretName) -or [string]$manifest[$secretName] -notmatch '^\d+$') {
+    if ($manifest.Keys -cnotcontains $secretName) {
       throw "Secret version manifest is invalid for $secretName."
     }
+    $version = Assert-PinnedSecretVersion $manifest[$secretName]
     $enabledVersions = @(gcloud secrets versions list $secretName --project $projectId --filter 'state=ENABLED' --format 'value(name)' | ForEach-Object { ($_ -split '/')[-1] })
-    if ($enabledVersions.Count -ne 1 -or [string]$enabledVersions[0] -ne [string]$manifest[$secretName]) {
+    if ($enabledVersions.Count -ne 1 -or [string]$enabledVersions[0] -ne $version) {
       throw "$secretName enabled version drifted from the approved manifest."
     }
   }
+  return $manifest
 }
 
 function Assert-Baseline {
@@ -146,11 +149,12 @@ function Assert-Baseline {
   if ($hostingVersion -ne $ExpectedHostingVersion) {
     throw 'Hosting baseline drifted from the authorized expected state.'
   }
-  Assert-SecretVersions
+  $secretVersions = Assert-SecretVersions
   return [pscustomobject]@{
     api = $api
     worker = $worker
     hostingVersion = $hostingVersion
+    secretVersions = $secretVersions
   }
 }
 
@@ -219,6 +223,17 @@ if (-not (Test-Path -LiteralPath $ExpectedSecretVersionManifest -PathType Leaf))
 }
 
 $baseline = Assert-Baseline
+$approvedSecretVersions = $baseline.secretVersions
+$apiSecretBindings = Get-PinnedSecretBindings $approvedSecretVersions @(
+  'CALENDAR_PILOT_MANAGER_EMAILS=cal-pilot-manager-allowlist',
+  'CALENDAR_PILOT_FIREBASE_WEB_API_KEY=cal-pilot-firebase-web-api-key'
+)
+$workerSecretBindings = Get-PinnedSecretBindings $approvedSecretVersions @(
+  'CALENDAR_PILOT_READER_SERVICE_ACCOUNT_JSON=cal-pilot-reader-service-account',
+  'CALENDAR_PILOT_WRITER_SERVICE_ACCOUNT_JSON=cal-pilot-writer-service-account',
+  'CALENDAR_PILOT_SOURCE_MAP_JSON=cal-pilot-source-map',
+  'CALENDAR_PILOT_PSEUDONYM_KEY=cal-pilot-pseudonym-key'
+)
 Assert-CiVerified
 
 Write-Host "ROLLBACK_BEFORE_API_REVISION=$($baseline.api.revision)"
@@ -272,7 +287,7 @@ try {
     --timeout 60 `
     --concurrency 40 `
     --set-env-vars "GOOGLE_CLOUD_PROJECT=$projectId,CALENDAR_PILOT_FIREBASE_AUTH_DOMAIN=$AuthDomain" `
-    --set-secrets 'CALENDAR_PILOT_MANAGER_EMAILS=cal-pilot-manager-allowlist:latest,CALENDAR_PILOT_FIREBASE_WEB_API_KEY=cal-pilot-firebase-web-api-key:latest' `
+    --set-secrets $apiSecretBindings `
     --quiet
 
   $apiService = gcloud run services describe cal-pilot-api --project $projectId --region $region --format json | ConvertFrom-Json
@@ -303,7 +318,7 @@ try {
       --timeout 240 `
       --concurrency 1 `
       --set-env-vars "GOOGLE_CLOUD_PROJECT=$projectId" `
-      --set-secrets 'CALENDAR_PILOT_READER_SERVICE_ACCOUNT_JSON=cal-pilot-reader-service-account:latest,CALENDAR_PILOT_WRITER_SERVICE_ACCOUNT_JSON=cal-pilot-writer-service-account:latest,CALENDAR_PILOT_SOURCE_MAP_JSON=cal-pilot-source-map:latest,CALENDAR_PILOT_PSEUDONYM_KEY=cal-pilot-pseudonym-key:latest' `
+      --set-secrets $workerSecretBindings `
       --quiet
     $workerService = gcloud run services describe cal-pilot-worker --project $projectId --region $region --format json | ConvertFrom-Json
     $workerSmoke = @($workerService.status.traffic | Where-Object { $_.tag -eq 'cal-pilot-smoke' })
@@ -333,7 +348,7 @@ try {
     throw 'Hosting did not create the expected new reviewed version.'
   }
 
-  Assert-SecretVersions
+  $null = Assert-SecretVersions
   $postApi = Get-ActiveRunState 'cal-pilot-api'
   if ($postApi.revision -ne $apiRevision -or $postApi.image -ne $apiImage) {
     throw 'Post-deployment API state does not match the candidate image.'

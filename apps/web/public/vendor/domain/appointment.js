@@ -1,5 +1,6 @@
 import { isSlotOccupied } from './appointment-rules.js';
 import { DomainError } from './errors.js';
+import { COMPLETION_ACTOR_ROLES } from './roles.js';
 import { assertUtcTimestamp } from './timestamp.js';
 export function reserveSlot(slot, appointmentId) {
     assertIdentifier(appointmentId, 'appointmentId');
@@ -34,7 +35,7 @@ export function markAppointmentCompleted(appointment, actorRole, completedAt) {
     if (appointment.status !== 'arrived') {
         throw new DomainError('APPOINTMENT_NOT_CONFIRMABLE', 'Only an arrived appointment can be marked completed.');
     }
-    if (!['clinic_admin', 'front_desk', 'system'].includes(actorRole)) {
+    if (!COMPLETION_ACTOR_ROLES.includes(actorRole)) {
         throw new DomainError('COMPLETION_NOT_AUTHORIZED', 'The actor role cannot mark an appointment as completed.');
     }
     return {

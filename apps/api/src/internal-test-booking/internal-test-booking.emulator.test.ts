@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { syntheticOpenMaintenanceControl } from '../../../../tests/helpers/synthetic-maintenance.js';
 
 import {
   deleteApp,
@@ -227,6 +228,7 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
   let fake: FakeAuth;
   let managerCookie: string;
   let managerCsrf: string;
+  let managerSessionId: string;
   let patientToken: string;
   const previousEnv = {
     enabled: process.env['INTERNAL_TEST_BOOKING_ENABLED'],
@@ -281,6 +283,8 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     fake.linkSessionCookie(created.cookieValue, MANAGER_UID);
     managerCookie = `${CALENDAR_PILOT_COOKIE}=${created.cookieValue}`;
     managerCsrf = created.csrfToken;
+    const authentication = await sessions.authenticate(created.cookieValue);
+    managerSessionId = authentication.sessionId;
     patientToken = fake.mintIdToken(PATIENT_UID);
   });
 
@@ -323,15 +327,122 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     expect(unauthenticated.statusCode).toBe(401);
   });
 
-  it('refuses a staff write that has the session cookie but no CSRF token', async () => {
-    const published = await requireHarness().inject({
+  it.each(['missing', 'invalid'])(
+    'denies staff writes with %s CSRF',
+    async (state: string) => {
+      const harness = requireHarness();
+      const accepted = await harness.inject({
+        method: 'POST',
+        url: '/v1/schedule/publish',
+        headers: managerHeaders(),
+        payload: PUBLISH_BODY
+      });
+      expect(accepted.statusCode).toBe(201);
+      const before = await takeLogicalSnapshot(db);
+      const headers = managerHeaders(false);
+      if (state === 'invalid') {
+        headers['x-csrf-token'] = 'invalid-invalid-invalid-invalid';
+      }
+      const denied = await harness.inject({
+        method: 'POST',
+        url: '/v1/schedule/publish',
+        headers,
+        payload: {
+          ...PUBLISH_BODY,
+          idempotencyKey: 'schedule-schedule-schedule-schedule-schedule',
+          expectedVersion: 1
+        }
+      });
+      expect(denied.statusCode).toBe(401);
+      expect(await takeLogicalSnapshot(db)).toEqual(before);
+    }
+  );
+
+  it.each([
+    { disabled: true, refreshTokensRevoked: false },
+    { disabled: false, refreshTokensRevoked: true }
+  ])('denies staff writes after account state changes %j', async (state) => {
+    const harness = requireHarness();
+    const accepted = await harness.inject({
       method: 'POST',
       url: '/v1/schedule/publish',
-      headers: managerHeaders(false),
+      headers: managerHeaders(),
       payload: PUBLISH_BODY
     });
-    expect(published.statusCode).toBe(401);
+    expect(accepted.statusCode).toBe(201);
+    const before = await takeLogicalSnapshot(db);
+    fake.addAccount({
+      uid: MANAGER_UID,
+      email: MANAGER_EMAIL,
+      totp: true,
+      ...state
+    });
+    try {
+      const denied = await harness.inject({
+        method: 'POST',
+        url: '/v1/schedule/publish',
+        headers: managerHeaders(),
+        payload: {
+          ...PUBLISH_BODY,
+          idempotencyKey: 'schedule-schedule-schedule-schedule-schedule',
+          expectedVersion: 1
+        }
+      });
+      expect(denied.statusCode).toBe(401);
+      expect(await takeLogicalSnapshot(db)).toEqual(before);
+    } finally {
+      fake.addAccount({
+        uid: MANAGER_UID,
+        email: MANAGER_EMAIL,
+        totp: true,
+        disabled: false,
+        refreshTokensRevoked: false
+      });
+    }
   });
+
+  it.each(['expired', 'revoked'])(
+    'denies staff writes when the stored session is %s',
+    async (state: string) => {
+      const harness = requireHarness();
+      const accepted = await harness.inject({
+        method: 'POST',
+        url: '/v1/schedule/publish',
+        headers: managerHeaders(),
+        payload: PUBLISH_BODY
+      });
+      expect(accepted.statusCode).toBe(201);
+      const before = await takeLogicalSnapshot(db);
+      const session = db
+        .collection('calendar_pilot_sessions')
+        .doc(managerSessionId);
+      const previous = (await session.get()).data();
+      if (previous === undefined) throw new Error('synthetic session missing');
+      try {
+        const inactiveAt = new Date().toISOString();
+        await session.update(
+          state === 'expired'
+            ? { expiresAt: inactiveAt }
+            : { revokedAt: inactiveAt }
+        );
+        const denied = await harness.inject({
+          method: 'POST',
+          url: '/v1/schedule/publish',
+          headers: managerHeaders(),
+          payload: {
+            ...PUBLISH_BODY,
+            idempotencyKey: 'schedule-schedule-schedule-schedule-schedule',
+            expectedVersion: 1
+          }
+        });
+        expect(denied.statusCode).toBe(401);
+        expect(await takeLogicalSnapshot(db)).toEqual(before);
+      } finally {
+        await session.set(previous);
+      }
+      expect((await session.get()).data()).toEqual(previous);
+    }
+  );
 
   it('publishes, books, stamps privacy-v1, and projects calendar outbox in memory', async () => {
     const harness = requireHarness();
@@ -409,6 +520,7 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     const calendar = new InMemoryCalendar();
     const outbox = createInternalTestOutboxRuntime({
       db,
+      maintenanceControl: syntheticOpenMaintenanceControl(),
       calendar,
       clock: () => NOW,
       random: () => 0.5
@@ -506,6 +618,7 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     const calendar = new InMemoryCalendar();
     const outbox = createInternalTestOutboxRuntime({
       db,
+      maintenanceControl: syntheticOpenMaintenanceControl(),
       calendar,
       clock: () => NOW,
       random: () => 0.5
@@ -632,6 +745,7 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     const calendar = new InMemoryCalendar();
     const outbox = createInternalTestOutboxRuntime({
       db,
+      maintenanceControl: syntheticOpenMaintenanceControl(),
       calendar,
       clock: () => NOW,
       random: () => 0.5
@@ -1027,6 +1141,7 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     const calendar = new InMemoryCalendar();
     const outbox = createInternalTestOutboxRuntime({
       db,
+      maintenanceControl: syntheticOpenMaintenanceControl(),
       calendar,
       clock: () => NOW,
       random: () => 0.5

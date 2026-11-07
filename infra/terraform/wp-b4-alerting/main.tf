@@ -27,6 +27,108 @@ resource "google_monitoring_notification_channel" "application_pubsub" {
   labels = {
     topic = google_pubsub_topic.application_alerts[0].id
   }
+  depends_on = [google_pubsub_topic_iam_member.application_monitoring_publisher]
+}
+
+# Source-only pairing. No identities are discovered or resources applied here.
+# All resources retain the exact-SHA no-op gate; no inputs means no transport.
+locals {
+  application_delivery_bindings = var.application_delivery == null ? {} : {
+    application = var.application_delivery
+  }
+}
+
+resource "google_pubsub_topic_iam_member" "application_monitoring_publisher" {
+  for_each = local.apply_enabled ? local.application_delivery_bindings : {}
+  project  = var.project_id
+  topic    = google_pubsub_topic.application_alerts[0].name
+  role     = "roles/pubsub.publisher"
+  member   = each.value.monitoring_publisher_member
+}
+
+resource "google_pubsub_topic" "application_alerts_dead_letter" {
+  for_each = local.apply_enabled ? local.application_delivery_bindings : {}
+  project  = var.project_id
+  name     = "c1-application-alerts-dlq"
+  labels   = local.labels
+}
+
+resource "google_pubsub_subscription" "application_alerts_worker" {
+  for_each                   = local.apply_enabled ? local.application_delivery_bindings : {}
+  project                    = var.project_id
+  name                       = "c1-application-alerts-worker"
+  topic                      = google_pubsub_topic.application_alerts[0].name
+  ack_deadline_seconds       = 30
+  message_retention_duration = "604800s"
+  retain_acked_messages      = false
+  enable_message_ordering    = false
+  enable_exactly_once_delivery = false
+  expiration_policy {
+    ttl = ""
+  }
+  retry_policy {
+    minimum_backoff = "10s"
+    maximum_backoff = "600s"
+  }
+  dead_letter_policy {
+    dead_letter_topic     = "projects/${var.project_id}/topics/${google_pubsub_topic.application_alerts_dead_letter[each.key].name}"
+    max_delivery_attempts = 5
+  }
+}
+
+resource "google_pubsub_subscription_iam_member" "application_worker" {
+  for_each     = local.apply_enabled ? local.application_delivery_bindings : {}
+  project      = var.project_id
+  subscription = google_pubsub_subscription.application_alerts_worker[each.key].name
+  role         = "roles/pubsub.subscriber"
+  member       = each.value.worker_member
+}
+
+# Pub/Sub needs both grants to forward an unacknowledged message to the DLQ.
+# Neither grant is project-wide; the worker receives no DLQ-reader permission.
+resource "google_pubsub_topic_iam_member" "application_dead_letter_publisher" {
+  for_each = local.apply_enabled ? local.application_delivery_bindings : {}
+  project  = var.project_id
+  topic    = google_pubsub_topic.application_alerts_dead_letter[each.key].name
+  role     = "roles/pubsub.publisher"
+  member   = each.value.pubsub_service_agent_member
+}
+
+resource "google_pubsub_subscription_iam_member" "application_dead_letter_forwarder" {
+  for_each     = local.apply_enabled ? local.application_delivery_bindings : {}
+  project      = var.project_id
+  subscription = google_pubsub_subscription.application_alerts_worker[each.key].name
+  role         = "roles/pubsub.subscriber"
+  member       = each.value.pubsub_service_agent_member
+}
+
+resource "google_pubsub_subscription" "application_alerts_dead_letter_review" {
+  for_each                   = local.apply_enabled ? local.application_delivery_bindings : {}
+  project                    = var.project_id
+  name                       = "c1-application-alerts-dlq-review"
+  topic                      = google_pubsub_topic.application_alerts_dead_letter[each.key].name
+  ack_deadline_seconds       = 30
+  message_retention_duration = "604800s"
+  retain_acked_messages      = false
+  enable_message_ordering    = false
+  enable_exactly_once_delivery = false
+  expiration_policy {
+    ttl = ""
+  }
+  retry_policy {
+    minimum_backoff = "10s"
+    maximum_backoff = "600s"
+  }
+}
+
+output "application_delivery_pairing" {
+  description = "Source configuration only, never deployed identity or delivery evidence."
+  value = {
+    configured       = local.apply_enabled && var.application_delivery != null
+    status           = local.apply_enabled && var.application_delivery != null ? "SOURCE_ONLY_NOT_DEPLOYED" : "UNCONFIGURED"
+    consumer         = "apps/worker/src/alert-notification-consumer.ts#consumeAlertMessage"
+    runtime_verified = false
+  }
 }
 
 resource "google_monitoring_notification_channel" "human_email" {
@@ -43,7 +145,7 @@ resource "google_logging_metric" "http_5xx" {
   count   = local.apply_enabled ? 1 : 0
   project = var.project_id
   name    = "wp-b4-http-5xx"
-  filter  = "jsonPayload.errorCode=\"INTERNAL_ERROR\""
+  filter  = "jsonPayload.errorCode=\"INTERNAL_ERROR\" OR jsonPayload.errorCode=\"INTERNAL\""
   metric_descriptor {
     metric_kind = "DELTA"
     value_type  = "INT64"
@@ -65,7 +167,7 @@ resource "google_logging_metric" "booking_transaction_failure" {
   count   = local.apply_enabled ? 1 : 0
   project = var.project_id
   name    = "wp-b4-booking-transaction-failure"
-  filter  = "jsonPayload.errorCode=\"SLOT_UNAVAILABLE\""
+  filter  = "jsonPayload.operation=\"booking_transaction\" AND jsonPayload.result=\"error\""
   metric_descriptor {
     metric_kind = "DELTA"
     value_type  = "INT64"
@@ -76,7 +178,7 @@ resource "google_logging_metric" "backup_failure" {
   count   = local.apply_enabled ? 1 : 0
   project = var.project_id
   name    = "wp-b4-backup-failure"
-  filter  = "jsonPayload.errorCode=\"BACKUP_FAILED\""
+  filter  = "jsonPayload.errorCode=\"BACKUP_FAILED\" OR (protoPayload.methodName=~\"google.firestore.admin.v1.FirestoreAdmin.CreateBackup\" AND protoPayload.status.code!=0)"
   metric_descriptor {
     metric_kind = "DELTA"
     value_type  = "INT64"

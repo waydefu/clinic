@@ -231,6 +231,55 @@ describe('InternalTestBookingAuthenticator', () => {
     expect(auth.verifyIdToken).not.toHaveBeenCalled();
   });
 
+  // NEW-05 (SOL-TTL): the header is bounded to an opaque ID before any lookup,
+  // so text that is not one never reaches the directory or a document path.
+  it.each([
+    '../patients/patient_opaque_001',
+    'a/b',
+    'x'.repeat(129),
+    'é',
+    'a b',
+    'rs_1;DROP'
+  ])(
+    'rejects the non-opaque return session %j before the directory is read',
+    async (returnSession) => {
+      const readReturnSession = vi.fn(() => Promise.resolve('patient_other'));
+      const patients: Pick<PatientDirectoryPort, 'readReturnSession'> = {
+        readReturnSession
+      };
+      const authenticator = new InternalTestBookingAuthenticator(
+        { authenticate: vi.fn() } as unknown as CalendarPilotSessionService,
+        { verifyIdToken: vi.fn() } as unknown as Auth,
+        patients as PatientDirectoryPort
+      );
+
+      await expect(
+        authenticator.authenticate(
+          request({ headers: { 'x-return-session': returnSession } })
+        )
+      ).rejects.toBeInstanceOf(AuthenticationRequiredError);
+      expect(readReturnSession).not.toHaveBeenCalled();
+    }
+  );
+
+  it('rejects a repeated return-session header instead of picking one', async () => {
+    const readReturnSession = vi.fn(() => Promise.resolve('patient_other'));
+    const authenticator = new InternalTestBookingAuthenticator(
+      { authenticate: vi.fn() } as unknown as CalendarPilotSessionService,
+      { verifyIdToken: vi.fn() } as unknown as Auth,
+      { readReturnSession } as unknown as PatientDirectoryPort
+    );
+
+    await expect(
+      authenticator.authenticate(
+        request({
+          headers: { 'x-return-session': ['return_a', 'return_b'] }
+        })
+      )
+    ).rejects.toBeInstanceOf(AuthenticationRequiredError);
+    expect(readReturnSession).not.toHaveBeenCalled();
+  });
+
   it('fails closed when a return session is supplied without a patient directory', async () => {
     const sessions = { authenticate: vi.fn() };
     const auth = { verifyIdToken: vi.fn() };
@@ -246,6 +295,99 @@ describe('InternalTestBookingAuthenticator', () => {
     ).rejects.toBeInstanceOf(AuthenticationRequiredError);
     expect(sessions.authenticate).not.toHaveBeenCalled();
     expect(auth.verifyIdToken).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    'auth/user-disabled',
+    'auth/id-token-revoked',
+    'auth/argument-error'
+  ])('denies patient SDK proof %s without fallback', async (code) => {
+    const sessions = { authenticate: vi.fn() };
+    const auth = {
+      verifyIdToken: vi.fn().mockRejectedValue({
+        code,
+        message: 'opaque_private_message'
+      }),
+      getUser: vi.fn()
+    };
+    const patients = { readVerifiedPatientId: vi.fn() };
+    const authenticator = new InternalTestBookingAuthenticator(
+      sessions as unknown as CalendarPilotSessionService,
+      auth as unknown as Auth,
+      patients as unknown as PatientDirectoryPort
+    );
+    const denial = await authenticator
+      .authenticate(
+        request({ headers: { authorization: 'Bearer opaque_token' } })
+      )
+      .catch((error: unknown) => error);
+
+    expect(denial).toBeInstanceOf(AuthenticationRequiredError);
+    expect(denial).toHaveProperty('message', 'Authentication is required.');
+    expect(auth.verifyIdToken).toHaveBeenCalledWith('opaque_token', true);
+    expect(auth.getUser).not.toHaveBeenCalled();
+    expect(patients.readVerifiedPatientId).not.toHaveBeenCalled();
+    expect(sessions.authenticate).not.toHaveBeenCalled();
+  });
+
+  it('denies disabled patient before identity mapping', async () => {
+    const sessions = { authenticate: vi.fn() };
+    const auth = {
+      verifyIdToken: vi.fn().mockResolvedValue({
+        uid: 'patient_opaque_001',
+        email_verified: true
+      }),
+      getUser: vi.fn().mockResolvedValue({ disabled: true })
+    };
+    const patients = { readVerifiedPatientId: vi.fn() };
+    const authenticator = new InternalTestBookingAuthenticator(
+      sessions as unknown as CalendarPilotSessionService,
+      auth as unknown as Auth,
+      patients as unknown as PatientDirectoryPort
+    );
+    const denial = await authenticator
+      .authenticate(
+        request({ headers: { authorization: 'Bearer opaque_token' } })
+      )
+      .catch((error: unknown) => error);
+
+    expect(denial).toBeInstanceOf(DisabledAccountError);
+    expect(denial).toHaveProperty('message', 'Authentication is required.');
+    expect(auth.verifyIdToken).toHaveBeenCalledWith('opaque_token', true);
+    expect(auth.getUser).toHaveBeenCalledWith('patient_opaque_001');
+    expect(patients.readVerifiedPatientId).not.toHaveBeenCalled();
+    expect(sessions.authenticate).not.toHaveBeenCalled();
+  });
+
+  it('denies SDK lookup failure before identity mapping', async () => {
+    const sessions = { authenticate: vi.fn() };
+    const auth = {
+      verifyIdToken: vi.fn().mockResolvedValue({
+        uid: 'patient_opaque_001',
+        email_verified: true
+      }),
+      getUser: vi.fn().mockRejectedValue({
+        code: 'auth/internal-error',
+        message: 'opaque_private_message'
+      })
+    };
+    const patients = { readVerifiedPatientId: vi.fn() };
+    const authenticator = new InternalTestBookingAuthenticator(
+      sessions as unknown as CalendarPilotSessionService,
+      auth as unknown as Auth,
+      patients as unknown as PatientDirectoryPort
+    );
+    const denial = await authenticator
+      .authenticate(
+        request({ headers: { authorization: 'Bearer opaque_token' } })
+      )
+      .catch((error: unknown) => error);
+
+    expect(denial).toBeInstanceOf(AuthenticationRequiredError);
+    expect(denial).toHaveProperty('message', 'Authentication is required.');
+    expect(auth.getUser).toHaveBeenCalledWith('patient_opaque_001');
+    expect(patients.readVerifiedPatientId).not.toHaveBeenCalled();
+    expect(sessions.authenticate).not.toHaveBeenCalled();
   });
 
   it('propagates disabled-account enforcement from the staff session', async () => {

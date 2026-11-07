@@ -34,7 +34,7 @@ evidence.
 - The docs-only authority commit recorded the exact SHA, owner-authorized
   project/channel/expiry, operator and prohibitions before deployment. Its own
   11/11 CI passed; it was not deployed.
-- Operator was `wayde.fu@gmail.com`; Firebase CLI `15.18.0` reported the target
+- Operator was `診所負責人的 Google 帳號（依 Q3 隱去個人信箱）`; Firebase CLI `15.18.0` reported the target
   project `ACTIVE`.
 
 ## Exact-C4 build and deployment

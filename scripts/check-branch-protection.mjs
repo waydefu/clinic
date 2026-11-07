@@ -44,12 +44,11 @@ export function enforcedChecks({ protection, rulesets }) {
     return { unreadable: protection.status };
   }
 
-  if (rulesets.status === 200) {
-    for (const rule of JSON.parse(rulesets.body)) {
-      if (rule.type !== 'required_status_checks') continue;
-      for (const check of rule.parameters?.required_status_checks ?? [])
-        enforced.add(check.context);
-    }
+  if (rulesets.status !== 200) return { unreadable: rulesets.status };
+  for (const rule of JSON.parse(rulesets.body)) {
+    if (rule.type !== 'required_status_checks') continue;
+    for (const check of rule.parameters?.required_status_checks ?? [])
+      enforced.add(check.context);
   }
 
   return { enforced };

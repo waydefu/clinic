@@ -10,7 +10,8 @@
 [逐包來源與 finding manifest](2026-10-06-sol00-safe-manifest.json)、
 [Stage F 精確授權模板](../templates/stage-f-exact-sha-authority-packet.md)。
 Sol v2 四項決定已逐字登記在 [#268](https://github.com/waydefu/clinic/pull/268#issuecomment-6384695242)，
-登記 PR [#294](https://github.com/waydefu/clinic/pull/294) 尚待負責人合併；本單不倒推它已在 main。
+並已收入 main 的決定登記簿；另依 2026-10-29／2026-10-30 已決事項修正下列準備清單。
+既有來源 PR 的合併不是本單任何實際操作的授權。
 
 ## 1. 操作日前置：缺一項就不執行
 
@@ -35,9 +36,9 @@ Sol v2 四項決定已逐字登記在 [#268](https://github.com/waydefu/clinic/p
 
 | 包 | 可追溯來源 | 不可省略的前置／未證明內容 |
 | --- | --- | --- |
-| INGRESS／B-03 | [client-ip](../../apps/api/src/platform/runtime/client-ip.ts)、[internal-test gate](../../apps/api/src/internal-test-booking/internal-test-booking.gate.ts)、#278／#285／#292 | 已合來源不代表 live Hosting／direct Run 路徑已驗證；exact host、直連目標與操作時窗須新鮮核准 |
-| NOTIFICATION／B-08 | [WP-B4 main](../../infra/terraform/wp-b4-alerting/main.tf)、[variables](../../infra/terraform/wp-b4-alerting/variables.tf)、[README](../../infra/terraform/wp-b4-alerting/README.md) | application topic 的 publisher／worker consumer／subscription／retry／DLQ 配對未由所查來源完整表達；先確認技術契約及來源，必要 IAM／部署另外逐項核准，不能只列「待實測」 |
-| MAINTENANCE／E3-07 | [maintenance gate](../../apps/api/src/platform/runtime/maintenance-gate.ts)、[還原 runbook](../runbooks/backup-and-restore.md)、[事件應變](../runbooks/incident-response.md) | `StaticMaintenanceGate` 是邊界，不是全域停寫控制；共用 operational control、所有實際寫入路徑、多實例／worker 與在途工作證據仍須補齊 |
+| INGRESS／B-03 | [client-ip](../../apps/api/src/platform/runtime/client-ip.ts)、[WP-B2A 身分桶](../../apps/api/src/platform/runtime/wp-b2-rate-limiter.ts)、[internal-test gate](../../apps/api/src/internal-test-booking/internal-test-booking.gate.ts)、#278／#285／#292 | 方案 A 接受直連 run.app 可達；須驗核准正門正常、偽造最左側 X-Forwarded-For／格式錯誤／多地址與換 IP 不能重置身分桶鎖定、未核准 host 及關閉／逾期 gate 拒絕。安全計數取得仍有 §3.1 缺口；exact host、直連目標與操作時窗須新鮮核准 |
+| NOTIFICATION／B-08 | [WP-B4 main](../../infra/terraform/wp-b4-alerting/main.tf)、[設計](2026-10-30-sol-notification-design.md)、[consumer](../../apps/worker/src/alert-notification-consumer.ts)、#357／#384 | 純 consumer 與可選 publisher／subscription／DLQ 配對已有來源與合成測試；實際 principal、資源、worker transport／sender 與投遞仍未證實，不能只列「待實測」 |
+| MAINTENANCE／E3-07 | [maintenance gate](../../apps/api/src/platform/runtime/maintenance-gate.ts)、[共用來源候選](2026-11-02-sol-maintenance-source-control.md)、[AppModule](../../apps/api/src/app.module.ts)、[還原 runbook](../runbooks/backup-and-restore.md)、[事件應變](../runbooks/incident-response.md) | 10-31 已核准 source-only 施工；預設改為 unknown／到期即拒絕，API／worker／排程准入與在途 callback 可合成測試。實際 reader／store、跨 process 一致性、全部 writer 接線及 provider 排空仍未驗證，不把來源計數當作全域停寫 |
 | LEASE／D-05、D-12 | [runtime](../../apps/worker/src/calendar-sync/calendar-pilot-runtime.ts)、[協調設計](2026-10-22-sol-calendar-lease-coordination.md)、#287 | 合成協調測試不證明實際唯一 egress、舊 worker 終止／隔離與 provider 在途工作排空；未知必須 quarantine |
 | SECRETS／B-31、B-55 | [.claude source policy](../../.claude/settings.json)、[upload exclusion](../../.gcloudignore)、[tracked exclusions](../../.gitignore)、#277／#291 | Claude source deny 不自動涵蓋 Hermes、Codex 或其他工具；每個實際工具與 upload 路徑要各自驗證 admission-before-read |
 
@@ -45,24 +46,84 @@ Sol v2 四項決定已逐字登記在 [#268](https://github.com/waydefu/clinic/p
 只差本單外部實測的包，才能依登記簿 2026-10-19 第 12 題 B 標
 `BLOCKED-EXTERNAL／SOURCE-DONE／外部驗收未完成`；仍不報 DONE，也未獲逐包來源凍結核准。
 
-## 3. INGRESS：核准路徑與直連拒絕
+### 2.1 C1 Stage 1：數字版本必填清單（僅名稱與 variables.tf 行號）
+
+Stage 1 填入 `exact_apply_authority_sha` 啟用 apply 時，以下 mount 各自需要數字版本；
+API 必填驗證在 `variables.tf:313–326`，worker 在 `variables.tf:344–350`。
+名稱只取自 [main.tf 的 api_secret_env／worker_secret_env](../../infra/terraform/c1-internal-test-run/main.tf)，
+下表連到每項的 [variables.tf](../../infra/terraform/c1-internal-test-run/variables.tf) 必填驗證行。
+
+| Secret 名稱 | variables.tf 行號 |
+| --- | --- |
+| `c1-staff-firebase-web-api-key` | [variables.tf:318](../../infra/terraform/c1-internal-test-run/variables.tf#L318) |
+| `c1-staff-manager-allowlist` | [variables.tf:319](../../infra/terraform/c1-internal-test-run/variables.tf#L319) |
+| `c1-staff-front-desk-allowlist` | [variables.tf:320](../../infra/terraform/c1-internal-test-run/variables.tf#L320) |
+| `c1-synthetic-calendar-id` | [variables.tf:347](../../infra/terraform/c1-internal-test-run/variables.tf#L347) |
+
+各項數字版本均為 UNKNOWN；不從描述、舊 fixture 或已退役共享 pin 猜版本。
+本輪沒有讀本機參數檔、Secret Manager 或 secret 值，也沒有確認部署的 mount。
+這只列 Stage 1 必填名稱；另行啟用功能的條件式版本不自動納入。操作日再以當天 main 重核行號與條件。
+2026-11-02 的 C1 部署已取消，日期另排；本表不是 C1 準備、apply 或秘密操作授權。
+
+## 3. INGRESS：方案 A 的兩路徑一致性與拒絕對照
 
 - 包／ID：SOL-INGRESS／B-03；既有 K9、K6、E1-04、E1-14、X-C06 的拒絕邊界保持。
 - SHA：執行當天的 main SHA，由操作者填。
-- 目標：登記簿核准的 C1 exact Hosting host 及其確切 direct Run 對照目標。
+- 依據：[登記簿 2026-11-02 來源更正](../product/phase-1-decision-register.md)、既有 Q5／Q7 方案 A，
+  及 [負責人取消 C1 與驗收標準](https://github.com/waydefu/clinic/pull/268#issuecomment-6562141735)。
+  測試期接受直連 run.app 可達；**直連請求不必一律在 handler 前被拒絕**。
+  安全控制不依賴 IP 或入口；來源選取不是身分保證，不靠 IP 或轉送 header 保證呼叫者身分。
+  本單不以 repo 的 ingress 宣告推定目前端點公開或封閉。
+- 目標：核准正門的 exact Hosting host 及其確切 direct Run 對照目標。
   **需要新的精確授權：兩個目標、UTC 時窗、合成請求上限與允許的測試寫入。** 不猜 host。
-- 資料與允許效果：固定合成來源標記及隔離的合成 booking／lookup 案例；只能產生當次明列的合成紀錄。
-- 人工步驟：
-  1. 確認入口、部署版本與核准的來源選擇方式，先保留不含地址值的原始計數。
-  2. 從核准 Hosting 路徑送一組合成請求，核對 server 選定的 client source，並觀察 limiter 使用同一來源鍵。
-  3. 對核准 direct Run 目標做對照，確認在 unauthenticated lookup／booking handler 執行前就拒絕。
-  4. 重做偽造左側轉送值、格式錯誤／多地址、未核准 host、關閉／逾期 gate 的反例。
-- 成功：核准路徑保存選定來源；直連與反例拒絕，受保護 handler 與寫入計數不增加。
-  不以某個 HTTP 狀態碼單獨推定「handler 未執行」，須有安全計數佐證。
-- 停止／回復：非核准目標成功、來源選錯、handler 提前執行或出現真實資料即停止；
-  依另核准方式關閉合成入口並恢復原設定，保留不含 payload 的拒絕／計數證據，不自行改 ingress 或 IAM。
-- 證據：SHA、兩個授權目標的引用、測試 ID、來源鍵是否一致、handler／寫入前後計數、拒絕碼；不提供原始 IP、header、cookie 或 payload。
+- 資料與允許效果：只用隔離的合成 booking／lookup 案例，固定合成電話／生日對應的 opaque lookup identity。
+  各測試變更 IP／header／入口時不得換該身分；只產生當次明列的合成紀錄，不公開原始輸入或 opaque key。
+- 人工步驟（§3.1 證據缺口補齊並另核准後才可執行）：
+  1. 核對版本、endpoint 契約與現行限流政策；取得身分桶狀態、handler counter／writer counter 的安全基準。
+  2. 對核准 Hosting rewrite 送正常合成請求，確認正門正常；對 direct Run 做同一契約對照。
+     授權／limiter／gate 不能因入口不同被繞過，不把直連可達當成失敗。
+  3. 固定同一合成身分，交替兩入口、偽造最左側 `X-Forwarded-For`、格式錯誤／多地址欄位及不同來源 IP。
+     按既有 WP-B2A 第二桶 `lookup_identity_failure` 的門檻／窗口累積失敗；確認同一身分桶持續計數。
+     第一桶身分加 IP 的拒絕不能冒充第二桶證據；合法多跳不只因包含多個地址就判失敗。
+  4. 身分桶進入拒絕狀態後，在原窗口／鎖定有效期間再換 IP、轉送值與入口；換 IP 不能重置鎖定，
+     仍須依契約 429 並有有效 `Retry-After`，不能重新取得允許額度。不得調整限流數字或等待窗口自然到期來假裝繞過失敗。
+  5. 另測未核准 host、錯誤授權（需驗證的 endpoint）、關閉／逾期 gate；按既有契約無副作用拒絕。
+     若格式錯誤等請求在 limiter 前已拒絕，分開記拒絕與零副作用，不能宣稱它已證明身分桶持續計數。
+
+| 對照 | 成功條件 | 安全計數／狀態證據 |
+| --- | --- | --- |
+| 核准 Hosting rewrite 正常合成請求 | 正門依 endpoint 契約正常，符合授權／limiter／gate | handler／writer 只增加當次明列效果 |
+| direct Run 正常合成請求 | 同一契約與控制；不只以可達判失敗 | 按實際結果核對，不預設所有 direct Run 都是零 handler |
+| 偽造最左側 X-Forwarded-For、格式錯誤／多地址及換 IP | 同一 opaque lookup identity 仍受第二桶限制，不能以自選來源換桶 | 同桶比較為真、計數前後及拒絕狀態；先拒絕的案例另列 |
+| 身分桶已拒絕後換 IP／入口／header | 換 IP 不能重置鎖定，原有效期間持續拒絕 | 同桶拒絕狀態持續，無新允許額度；429／Retry-After 僅作輔證 |
+| 未核准 host、授權失敗、關閉／逾期 gate | 按既有契約拒絕，不能因入口不同繞過 | 受保護 handler／writer 零增量 |
+
+- 成功：核准正門正常；直連、偽造及格式反例無身分桶繞過，換 IP 不能重置鎖定；
+  未核准 host、關閉／逾期 gate 仍拒絕，合法效果不超出授權，所有結論有 §3.1 證據。
+  不以 HTTP 狀態碼單獨推定同桶鎖定、handler 未執行或沒有寫入。
+- 停止／回復：非核准目標、身分桶可繞過、觀測缺失、未授權副作用或真實資料即停止；
+  依另核准方式關閉合成入口並恢復原設定，保留不含 payload 的安全計數，不自行改 ingress 或 IAM。
+  不建立負載平衡器或 Cloud Armor，不改 `main.tf` 的 ingress／invoker，不改限流數字。
+- 證據：SHA、授權目標引用、非敏感測試 ID、同桶比較結果、計數／鎖定前後狀態、handler／writer 增量及拒絕碼。
+  不提供電話、生日、opaque key、原始 IP／header、cookie、token 或 payload。
 - 排程估計：30–45 分鐘；授權與來源缺口處理不包含在內。
+
+### 3.1 安全計數取得方式與缺口
+
+- **現有來源可查：** [limiter](../../apps/api/src/platform/runtime/wp-b2-rate-limiter.ts) 的第二桶不含 IP；
+  [limiter 合成測試](../../apps/api/src/platform/runtime/wp-b2-rate-limiter.test.ts) 覆蓋換 IP 仍受同身分限制，
+  [routed lookup 合成測試](../../apps/api/src/appointments/appointment.patient-flow.test.ts) 覆蓋持續換 X-Forwarded-For 仍 429。
+  既有測試可把合成 Map 傳入 `InMemoryDurableRateLimitStore`，只在測試程序內核對 key、`count` 與 `lockedUntilMs`；
+  公開只留 assert 結果、測試 ID 與 CI，不輸出 Map／原始 key。這不是讀取 C1 真實狀態的工具。
+- **現有計數不足：** [API metrics](../../apps/api/src/platform/runtime/api-metrics.ts) 的 `returnLookupRateLimited`
+  是單 process、route／status 級的拒絕彙整，不含身分桶鍵／鎖定狀態；不能證明換 IP 前後是同一桶。
+  `trackedKeyCount` 也只是本機 Map 大小，不是 handler／writer 或持久身分桶的前後計數。
+- **外部缺口：** 所查 repo 沒有可對外讀取的身分桶、handler／writer 計數工具，亦沒有本單可直接採用的完整安全匯出流程。
+  不虛構 endpoint、查詢指令、既有 dashboard 或已部署 instrumentation；本 PR 不新增工具或接線。
+  單 process 在途計數也不能替代持久身分桶及完整 writer 的效果證據。
+- **操作日前須另補：** 經核准的 server-side 安全觀測方式，能在同一 SHA／時窗內取得同桶比較、允許／拒絕及鎖定前後狀態，
+  並取得核准範圍所有相關實例的 handler／writer 前後增量。原始識別資料留在受控觀測內，只交上述安全彙整；不開啟完整 header／body log。
+  若當天沒有這種既有且已核准的觀測，或只有 HTTP 429／aggregate metrics，結果記 `NOT_PROVEN`，本項不能排成可執行或填 PASS。
 
 ## 4. NOTIFICATION：來源技術清單與實際投遞
 
@@ -71,12 +132,12 @@ Sol v2 四項決定已逐字登記在 [#268](https://github.com/waydefu/clinic/p
 | 路徑／欄位 | repo 已表達的值 | 邊界／尚缺內容 |
 | --- | --- | --- |
 | application topic | `c1-application-alerts`，由 WP-B4 定義 | 有 topic 來源不等於已建立、已有 publish grant 或已有 subscriber |
-| application channel | `google_monitoring_notification_channel.application_pubsub`，指向上述 topic | 所查 WP-B4 無此 topic 的明確 publisher binding；不能把 budget topic 的 binding 當成它的 |
-| application publisher | 未由所查 WP-B4 來源綁定 | 需要確認實際 principal、topic 與來源差異；不猜 service agent、不新增權限 |
-| application subscription／worker consumer | 所查 Terraform 未列出已綁定的 subscription／worker consumer | 需要來源與核准技術清單；不虛構 subscription、service 或 DLQ 名稱 |
-| retry／DLQ | 所查 WP-B4 未列出對應 subscription 的 retry／DLQ 配置 | 需要來源證據及對應 consumer；不能以 domain outbox 的測試代替 Pub/Sub 配置 |
+| application channel | `google_monitoring_notification_channel.application_pubsub`，指向上述 topic | WP-B4 宣告依賴可選 publisher binding；來源配對不代表實際權限或投遞已驗證 |
+| application publisher | 可選 `application_delivery.monitoring_publisher_member` 輸入，來源宣告只授 application topic | 尚須確認實際 principal 與 topic；不借用 budget publisher，也不因來源宣告而新增實際權限 |
+| application subscription／worker consumer | WP-B4 宣告可選 pull subscription 與 worker subscriber binding；[consumer](../../apps/worker/src/alert-notification-consumer.ts) 仍只有 ports | #357／#384 合成案例不證明 subscription 已建立、worker transport 或 sender 已接線 |
+| retry／DLQ | 可選 subscription 宣告 retry、DLQ topic 與 review subscription；consumer 僅回傳重試／隔離決策 | 來源宣告不等於實際 queue 行為；DLQ review 未授 reader，實際配對與持久隔離仍待確認 |
 | human channel | `human_email`；收件值來自 `alert_email_address`，不入 Git | 不記錄私人信箱；正式收件目標由當次有權者核准，測試不得投到未核准者 |
-| 預設開關 | `exact_apply_authority_sha = not_granted`，WP-B4 預設零資源 | 輸入一個 SHA 不構成 apply 授權；目前來源標籤是 `HUMAN_NOTIFICATION_PATH_IMPLEMENTED_NOT_DEPLOYED` |
+| 預設開關 | `exact_apply_authority_sha = not_granted`、`application_delivery = null`，WP-B4 預設零資源 | 輸入一個 SHA 不構成 apply 授權；配對有輸入時也只標 `SOURCE_ONLY_NOT_DEPLOYED`，`runtime_verified` 為 false |
 | 既有 budget topic | `c1-budget-notifications`，位於 [c1-foundation](../../infra/terraform/c1-foundation/main.tf) | 不得刪除、覆寫或拿它的投遞成功替 application 路徑驗收 |
 | budget publisher | `billing-budget-alert@system.gserviceaccount.com` | 公開 system principal 來源字串，不是 application publisher 已核證據 |
 | budget monitoring publisher | `service-${data.google_project.c1[0].number}@gcp-sa-monitoring.iam.gserviceaccount.com` | 原樣保留來源模板，不填 project number、不替 application topic 沿用 grant |
@@ -84,7 +145,7 @@ Sol v2 四項決定已逐字登記在 [#268](https://github.com/waydefu/clinic/p
 - 包／ID：SOL-NOTIFICATION／B-08。
 - SHA：執行當天的 main SHA，由操作者填。
 - 目標：只在已登記 isolated C1 的精確 topic／subscription／worker consumer。
-  **需要新的精確授權：尚缺的 publisher 配對、上述資源、投遞對象、UTC 時窗、最多投遞量與任何 IAM／部署差異。**
+  **需要先確認實際 publisher 配對，並取得新的精確授權：上述配對與資源、投遞對象、UTC 時窗、最多投遞量及任何 IAM／部署差異。**
 - 資料與允許效果：非個人、非臨床的合成訊息 ID；明列一次成功投遞、重送、暫時失敗重試及耗盡後 DLQ。
   不發給真實患者，不以實際診所訊息測試。
 - 人工步驟：
@@ -180,25 +241,19 @@ Sol v2 四項決定已逐字登記在 [#268](https://github.com/waydefu/clinic/p
 | LEASE D-05、D-12 | 待填 | 待填 | NOT_RUN | 待填 |
 | SECRETS B-31、B-55 | 待填 | 待填 | NOT_RUN | 待填 |
 
-## 9. 轉交診所：告知原文草稿與一次確認清單
+## 9. 轉交診所：只確認正式文案，不重問已決政策
 
-**草稿，未經診所審定；不是正式告知，不發布到正式頁面。**
-下列方括號都尚未核定，不得自動用實作現況、測試值或工程預設補上。
+正式草稿以 [privacy-policy-draft](../legal/privacy-policy-draft.md) 及
+[現有隱私頁](../../apps/web/public/privacy.html) 為準；兩者仍保留草稿／待核准界線。
+本單不另寫一份告知原文，不把來源測試或工程負責人核工程方案當成診所正式審定。
 
-> 本診所為［待確認的實際用途］，擬蒐集［待確認的實際資料欄位］，
-> 由［待確認的可接觸人員／受託者與範圍］在必要範圍處理。
-> 資料保存期間與刪除方式為［待確認］；涉及第三方服務、利用地區與資料項目為［待確認］。
-> 關於查詢、更正、停止利用及其他依法得行使權利的方式，請洽［待核准的公開角色信箱／聯絡方式］。
-> 完整正式告知、是否提供資料及其影響，須由診所確認後另行定稿。
+以下均已在決定登記簿與 BD-POLICY 定案，不再列為問答或使用待填佔位符：
 
-| 請診所一次確認 | 為什麼要問 |
-| --- | --- |
-| 實際會收哪些資料？必填與選填各是什麼？ | 工程不能把測試欄位或畫面上有的欄位都當成正式核准蒐集。 |
-| 每類資料拿來做什麼？ | 預約、通知、身分核對等用途須用診所確認的話說清楚，不能由程式名稱代答。 |
-| 每類資料保留多久、何時刪除，哪些不能自動刪？ | 不自行發明保存數值或把未啟用的 TTL 寫成已生效政策。 |
-| 誰可以看、哪些第三方受託處理、利用地區為何？ | 實際接觸權限與對外承諾須一致；未上線的整合不能寫成正在使用。 |
-| 要公開的診所角色信箱／聯絡窗口是哪一個？ | 不使用工程師私人信箱、猜測的信箱或測試地址替代對外窗口。 |
-| 誰代表診所確認正式原文與權利申請方式？ | 工程核工程方案；對外法律與營運承諾要由具相應權限者確認。 |
+- 看診兩年後封存，不自動永久刪除；回診者先標「待櫃台確認」。
+- 稽核／安全紀錄三年，`return_sessions` 24 小時；已決保存設計不表示雲端 TTL 已啟用。
+- 隱私聯絡窗口使用診所電話，暫無 email；不要求工程師提供私人信箱。
+- 告知由診所負責人署名，由工程負責人代為轉達確認；法務不列待辦。
 
-收到確認前保留現行正式內容，不替換頁面、D-series、保存政策或公開聯絡值。
-本附件只協助工程負責人一次轉問，不代表 SOL-PRIVACY、GOVERNANCE 或其他包已完成。
+尚需轉達的只有：請有權代表診所的人確認正式告知的最終版本與生效安排。
+在此之前保留現行內容，不自行發布、代簽、變更 D-series、保存政策或公開聯絡值。
+這項文案等待不代替其他來源缺口、實測或生產上線授權。

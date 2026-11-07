@@ -58,6 +58,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Consolidated owner-request index (2026-07-31)](product/owner-requests-consolidated-2026-07-31.md) — every owner request from the 2026-07-26～28 desktop notes numbered OR-01…OR-69 with its current state, the four contradictions still needing an owner answer, and the decision blocking each unbuilt item
 - [Surgery, follow-up, payment and settlement expansion plan (2026-07-28)](product/2026-07-28-surgery-follow-up-expansion-plan.md) — plan-only normalization of the owner-provided surgery workflow into a separate Expansion S track, including Calendar inbound review, clinical/financial data boundaries and D-014～D-016
 - [Stage 2 identity and cloud change plan (2026-07-28)](architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md) — plan-only translation of approved D-006/D-010 values into reviewable identity, MFA, session, revocation, delegation-code and isolated-staging slices
+- [E3-07 共用停寫來源候選（2026-11-02）](plans/2026-11-02-sol-maintenance-source-control.md) — SOURCE-ONLY：共用到期 reader、unknown-default 拒絕、API／worker／排程准入及在途 callback 計數；不建 store、不接 provider，計數不是全域零寫入或還原授權。
 - [Phase 1 Chinese approval checklist](product/phase-1-chinese-approval-checklist.md) — D-001…D-006, D-011 in the clinic's working language
 - [Stage B/C approval request](product/stage-b-c-approval-request.md) — D-006, D-010 and D-009 consolidated into one sheet; D-006/D-010 are approved, while change/deployment review still gates cloud staging and D-009 gates the Calendar projection
 - [Appointment operations approval packet](product/phase-1-appointment-operations-approval-packet.md) — service catalogue, slots, cancellation and no-show policy
@@ -95,6 +96,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [CP-08 全系統回歸 worksheet（2026-10-01）](plans/2026-10-01-cp-08-regression-evidence-worksheet.md) — 88 個既有 ID、84 個適用列與同一 release 的逐列 evidence；目前 CP-08 與人工驗收仍 NOT_RUN。
 - [CP-10 現有專案業主驗收清單（2026-10-01）](plans/2026-10-01-cp-10-current-project-acceptance-checklist.md) — owner review/sign/date 欄與 CP-06-E、policy reconciliation、工程／付款驗收分界；目前 BLOCKED / NOT_SIGNED。
 - [SOL-BUSINESS 可追溯試用調整模型（2026-10-22）](plans/2026-10-22-sol-business-adjustment-design.md) — design-proposed：D-24 重用 milestone state／既有 log，不新增 collection／API；合法輸入、批准來源、撤銷重播與原起點綁定送業主審，未實作不算關帳。
+- [SOL-NOTIFICATION 告警通知 publisher／consumer 提案（2026-10-30）](plans/2026-10-30-sol-notification-design.md) — design-proposed：10-31 已核准來源施工；§8 補 application publisher／subscription／DLQ 配對與 worker fake/mock 用例，真實身分及送達仍待外證，B-08 不標關帳。
 - [正式交付與商務需求的後續程式規劃（2026-09-18）](plans/2026-09-18-business-delivery-follow-up.md) — plan-only：九份本地商務文件的需求對照、BD-00～BD-07 程式工作包與驗收條件；原檔不入庫，不構成政策核准、施工或正式上線授權。
 
 - [ADR-0001 — the domain API is the only write path](adr/0001-domain-api-is-the-only-write-path.md)
@@ -108,6 +110,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [ADR-0009 — business-delivery safe export (CP-04)](adr/0009-business-delivery-export.md)
 - [ADR-0010 — business-delivery patient retention (CP-05)](adr/0010-business-delivery-retention.md)
 - [ADR-0011 — business-delivery termination and data return (CP-07)](adr/0011-business-delivery-termination.md)
+- [ADR-0012 — application alert delivery pairing and quarantine acknowledgement](adr/0012-application-alert-delivery-pairing.md) — proposed/source-only，不是維運或 IAM 核准
 - [Domain boundaries](architecture/domain-boundaries.md) — package ownership and forbidden dependencies
 - [角色權限矩陣 (RBAC matrix)](architecture/rbac-matrix.md) — plan-only convergence of the three incompatible role tables now in the repository, the target permission matrix, resource scopes, the six places every rule must be enforced, and the four questions the owner must answer first
 - [Google Calendar 雙向同步規劃](architecture/calendar-bidirectional-sync-plan.md) — production remains plan-only and blocked by production D-009/D-016; a 2026-09-11 banner records the owner product SLO (watch then `syncToken`, 1–5 minute compensation) without making `events.watch` executable; a 2026-08-30 banner still points to the separately approved synthetic-only five-minute poll
@@ -184,6 +187,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [管理者操作手冊（繁體中文，source-readiness draft）](runbooks/manager-operations-manual.md) — merged L3 UI 的操作標籤與 fresh reauth 邊界；C1 runtime、盲走、CP-08 captures 與 owner acceptance 仍待完成
 - [Luna 開發環境與額度使用流程](runbooks/luna-development-environment.md) — 固定工具、明確依賴安裝、cache／網路準備；已從官方 GitHub 查證 Luna 定位並試派有界文件工作。
 - [Stage E operational runbook](runbooks/stage-e-operational.md) — API outage, booking write, Firestore, Calendar 410/watch, dead-letter, backup verbs, auth, rate-limit, IAM, rollback, isolated preview; not apply
+- [CAL-PILOT synthetic fault observations](runbooks/calendar-pilot-synthetic-fault-observations.md) — unexecuted 50-trial observation protocol and offline sanitized-evidence checker; no authority to operate real services
 - [Public mirror sync runbook](runbooks/public-mirror-sync.md) — what the mirror actually is, the transform each file class needs, the patterns the public gate rejects outright, the default disposition table and the stop conditions; read this before touching the public repository
 - [Synthetic online preview runbook](runbooks/synthetic-online-preview.md) — deploying and expiring the static Hosting preview
 - [C1 local execution packet](runbooks/c1-local-execution-packet.md) — ADC/CLI commands for the new isolated C1 project; no secrets; C1 foundation smoke PASSed on `beauessence-clinic-stg-c1a01`
@@ -204,6 +208,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Privacy policy checklist](security/privacy-policy-checklist.md) — what a publishable policy must contain
 - [技術／資安決定事項回填草稿 (2026-08-23)](security/technical-security-decision-draft-2026-08-23.md) — draft answers for the previously blank 21-item technical/security list: nine回填 from repository evidence, eight recommendations bounded by approved D-006/D-010, and four explicitly left blank (test-environment pricing date, the non-existent regional-failure plan, the C0 approval switch and every approval signature). It approves nothing and does not move C0 out of `revise`
 - [Privacy policy draft](legal/privacy-policy-draft.md) — draft text, not published and not a recorded consent
+- [Privacy engineering review draft (2026-10-29)](legal/privacy-engineering-review-draft-2026-10-29.md) — field differences, blank retention worksheet, interim personal-data acknowledgement-log inventory, role-mailbox placeholder and protected-source exclusions; engineering preparation only, not final legal copy or packet closeout
 
 ## 7. Review record
 

@@ -29,7 +29,7 @@ the C1 IAM SetIamPolicy alert, smoke and inspect, and judge
 | Pre-merge branch HEAD | `ebf4cea68baf6753849c32eb257d14429a902433` (tree-identical to the squash) |
 | Project | `beauessence-clinic-stg-c1a01` |
 | Forbidden | `beauessence-clinic-staging`, live Hosting, production, Cloud Run enablement |
-| Operator | `wayde.fu@gmail.com` (gcloud + Firebase CLI; ADC token; `GOOGLE_APPLICATION_CREDENTIALS` unset) |
+| Operator | `診所負責人的 Google 帳號（依 Q3 隱去個人信箱）` (gcloud + Firebase CLI; ADC token; `GOOGLE_APPLICATION_CREDENTIALS` unset) |
 | Approver | clinic owner |
 | Packets | `INTERNAL_TEST_PREVIEW_DEPLOY`, `INTERNAL_TEST_C5_BACKUP_APPLY`, `INTERNAL_TEST_C1_IAM_MONITORING_APPLY` bound to `a9a445a` |
 

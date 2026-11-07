@@ -1,6 +1,12 @@
 import type { DocumentSnapshot, Firestore } from 'firebase-admin/firestore';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { SharedMaintenanceControl } from '@beauessence/domain/maintenance-control.node';
+import { syntheticOpenMaintenanceControl } from '../../../../tests/helpers/synthetic-maintenance.js';
 
+import {
+  GoogleCalendarEventReader,
+  GoogleCalendarEventWriter
+} from './google-sync-client.js';
 import {
   assertExpectedMirrorEtag,
   CalendarPilotRuntime,
@@ -10,6 +16,251 @@ import {
   calendarWriteEventForMirror,
   resolveCalendarPilotRuntimeConfiguration
 } from './calendar-pilot-runtime.js';
+
+describe('calendar pilot preflight fresh clock admission', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  function setup(now: string) {
+    const owner = 'synthetic_worker';
+    const configuration = {
+      activeSourceId: C1_SYNTHETIC_CALENDAR_SOURCE_ID,
+      version: 0,
+      expiresAt: '2028-03-02T00:00:00Z',
+      inboundEnabled: true,
+      outboundEnabled: true,
+      workerLeaseOwner: owner,
+      workerLeaseExpiresAt: '2028-03-01T00:00:00Z'
+    };
+    const snapshot = { exists: true, data: () => configuration };
+    const transaction = {
+      get: vi.fn(() => Promise.resolve(snapshot)),
+      set: vi.fn()
+    };
+    const collection = vi.fn(() => ({
+      doc: (id: string) => ({ id, get: () => Promise.resolve(snapshot) }),
+      where: () => ({
+        select: () => ({ get: () => Promise.resolve({ docs: [] }) })
+      })
+    }));
+    const db = {
+      collection,
+      runTransaction: vi.fn((callback: (value: never) => unknown) =>
+        Promise.resolve(callback(transaction as never))
+      )
+    } as unknown as Firestore;
+    const reader = vi
+      .spyOn(GoogleCalendarEventReader.prototype, 'listEvents')
+      .mockResolvedValue({ events: [] });
+    const writer = vi
+      .spyOn(GoogleCalendarEventWriter.prototype, 'verifyWriteAccess')
+      .mockResolvedValue(undefined);
+    const clock = vi.fn(() => now).mockReturnValueOnce('2028-02-29T00:00:00Z');
+    const monotonic = vi.fn(() => 1_000);
+    const lease = {
+      owner,
+      generation: 0,
+      now: clock,
+      dispatch: { pending: 0 },
+      timing: { wall: Date.parse('2028-02-29T00:00:00Z'), monotonic: 1_000 }
+    };
+    const runtime = new CalendarPilotRuntime(
+      db,
+      {
+        CALENDAR_PILOT_RUNTIME_MODE: 'C1_SYNTHETIC_ADC',
+        GOOGLE_CLOUD_PROJECT: 'beauessence-clinic-stg-c1a01',
+        CALENDAR_PILOT_PSEUDONYM_KEY: 'p'.repeat(32),
+        GOOGLE_CALENDAR_AUTH: 'CLOUD_ADC',
+        GOOGLE_CALENDAR_ID: 'synthetic-calendar-id'
+      },
+      undefined,
+      undefined,
+      monotonic
+    );
+    return {
+      admit: () => runtime['withLease'](lease),
+      preflight: () =>
+        runtime['preflight'](
+          {
+            kind: 'calendar_source_preflight',
+            status: 'processing',
+            sourceId: C1_SYNTHETIC_CALENDAR_SOURCE_ID
+          },
+          { id: 'synthetic_preflight' } as DocumentSnapshot,
+          lease
+        ),
+      collection,
+      transaction,
+      reader,
+      writer,
+      clock,
+      monotonic,
+      configuration,
+      runtime,
+      lease
+    };
+  }
+
+  it.each([
+    'https://www.googleapis.com/calendar/v3/calendars/other/events',
+    'https://www.googleapis.com/calendar/v3/calendars/synthetic-calendar-id/events/event/other',
+    'https://www.googleapis.com/calendar/v3/calendars/synthetic-calendar-id/events/event%2Fother',
+    'https://www.googleapis.com/calendar/v3/calendars/synthetic-calendar-id/eventsx',
+    'https://www.googleapis.com.evil.invalid/calendar/v3/calendars/synthetic-calendar-id/events',
+    'http://www.googleapis.com/calendar/v3/calendars/synthetic-calendar-id/events',
+    'https://user@www.googleapis.com/calendar/v3/calendars/synthetic-calendar-id/events'
+  ])('rejects a non-allowlisted transport destination', async (url: string) => {
+    const store = setup('2028-02-29T00:00:00Z');
+    const transport = vi.spyOn(globalThis, 'fetch');
+    await expect(
+      store.runtime['guardedFetch'](store.lease)(url)
+    ).rejects.toThrow(/not allowlisted/iu);
+    expect(transport).not.toHaveBeenCalled();
+    expect(store.transaction.get).not.toHaveBeenCalled();
+  });
+
+  it('permits only the configured event endpoint and disables redirects', async () => {
+    const store = setup('2028-02-29T00:00:00Z');
+    const url =
+      'https://www.googleapis.com/calendar/v3/calendars/synthetic-calendar-id/events/event123';
+    const transport = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response('{}'));
+    await store.runtime['guardedFetch'](store.lease)(url, {
+      method: 'PATCH',
+      redirect: 'follow'
+    });
+    expect(transport).toHaveBeenCalledExactlyOnceWith(url, {
+      method: 'PATCH',
+      redirect: 'error'
+    });
+  });
+
+  it.each([
+    { elapsed: 8_999, allowed: true },
+    { elapsed: 9_000, allowed: false },
+    { elapsed: 10_000, allowed: false },
+    { elapsed: -1, allowed: false },
+    { elapsed: Number.NaN, allowed: false }
+  ])(
+    'checks the monotonic dispatch cutoff: $elapsed',
+    async ({ elapsed, allowed }: { elapsed: number; allowed: boolean }) => {
+      const store = setup('2028-02-29T00:00:00Z');
+      store.configuration.workerLeaseExpiresAt = '2028-02-29T00:00:10Z';
+      store.monotonic.mockReturnValue(1_000 + elapsed);
+      const transport = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(new Response('{}'));
+      const dispatch = store.runtime['guardedFetch'](store.lease)(
+        'https://www.googleapis.com/calendar/v3/calendars/synthetic-calendar-id/events'
+      );
+      if (allowed) {
+        await expect(dispatch).resolves.toMatchObject({ status: 200 });
+        expect(transport).toHaveBeenCalledOnce();
+      } else {
+        await expect(dispatch).rejects.toThrow(/lease/iu);
+        expect(transport).not.toHaveBeenCalled();
+      }
+    }
+  );
+
+  it('does not let a backward wall-clock adjustment extend dispatch', async () => {
+    const store = setup('2028-02-28T23:59:00Z');
+    store.configuration.workerLeaseExpiresAt = '2028-02-29T00:00:10Z';
+    store.monotonic.mockReturnValue(10_000);
+    const transport = vi.spyOn(globalThis, 'fetch');
+    await expect(
+      store.runtime['guardedFetch'](store.lease)(
+        'https://www.googleapis.com/calendar/v3/calendars/synthetic-calendar-id/events'
+      )
+    ).rejects.toThrow(/lease/iu);
+    expect(transport).not.toHaveBeenCalled();
+  });
+
+  it('respects the configuration expiry when it comes before the worker lease', async () => {
+    const store = setup('2028-02-29T00:00:00Z');
+    store.configuration.expiresAt = '2028-02-29T00:00:10Z';
+    store.monotonic.mockReturnValue(10_000);
+    const transport = vi.spyOn(globalThis, 'fetch');
+    await expect(
+      store.runtime['guardedFetch'](store.lease)(
+        'https://www.googleapis.com/calendar/v3/calendars/synthetic-calendar-id/events'
+      )
+    ).rejects.toThrow(/lease/iu);
+    expect(transport).not.toHaveBeenCalled();
+  });
+
+  it('respects the job expiry when it comes before the worker lease', async () => {
+    const store = setup('2028-02-29T00:00:00Z');
+    store.monotonic.mockReturnValue(10_000);
+    store.transaction.get
+      .mockResolvedValueOnce({ exists: true, data: () => store.configuration })
+      .mockResolvedValueOnce({
+        exists: true,
+        data: () => ({
+          status: 'processing',
+          leaseOwner: 'synthetic_worker',
+          leaseExpiresAt: '2028-02-29T00:00:10Z'
+        })
+      } as never);
+    const transport = vi.spyOn(globalThis, 'fetch');
+    const lease = { ...store.lease, document: { ref: {} } as DocumentSnapshot };
+    await expect(
+      store.runtime['guardedFetch'](lease)(
+        'https://www.googleapis.com/calendar/v3/calendars/synthetic-calendar-id/events'
+      )
+    ).rejects.toThrow(/lease/iu);
+    expect(transport).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    '2028-02-30T00:00:00Z',
+    '2026-02-29T00:00:00Z',
+    '2028-02-29T24:00:00Z',
+    '2028-02-29T00:00:00',
+    '2028-02-29T08:00:00+08:00',
+    'Feb 29 2028 GMT',
+    '2028-02-29',
+    ''
+  ])(
+    'rejects a fresh noncanonical clock %s after lease admission',
+    async (now) => {
+      const store = setup(now);
+      await store.admit();
+      store.collection.mockClear();
+      store.transaction.get.mockClear();
+
+      await expect(store.preflight()).rejects.toThrow(/lease/iu);
+      expect(store.clock).toHaveBeenCalledTimes(2);
+      expect(store.collection).not.toHaveBeenCalled();
+      expect(store.transaction.get).not.toHaveBeenCalled();
+      expect(store.transaction.set).not.toHaveBeenCalled();
+      expect(store.reader).not.toHaveBeenCalled();
+      expect(store.writer).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(['2028-02-29T00:00:00Z', '2028-02-29T00:00:00.123456Z'])(
+    'keeps the existing preflight window for canonical UTC %s',
+    async (now) => {
+      const store = setup(now);
+      await store.admit();
+
+      await expect(store.preflight()).resolves.toBeUndefined();
+      expect(store.reader).toHaveBeenCalledExactlyOnceWith({
+        timeMin: new Date(Date.parse(now) - 30 * 86_400_000).toISOString(),
+        timeMax: new Date(Date.parse(now) + 60 * 86_400_000).toISOString()
+      });
+      expect(store.writer).toHaveBeenCalledExactlyOnceWith(
+        'synthetic_preflight'
+      );
+      expect(store.transaction.set).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ id: 'synthetic_preflight' }),
+        expect.objectContaining({ status: 'passed', completedAt: now }),
+        { merge: true }
+      );
+    }
+  );
+});
 
 describe('calendar pilot canonical runtime clock', () => {
   const environment = {
@@ -34,6 +285,33 @@ describe('calendar pilot canonical runtime clock', () => {
   }
 
   it.each([
+    { underMaintenance: true, expiresAtUtc: '2028-03-01T00:00:00Z' },
+    undefined
+  ])(
+    'denies calendar work for maintenance control %j',
+    async (state: unknown) => {
+      const { db, collection, runTransaction } = setup();
+      const readControl = vi.fn(() => Promise.resolve(state));
+      const control = new SharedMaintenanceControl(
+        readControl,
+        () => '2028-02-29T00:00:00Z'
+      );
+      const runtime = new CalendarPilotRuntime(
+        db,
+        environment,
+        () => '2028-02-29T00:00:00Z',
+        control
+      );
+
+      await expect(runtime.run()).rejects.toThrow(/Maintenance/);
+      expect(readControl).toHaveBeenCalledOnce();
+      expect(collection).not.toHaveBeenCalled();
+      expect(runTransaction).not.toHaveBeenCalled();
+      expect(control.inFlightCallbacks).toBe(0);
+    }
+  );
+
+  it.each([
     '2026-02-30T00:00:00Z',
     '2026-02-29T00:00:00Z',
     '2026-01-01T24:00:00Z',
@@ -44,7 +322,12 @@ describe('calendar pilot canonical runtime clock', () => {
     'rejects noncanonical clock %s before lease or job access',
     async (now) => {
       const { db, collection, runTransaction } = setup();
-      const runtime = new CalendarPilotRuntime(db, environment, () => now);
+      const runtime = new CalendarPilotRuntime(
+        db,
+        environment,
+        () => now,
+        syntheticOpenMaintenanceControl()
+      );
       await expect(runtime.run()).rejects.toThrow(/lease/iu);
       await expect(
         claimCalendarPilotJobs(db, 'synthetic_worker', now)
@@ -58,7 +341,12 @@ describe('calendar pilot canonical runtime clock', () => {
     'keeps valid leap-day UTC precision %s',
     async (now) => {
       const { db, collection, runTransaction } = setup();
-      const runtime = new CalendarPilotRuntime(db, environment, () => now);
+      const runtime = new CalendarPilotRuntime(
+        db,
+        environment,
+        () => now,
+        syntheticOpenMaintenanceControl()
+      );
       await expect(runtime.run()).resolves.toEqual({
         acquired: false,
         processedJobs: 0,

@@ -39,7 +39,7 @@ manifest、Cloud IAM matrix proposal、成本輸入模型、災難復原方案�
 | primary region | `asia-east1` | `RECORDED`；Firestore database location 建立後不可變更 |
 | resilience target | RPO 1 小時／RTO 4 小時 | `RECORDED`；適用 database、whole-project、regional failure，但尚無達標證據 |
 | staff identity baseline | Google federated sign-in＋診所自管帳號；全員 MFA；local TOTP | `RECORDED`；recovery 與 provider 細節仍待審查 |
-| session baseline | idle 30 分鐘／absolute 8 小時；停權後下一個 protected request 拒絕 | `RECORDED`；尚未實作 |
+| session baseline | idle 30 分鐘／absolute 8 小時（2026-10-03 起改為絕對 12 小時、無閒置登出，見 `STAFF-SESSION-12H-2026-10-03`；敏感操作 10 分鐘再驗證不變；此為歷史原文）；停權後下一個 protected request 拒絕 | `RECORDED`；尚未實作 |
 | emergency access | 不建立 break-glass path | `RECORDED` 的 fail-closed planning default；另行核准前不配置 binding |
 | data boundary | synthetic opaque values only | `RECORDED`；不得以 preview fixture 當用量或正式政策 |
 | 現有 Hosting preview | `beauessence-clinic-staging` 只作 expiring static preview | `RECORDED`；不得把它默認成 Stage 2 application project |
@@ -82,7 +82,7 @@ indexes、Rules、backup／PITR 與任何 application document。**
 | --- | --- | --- | --- | --- |
 | `stg.identity-platform` | C2 | Google＋local staff IdP、email verification、MFA | 全員 MFA、local TOTP | provider configuration、Google managed-MFA evidence、recovery flow、cost quantity |
 | `stg.firestore.primary` | C5/C6 | Firestore Native source of truth、delete protection、PITR／backup | primary `asia-east1`、synthetic-only、direct client deny；**C1 明確排除** | database ID、edition、backup/PITR final configuration，以及後續 slice 的獨立 authority |
-| `stg.session-state` | C3 | server-side session version／last-activity state | idle 30m／absolute 8h | persistence technology、capacity、expiry implementation |
+| `stg.session-state` | C3 | server-side session version／last-activity state | idle 30m／absolute 8h（2026-10-03 起改為絕對 12 小時、無閒置登出，見 `STAFF-SESSION-12H-2026-10-03`；敏感操作 10 分鐘再驗證不變；此為歷史原文） | persistence technology、capacity、expiry implementation |
 | `stg.rate-limit-state` | C4 | shared authorization-code／API throttling state | fail closed、不能只依 IP | shared-store technology、window/backoff parameters、capacity |
 | `stg.artifact-registry` | C6 | versioned API image artifacts | commit-bound、no embedded secrets | repository location、retention、build provenance |
 | `stg.cloud-run.api` | C6 | staff-only API runtime | primary `asia-east1`、no public booking route | CPU/RAM、min/max instance、concurrency、ingress、image digest |

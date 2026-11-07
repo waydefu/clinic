@@ -9,6 +9,8 @@ import {
   DeleteAppointmentResponseSchema,
   HealthResponseSchema,
   GetAppointmentResponseSchema,
+  ListAppointmentsQuerySchema,
+  ListAppointmentsResponseSchema,
   RescheduleAppointmentRequestSchema,
   RescheduleAppointmentResponseSchema,
   ReturnLookupRequestSchema,
@@ -492,5 +494,41 @@ describe('appointment query response', () => {
         GetAppointmentResponseSchema.safeParse({ ...base, intakeNationality })
           .success
       ).toBe(false);
+  });
+});
+
+describe('appointment list query and response', () => {
+  it('accepts scope, a 1-50 limit and an opaque cursor', () => {
+    expect(
+      ListAppointmentsQuerySchema.parse({
+        scope: 'clinic',
+        limit: '50',
+        cursor: 'WyIyMDI2LTA3LTI0VDA0OjAwOjAwLjAwMFoiLCJhXzEiXQ'
+      })
+    ).toMatchObject({ scope: 'clinic', limit: 50 });
+    expect(ListAppointmentsQuerySchema.parse({})).toEqual({});
+  });
+
+  it.each([
+    ['limit above the page size', { limit: '51' }],
+    ['limit zero', { limit: '0' }],
+    ['cursor with a path character', { cursor: 'a/b' }],
+    ['cursor too long', { cursor: 'a'.repeat(257) }],
+    ['the old startAfter field', { startAfter: '2026-07-24T04:00:00.000Z' }],
+    ['an unknown field', { patientId: 'patient_001' }]
+  ])('rejects %s', (_label, query) => {
+    expect(ListAppointmentsQuerySchema.safeParse(query).success).toBe(false);
+  });
+
+  it('keeps the response body strict so continuation travels in a header', () => {
+    expect(
+      ListAppointmentsResponseSchema.safeParse({
+        appointments: [],
+        nextCursor: 'abc'
+      }).success
+    ).toBe(false);
+    expect(
+      ListAppointmentsResponseSchema.safeParse({ appointments: [] }).success
+    ).toBe(true);
   });
 });

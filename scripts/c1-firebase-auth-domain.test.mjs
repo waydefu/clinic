@@ -21,12 +21,12 @@ import {
 } from './c1-firebase-auth-domain.mjs';
 
 describe('C1 firebase authDomain policy', () => {
-  it('accepts only the authorized isolated preview host', () => {
+  it('accepts only the authorized fixed isolated host', () => {
     expect(C1_AUTHORIZED_FIREBASE_AUTH_DOMAINS).toEqual([
       ISOLATED_C1_FIREBASE_AUTH_DOMAIN
     ]);
     expect(ISOLATED_C1_FIREBASE_AUTH_DOMAIN).toBe(
-      'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app'
+      'beauessence-clinic-stg-c1a01.web.app'
     );
     expect(
       isAuthorizedC1FirebaseAuthDomain(ISOLATED_C1_FIREBASE_AUTH_DOMAIN)
@@ -42,6 +42,11 @@ describe('C1 firebase authDomain policy', () => {
   it('fails closed for missing, firebaseapp.com, staging, production, and arbitrary hosts', () => {
     expect(evaluateC1FirebaseAuthDomain('').ok).toBe(false);
     expect(evaluateC1FirebaseAuthDomain(undefined).ok).toBe(false);
+    expect(
+      evaluateC1FirebaseAuthDomain(
+        'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app'
+      ).ok
+    ).toBe(false);
     expect(
       isAuthorizedC1FirebaseAuthDomain(
         'beauessence-clinic-stg-c1a01.firebaseapp.com'
@@ -453,8 +458,8 @@ describe('C1 firebase authDomain API comparator syntax', () => {
   it('rejects an allowlist that adds an unapproved host', () => {
     const result = inspectWithApiSource((source) =>
       source.replace(
-        "'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app'",
-        "'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app',\n  'unapproved.web.app'"
+        "'beauessence-clinic-stg-c1a01.web.app'",
+        "'beauessence-clinic-stg-c1a01.web.app',\n  'unapproved.web.app'"
       )
     );
     expect(result.ok).toBe(false);

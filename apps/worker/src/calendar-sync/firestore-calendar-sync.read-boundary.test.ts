@@ -2,9 +2,14 @@ import type { Firestore } from 'firebase-admin/firestore';
 import { describe, expect, it, vi } from 'vitest';
 
 import { FirestoreCalendarSyncRepository } from './firestore-calendar-sync.repository.js';
+import type { CalendarSyncCommit } from './sync-engine.js';
 
 function repository(value: unknown) {
-  const snapshot = { exists: value !== undefined, data: () => value };
+  const snapshot = {
+    exists: value !== undefined,
+    data: () => value,
+    updateTime: { seconds: 1, nanoseconds: 0 }
+  };
   const writes = vi.fn();
   const db = {
     collection: () => ({
@@ -38,6 +43,49 @@ const preflight = {
 };
 
 describe('CAL-PILOT worker stored read boundary', () => {
+  it.each(['2030-01-02T00:00:00Z', '2030-01-02T00:00:00.123456789Z'])(
+    'preserves a minimal authoritative projection with UTC startsAt %s',
+    async (startsAt) => {
+      const value = { status: 'confirmed', startsAt, bookingKind: 'initial' };
+      const store = repository(value);
+      await expect(
+        store.repository.loadAuthoritativeAppointment('synthetic_appointment')
+      ).resolves.toEqual({
+        appointmentId: 'synthetic_appointment',
+        ...value,
+        readVersion: { seconds: 1, nanoseconds: 0 }
+      });
+      expect(store.writes).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    'Jul 25 2030 Z',
+    '2030-02-30T00:00:00Z',
+    '2030-01-02T24:00:00Z',
+    '2030-01-02T00:00:00+08:00',
+    '2030-01-02',
+    ''
+  ])('does not admit stored authoritative startsAt %s', async (startsAt) => {
+    const store = repository({
+      status: 'confirmed',
+      startsAt,
+      bookingKind: 'initial'
+    });
+    await expect(
+      store.repository.loadAuthoritativeAppointment('synthetic_appointment')
+    ).resolves.toBeUndefined();
+    expect(store.writes).not.toHaveBeenCalled();
+  });
+
+  it('keeps a missing authoritative appointment absent', async () => {
+    await expect(
+      repository(undefined).repository.loadAuthoritativeAppointment(
+        'synthetic_appointment'
+      )
+    ).resolves.toBeUndefined();
+  });
+
   it('keeps a missing source distinct from a malformed source', async () => {
     await expect(
       repository(undefined).repository.findSource('synthetic_source')
@@ -161,4 +209,245 @@ describe('CAL-PILOT worker stored read boundary', () => {
     ).rejects.toThrow('Unreadable CAL-PILOT record.');
     expect(store.writes).not.toHaveBeenCalled();
   });
+});
+
+describe('CAL-PILOT candidate transaction read boundary', () => {
+  const createdAt = '2030-01-02T00:00:00Z';
+  const parsed = {
+    ok: true,
+    kind: 'busy',
+    busyReason: 'meeting',
+    displayLabel: 'Synthetic meeting',
+    startsAt: createdAt,
+    endsAt: '2030-01-02T00:30:00Z'
+  } as const;
+  const commit: CalendarSyncCommit = {
+    sourceId: 'synthetic_source',
+    expectedSourceVersion: 1,
+    nextSyncToken: 'synthetic_next_token',
+    completedAt: createdAt,
+    fullSync: false,
+    mutations: [
+      {
+        mirror: {
+          mirrorId: 'synthetic_mirror',
+          sourceId: 'synthetic_source',
+          externalEventId: 'synthetic_event',
+          etag: 'synthetic_etag',
+          externalStatus: 'confirmed',
+          sourceVersion: 1,
+          parsed,
+          localDirty: false,
+          updatedAt: createdAt
+        },
+        candidate: {
+          candidateId: 'synthetic_candidate',
+          mirrorId: 'synthetic_mirror',
+          expectedEtag: 'synthetic_etag',
+          kind: 'create_block',
+          sourceId: 'synthetic_source',
+          sourceVersion: 1,
+          expectedVersion: 0,
+          parsed,
+          validationErrors: [],
+          createdAt
+        }
+      }
+    ]
+  };
+
+  function candidateTransaction(value: unknown) {
+    const writes = vi.fn<(ref: { path: string }, data: unknown) => void>();
+    const transaction = {
+      get: (ref: { id: string; path: string }) =>
+        Promise.resolve({
+          id: ref.id,
+          exists:
+            ref.path === 'calendar_pilot_configuration/active' ||
+            value !== undefined,
+          data: () =>
+            ref.path === 'calendar_pilot_configuration/active'
+              ? configuration
+              : value
+        }),
+      set: writes,
+      create: writes,
+      update: writes
+    };
+    const db = {
+      collection: (name: string) => ({
+        doc: (id: string) => ({ id, path: `${name}/${id}` })
+      }),
+      runTransaction: (operation: (tx: unknown) => Promise<void>) =>
+        operation(transaction)
+    } as unknown as Firestore;
+    return {
+      repository: new FirestoreCalendarSyncRepository(
+        db,
+        'synthetic'.repeat(8)
+      ),
+      writes
+    };
+  }
+
+  it.each([false, true])(
+    'checks an initially missing appointment at commit (created=%s)',
+    async (created) => {
+      const writes = vi.fn();
+      const getAll = vi.fn((ref: { id: string }) =>
+        Promise.resolve([
+          {
+            id: ref.id,
+            exists: created,
+            data: () => (created ? { status: 'confirmed' } : undefined)
+          }
+        ])
+      );
+      const transaction = {
+        get: (ref: { id: string; path: string }) =>
+          Promise.resolve({
+            id: ref.id,
+            exists: ref.path === 'calendar_pilot_configuration/active',
+            data: () =>
+              ref.path === 'calendar_pilot_configuration/active'
+                ? configuration
+                : undefined
+          }),
+        getAll,
+        set: writes,
+        create: writes,
+        update: writes
+      };
+      const db = {
+        collection: (name: string) => ({
+          doc: (id: string) => ({
+            id,
+            path: `${name}/${id}`,
+            get: () => Promise.resolve({ exists: false })
+          })
+        }),
+        runTransaction: (operation: (tx: unknown) => Promise<void>) =>
+          operation(transaction)
+      } as unknown as Firestore;
+      const store = new FirestoreCalendarSyncRepository(
+        db,
+        'synthetic'.repeat(8)
+      );
+      await expect(
+        store.loadAuthoritativeAppointment('synthetic_appointment')
+      ).resolves.toBeUndefined();
+      const guardedCommit: CalendarSyncCommit = {
+        ...commit,
+        mutations: commit.mutations.map((mutation) => ({
+          ...mutation,
+          appointmentGuard: { appointmentId: 'synthetic_appointment' }
+        }))
+      };
+      if (created) {
+        await expect(store.commitSync(guardedCommit)).rejects.toThrow(
+          'Calendar appointment changed before sync commit.'
+        );
+        expect(writes).not.toHaveBeenCalled();
+      } else {
+        await expect(store.commitSync(guardedCommit)).resolves.toBeUndefined();
+        expect(writes).toHaveBeenCalled();
+      }
+      expect(getAll).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ path: 'appointments/synthetic_appointment' })
+      );
+    }
+  );
+
+  const reason = 'legacy_candidate_requires_resync';
+  it.each([
+    { value: undefined, rewrite: true },
+    {
+      value: { status: 'pending', expectedEtag: 'synthetic_etag' },
+      rewrite: false
+    },
+    { value: { status: 'pending' }, rewrite: false },
+    {
+      value: { status: 'superseded', supersededReason: reason },
+      rewrite: true
+    },
+    {
+      value: {
+        status: 'superseded',
+        supersededReason: reason,
+        expectedEtag: null
+      },
+      rewrite: true
+    },
+    {
+      value: {
+        status: 'superseded',
+        supersededReason: reason,
+        expectedEtag: ''
+      },
+      rewrite: true
+    },
+    {
+      value: {
+        status: 'superseded',
+        supersededReason: reason,
+        expectedEtag: '  '
+      },
+      rewrite: true
+    },
+    {
+      value: {
+        status: 'superseded',
+        supersededReason: 'unrelated_operator_action',
+        expectedEtag: null
+      },
+      rewrite: false
+    },
+    {
+      value: {
+        status: 'superseded',
+        supersededReason: reason,
+        expectedEtag: 'synthetic_etag'
+      },
+      rewrite: false
+    }
+  ])(
+    'preserves candidate regeneration decisions: %j',
+    async ({ value, rewrite }: { value: unknown; rewrite: boolean }) => {
+      const store = candidateTransaction(value);
+      await expect(
+        store.repository.commitSync(commit)
+      ).resolves.toBeUndefined();
+      const candidateWrites = store.writes.mock.calls.filter(
+        ([ref]: [{ path: string }, unknown]) =>
+          ref.path === 'calendar_pilot_candidates/synthetic_candidate'
+      );
+      expect(candidateWrites).toHaveLength(rewrite ? 1 : 0);
+      if (rewrite)
+        expect(candidateWrites[0]?.[1]).toMatchObject({
+          status: 'pending',
+          expectedEtag: 'synthetic_etag'
+        });
+    }
+  );
+
+  it.each([
+    null,
+    [],
+    { schemaVersion: 1, status: 'pending' },
+    { schemaVersion: 2, status: 'pending' },
+    { status: 'unknown' },
+    { status: 12 },
+    { status: 'superseded', supersededReason: reason, expectedEtag: 12 },
+    { status: 'pending', expectedEtag: {} },
+    { status: 'superseded', supersededReason: false }
+  ])(
+    'rejects corrupt candidate before any tx write: %j',
+    async (value: unknown) => {
+      const store = candidateTransaction(value);
+      await expect(store.repository.commitSync(commit)).rejects.toThrow(
+        'Unreadable CAL-PILOT record.'
+      );
+      expect(store.writes).not.toHaveBeenCalled();
+    }
+  );
 });

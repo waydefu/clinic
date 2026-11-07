@@ -344,6 +344,43 @@ export const SetPatientLegalHoldRequestSchema = z
   })
   .strict();
 
+/**
+ * Manager-only identity confirmation (CP-05 stage 2b). The provisional record
+ * and the chosen archived candidate are opaque IDs; the human reason excludes
+ * the system-only `retention_expired` code.
+ */
+export const ConfirmArchivedIdentityRequestSchema = z
+  .object({
+    idempotencyKey: IdempotencyKeySchema,
+    provisionalPatientId: OpaqueIdentifierSchema,
+    archivedPatientId: OpaqueIdentifierSchema,
+    reasonCode: RetentionReasonCodeSchema.exclude(['retention_expired'])
+  })
+  .strict();
+
+export const PatientIdentityConfirmedResponseSchema = z
+  .object({
+    patientId: OpaqueIdentifierSchema,
+    provisionalPatientId: OpaqueIdentifierSchema,
+    state: z.literal('active')
+  })
+  .strict();
+
+export const PatientIdentityCandidatesResponseSchema = z
+  .object({
+    patientId: OpaqueIdentifierSchema,
+    candidates: z.array(
+      z
+        .object({
+          patientId: OpaqueIdentifierSchema,
+          archivedAt: z.string(),
+          legalHold: z.boolean()
+        })
+        .strict()
+    )
+  })
+  .strict();
+
 export const PatientArchivedResponseSchema = z
   .object({
     patientId: OpaqueIdentifierSchema,
@@ -399,6 +436,21 @@ export const PendingPatientDeletionResponseSchema = z
   .object({ patients: z.array(PendingPatientDeletionSchema) })
   .strict();
 
+/**
+ * `cursor` is the opaque `x-next-cursor` response header of the previous page;
+ * the body stays `{ patients }`. It only positions the read.
+ */
+export const PendingPatientDeletionQuerySchema = z
+  .object({
+    limit: z.coerce.number().int().min(1).max(100).optional(),
+    cursor: z
+      .string()
+      .max(256)
+      .regex(/^[A-Za-z0-9_-]+$/)
+      .optional()
+  })
+  .strict();
+
 export type RetentionReasonCode = z.infer<typeof RetentionReasonCodeSchema>;
 export type RetentionPatientRequest = z.infer<
   typeof RetentionPatientRequestSchema
@@ -408,6 +460,15 @@ export type PermanentDeletePatientRequest = z.infer<
 >;
 export type SetPatientLegalHoldRequest = z.infer<
   typeof SetPatientLegalHoldRequestSchema
+>;
+export type ConfirmArchivedIdentityRequest = z.infer<
+  typeof ConfirmArchivedIdentityRequestSchema
+>;
+export type PatientIdentityConfirmedResponse = z.infer<
+  typeof PatientIdentityConfirmedResponseSchema
+>;
+export type PatientIdentityCandidatesResponse = z.infer<
+  typeof PatientIdentityCandidatesResponseSchema
 >;
 export type PatientArchivedResponse = z.infer<
   typeof PatientArchivedResponseSchema
@@ -423,4 +484,7 @@ export type PatientLegalHoldResponse = z.infer<
 >;
 export type PendingPatientDeletionResponse = z.infer<
   typeof PendingPatientDeletionResponseSchema
+>;
+export type PendingPatientDeletionQuery = z.infer<
+  typeof PendingPatientDeletionQuerySchema
 >;

@@ -24,6 +24,7 @@ import {
   type NestFastifyApplication
 } from '@nestjs/platform-fastify';
 import { CreateAppointmentRequestSchema } from '@beauessence/contracts';
+import { ROLES } from '@beauessence/domain';
 
 import { HealthController } from '../../health.controller.js';
 import {
@@ -32,9 +33,14 @@ import {
   ServiceUnavailableError
 } from '../errors/api-error.js';
 import { ApiExceptionFilter } from '../errors/api-exception.filter.js';
+import { SharedMaintenanceControl } from '@beauessence/domain/maintenance-control.node';
 import {
   MAINTENANCE_GATE,
+  ControlledMaintenanceGate,
+  ReadThroughMaintenanceGate,
+  setMaintenanceControl,
   StaticMaintenanceGate,
+  type MaintenanceControlPort,
   type MaintenanceGate
 } from './maintenance-gate.js';
 import { MaintenanceGuard } from './maintenance.guard.js';
@@ -95,7 +101,7 @@ function field(node: ts.Expression, name: string): string | undefined {
 }
 
 describe('maintenance source composition, not live control proof', () => {
-  it('registers the real HTTP guard and keeps the default explicitly inactive', () => {
+  it('keeps the default control closed', async () => {
     const providers = productionProviders();
     expect(
       providers.some(
@@ -108,9 +114,12 @@ describe('maintenance source composition, not live control proof', () => {
       providers.some(
         (node) =>
           field(node, 'provide') === 'MAINTENANCE_GATE' &&
-          field(node, 'useValue') === 'new StaticMaintenanceGate(false)'
+          field(node, 'useFactory') === '() => new ControlledMaintenanceGate()'
       )
     ).toBe(true);
+    await expect(
+      new ControlledMaintenanceGate().assertAvailable()
+    ).rejects.toBeInstanceOf(ServiceUnavailableError);
   });
   it.each([
     'backup-and-restore.md',
@@ -227,6 +236,119 @@ describe('synthetic Nest/Fastify maintenance admission', () => {
     await instance.getHttpAdapter().getInstance().ready();
     return instance;
   }
+
+  it('fails closed through routed expiring control without bypassing auth', async () => {
+    const now = '2026-11-02T00:00:00Z';
+    const open = {
+      underMaintenance: false,
+      expiresAtUtc: '2026-11-02T01:00:00Z'
+    };
+    let state: unknown = open;
+    const control = new SharedMaintenanceControl(
+      () => Promise.resolve(state),
+      () => now
+    );
+    const instance = await boot(false, new ControlledMaintenanceGate(control));
+    for (const [value, status] of [
+      [open, 401],
+      [{ ...open, underMaintenance: true }, 503],
+      [{ ...open, expiresAtUtc: now }, 503],
+      [false, 503],
+      [undefined, 503]
+    ] as const) {
+      state = value;
+      const response = await instance.inject({
+        method: 'GET',
+        url: '/v1/fixture/read'
+      });
+      expect(response.statusCode).toBe(status);
+      expect(response.headers['cache-control']).toContain('no-store');
+    }
+    expect(calls.handler).toBe(0);
+  });
+
+  it('re-reads control through HTTP admission without bypassing authentication', async () => {
+    let control: unknown = false;
+    const instance = await boot(
+      false,
+      new ReadThroughMaintenanceGate(() => Promise.resolve(control))
+    );
+    for (const [value, status] of [
+      [false, 401],
+      [true, 503],
+      [null, 503],
+      [false, 401]
+    ] as const) {
+      control = value;
+      const response = await instance.inject({
+        method: 'POST',
+        url: '/v1/fixture/write',
+        payload: BODY
+      });
+      expect(response.statusCode).toBe(status);
+      expect(response.headers['cache-control']).toBe('private, no-store');
+    }
+    expect(calls.gate).toBe(4);
+    expect(calls.handler).toBe(0);
+  });
+
+  it('writes and reads back the source-only control through HTTP admission', async () => {
+    let value: unknown = false;
+    const control: MaintenanceControlPort = {
+      read: () => Promise.resolve(value),
+      write: (next) => {
+        value = next;
+        return Promise.resolve();
+      }
+    };
+    const instance = await boot(
+      false,
+      new ReadThroughMaintenanceGate(control.read)
+    );
+    for (const [paused, expected] of [
+      [true, 503],
+      [false, 201]
+    ] as const) {
+      await setMaintenanceControl(control, paused);
+      const response = await instance.inject({
+        method: 'POST',
+        url: '/v1/fixture/write',
+        headers: { 'x-fixture-role': ROLES[1] },
+        payload: BODY
+      });
+      expect(response.statusCode).toBe(expected);
+      if (paused) {
+        expect(response.headers['cache-control']).toBe('private, no-store');
+      }
+    }
+    const unauthenticated = await instance.inject({
+      method: 'POST',
+      url: '/v1/fixture/write',
+      payload: BODY
+    });
+    expect(unauthenticated.statusCode).toBe(401);
+    expect(calls.handler).toBe(1);
+  });
+
+  it('maps a failed control read to a no-store 503 without exposing its error', async () => {
+    const instance = await boot(
+      false,
+      new ReadThroughMaintenanceGate(() =>
+        Promise.reject(new Error('synthetic control reader failure'))
+      )
+    );
+    const response = await instance.inject({
+      method: 'POST',
+      url: '/v1/fixture/write',
+      payload: BODY
+    });
+    expect(response.statusCode).toBe(503);
+    expect(response.headers['cache-control']).toBe('private, no-store');
+    expect(response.body).toContain('SERVICE_UNAVAILABLE');
+    expect(response.body).not.toContain('synthetic control reader failure');
+    expect(calls.gate).toBe(1);
+    expect(calls.handler).toBe(0);
+  });
 
   it.each([false, true])(
     'checks real business HTTP dispatch with gate closed=%s',

@@ -17,6 +17,190 @@ function response(body: unknown, status = 200): Response {
 }
 
 describe('GoogleCalendarEventReader', () => {
+  it('pages the whole calendar without hiding events without our marker', async () => {
+    const fetchImpl = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
+      Promise.resolve(
+        response({
+          items: [
+            {
+              id: 'owned',
+              extendedProperties: { private: { beauessenceLinkId: 'link_a' } }
+            },
+            { id: 'unmarked', recurrence: ['RRULE:FREQ=DAILY'] }
+          ],
+          nextPageToken: 'next-page'
+        })
+      )
+    );
+    const reader = new GoogleCalendarEventReader(
+      'synthetic',
+      () => Promise.resolve('synthetic-token'),
+      fetchImpl
+    );
+    await expect(
+      reader.listWholeCalendarInventory(2, 'page-a')
+    ).resolves.toEqual({
+      events: [
+        { id: 'owned', linkId: 'link_a', recurring: false },
+        { id: 'unmarked', recurring: true }
+      ],
+      nextPageToken: 'next-page'
+    });
+    const request = fetchImpl.mock.calls[0]?.[0];
+    if (typeof request !== 'string') throw new Error('Expected URL string.');
+    const url = new URL(request);
+    expect(url.searchParams.get('maxResults')).toBe('2');
+    expect(url.searchParams.get('pageToken')).toBe('page-a');
+    expect(url.searchParams.get('singleEvents')).toBe('false');
+    expect(url.searchParams.get('showDeleted')).toBe('true');
+    expect(url.searchParams.has('privateExtendedProperty')).toBe(false);
+    expect(url.searchParams.has('timeMin')).toBe(false);
+    expect(url.searchParams.has('timeMax')).toBe(false);
+  });
+
+  it('fails closed on an oversized full-calendar page', async () => {
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(response({ items: [{ id: 'a' }, { id: 'b' }] }))
+    );
+    const reader = new GoogleCalendarEventReader(
+      'synthetic',
+      () => Promise.resolve('synthetic-token'),
+      fetchImpl
+    );
+    await expect(reader.listWholeCalendarInventory(1)).rejects.toThrow(
+      'exceeded its bound'
+    );
+  });
+
+  it('reads a Firestore-designated original even without link metadata', async () => {
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(
+        response({
+          id: 'original',
+          etag: '"v1"',
+          status: 'confirmed',
+          summary: 'synthetic',
+          start: { dateTime: '2026-11-06T01:00:00Z' },
+          end: { dateTime: '2026-11-06T01:30:00Z' }
+        })
+      )
+    );
+    const reader = new GoogleCalendarEventReader(
+      'synthetic',
+      () => Promise.resolve('synthetic-token'),
+      fetchImpl
+    );
+    await expect(
+      reader.getReconciliationOriginal('original', 'link_a')
+    ).resolves.toMatchObject({
+      id: 'original',
+      linkId: 'link_a',
+      etag: '"v1"'
+    });
+  });
+
+  it.each([
+    { id: 'other', etag: '"v1"', status: 'cancelled' },
+    {
+      id: 'original',
+      etag: '"v1"',
+      status: 'cancelled',
+      extendedProperties: { private: { beauessenceLinkId: 'other_link' } }
+    }
+  ])(
+    'rejects a returned original with a different ID or link',
+    async (body: unknown) => {
+      const fetchImpl = vi.fn(() => Promise.resolve(response(body)));
+      const reader = new GoogleCalendarEventReader(
+        'synthetic',
+        () => Promise.resolve('synthetic-token'),
+        fetchImpl
+      );
+      await expect(
+        reader.getReconciliationOriginal('original', 'link_a')
+      ).rejects.toThrow();
+    }
+  );
+
+  it('reads a strict paginated reconciliation inventory by link', async () => {
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(
+        response({
+          items: [
+            {
+              id: 'event-a',
+              etag: '"v1"',
+              status: 'confirmed',
+              summary: 'synthetic',
+              start: { dateTime: '2026-11-06T01:00:00Z' },
+              end: { dateTime: '2026-11-06T01:30:00Z' },
+              creator: { email: 'worker@synthetic.invalid' },
+              extendedProperties: { private: { beauessenceLinkId: 'link_a' } }
+            }
+          ],
+          nextPageToken: 'next-page'
+        })
+      )
+    );
+    const reader = new GoogleCalendarEventReader(
+      'synthetic',
+      () => Promise.resolve('synthetic-token'),
+      fetchImpl
+    );
+    await expect(
+      reader.listReconciliationEvents('link_a', 'page-a')
+    ).resolves.toEqual({
+      events: [
+        {
+          id: 'event-a',
+          etag: '"v1"',
+          status: 'confirmed',
+          title: 'synthetic',
+          linkId: 'link_a',
+          linkMarker: 'link_a',
+          creatorEmail: 'worker@synthetic.invalid',
+          startsAt: '2026-11-06T01:00:00Z',
+          endsAt: '2026-11-06T01:30:00Z'
+        }
+      ],
+      nextPageToken: 'next-page'
+    });
+    const url = new URL(String(fetchImpl.mock.calls[0]?.[0]));
+    expect(url.searchParams.get('privateExtendedProperty')).toBe(
+      'beauessenceLinkId=link_a'
+    );
+    expect(url.searchParams.get('pageToken')).toBe('page-a');
+    expect(url.searchParams.get('showDeleted')).toBe('true');
+    expect(url.searchParams.has('timeMin')).toBe(false);
+    expect(url.searchParams.has('timeMax')).toBe(false);
+  });
+
+  it.each([
+    { items: [{ id: 'event-a', etag: '"v1"', status: 'cancelled' }] },
+    {
+      items: [
+        {
+          id: 'event-a',
+          etag: 'W/"v1"',
+          status: 'cancelled',
+          extendedProperties: { private: { beauessenceLinkId: 'link_a' } }
+        }
+      ]
+    },
+    { items: [], nextPageToken: '' },
+    { items: 'invalid' }
+  ])(
+    'fails closed on malformed reconciliation inventory',
+    async (body: unknown) => {
+      const reader = new GoogleCalendarEventReader(
+        'synthetic',
+        () => Promise.resolve('synthetic-token'),
+        vi.fn(() => Promise.resolve(response(body)))
+      );
+      await expect(reader.listReconciliationEvents('link_a')).rejects.toThrow();
+    }
+  );
+
   it('uses bounded filters only for full sync and never logs raw error bodies', async () => {
     const fetchImpl = vi.fn(() =>
       Promise.resolve(response({ items: [], nextSyncToken: 'next-token' }))
@@ -205,6 +389,16 @@ describe('GoogleCalendarEventWriter', () => {
     const fetchImpl = vi
       .fn()
       .mockResolvedValueOnce(response({}, 409))
+      .mockResolvedValueOnce(
+        response(
+          {
+            id: 'calpilotevent001',
+            etag: '"etag-001"',
+            extendedProperties: { private: { beauessenceLinkId: 'block_001' } }
+          },
+          200
+        )
+      )
       .mockResolvedValueOnce(response({}, 200));
     const writer = new GoogleCalendarEventWriter(
       'calendar@example.invalid',
@@ -218,11 +412,105 @@ describe('GoogleCalendarEventWriter', () => {
       endsAt: '2026-09-02T07:00:00.000Z',
       linkId: 'block_001'
     });
-    expect(fetchImpl).toHaveBeenCalledTimes(2);
-    expect(fetchImpl.mock.calls[1]?.[1]?.method).toBe('PATCH');
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    expect(fetchImpl.mock.calls[1]?.[1]?.method).toBe('GET');
+    expect(fetchImpl.mock.calls[2]?.[1]?.method).toBe('PATCH');
     expect(
-      JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body))
+      new Headers(fetchImpl.mock.calls[2]?.[1]?.headers).get('If-Match')
+    ).toBe('"etag-001"');
+    expect(
+      JSON.parse(String(fetchImpl.mock.calls[2]?.[1]?.body))
     ).not.toHaveProperty('id');
+  });
+
+  it('deletes only with the etag of the matching link and stops on 412', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        response(
+          {
+            id: 'calpilotevent001',
+            etag: '"etag-001"',
+            extendedProperties: { private: { beauessenceLinkId: 'block_001' } }
+          },
+          200
+        )
+      )
+      .mockResolvedValueOnce(response({}, 412));
+    const writer = new GoogleCalendarEventWriter(
+      'calendar@example.invalid',
+      () => Promise.resolve('token'),
+      fetchImpl
+    );
+    await expect(
+      writer.remove('calpilotevent001', 'block_001')
+    ).rejects.toEqual(
+      expect.objectContaining({ status: 412, retryable: false })
+    );
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(fetchImpl.mock.calls[1]?.[1]?.method).toBe('DELETE');
+    expect(
+      new Headers(fetchImpl.mock.calls[1]?.[1]?.headers).get('If-Match')
+    ).toBe('"etag-001"');
+  });
+
+  it('does not delete when the stored link differs', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      response(
+        {
+          id: 'calpilotevent001',
+          etag: '"etag-001"',
+          extendedProperties: { private: { beauessenceLinkId: 'another_link' } }
+        },
+        200
+      )
+    );
+    const writer = new GoogleCalendarEventWriter(
+      'calendar@example.invalid',
+      () => Promise.resolve('token'),
+      fetchImpl
+    );
+    await expect(
+      writer.remove('calpilotevent001', 'block_001')
+    ).rejects.toThrow(/identity/iu);
+    expect(fetchImpl).toHaveBeenCalledOnce();
+  });
+
+  it('does not fetch a new etag or retry after a patch precondition failure', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(response({}, 409))
+      .mockResolvedValueOnce(
+        response(
+          {
+            id: 'calpilotevent001',
+            etag: '"etag-001"',
+            extendedProperties: { private: { beauessenceLinkId: 'block_001' } }
+          },
+          200
+        )
+      )
+      .mockResolvedValueOnce(response({}, 412));
+    const writer = new GoogleCalendarEventWriter(
+      'calendar@example.invalid',
+      () => Promise.resolve('token'),
+      fetchImpl
+    );
+    await expect(
+      writer.upsert({
+        eventId: 'calpilotevent001',
+        title: '[忙碌] 會議',
+        startsAt: '2026-09-02T06:00:00.000Z',
+        endsAt: '2026-09-02T07:00:00.000Z',
+        linkId: 'block_001'
+      })
+    ).rejects.toEqual(
+      expect.objectContaining({ status: 412, retryable: false })
+    );
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    expect(
+      new Headers(fetchImpl.mock.calls[2]?.[1]?.headers).get('If-Match')
+    ).toBe('"etag-001"');
   });
 
   it('updates the existing event with If-Match and never sends insert-only id', async () => {

@@ -2,10 +2,12 @@ import type {
   ListSlotsResponse,
   PublishScheduleRequest
 } from '@beauessence/contracts';
-import type {
-  PublishedScheduleSnapshot,
-  SchedulePublicationRequest,
-  SlotSnapshot
+import {
+  isUtcIsoTimestamp,
+  SLOT_DURATION_MINUTES,
+  type PublishedScheduleSnapshot,
+  type SchedulePublicationRequest,
+  type SlotSnapshot
 } from '@beauessence/domain';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -46,7 +48,8 @@ function createBoundary(
     publishedAt: null,
     schedule: null
   },
-  occupied: readonly SlotSnapshot[] = []
+  occupied: readonly SlotSnapshot[] = [],
+  nowUtc = '2029-12-15T09:00:00.000Z'
 ) {
   const publish = vi.fn<
     (request: SchedulePublicationRequest) => Promise<PublishedScheduleResult>
@@ -74,7 +77,7 @@ function createBoundary(
   const service = new ScheduleApplicationService(
     repository,
     authorization,
-    { nowUtc: () => '2029-12-15T09:00:00.000Z' },
+    { nowUtc: () => nowUtc },
     { next: () => 'corr_schedule_001' }
   );
   return {
@@ -87,6 +90,55 @@ function createBoundary(
 }
 
 describe('ScheduleApplicationService', () => {
+  describe('UTC caller admission', () => {
+    const published: PublishedScheduleSnapshot = {
+      publishedVersion: 1,
+      publishedAt: '2026-01-01T00:00:00Z',
+      schedule: SCHEDULE
+    };
+
+    it.each([
+      '2026-02-30T00:00:00Z',
+      '2026-01-01T24:00:00Z',
+      '2026-01-01T00:00:00',
+      '2026-01-01T08:00:00+08:00',
+      'Jan 1 2026 GMT'
+    ])(
+      'rejects clock %s through both callers without publishing',
+      async (nowUtc) => {
+        const { service, publish } = createBoundary(published, [], nowUtc);
+        await expect(service.publish(COMMAND, AUTH)).rejects.toMatchObject({
+          code: 'INVALID_VALUE'
+        });
+        expect(publish).not.toHaveBeenCalled();
+        await expect(service.listSlots(AUTH, 'initial')).rejects.toMatchObject({
+          code: 'INVALID_VALUE'
+        });
+        expect(publish).not.toHaveBeenCalled();
+      }
+    );
+
+    it.each(['2028-02-29T00:00:00Z', '2028-02-29T00:00:00.123456789Z'])(
+      'accepts clock %s and returns canonical slot intervals',
+      async (nowUtc) => {
+        const { service, publish } = createBoundary(published, [], nowUtc);
+        await service.publish(COMMAND, AUTH);
+        expect(publish).toHaveBeenCalledWith(
+          expect.objectContaining({ requestedAt: nowUtc })
+        );
+        const listed = await service.listSlots(AUTH, 'initial');
+        expect(listed.slots.length).toBeGreaterThan(0);
+        for (const slot of listed.slots) {
+          expect(isUtcIsoTimestamp(slot.startsAt)).toBe(true);
+          expect(isUtcIsoTimestamp(slot.endsAt)).toBe(true);
+          expect(Date.parse(slot.endsAt) - Date.parse(slot.startsAt)).toBe(
+            SLOT_DURATION_MINUTES * 60_000
+          );
+        }
+      }
+    );
+  });
+
   it('publishes with server-owned audit and the IP-001 horizon window', async () => {
     const { service, publish, assertCanPublish } = createBoundary();
     await expect(service.publish(COMMAND, AUTH)).resolves.toEqual({

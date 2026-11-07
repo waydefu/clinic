@@ -71,33 +71,47 @@ describe('planRetentionOperation', () => {
     });
   });
 
-  it('restores before the exact expiry and rejects restoration at expiry', () => {
-    const common = {
-      operation: 'restore' as const,
-      resourceId: 'resource_001',
-      state: 'archived' as const,
-      archivedAt: '2030-01-01T00:00:00.000Z',
-      recoverableUntil: '2030-01-31T00:00:00.000Z',
-      legalHold: false,
-      policy
-    };
-    expect(
-      planRetentionOperation({
-        ...common,
-        requestId: 'request_003',
-        nowAt: '2030-01-30T23:59:59.999Z',
-        proof: { ...proof, requestId: 'request_003' }
-      })
-    ).toMatchObject({ resultingState: 'active', archivedAt: null });
-    expect(() =>
-      planRetentionOperation({
-        ...common,
-        requestId: 'request_004',
-        nowAt: '2030-01-31T00:00:00.000Z',
-        proof: { ...proof, requestId: 'request_004' }
-      })
-    ).toThrow(/expired/);
-  });
+  it.each([
+    {
+      label: 'before expiry',
+      requestId: 'request_003',
+      nowAt: '2030-01-30T23:59:59.999Z'
+    },
+    {
+      label: 'at expiry',
+      requestId: 'request_004',
+      nowAt: '2030-01-31T00:00:00.000Z'
+    },
+    {
+      label: 'after expiry',
+      requestId: 'request_010',
+      nowAt: '2032-01-01T00:00:00.000Z'
+    }
+  ])(
+    'restores to active $label the exact recovery cutoff',
+    ({ requestId, nowAt }: { requestId: string; nowAt: string }) => {
+      expect(
+        planRetentionOperation({
+          operation: 'restore',
+          resourceId: 'resource_001',
+          requestId,
+          state: 'archived',
+          nowAt,
+          archivedAt: '2030-01-01T00:00:00.000Z',
+          recoverableUntil: '2030-01-31T00:00:00.000Z',
+          legalHold: false,
+          policy,
+          proof: { ...proof, requestId }
+        })
+      ).toMatchObject({
+        operation: 'restore',
+        resultingState: 'active',
+        archivedAt: null,
+        recoverableUntil: null,
+        idempotency: 'new_operation'
+      });
+    }
+  );
 
   it('allows restoration without re-authentication while preserving the cutoff', () => {
     expect(
@@ -120,6 +134,38 @@ describe('planRetentionOperation', () => {
         }
       })
     ).toMatchObject({ resultingState: 'active', idempotency: 'new_operation' });
+  });
+
+  it('rejects restoration without authorization', () => {
+    expect(() =>
+      planRetentionOperation({
+        operation: 'restore',
+        resourceId: 'resource_001',
+        requestId: 'request_011',
+        state: 'archived',
+        nowAt: '2030-01-30T00:00:00.000Z',
+        archivedAt: '2030-01-01T00:00:00.000Z',
+        recoverableUntil: '2030-01-31T00:00:00.000Z',
+        legalHold: false,
+        policy,
+        proof: { ...proof, requestId: 'request_011', authorized: false }
+      })
+    ).toThrow(DomainError);
+  });
+
+  it('rejects restoration after permanent deletion', () => {
+    expect(() =>
+      planRetentionOperation({
+        operation: 'restore',
+        resourceId: 'resource_001',
+        requestId: 'request_012',
+        state: 'permanently_deleted',
+        nowAt: '2030-02-01T00:00:00.000Z',
+        legalHold: false,
+        policy,
+        proof: { ...proof, requestId: 'request_012' }
+      })
+    ).toThrow(DomainError);
   });
 
   it('requires the explicit delete gate after the recovery window', () => {
@@ -204,11 +250,12 @@ describe('planRetentionCalendarProjections', () => {
     { appointmentId: 'appt_none', decision: 'not_required', dueAt: null }
   ];
 
-  it('re-projects every appointment and dated reminder on archive', () => {
+  it('removes every appointment event and dated reminder on archive, tied to the archive episode', () => {
     const jobs = planRetentionCalendarProjections({
       operation: 'archive',
       requestId: 'retention_abc',
       at,
+      archivedAt: at,
       appointments,
       followUps
     });
@@ -217,17 +264,93 @@ describe('planRetentionCalendarProjections', () => {
     ).toEqual([
       ['appt_done', 'completed'],
       ['appt_gone', 'cancelled'],
-      ['appt_done', 'follow_up_required']
+      ['appt_done', 'follow_up_not_required']
     ]);
     expect(jobs[0]?.idempotencyKey).toBe(
       calendarEventIdForAppointment('appt_done')
     );
     expect(jobs[2]).toMatchObject({
       followUpSourceId: 'appt_done',
-      startsAt: '2030-02-01T02:00:00.000Z',
       idempotencyKey: calendarEventIdForFollowUp('appt_done')
     });
+    expect(jobs[2]).not.toHaveProperty('startsAt');
+    for (const job of jobs) {
+      expect(job).toMatchObject({
+        retentionOperation: 'archive',
+        retentionArchivedAt: at
+      });
+    }
     expect(new Set(jobs.map((job) => job.id)).size).toBe(jobs.length);
+  });
+
+  it('refuses an archive plan without its episode marker', () => {
+    expect(() =>
+      planRetentionCalendarProjections({
+        operation: 'archive',
+        requestId: 'retention_abc',
+        at,
+        appointments,
+        followUps
+      })
+    ).toThrow(DomainError);
+  });
+
+  it('re-adds only open future appointments and still-due reminders on restore', () => {
+    const jobs = planRetentionCalendarProjections({
+      operation: 'restore',
+      requestId: 'retention_abc',
+      at,
+      appointments: [
+        // Old history from before the archive is never rebuilt.
+        {
+          id: 'appt_old',
+          status: 'completed',
+          startsAt: '2027-01-01T02:00:00.000Z'
+        },
+        {
+          id: 'appt_old_open',
+          status: 'confirmed',
+          startsAt: '2027-01-01T02:00:00.000Z'
+        },
+        {
+          id: 'appt_cancelled',
+          status: 'cancelled',
+          startsAt: '2030-03-01T02:00:00.000Z'
+        },
+        { id: 'appt_no_date', status: 'confirmed' },
+        { id: 'appt_bad_date', status: 'confirmed', startsAt: 'soon' },
+        {
+          id: 'appt_new',
+          status: 'confirmed',
+          startsAt: '2030-03-01T02:00:00.000Z'
+        },
+        { id: 'appt_now', status: 'arrived', startsAt: at }
+      ],
+      followUps: [
+        {
+          appointmentId: 'appt_late',
+          decision: 'required',
+          dueAt: '2030-02-01T02:00:00.000Z'
+        },
+        {
+          appointmentId: 'appt_lapsed',
+          decision: 'required',
+          dueAt: '2029-12-31T23:59:59.999Z'
+        }
+      ]
+    });
+    expect(
+      jobs.map((job) => [job.appointmentId, job.appointmentStatus])
+    ).toEqual([
+      ['appt_new', 'confirmed'],
+      ['appt_now', 'arrived'],
+      ['appt_late', 'follow_up_required']
+    ]);
+    for (const job of jobs) {
+      expect(job).toMatchObject({ retentionOperation: 'restore' });
+      expect(job).not.toHaveProperty('retentionArchivedAt');
+    }
+    expect(jobs[2]).toMatchObject({ startsAt: '2030-02-01T02:00:00.000Z' });
   });
 
   it('cancels every appointment event and dated reminder on permanent delete', () => {
@@ -251,6 +374,7 @@ describe('planRetentionCalendarProjections', () => {
       operation: 'archive',
       requestId: 'retention_abc',
       at,
+      archivedAt: at,
       appointments,
       followUps
     });
@@ -258,7 +382,14 @@ describe('planRetentionCalendarProjections', () => {
       operation: 'restore',
       requestId: 'retention_abc',
       at,
-      appointments,
+      appointments: [
+        ...appointments,
+        {
+          id: 'appt_next',
+          status: 'confirmed',
+          startsAt: '2030-03-01T02:00:00.000Z'
+        }
+      ],
       followUps
     });
     for (const job of [...archive, ...restore]) {
@@ -285,6 +416,7 @@ describe('planRetentionCalendarProjections', () => {
         operation: 'archive',
         requestId: 'retention_abc',
         at,
+        archivedAt: at,
         appointments: [{ id: 'bad/id', status: 'confirmed' }],
         followUps: []
       })

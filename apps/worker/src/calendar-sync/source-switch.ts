@@ -82,6 +82,10 @@ export class CalendarSourceSwitchService {
       this.repository.loadConfiguration(),
       this.repository.findSource(sourceId)
     ]);
+    if (!isUtcIsoTimestamp(configuration.expiresAt))
+      throw new CalendarSourceSwitchError(
+        'Calendar source expiry must be a UTC timestamp.'
+      );
     if (Date.parse(now) >= Date.parse(configuration.expiresAt))
       throw new CalendarSourceSwitchError(
         'CAL-PILOT source switching expired.'
@@ -120,6 +124,10 @@ export class CalendarSourceSwitchService {
       this.repository.findSource(input.sourceId),
       this.repository.findPreflight(input.preflightId)
     ]);
+    if (!isUtcIsoTimestamp(configuration.expiresAt))
+      throw new CalendarSourceSwitchError(
+        'Calendar source expiry must be a UTC timestamp.'
+      );
     if (Date.parse(now) >= Date.parse(configuration.expiresAt))
       throw new CalendarSourceSwitchError(
         'CAL-PILOT source switching expired.'
@@ -135,6 +143,10 @@ export class CalendarSourceSwitchService {
     )
       throw new CalendarSourceSwitchError(
         'Calendar source configuration changed; run preflight again.'
+      );
+    if (!isUtcIsoTimestamp(preflight.expiresAt))
+      throw new CalendarSourceSwitchError(
+        'Calendar source preflight expiry must be a UTC timestamp.'
       );
     if (Date.parse(now) >= Date.parse(preflight.expiresAt))
       throw new CalendarSourceSwitchError(

@@ -5,6 +5,7 @@ import {
   type Firestore
 } from 'firebase-admin/firestore';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { syntheticOpenMaintenanceControl } from '../helpers/synthetic-maintenance.js';
 
 import {
   COLLECTIONS,
@@ -193,6 +194,7 @@ describe('local logical restore drill', () => {
     const calendar = new InMemoryCalendar();
     const outbox = createInternalTestOutboxRuntime({
       db: restored,
+      maintenanceControl: syntheticOpenMaintenanceControl(),
       calendar,
       clock: () => '2029-12-15T09:00:00.000Z',
       random: () => 0.5

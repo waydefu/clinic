@@ -201,6 +201,46 @@ function closeRequest(
 }
 
 describe('payroll period close and adjustment', () => {
+  it.each([
+    ['2026-08', '2026-08-31T15:59:59.999Z'],
+    ['2026-09', '2026-08-31T16:00:00.000Z'],
+    ['2027-01', '2026-12-31T15:59:59.999Z'],
+    ['0001-09', '0001-09-15T00:00:00.000Z'],
+    ['0000-09', '0000-09-15T00:00:00.000Z']
+  ])(
+    'refuses to lock %s before its Taipei month ends at %s',
+    (payrollPeriod, requestedAt) => {
+      expect(() =>
+        planPayrollPeriodClose(
+          closeRequest({ payrollPeriod, requestedAt }),
+          [],
+          undefined
+        )
+      ).toThrow(
+        expect.objectContaining<Partial<DomainError>>({ code: 'INVALID_VALUE' })
+      );
+    }
+  );
+
+  it.each([
+    ['2026-08', '2026-08-31T16:00:00.000Z'],
+    ['2026-12', '2026-12-31T16:00:00.000Z'],
+    ['2028-02', '2028-02-29T16:00:00.000Z'],
+    ['0001-08', '0001-09-01T00:00:00.000Z'],
+    ['0000-08', '0000-09-01T00:00:00.000Z']
+  ])('allows an ended Taipei month %s at %s', (payrollPeriod, requestedAt) => {
+    const plan = planPayrollPeriodClose(
+      closeRequest({ payrollPeriod, requestedAt }),
+      [],
+      undefined
+    );
+    expect(plan.snapshot).toMatchObject({
+      payrollPeriod,
+      closedAt: requestedAt,
+      status: 'locked'
+    });
+  });
+
   it('locks a period with the unique credit count for that manager', () => {
     const plan = planPayrollPeriodClose(
       closeRequest(),
@@ -255,15 +295,21 @@ describe('payroll period close and adjustment', () => {
     expect(plan.snapshot.creditCount).toBe(1);
   });
 
-  it('refuses to close a period that is already closed', () => {
+  it.each([
+    '2026-08-31T15:59:59.999Z',
+    '2026-09-01T00:00:00.000Z',
+    '2026-10-01T00:00:00.000Z'
+  ])('leaves an already locked snapshot unchanged at %s', (requestedAt) => {
     const first = planPayrollPeriodClose(
       closeRequest(),
       [creditFor('patient-001')],
       undefined
     );
+    const before = structuredClone(first.snapshot);
+    Object.freeze(first.snapshot);
     expect(() =>
       planPayrollPeriodClose(
-        closeRequest(),
+        closeRequest({ requestedAt }),
         [creditFor('patient-001')],
         first.snapshot
       )
@@ -272,7 +318,36 @@ describe('payroll period close and adjustment', () => {
         code: 'PAYROLL_PERIOD_ALREADY_CLOSED'
       })
     );
+    expect(first.snapshot).toEqual(before);
   });
+
+  it.each(['Jul 25 2026 Z', 'not-a-date'])(
+    'rejects an adjustment against a close whose closedAt is %s',
+    (closedAt) => {
+      const closed = planPayrollPeriodClose(
+        closeRequest(),
+        [creditFor('patient-001')],
+        undefined
+      ).snapshot;
+      expect(() =>
+        planPayrollAdjustment(
+          {
+            managerId: 'manager-001',
+            payrollPeriod: '2026-08',
+            delta: 1,
+            audit: { ...CLOSE_AUDIT, reasonCode: 'late_completion' },
+            requestedAt: '2026-09-05T00:00:00.000Z',
+            idempotency: { ...CLOSE_IDEMPOTENCY, scope: 'payroll:adjust' }
+          },
+          { ...closed, closedAt }
+        )
+      ).toThrow(
+        expect.objectContaining<Partial<DomainError>>({
+          code: 'INVALID_TIMESTAMP'
+        })
+      );
+    }
+  );
 
   it('records an adjustment as a ledger entry and leaves the snapshot untouched', () => {
     const closed = planPayrollPeriodClose(

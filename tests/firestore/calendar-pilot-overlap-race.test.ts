@@ -8,6 +8,7 @@ import {
   LOCAL_FIREBASE_PROJECT_ID,
   requireLocalFirestoreEmulatorTarget
 } from '../../packages/config/src/index.js';
+import { CalendarAvailabilityResponseSchema } from '../../packages/contracts/src/index.js';
 
 requireLocalFirestoreEmulatorTarget(process.env['FIRESTORE_EMULATOR_HOST']);
 const projectId = LOCAL_FIREBASE_PROJECT_ID;
@@ -97,6 +98,121 @@ beforeEach(async () => {
 });
 
 describe('CAL-PILOT overlapping creation race', () => {
+  it('keeps stored-only fields out of query results without rewriting records', async () => {
+    await repository.createSyntheticAppointment(
+      createCommand({
+        idempotencyKey: 'public_query_fields',
+        patientCode: 'A17'
+      })
+    );
+    const appointments = await db
+      .collection('calendar_pilot_appointments')
+      .get();
+    expect(appointments.size).toBe(1);
+    const appointment = appointments.docs[0]!;
+    await appointment.ref.update({ syntheticInternalOnly: 'synthetic marker' });
+    const appointmentBefore = (await appointment.ref.get()).data();
+    const candidate = db
+      .collection('calendar_pilot_candidates')
+      .doc('synthetic_candidate');
+    await candidate.set({
+      candidateId: candidate.id,
+      kind: 'create_block',
+      status: 'pending',
+      displayLabel: 'Synthetic busy',
+      startsAt: FIRST_START,
+      endsAt: '2026-09-10T05:30:00.000Z',
+      sourceVersion: 1,
+      expectedVersion: 0,
+      validationErrors: [],
+      createdAt: NOW,
+      before: null,
+      mirrorId: 'synthetic_mirror',
+      expectedEtag: 'synthetic_etag',
+      sourceId: 'calendar_source_primary',
+      parsed: {
+        ok: true,
+        kind: 'busy',
+        busyReason: 'other',
+        displayLabel: 'Synthetic busy',
+        startsAt: FIRST_START,
+        endsAt: '2026-09-10T05:30:00.000Z'
+      },
+      syntheticInternalOnly: 'synthetic marker'
+    });
+    const candidateBefore = (await candidate.get()).data();
+    const outboxBefore = (await db.collection('calendar_pilot_outbox').get())
+      .size;
+
+    const publicAppointments = await repository.listSyntheticAppointments();
+    const publicCandidates = await repository.listCandidates();
+    expect(publicAppointments).toMatchObject([
+      { appointmentId: appointment.id, patientCode: 'A17', version: 1 }
+    ]);
+    expect(publicCandidates).toMatchObject([
+      { candidateId: candidate.id, kind: 'create_block' }
+    ]);
+    expect(publicAppointments[0]).not.toHaveProperty('syntheticInternalOnly');
+    expect(publicCandidates[0]).not.toHaveProperty('syntheticInternalOnly');
+    expect(publicCandidates[0]).not.toHaveProperty('parsed');
+    expect((await appointment.ref.get()).data()).toEqual(appointmentBefore);
+    expect((await candidate.get()).data()).toEqual(candidateBefore);
+    expect((await db.collection('calendar_pilot_outbox').get()).size).toBe(
+      outboxBefore
+    );
+  });
+
+  it('validates availability document IDs without rewriting blocks or outbox', async () => {
+    await repository.createSyntheticAppointment(
+      createCommand({ patientCode: 'A17', idempotencyKey: 'dto-boundary-001' })
+    );
+    const availability = await repository.getAvailability(NOW);
+    expect(
+      CalendarAvailabilityResponseSchema.safeParse(availability).success
+    ).toBe(true);
+    const blocks = await db
+      .collection('calendar_pilot_availability_blocks')
+      .get();
+    expect(blocks.size).toBe(1);
+    const original = blocks.docs[0]!;
+    expect(availability.blocks[0]?.blockId).toBe(original.id);
+    const before = original.data();
+    const invalid = db
+      .collection('calendar_pilot_availability_blocks')
+      .doc('x'.repeat(256));
+    await invalid.set(before);
+    const outboxBefore = (await db.collection('calendar_pilot_outbox').get())
+      .size;
+
+    await expect(repository.getAvailability(NOW)).rejects.toThrow(
+      'Unreadable CAL-PILOT record.'
+    );
+    expect((await original.ref.get()).data()).toEqual(before);
+    expect((await invalid.get()).data()).toEqual(before);
+    expect((await db.collection('calendar_pilot_outbox').get()).size).toBe(
+      outboxBefore
+    );
+  });
+
+  it('validates synthetic patient document IDs without rewriting the catalog', async () => {
+    await expect(repository.listSyntheticPatients()).resolves.toEqual([
+      { patientCode: 'A17' },
+      { patientCode: 'A18' }
+    ]);
+    const invalid = db.collection('calendar_pilot_patients').doc('A31');
+    const patient = { enabled: true };
+    await invalid.set(patient);
+    const seeded = db.collection('calendar_pilot_patients').doc('A17');
+    const seededBefore = (await seeded.get()).data();
+
+    await expect(repository.listSyntheticPatients()).rejects.toThrow(
+      'Unreadable CAL-PILOT record.'
+    );
+    expect((await invalid.get()).data()).toEqual(patient);
+    expect((await seeded.get()).data()).toEqual(seededBefore);
+    expect((await db.collection('calendar_pilot_outbox').get()).size).toBe(0);
+  });
+
   it('rejects an unreadable overlap before any appointment or outbox write', async () => {
     const block = {
       kind: 'busy',

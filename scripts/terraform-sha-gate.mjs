@@ -1,31 +1,11 @@
-import { accessSync, constants, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { terraformCliStatus } from './cli-on-path.mjs';
 import { ISOLATED_C1_FIREBASE_AUTH_DOMAIN } from './internal-test-c1-identity.mjs';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-
-function hasCli(name) {
-  const dirs = (process.env.PATH ?? '').split(':').filter(Boolean);
-  for (const dir of dirs) {
-    try {
-      accessSync(join(dir, name), constants.X_OK);
-      return true;
-    } catch {
-      /* keep scanning PATH */
-    }
-  }
-  return false;
-}
-
-function terraformCliStatus() {
-  return {
-    gcloud: hasCli('gcloud'),
-    terraform: hasCli('terraform'),
-    firebase: hasCli('firebase')
-  };
-}
 
 export const C_SLICE_TERRAFORM_MODULES = [
   {

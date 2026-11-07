@@ -8,8 +8,7 @@ import { validateSchedule } from './schedule-engine.js';
 import { CALENDAR_PILOT_SCHEDULE } from '../vendor/domain/calendar-sync.js';
 
 const STAGE_F_SCHEDULE_IDEMPOTENCY = 'stagef_c1_schedule_publish_v0';
-const STAGE_F_HOST_PATTERN =
-  /^beauessence-clinic-stg-c1a01--internal-preproduction-[a-z0-9-]+\.web\.app$/i;
+const STAGE_F_HOST_PATTERN = /^beauessence-clinic-stg-c1a01\.web\.app$/i;
 
 export function isStageFM11Enabled(location = globalThis.location) {
   if (location === undefined || location === null) return false;
@@ -57,7 +56,9 @@ function returnSessionForRequest(mapped) {
   if (!publicBookingLocation()) return undefined;
   const patientRead =
     mapped.method === 'GET' &&
-    /^\/v1\/bookings(?:\/[A-Za-z0-9_-]+)?$/.test(mapped.url);
+    /^\/v1\/bookings(?:\/[A-Za-z0-9_-]+|\?cursor=[A-Za-z0-9_-]+)?$/.test(
+      mapped.url
+    );
   const patientWrite =
     mapped.method === 'POST' &&
     /^\/v1\/bookings\/[A-Za-z0-9_-]+\/(cancel|reschedule)$/.test(mapped.url);
@@ -357,7 +358,15 @@ export function applyDeleteContractWrite(state, path, result) {
 async function requestV1(
   fetchImpl,
   mapped,
-  { signal, csrfToken, accessToken, toError, credentials, returnSession }
+  {
+    signal,
+    csrfToken,
+    accessToken,
+    toError,
+    credentials,
+    returnSession,
+    onResponse
+  }
 ) {
   const generation = calendarPilotAuthenticationGeneration();
   const isPublic = publicBookingLocation();
@@ -404,7 +413,38 @@ async function requestV1(
       message: typeof error?.message === 'string' ? error.message : undefined
     });
   }
+  onResponse?.(response);
   return payload;
+}
+
+// Five pages of 50 bound what one workbench load costs. If the server still has
+// more after that, the list says so (appointmentsTruncated) instead of passing
+// the loaded rows off as everything.
+const MAX_BOOKING_PAGES = 5;
+
+async function listBookingPages(v1) {
+  const appointments = [];
+  let cursor;
+  for (let page = 0; page < MAX_BOOKING_PAGES; page += 1) {
+    let next;
+    const body = await v1(
+      {
+        url:
+          cursor === undefined
+            ? '/v1/bookings'
+            : `/v1/bookings?cursor=${encodeURIComponent(cursor)}`,
+        method: 'GET'
+      },
+      (response) => {
+        const header = response?.headers?.get?.('x-next-cursor');
+        if (typeof header === 'string' && header !== '') next = header;
+      }
+    );
+    appointments.push(...(body?.appointments ?? []));
+    if (next === undefined) return { appointments, truncated: false };
+    cursor = next;
+  }
+  return { appointments, truncated: true };
 }
 
 /**
@@ -437,7 +477,7 @@ export function createInternalTestBookingTransport({
         : (globalThis.sessionStorage?.getItem('calPilotCsrf') ?? undefined));
   globalThis.sessionStorage?.removeItem('internalTestIdToken');
   const resolvedAccess = accessToken ?? (() => undefined);
-  const v1 = async (mapped) => {
+  const v1 = async (mapped, onResponse) => {
     const isPublic = publicBookingLocation();
     return requestV1(fetchImpl, mapped, {
       signal: undefined,
@@ -445,7 +485,8 @@ export function createInternalTestBookingTransport({
       accessToken: isPublic ? undefined : resolvedAccess(),
       toError,
       credentials: isPublic ? 'omit' : resolvedCredentials,
-      returnSession: returnSessionForRequest(mapped)
+      returnSession: returnSessionForRequest(mapped),
+      onResponse
     });
   };
 
@@ -495,17 +536,15 @@ export function createInternalTestBookingTransport({
         url: '/v1/schedule',
         method: 'GET'
       });
-      const listed = await v1({
-        url: '/v1/bookings',
-        method: 'GET'
-      });
+      const listed = await listBookingPages(v1);
       const withSchedule =
         published === undefined
           ? next
           : overlayPublishedSchedule(next, published);
       return {
         ...withSchedule,
-        appointments: (listed?.appointments ?? []).map((item) => ({
+        ...(listed.truncated ? { appointmentsTruncated: true } : {}),
+        appointments: listed.appointments.map((item) => ({
           id: item.appointmentId,
           slotId: item.slotId ?? item.appointmentId,
           startsAt: item.startsAt,
@@ -513,6 +552,9 @@ export function createInternalTestBookingTransport({
           bookingKind: item.bookingKind,
           status: item.status,
           intakeNationality: item.intakeNationality,
+          ...(item.identityReviewRequired === true
+            ? { identityReviewRequired: true }
+            : {}),
           // 患者在預約表單自填的備註（BOOKING-NOTE-STORAGE-2026-09-29）：
           // 伺服器只在櫃台清單回傳；這裡不帶，工作臺就永遠看不到它。
           ...(typeof item.patientNote === 'string' && item.patientNote !== ''

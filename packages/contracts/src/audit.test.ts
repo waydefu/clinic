@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AuditEventV2Schema } from './audit.js';
+import { AuditActionSchema, AuditEventV2Schema } from './audit.js';
 
 const EVENT = {
   eventId: 'audit_appointment_001_confirmed',
@@ -24,6 +24,25 @@ const EVENT = {
 } as const;
 
 describe('AuditEventV2Schema', () => {
+  it('preserves the v2 action vocabulary and order', () => {
+    expect(AuditActionSchema.options).toEqual([
+      'appointment_confirmed',
+      'cancellation_requested',
+      'appointment_cancelled',
+      'appointment_arrived',
+      'appointment_completed',
+      'appointment_no_show',
+      'appointment_rescheduled',
+      'appointment_deleted',
+      'follow_up_decided',
+      'schedule_published',
+      'case_manager_assigned',
+      'case_manager_reassigned',
+      'payroll_period_closed',
+      'payroll_adjustment_recorded'
+    ]);
+  });
+
   it('accepts the complete v2 envelope', () => {
     expect(AuditEventV2Schema.parse(EVENT)).toEqual(EVENT);
   });

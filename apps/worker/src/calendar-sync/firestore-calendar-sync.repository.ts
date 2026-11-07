@@ -3,16 +3,19 @@ import { randomUUID } from 'node:crypto';
 import type { Firestore } from 'firebase-admin/firestore';
 import {
   CalendarPilotAppointmentRecordSchema,
+  CalendarPilotCandidateSyncRecordSchema,
   CalendarPilotLeaseConfigurationRecordSchema,
   CalendarPilotMirrorRecordSchema,
   CalendarPilotSourceConfigurationSchema,
   CalendarPilotSourceRecordSchema,
   CalendarPilotSyncStateRecordSchema,
   CalendarSourcePreflightResponseSchema,
+  hasCalendarPilotWorkerLease,
   parseCalendarPilotRecord
 } from '@beauessence/contracts';
 import {
   CALENDAR_INBOUND_AUDIT_ACTIONS,
+  isUtcIsoTimestamp,
   type ParsedCalendarEntry
 } from '@beauessence/domain';
 import { opaqueLookupIdentity } from '@beauessence/domain/patient-lookup-identity.node';
@@ -263,6 +266,7 @@ export class FirestoreCalendarSyncRepository
     if (
       typeof status !== 'string' ||
       typeof startsAt !== 'string' ||
+      !isUtcIsoTimestamp(startsAt) ||
       (bookingKind !== 'initial' && bookingKind !== 'follow_up')
     )
       return undefined;
@@ -350,7 +354,16 @@ export class FirestoreCalendarSyncRepository
       const existingCandidates = new Map(
         candidateDocuments
           .filter((document) => document.exists)
-          .map((document) => [document.id, document.data()] as const)
+          .map(
+            (document) =>
+              [
+                document.id,
+                parseCalendarPilotRecord(
+                  CalendarPilotCandidateSyncRecordSchema,
+                  document.data()
+                )
+              ] as const
+          )
       );
 
       const suggestionLookupReads = await Promise.all(
@@ -611,6 +624,8 @@ export class FirestoreCalendarSyncRepository
       );
       if (configuration.version !== input.expectedVersion)
         throw new Error('CAL-PILOT source generation changed.');
+      if (hasCalendarPilotWorkerLease(configuration))
+        throw new Error('CAL-PILOT worker lease is held.');
       transaction.update(this.configRef(), {
         activeSourceId: input.sourceId,
         previousSourceId: configuration.activeSourceId,

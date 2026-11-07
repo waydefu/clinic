@@ -29,6 +29,7 @@ type ContractBooking = {
   slotId?: string;
   patientId?: string;
   patientNote?: string;
+  identityReviewRequired?: boolean;
 };
 
 type CreateStub = 'closed' | ContractBooking;
@@ -1652,6 +1653,62 @@ test.describe('internal-test booking occupancy overlay', () => {
     await expect(card.locator('.note-chip')).toHaveText(`患者：${note}`);
     // 備註是文字，不是標記：沒有任何元素是從備註內容長出來的。
     await expect(card.locator('b')).toHaveCount(0);
+  });
+
+  test('shows only the server identity review flag without archived patient refs', async ({
+    page
+  }) => {
+    const startsAt = upcomingIso(48);
+    const privateArchivedPatientId = 'patient_private_archived_001';
+    await stubV1(
+      page,
+      { slots: [] },
+      'closed',
+      {},
+      {
+        listBookings: () => [
+          {
+            appointmentId: 'appointment_identity_review',
+            status: 'confirmed',
+            startsAt,
+            bookingKind: 'initial',
+            slotId: 'slot_identity_review',
+            patientId: 'patient_opaque_review',
+            identityReviewRequired: true,
+            pendingArchivedPatientIds: [privateArchivedPatientId]
+          } as ContractBooking,
+          {
+            appointmentId: 'appointment_identity_legacy',
+            status: 'confirmed',
+            startsAt,
+            bookingKind: 'initial',
+            slotId: 'slot_identity_legacy',
+            patientId: 'patient_opaque_legacy'
+          }
+        ]
+      }
+    );
+
+    await login(page, undefined, {
+      fresh: true,
+      path: '/staff?internalTestBooking=1'
+    });
+    await page.evaluate(() => {
+      window.location.hash = 'appointments-section';
+    });
+    await showAllAppointments(page);
+
+    const flaggedCard = page.locator(
+      '[data-appointment-card="appointment_identity_review"]'
+    );
+    const legacyCard = page.locator(
+      '[data-appointment-card="appointment_identity_legacy"]'
+    );
+    await expect(flaggedCard).toContainText('待櫃台確認');
+    await expect(legacyCard).not.toContainText('待櫃台確認');
+    expect(await page.locator('body').innerHTML()).not.toContain(
+      privateArchivedPatientId
+    );
   });
 
   // AUD-15：API 模式的資料會送到診所的測試伺服器；頁面不能照樣說「只存在

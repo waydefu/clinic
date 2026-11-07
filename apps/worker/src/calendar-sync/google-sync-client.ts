@@ -1,3 +1,6 @@
+import { OpaqueIdentifierSchema } from '@beauessence/contracts';
+
+import type { ReconcileEvent } from './calendar-pilot-reconciler.js';
 import {
   CalendarSyncTokenExpiredError,
   type CalendarEventPage,
@@ -63,6 +66,99 @@ function safeEvent(value: unknown): ExternalCalendarEvent | undefined {
     ...(start === undefined ? {} : { start }),
     ...(end === undefined ? {} : { end }),
     ...(extendedProperties === undefined ? {} : { extendedProperties })
+  };
+}
+
+function parseReconcileEvent(
+  value: unknown,
+  linkId: string,
+  requireLink: boolean
+): ReconcileEvent {
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    throw new Error('Calendar reconciliation event is invalid.');
+  const event = value as Record<string, unknown>;
+  const extended = event['extendedProperties'];
+  if (
+    extended !== undefined &&
+    (typeof extended !== 'object' ||
+      extended === null ||
+      Array.isArray(extended))
+  )
+    throw new Error('Calendar reconciliation event identity is invalid.');
+  const privateFields =
+    typeof extended === 'object' && extended !== null
+      ? (extended as Record<string, unknown>)['private']
+      : undefined;
+  if (
+    privateFields !== undefined &&
+    (typeof privateFields !== 'object' ||
+      privateFields === null ||
+      Array.isArray(privateFields))
+  )
+    throw new Error('Calendar reconciliation event identity is invalid.');
+  const storedLink =
+    typeof privateFields === 'object' && privateFields !== null
+      ? (privateFields as Record<string, unknown>)['beauessenceLinkId']
+      : undefined;
+  if (
+    typeof event['id'] !== 'string' ||
+    event['id'] === '' ||
+    typeof event['etag'] !== 'string' ||
+    !/^"[\x21\x23-\x7e]*"$/u.test(event['etag']) ||
+    (event['status'] !== 'confirmed' && event['status'] !== 'cancelled') ||
+    (requireLink
+      ? storedLink !== linkId
+      : storedLink !== undefined && storedLink !== linkId)
+  )
+    throw new Error('Calendar reconciliation event identity is invalid.');
+  const creator = event['creator'];
+  const organizer = event['organizer'];
+  const creatorEmail =
+    typeof creator === 'object' && creator !== null
+      ? (creator as Record<string, unknown>)['email']
+      : undefined;
+  const organizerEmail =
+    typeof organizer === 'object' && organizer !== null
+      ? (organizer as Record<string, unknown>)['email']
+      : undefined;
+  const proof = {
+    ...(typeof storedLink === 'string' ? { linkMarker: storedLink } : {}),
+    ...(typeof creatorEmail === 'string' ? { creatorEmail } : {}),
+    ...(typeof organizerEmail === 'string' ? { organizerEmail } : {})
+  };
+  if (event['status'] === 'cancelled')
+    return {
+      id: event['id'],
+      etag: event['etag'],
+      linkId,
+      status: 'cancelled',
+      ...proof
+    };
+  const start = event['start'];
+  const end = event['end'];
+  const startsAt =
+    typeof start === 'object' && start !== null
+      ? (start as Record<string, unknown>)['dateTime']
+      : undefined;
+  const endsAt =
+    typeof end === 'object' && end !== null
+      ? (end as Record<string, unknown>)['dateTime']
+      : undefined;
+  if (
+    typeof event['summary'] !== 'string' ||
+    typeof startsAt !== 'string' ||
+    typeof endsAt !== 'string'
+  )
+    throw new Error('Calendar reconciliation event fields are invalid.');
+  return {
+    id: event['id'],
+    etag: event['etag'],
+    linkId,
+    status: 'confirmed',
+    title: event['summary'],
+    startsAt,
+    endsAt,
+    ...proof
   };
 }
 
@@ -168,6 +264,188 @@ export class GoogleCalendarEventReader implements CalendarEventReader {
       ...(nextSyncToken === undefined ? {} : { nextSyncToken })
     };
   }
+
+  public async listReconciliationEvents(
+    linkId: string,
+    pageToken?: string
+  ): Promise<{
+    readonly events: readonly ReconcileEvent[];
+    readonly nextPageToken?: string;
+  }> {
+    OpaqueIdentifierSchema.parse(linkId);
+    if (pageToken !== undefined && pageToken.trim() === '')
+      throw new Error('Calendar reconciliation page token is invalid.');
+    const url = new URL(
+      `${API_BASE}/calendars/${encodeURIComponent(this.calendarId)}/events`
+    );
+    url.searchParams.set('singleEvents', 'true');
+    url.searchParams.set('showDeleted', 'true');
+    url.searchParams.set('maxResults', '100');
+    url.searchParams.set(
+      'privateExtendedProperty',
+      `beauessenceLinkId=${linkId}`
+    );
+    if (pageToken !== undefined) url.searchParams.set('pageToken', pageToken);
+    const token = await this.getAccessToken();
+    const response = await this.fetchImpl(url.toString(), {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS)
+    });
+    if (!response.ok)
+      throw new GoogleCalendarSyncError(
+        `Google Calendar list failed (${response.status}).`,
+        response.status,
+        retryableStatus(response.status)
+      );
+    const raw = await responseJson(response);
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw))
+      throw new Error('Calendar reconciliation inventory is invalid.');
+    const body = raw as Record<string, unknown>;
+    const next = body['nextPageToken'];
+    if (
+      (next !== undefined &&
+        (typeof next !== 'string' || next.trim() === '')) ||
+      (body['items'] !== undefined && !Array.isArray(body['items']))
+    )
+      throw new Error('Calendar reconciliation inventory is invalid.');
+    const events = ((body['items'] ?? []) as unknown[]).map((item) =>
+      parseReconcileEvent(item, linkId, true)
+    );
+    return {
+      events,
+      ...(typeof next === 'string' ? { nextPageToken: next } : {})
+    };
+  }
+
+  public async listWholeCalendarInventory(
+    maxItems: number,
+    pageToken?: string
+  ): Promise<{
+    readonly events: readonly {
+      readonly id: string;
+      readonly linkId?: string;
+      readonly recurring: boolean;
+    }[];
+    readonly nextPageToken?: string;
+  }> {
+    if (
+      !Number.isSafeInteger(maxItems) ||
+      maxItems < 1 ||
+      maxItems > 100 ||
+      (pageToken !== undefined && pageToken.trim() === '')
+    )
+      throw new Error('Calendar reconciliation inventory bounds are invalid.');
+    const url = new URL(
+      `${API_BASE}/calendars/${encodeURIComponent(this.calendarId)}/events`
+    );
+    url.searchParams.set('singleEvents', 'false');
+    url.searchParams.set('showDeleted', 'true');
+    url.searchParams.set('maxResults', String(maxItems));
+    if (pageToken !== undefined) url.searchParams.set('pageToken', pageToken);
+    const token = await this.getAccessToken();
+    const response = await this.fetchImpl(url.toString(), {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS)
+    });
+    if (!response.ok)
+      throw new GoogleCalendarSyncError(
+        `Google Calendar list failed (${response.status}).`,
+        response.status,
+        retryableStatus(response.status)
+      );
+    const raw = await responseJson(response);
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw))
+      throw new Error('Calendar reconciliation inventory is invalid.');
+    const body = raw as Record<string, unknown>;
+    const next = body['nextPageToken'];
+    if (
+      (next !== undefined &&
+        (typeof next !== 'string' || next.trim() === '')) ||
+      (body['items'] !== undefined && !Array.isArray(body['items']))
+    )
+      throw new Error('Calendar reconciliation inventory is invalid.');
+    const items = (body['items'] ?? []) as unknown[];
+    if (items.length > maxItems)
+      throw new Error('Calendar reconciliation inventory exceeded its bound.');
+    const events = items.map((item) => {
+      if (typeof item !== 'object' || item === null || Array.isArray(item))
+        throw new Error('Calendar reconciliation inventory event is invalid.');
+      const event = item as Record<string, unknown>;
+      if (typeof event['id'] !== 'string' || event['id'].trim() === '')
+        throw new Error('Calendar reconciliation inventory event is invalid.');
+      const extended = event['extendedProperties'];
+      if (
+        extended !== undefined &&
+        (typeof extended !== 'object' ||
+          extended === null ||
+          Array.isArray(extended))
+      )
+        throw new Error('Calendar reconciliation inventory event is invalid.');
+      const privateFields =
+        typeof extended === 'object' && extended !== null
+          ? (extended as Record<string, unknown>)['private']
+          : undefined;
+      if (
+        privateFields !== undefined &&
+        (typeof privateFields !== 'object' ||
+          privateFields === null ||
+          Array.isArray(privateFields))
+      )
+        throw new Error('Calendar reconciliation inventory event is invalid.');
+      const link =
+        typeof privateFields === 'object' && privateFields !== null
+          ? (privateFields as Record<string, unknown>)['beauessenceLinkId']
+          : undefined;
+      if (link !== undefined && !OpaqueIdentifierSchema.safeParse(link).success)
+        throw new Error('Calendar reconciliation inventory event is invalid.');
+      return {
+        id: event['id'],
+        recurring:
+          event['recurrence'] !== undefined ||
+          event['recurringEventId'] !== undefined,
+        ...(typeof link === 'string' ? { linkId: link } : {})
+      };
+    });
+    return {
+      events,
+      ...(typeof next === 'string' ? { nextPageToken: next } : {})
+    };
+  }
+
+  public async getReconciliationOriginal(
+    eventId: string,
+    linkId: string
+  ): Promise<ReconcileEvent | undefined> {
+    OpaqueIdentifierSchema.parse(linkId);
+    if (eventId.trim() === '')
+      throw new Error('Calendar original event ID is invalid.');
+    const token = await this.getAccessToken();
+    const response = await this.fetchImpl(
+      `${API_BASE}/calendars/${encodeURIComponent(this.calendarId)}/events/${encodeURIComponent(eventId)}`,
+      {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS)
+      }
+    );
+    if (response.status === 404 || response.status === 410) return undefined;
+    if (!response.ok)
+      throw new GoogleCalendarSyncError(
+        `Google Calendar get failed (${response.status}).`,
+        response.status,
+        retryableStatus(response.status)
+      );
+    const event = parseReconcileEvent(
+      await responseJson(response),
+      linkId,
+      false
+    );
+    if (event.id !== eventId)
+      throw new Error('Calendar original event ID changed.');
+    return event;
+  }
 }
 
 interface CalendarWriteEventBase {
@@ -232,19 +510,29 @@ export class GoogleCalendarEventWriter {
       new Set([409])
     );
     if (inserted.status !== 409) return;
-    await this.update(event);
+    const etag = await this.readEtag(event.eventId, event.linkId);
+    if (etag === undefined)
+      throw new GoogleCalendarSyncError(
+        'Google Calendar event is missing.',
+        404,
+        false
+      );
+    await this.update(event, etag);
   }
 
   public async update(
     event: CalendarWriteEvent,
-    expectedEtag?: string
+    expectedEtag: string,
+    restore = false
   ): Promise<void> {
+    if (!/^"[\x21\x23-\x7e]*"$/u.test(expectedEtag))
+      throw new Error('Calendar event version is unavailable.');
     await this.request(`/events/${encodeURIComponent(event.eventId)}`, {
       method: 'PATCH',
-      body: this.patchBody(event),
-      ...(expectedEtag === undefined
-        ? {}
-        : { headers: { 'If-Match': expectedEtag } })
+      body: restore
+        ? JSON.stringify({ ...this.mutationBody(event), status: 'confirmed' })
+        : this.patchBody(event),
+      headers: { 'If-Match': expectedEtag }
     });
   }
 
@@ -273,10 +561,50 @@ export class GoogleCalendarEventWriter {
     return JSON.stringify(this.mutationBody(event));
   }
 
-  public async remove(eventId: string): Promise<void> {
+  private async readEtag(
+    eventId: string,
+    linkId: string
+  ): Promise<string | undefined> {
+    const response = await this.request(
+      `/events/${encodeURIComponent(eventId)}`,
+      { method: 'GET' },
+      new Set([404, 410])
+    );
+    if (response.status === 404 || response.status === 410) return undefined;
+    const data: unknown = await response.json();
+    if (typeof data !== 'object' || data === null)
+      throw new Error('Calendar event version is unavailable.');
+    const record = data as Record<string, unknown>;
+    const extended = record['extendedProperties'];
+    const privateProperties =
+      typeof extended === 'object' && extended !== null
+        ? (extended as Record<string, unknown>)['private']
+        : undefined;
+    if (
+      record['id'] !== eventId ||
+      typeof record['etag'] !== 'string' ||
+      !/^"[\x21\x23-\x7e]*"$/u.test(record['etag']) ||
+      typeof privateProperties !== 'object' ||
+      privateProperties === null ||
+      (privateProperties as Record<string, unknown>)['beauessenceLinkId'] !==
+        linkId
+    )
+      throw new Error('Calendar event identity or version is unavailable.');
+    return record['etag'];
+  }
+
+  public async remove(eventId: string, linkId: string): Promise<void> {
+    const etag = await this.readEtag(eventId, linkId);
+    if (etag === undefined) return;
+    await this.removeWithEtag(eventId, etag);
+  }
+
+  public async removeWithEtag(eventId: string, etag: string): Promise<void> {
+    if (!/^"[\x21\x23-\x7e]*"$/u.test(etag))
+      throw new Error('Calendar event version is unavailable.');
     await this.request(
       `/events/${encodeURIComponent(eventId)}`,
-      { method: 'DELETE' },
+      { method: 'DELETE', headers: { 'If-Match': etag } },
       new Set([404, 410])
     );
   }
@@ -288,17 +616,15 @@ export class GoogleCalendarEventWriter {
    */
   public async verifyWriteAccess(probeId: string): Promise<void> {
     const eventId = `calpilotpreflight${probeId}`;
-    try {
-      await this.upsert({
-        eventId,
-        title: '[忙碌] 其他',
-        startsAt: '2000-01-01T00:00:00.000Z',
-        endsAt: '2000-01-01T00:01:00.000Z',
-        linkId: `preflight_${probeId}`
-      });
-    } finally {
-      await this.remove(eventId);
-    }
+    const linkId = `preflight_${probeId}`;
+    await this.upsert({
+      eventId,
+      title: '[忙碌] 其他',
+      startsAt: '2000-01-01T00:00:00.000Z',
+      endsAt: '2000-01-01T00:01:00.000Z',
+      linkId
+    });
+    await this.remove(eventId, linkId);
   }
 }
 

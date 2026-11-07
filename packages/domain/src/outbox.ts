@@ -57,6 +57,14 @@ export interface OutboxJob extends OutboxTraceContext {
    * 落在回診目標日期，而非已完成就診的原時間。省略時 worker 退回讀來源預約。
    */
   readonly startsAt?: string;
+  /**
+   * Set only by patient-retention jobs. `archive` removes the event and is
+   * valid only while the patient is still in the archive episode named by
+   * `retentionArchivedAt`; `restore` re-adds a still-needed event and is
+   * skipped whenever the patient is archived again. Anything else is stale.
+   */
+  readonly retentionOperation?: 'archive' | 'restore';
+  readonly retentionArchivedAt?: string;
 }
 
 function assertOpaqueTraceId(
@@ -176,6 +184,24 @@ export function parseOutboxSnapshot(id: string, data: unknown): OutboxJob {
       assertUtcTimestamp(startsAt, 'startsAt');
     }
 
+    const retentionOperation = optionalString(record, 'retentionOperation');
+    if (
+      retentionOperation !== undefined &&
+      retentionOperation !== 'archive' &&
+      retentionOperation !== 'restore'
+    ) {
+      throw new Error();
+    }
+    const retentionArchivedAt = optionalString(record, 'retentionArchivedAt');
+    if (retentionArchivedAt !== undefined) {
+      assertUtcTimestamp(retentionArchivedAt, 'retentionArchivedAt');
+    }
+    // An archive job without its episode marker could not be told from a
+    // stale one: refuse it instead of guessing.
+    if (retentionOperation === 'archive' && retentionArchivedAt === undefined) {
+      throw new Error();
+    }
+
     return {
       id,
       appointmentId,
@@ -188,7 +214,9 @@ export function parseOutboxSnapshot(id: string, data: unknown): OutboxJob {
       ...(followUpSourceId === undefined ? {} : { followUpSourceId }),
       ...(nextAttemptAt === undefined ? {} : { nextAttemptAt }),
       ...(lastError === undefined ? {} : { lastError }),
-      ...(startsAt === undefined ? {} : { startsAt })
+      ...(startsAt === undefined ? {} : { startsAt }),
+      ...(retentionOperation === undefined ? {} : { retentionOperation }),
+      ...(retentionArchivedAt === undefined ? {} : { retentionArchivedAt })
     };
   } catch {
     throw new DomainError('INVALID_VALUE', 'The outbox job is unreadable.');

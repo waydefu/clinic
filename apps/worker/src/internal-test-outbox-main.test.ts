@@ -287,3 +287,15 @@ describe('internal-test outbox HTTP surface', () => {
     }
   });
 });
+
+describe('internal-test outbox production wiring', () => {
+  it('injects the Firestore maintenance control at the entry point', () => {
+    const source = readFileSync(
+      fileURLToPath(new URL('./internal-test-outbox-main.ts', import.meta.url)),
+      'utf8'
+    );
+    expect(source).toContain(
+      'maintenanceControl: createFirestoreMaintenanceControl(db)'
+    );
+  });
+});

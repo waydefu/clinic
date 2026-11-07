@@ -1,3 +1,5 @@
+import { SharedMaintenanceControl } from '@beauessence/domain/maintenance-control.node';
+
 import { ServiceUnavailableError } from '../errors/api-error.js';
 
 export const MAINTENANCE_GATE = 'ApiMaintenanceGate';
@@ -18,6 +20,57 @@ export class StaticMaintenanceGate implements MaintenanceGate {
 
   public assertAvailable(): void {
     if (this.underMaintenance) {
+      throw new ServiceUnavailableError();
+    }
+  }
+}
+
+export interface MaintenanceControlPort {
+  read: () => Promise<unknown>;
+  write: (underMaintenance: boolean) => Promise<void>;
+}
+
+/** Source-only control readback is not worker drain or permission to restore. */
+export async function setMaintenanceControl(
+  control: MaintenanceControlPort,
+  underMaintenance: boolean
+): Promise<void> {
+  if (typeof underMaintenance !== 'boolean')
+    throw new ServiceUnavailableError();
+  try {
+    if (typeof (await control.read()) === 'boolean') {
+      await control.write(underMaintenance);
+      if ((await control.read()) === underMaintenance) return;
+    }
+  } catch {
+    // A lost reply is not permission to blindly restore the previous value.
+  }
+  throw new ServiceUnavailableError();
+}
+
+/** Read boundary only: this does not create or wire an operational shared store. */
+export class ReadThroughMaintenanceGate implements MaintenanceGate {
+  public constructor(private readonly readControl: () => Promise<unknown>) {}
+
+  public async assertAvailable(): Promise<void> {
+    try {
+      if ((await this.readControl()) === false) return;
+    } catch {
+      // A failed control read is not evidence that writes are safe.
+    }
+    throw new ServiceUnavailableError();
+  }
+}
+
+export class ControlledMaintenanceGate implements MaintenanceGate {
+  public constructor(
+    public readonly control = new SharedMaintenanceControl()
+  ) {}
+
+  public async assertAvailable(): Promise<void> {
+    try {
+      await this.control.assertAvailable();
+    } catch {
       throw new ServiceUnavailableError();
     }
   }

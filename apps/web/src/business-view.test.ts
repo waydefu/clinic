@@ -7,7 +7,8 @@ import {
   getBusinessWriteIdempotencyKey,
   observeBusinessAccessChanges,
   requestBusinessApi,
-  requestFreshIdToken
+  requestFreshIdToken,
+  requestPendingDeletionPage
 } from '../public/modules/business-view.js';
 
 function storage(csrf: string | null = 'csrf_test') {
@@ -334,5 +335,72 @@ describe('requestBusinessApi', () => {
       })
     ).rejects.toThrow('資料狀態已變更。');
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+});
+
+// A03 (SOL-RETENTION): the pending-deletion list is read a page at a time; the
+// next page's cursor is the x-next-cursor response header, absent on the last.
+describe('requestPendingDeletionPage', () => {
+  const PATH = '/v1/business-delivery/retention/pending-deletion';
+  const patient = (id: string) => ({
+    patientId: id,
+    archivedAt: '2030-10-01T00:00:00.000Z',
+    restorableUntil: '2030-10-31T00:00:00.000Z',
+    legalHold: false
+  });
+
+  function readerFor(pages: Array<{ patients: unknown[]; next?: string }>) {
+    const urls: string[] = [];
+    const fetchImpl = vi.fn((url: string) => {
+      const page = pages[urls.length];
+      urls.push(url);
+      return Promise.resolve(
+        Response.json(
+          { patients: page?.patients ?? [] },
+          page?.next === undefined
+            ? {}
+            : { headers: { 'x-next-cursor': page.next } }
+        )
+      );
+    });
+    const api = (path: string, options = {}) =>
+      requestBusinessApi(path, { ...options, storage: storage(), fetchImpl });
+    return { api, urls };
+  }
+
+  it('returns the patients and the next cursor, then the last page without one', async () => {
+    const { api, urls } = readerFor([
+      { patients: [patient('patient_a'), patient('patient_b')], next: 'c1' },
+      { patients: [patient('patient_c')] }
+    ]);
+
+    const first = await requestPendingDeletionPage(api, undefined);
+    const second = await requestPendingDeletionPage(api, first.next);
+
+    expect(first.patients.map((item: any) => item.patientId)).toEqual([
+      'patient_a',
+      'patient_b'
+    ]);
+    expect(first.next).toBe('c1');
+    expect(second.patients).toHaveLength(1);
+    expect(second.next).toBeUndefined();
+    expect(urls).toEqual([PATH, `${PATH}?cursor=c1`]);
+  });
+
+  it('encodes the cursor and does not call the hook when the request fails', async () => {
+    const onResponse = vi.fn();
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(
+        Response.json({ error: { message: '失敗' } }, { status: 500 })
+      )
+    );
+    await expect(
+      requestBusinessApi(PATH, { storage: storage(), fetchImpl, onResponse })
+    ).rejects.toThrow('失敗');
+    expect(onResponse).not.toHaveBeenCalled();
+
+    const { api, urls } = readerFor([{ patients: [] }]);
+    await requestPendingDeletionPage(api, 'a b/c');
+    expect(urls).toEqual([`${PATH}?cursor=a%20b%2Fc`]);
   });
 });

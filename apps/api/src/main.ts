@@ -8,8 +8,21 @@ import {
   type NestFastifyApplication
 } from '@nestjs/platform-fastify';
 
+import { getFirestore } from 'firebase-admin/firestore';
+
+import {
+  createFirestoreMaintenanceControl,
+  type SharedMaintenanceControl
+} from '@beauessence/domain/maintenance-control.node';
+
 import { AppModule } from './app.module.js';
 import { fastifyTrustProxy } from './platform/runtime/client-ip.js';
+import { defaultFirebaseApp } from './platform/runtime/firebase-admin-app.js';
+import {
+  MAINTENANCE_GATE,
+  type ControlledMaintenanceGate
+} from './platform/runtime/maintenance-gate.js';
+import { trackMaintenanceRequests } from './platform/runtime/maintenance-requests.js';
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', '::1', 'localhost']);
 
@@ -53,9 +66,13 @@ export function resolveListenHost(
   return host;
 }
 
-export async function createApplication(): Promise<NestFastifyApplication> {
+export async function createApplication(
+  maintenanceControl?: SharedMaintenanceControl
+): Promise<NestFastifyApplication> {
   const app = await NestFactory.create<NestFastifyApplication>(
-    AppModule,
+    maintenanceControl === undefined
+      ? AppModule
+      : AppModule.withMaintenanceControl(maintenanceControl),
     new FastifyAdapter({
       logger: false,
       trustProxy: fastifyTrustProxy()
@@ -63,13 +80,19 @@ export async function createApplication(): Promise<NestFastifyApplication> {
     { logger: false }
   );
 
+  trackMaintenanceRequests(
+    app.getHttpAdapter().getInstance(),
+    app.get<ControlledMaintenanceGate>(MAINTENANCE_GATE).control
+  );
   app.setGlobalPrefix('v1');
   return app;
 }
 
 async function bootstrap(): Promise<void> {
   const host = resolveListenHost();
-  const app = await createApplication();
+  const app = await createApplication(
+    createFirestoreMaintenanceControl(getFirestore(defaultFirebaseApp()))
+  );
   await app.listen({
     host,
     port: Number(process.env['PORT'] ?? '3000')

@@ -71,9 +71,10 @@ production 權限與告警仍未演練。上線前必須做一次完整 tabletop
 MAINTENANCE_WRITE_QUIESCENCE = RUNTIME_PROOF_REQUIRED
 ```
 
-`StaticMaintenanceGate`／合成 HTTP guard 的拒絕測試只證明程式邊界；預設
-注入值仍是 `false`，不是可操作的共用旗標。前端維護畫面與 IP-001 gate
-也不能代替所有 API instance、相關寫入路徑及 worker 的停寫／排空證據。
+`ControlledMaintenanceGate`／共用到期 reader 已提供來源准入；預設 unknown 必須拒絕。
+舊 `StaticMaintenanceGate` 只保留相容，不是可操作的共用旗標。API hooks 與 worker
+callback 計數也不是 provider 排空或分散式停寫證據；abort／timeout 保留未知。
+前端維護畫面與 IP-001 gate 不能代替所有 API instance、相關寫入路徑及 worker 的停寫／排空證據。
 欠缺共用控制接線、worker 暫停／排空或驗證證據時，狀態為 **BLOCKED**，
 不得以「已開維護模式」宣稱已止血，亦不得因此進入還原或資料切換。
 後續 shared-flag／部署／停寫操作必須在另行核准的 exact-SHA isolated 包內

@@ -47,6 +47,10 @@
 
 ### 2.1 內部
 
+> **2026-08-04 歷史快照：** 下表的「現況」是當時描述，不是現行角色或權限。
+> 角色單一來源為 [`roles.ts`](../../packages/domain/src/roles.ts)；臨床資料仍須遵守
+> [Safety Floor](../../AGENTS.md#safety-floor-normative) 與[決策登錄](phase-1-decision-register.md)。
+
 | 角色 | 主要工作 | 現況 |
 | --- | --- | --- |
 | 管理者 | 全域設定、員工權限、金額、稽核 | 已實作（瀏覽器端稱 `admin`） |
@@ -67,6 +71,10 @@
 ## 3. 產品核心能力
 
 目前產品在外界看來是一個預約網站。長期方向是一套診所營運系統，預約只是其中一環：
+
+> **2026-08-04 歷史快照：** 下表及其後的阻擋數量保留當時描述，不是現況。
+> 現行內部測試與 production 的範圍、未決事項及資料限制以
+> [Safety Floor](../../AGENTS.md#safety-floor-normative) 和[決策登錄](phase-1-decision-register.md)為準。
 
 | 能力 | 目前狀態 | 阻擋 |
 | --- | --- | --- |
@@ -113,10 +121,13 @@
 2. **Firestore 直接存取預設拒絕**（[ADR-0003](../adr/0003-firestore-direct-client-access-is-deny-by-default.md)）。
 3. **外部效果一律走 outbox**。Firestore 交易內不呼叫 Calendar、Email、LINE、Meta 或 NAS。
 
-第三點的推論：Google Calendar 目前是**投影，不是可用性的真實來源**
-（[ADR-0002](../adr/0002-calendar-is-a-projection-not-the-lock.md)）。要改成雙向同步
-是架構方向的反轉，必須以新 ADR 取代 ADR-0002，並先關閉 D-016——詳見
-[日曆雙向同步規劃](../architecture/calendar-bidirectional-sync-plan.md)。
+第三點的推論：Google Calendar 是**投影，不是可用性的真實來源**
+（[ADR-0002](../adr/0002-calendar-is-a-projection-not-the-lock.md)）。外部變更僅進
+候選佇列供人工審查，仍由系統經正常 domain command 決定，與此 ADR 相容；若要
+自動套用或讓 Calendar 成為共同權威，才須以新的 accepted ADR 取代此決定。
+production 的 D-009／D-016 仍待核准；CAL-PILOT 僅是另行核准的合成資料例外，
+不授權正式上線。詳見[日曆雙向同步規劃](../architecture/calendar-bidirectional-sync-plan.md)
+與[決策登錄](phase-1-decision-register.md)。
 
 未來資料庫遷移至 NAS＋MySQL 的抽象層屬 P7，目前只記錄方向：因為寫入已收斂在
 domain API 後方，儲存層替換的影響面被限制在 repository port，不擴散到 UI。

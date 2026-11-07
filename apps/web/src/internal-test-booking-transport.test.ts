@@ -1,10 +1,16 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   httpTransportError,
   isInternalTestBookingEnabled
 } from '../public/modules/api-client.js';
-import { renderAppointments } from '../public/modules/admin-view.js';
+import {
+  appointmentPage,
+  renderAppointments
+} from '../public/modules/admin-view.js';
 import { DEFAULT_BLOCKED_TIMES } from '../public/modules/constants.js';
 import { initialState } from '../public/modules/state-schema.js';
 import { CALENDAR_PILOT_SCHEDULE } from '../public/vendor/domain/calendar-sync.js';
@@ -169,8 +175,7 @@ describe('return-patient context isolation', () => {
 
 const M11_LOCATION = {
   protocol: 'https:',
-  hostname:
-    'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app',
+  hostname: 'beauessence-clinic-stg-c1a01.web.app',
   pathname: '/staff',
   search: '?internalTestBooking=1&stageFM11=1'
 };
@@ -184,9 +189,9 @@ const EXPECTED_M11_SCHEDULE = {
 };
 
 describe('isInternalTestBookingEnabled', () => {
-  it('rejects default and sibling hosts even with a copied opt-in query', () => {
+  it('rejects expired preview and sibling hosts even with a copied opt-in query', () => {
     for (const hostname of [
-      'beauessence-clinic-stg-c1a01.web.app',
+      'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app',
       'beauessence-clinic-stg-c1a01.firebaseapp.com',
       'beauessence-clinic-stg-c1a01--unapproved-channel.web.app',
       `${M11_LOCATION.hostname}.unapproved.example`,
@@ -224,7 +229,7 @@ describe('isInternalTestBookingEnabled', () => {
     ).toBe(false);
   });
 
-  it('opts in with the explicit query, or automatically on isolated C1 preview', () => {
+  it('opts in with the explicit query, or automatically on the fixed C1 host', () => {
     expect(
       isInternalTestBookingEnabled({
         protocol: 'https:',
@@ -239,8 +244,7 @@ describe('isInternalTestBookingEnabled', () => {
         protocol: 'https:',
         pathname: '/staff',
         port: '',
-        hostname:
-          'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app',
+        hostname: 'beauessence-clinic-stg-c1a01.web.app',
         search: ''
       })
     ).toBe(true);
@@ -256,12 +260,12 @@ describe('isStageFM11Enabled', () => {
       { ...M11_LOCATION, hostname: 'localhost' },
       {
         ...M11_LOCATION,
-        hostname: 'beauessence-clinic-stg-c1a01.web.app'
+        hostname:
+          'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app'
       },
       {
         ...M11_LOCATION,
-        hostname:
-          'beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.example.com'
+        hostname: 'beauessence-clinic-stg-c1a01.example.com'
       },
       { ...M11_LOCATION, search: '?internalTestBooking=1' },
       { ...M11_LOCATION, search: '?stageFM11=1' },
@@ -1137,7 +1141,10 @@ describe('createInternalTestBookingTransport', () => {
     const SYNTHETIC_NOTE = '合成備註：想問術後照護';
     const HOSTILE_NOTE = '<img src=x onerror=alert(1)>合成備註';
 
-    function stateWithListedNotes(notes: Array<string | undefined>) {
+    function stateWithListedNotes(
+      notes: Array<string | undefined>,
+      identityReviewValues: unknown[] = []
+    ) {
       const local = vi.fn(() => Promise.resolve({ version: 8, slots: [] }));
       const fetchImpl = vi.fn((url) => {
         if (url === '/v1/slots') {
@@ -1170,7 +1177,17 @@ describe('createInternalTestBookingTransport', () => {
                   bookingKind: 'initial',
                   slotId: `slot_20300102_120${index}`,
                   patientId: `patient_opaque_00${index + 1}`,
-                  ...(patientNote === undefined ? {} : { patientNote })
+                  ...(patientNote === undefined ? {} : { patientNote }),
+                  ...(identityReviewValues[index] === undefined
+                    ? {}
+                    : { identityReviewRequired: identityReviewValues[index] }),
+                  ...(identityReviewValues[index] === true
+                    ? {
+                        pendingArchivedPatientIds: [
+                          'patient_private_archived_001'
+                        ]
+                      }
+                    : {})
                 }))
               })
           });
@@ -1213,6 +1230,34 @@ describe('createInternalTestBookingTransport', () => {
         '患者：&lt;img src=x onerror=alert(1)&gt;合成備註'
       );
       expect(html).not.toContain('<img');
+    });
+
+    it('maps and renders only a true identity review flag, not private archived refs', async () => {
+      const state: any = await stateWithListedNotes(
+        [undefined, undefined, undefined, undefined],
+        [true, undefined, false, ' true']
+      );
+      expect(state.appointments[0]).toMatchObject({
+        id: 'appointment_api_001',
+        patientId: 'patient_opaque_001',
+        identityReviewRequired: true
+      });
+      for (const appointment of state.appointments.slice(1)) {
+        expect(appointment).not.toHaveProperty('identityReviewRequired');
+      }
+      expect(state.appointments[0]).not.toHaveProperty(
+        'pendingArchivedPatientIds'
+      );
+
+      const render: any = initialState();
+      render.appointments = state.appointments;
+      const html = renderAppointments(render, {
+        status: 'all',
+        kind: 'all',
+        query: ''
+      });
+      expect(html.match(/待櫃台確認/g)).toHaveLength(1);
+      expect(html).not.toContain('patient_private_archived_001');
     });
   });
 });
@@ -1394,5 +1439,121 @@ describe('applyDeleteContractWrite', () => {
       })
     ).toBe(state);
     expect(state.appointments).toEqual([{ id: 'appointment_001' }]);
+  });
+});
+
+// K7 / C07 (SOL-LIST): the server list is capped at 50 rows per page and says
+// "more" with an x-next-cursor header. The workbench follows it (bounded) and,
+// when rows are still missing, labels its count as a minimum instead of a total.
+describe('staff list follows the continuation cursor', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const bookingRows = (from: number, count: number) =>
+    Array.from({ length: count }, (_, index) => ({
+      appointmentId: `appointment_page_${String(from + index).padStart(3, '0')}`,
+      status: 'confirmed',
+      startsAt: '2030-01-02T04:00:00.000Z',
+      endsAt: '2030-01-02T04:30:00.000Z',
+      bookingKind: 'initial',
+      slotId: `slot_page_${from + index}`,
+      patientId: 'patient_opaque_001'
+    }));
+
+  /** `pages` rows-per-page; every page except the last carries a cursor. */
+  function stateWithBookingPages(pageSizes: number[], neverEnding = false) {
+    vi.stubGlobal('location', { pathname: '/clinic' });
+    vi.stubGlobal('sessionStorage', {
+      getItem: () => null,
+      setItem: () => undefined,
+      removeItem: () => undefined
+    });
+    const bookingUrls: string[] = [];
+    const fetchImpl = vi.fn((url: string) => {
+      if (url === '/v1/slots')
+        return Promise.resolve(Response.json({ slots: [] }));
+      if (url === '/v1/schedule')
+        return Promise.resolve(
+          Response.json({
+            publishedVersion: 1,
+            publishedAt: '2030-01-01T00:00:00.000Z',
+            schedule: initialState().schedule
+          })
+        );
+      if (url.startsWith('/v1/bookings')) {
+        const index = bookingUrls.length;
+        bookingUrls.push(url);
+        const size = pageSizes[Math.min(index, pageSizes.length - 1)] ?? 0;
+        const more = neverEnding || index < pageSizes.length - 1;
+        return Promise.resolve(
+          Response.json(
+            { appointments: bookingRows(index * 50, size) },
+            more ? { headers: { 'x-next-cursor': `cursor_${index}` } } : {}
+          )
+        );
+      }
+      return Promise.resolve(
+        Response.json({ error: { code: 'NOT_FOUND' } }, { status: 404 })
+      );
+    });
+    const state = createInternalTestBookingTransport({
+      local: vi.fn(() => Promise.resolve({ version: 8, slots: [] })),
+      toError: httpTransportError,
+      fetchImpl
+    })('/state');
+    return { state: state as Promise<any>, bookingUrls };
+  }
+
+  it('merges every page without omissions or repeats and does not flag a complete list', async () => {
+    const { state, bookingUrls } = stateWithBookingPages([50, 50, 20]);
+
+    const loaded = await state;
+
+    expect(bookingUrls).toEqual([
+      '/v1/bookings',
+      '/v1/bookings?cursor=cursor_0',
+      '/v1/bookings?cursor=cursor_1'
+    ]);
+    expect(loaded.appointments.map((item: any) => item.id)).toEqual(
+      bookingRows(0, 120).map((row) => row.appointmentId)
+    );
+    expect(loaded).not.toHaveProperty('appointmentsTruncated');
+  });
+
+  it('stops after five pages and marks the list truncated', async () => {
+    const { state, bookingUrls } = stateWithBookingPages([50], true);
+
+    const loaded = await state;
+
+    expect(bookingUrls).toHaveLength(5);
+    expect(loaded.appointments).toHaveLength(250);
+    expect(loaded.appointmentsTruncated).toBe(true);
+  });
+
+  it('keeps the loaded count a count of loaded rows when the list is truncated', async () => {
+    const { state } = stateWithBookingPages([50], true);
+    const loaded = await state;
+    const render: any = initialState();
+    render.appointments = loaded.appointments;
+
+    const page = appointmentPage(render, {
+      status: 'all',
+      kind: 'all',
+      query: ''
+    });
+
+    expect(loaded.appointmentsTruncated).toBe(true);
+    expect(page.totalCount).toBe(250);
+  });
+
+  // The workbench count sits in admin-bootstrap.js, which has no DOM harness
+  // here; pin the wording to the flag so a loaded count is never called a total.
+  it('words the workbench count as a minimum when the state is truncated', () => {
+    const bootstrap = readFileSync(
+      fileURLToPath(new URL('../public/admin-bootstrap.js', import.meta.url)),
+      'utf8'
+    );
+    expect(bootstrap).toContain(
+      "`${state.appointmentsTruncated ? '至少' : '共'} ${page.totalCount} 筆結果"
+    );
   });
 });

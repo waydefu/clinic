@@ -8,6 +8,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./maintenance-control.node": {
+      "types": "./dist/maintenance-control.node.d.ts",
+      "default": "./dist/maintenance-control.node.js"
+    },
     "./patient-lookup-identity.node": {
       "types": "./dist/patient-lookup-identity.node.d.ts",
       "default": "./dist/patient-lookup-identity.node.js"

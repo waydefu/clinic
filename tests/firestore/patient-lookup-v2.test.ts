@@ -1,5 +1,9 @@
 import { deleteApp, initializeApp, type App } from 'firebase-admin/app';
-import { getFirestore, type Firestore } from 'firebase-admin/firestore';
+import {
+  getFirestore,
+  Timestamp,
+  type Firestore
+} from 'firebase-admin/firestore';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
@@ -54,6 +58,60 @@ afterAll(async () => {
 });
 
 describe('patient lookup v2 on the Firestore emulator', () => {
+  it('admits stored return-session UTC before releasing an identity', async () => {
+    const directory = new FirestorePatientDirectory(db);
+    const patientId = 'synthetic_return_session_utc';
+    const patient = db.collection(PATIENT_COLLECTIONS.patients).doc(patientId);
+    const session = db
+      .collection(PATIENT_COLLECTIONS.returnSessions)
+      .doc('rs_synthetic_return_session_utc');
+    await patient.set({ patientId });
+    for (const [expiresAt, nowUtc, active] of [
+      ['2028-02-29T00:00:00.500Z', '2028-02-29T00:00:00Z', true],
+      ['2028-02-29T00:00:00Z', '2028-02-29T00:00:00.001Z', false],
+      ['2028-02-29T00:00:00Z', '2028-02-29T00:00:00.000Z', false],
+      ['2028-02-29T00:00:00.100Z', '2028-02-29T00:00:00.100000000Z', false],
+      ['2028-02-29T00:00:00.100000000Z', '2028-02-29T00:00:00.100Z', false],
+      ['Jan 1 2030 GMT', '2028-02-29T00:00:00Z', false],
+      ['2030-02-30T00:00:00Z', '2028-02-29T00:00:00Z', false],
+      [
+        '2028-02-29T00:00:00.100000001Z',
+        '2028-02-29T00:00:00.100000000Z',
+        true
+      ],
+      [
+        '2028-02-29T00:00:00.100000000Z',
+        '2028-02-29T00:00:00.100000001Z',
+        false
+      ],
+      [
+        '2028-02-29T00:00:00.1000000010Z',
+        '2028-02-29T00:00:00.100000001Z',
+        false
+      ]
+    ] as const) {
+      await session.set({ schemaVersion: 1, patientId, expiresAt });
+      expect(await directory.readReturnSession(session.id, nowUtc)).toBe(
+        active ? patientId : undefined
+      );
+      expect((await session.get()).data()?.['expiresAt']).toBe(expiresAt);
+    }
+    await patient.update({ archivedAt: NOW });
+    await session.set({
+      schemaVersion: 1,
+      patientId,
+      expiresAt: '2028-02-29T00:00:00.500Z'
+    });
+    expect(
+      await directory.readReturnSession(session.id, '2028-02-29T00:00:00Z')
+    ).toBeUndefined();
+    await patient.delete();
+    expect(
+      await directory.readReturnSession(session.id, '2028-02-29T00:00:00Z')
+    ).toBeUndefined();
+    await session.delete();
+  });
+
   it('lets concurrent creates for the same person converge on one patient', async () => {
     const directory = new FirestorePatientDirectory(db);
     const phone = '0900000101';
@@ -164,5 +222,45 @@ describe('patient contact storage on the Firestore emulator', () => {
       nextId('unused')
     );
     expect((await ref.get()).data()?.['phoneDigits']).toBe('0900000999');
+  });
+});
+
+// A05 (SOL-TTL): a new return session carries a Timestamp `purgeAt` 24 hours
+// after its expiry, which a Firestore TTL policy can act on; the string
+// `expiresAt` stays the field the service checks.
+describe('return session purge time on the Firestore emulator', () => {
+  it('stores a Timestamp purgeAt beside the unchanged string expiresAt', async () => {
+    const directory = new FirestorePatientDirectory(db);
+    const phone = '0900000977';
+    const patientId = await directory.resolveFromIntake(
+      intake(phone, '合成患者戊'),
+      NOW,
+      nextId('patient_v2_purge')
+    );
+    // lookupReturn only opens a session for a patient owed a follow-up.
+    await db
+      .collection(PATIENT_COLLECTIONS.followUpState)
+      .doc(patientId)
+      .set({ required: true });
+
+    const result = await directory.lookupReturn(
+      phone,
+      '--02-29',
+      NOW,
+      nextId('purge')
+    );
+
+    expect(result).toBeDefined();
+    const stored = (
+      await db
+        .collection(PATIENT_COLLECTIONS.returnSessions)
+        .doc(result!.sessionId)
+        .get()
+    ).data();
+    expect(stored?.['expiresAt']).toBe(result!.expiresAt);
+    expect(stored?.['purgeAt']).toBeInstanceOf(Timestamp);
+    expect((stored?.['purgeAt'] as Timestamp).toMillis()).toBe(
+      Date.parse(result!.expiresAt) + 24 * 60 * 60 * 1000
+    );
   });
 });

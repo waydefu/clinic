@@ -17,6 +17,18 @@ function timestamp(value, field) {
   return Date.parse(value);
 }
 
+export function validateActivationWindow({
+  configurationExists,
+  expiresAt,
+  now
+}) {
+  if (
+    !configurationExists ||
+    timestamp(now, 'now') >= timestamp(expiresAt, 'expiresAt')
+  )
+    throw new Error('CAL-PILOT configuration is missing or expired.');
+}
+
 export function validateExtensionRequest({
   projectId,
   expectedCurrentExpiry,

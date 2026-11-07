@@ -1,6 +1,99 @@
 {
   "findingId": "D-43",
   "status": "REFERENCE_INVENTORY_NOT_PACKET_ACCEPTANCE",
+  "backendSourceReview": {
+    "sourceSha": "2a7882ed16105212cdbea1aafa8bd1fc55ad5452",
+    "status": "PARTIAL_SOURCE_REVIEW_NOT_PACKET_ACCEPTANCE",
+    "scope": "Tracked apps/api/src and apps/worker/src .ts files excluding .test.ts and .spec.ts: retain the existing backend cohort and discover additional files containing lexical Date.parse calls. This is not discovery of every timestamp producer or UTC predicate. The global inventory remains unchanged and is not a new 99-file backend acceptance gate.",
+    "discovery": {
+      "baselineFiles": 23,
+      "baselineReferences": 81,
+      "baselineDateParseContexts": 71,
+      "currentFiles": 23,
+      "currentLexicalDateParseLines": 65,
+      "currentLexicalDateParseMatches": 86,
+      "newFiles": [],
+      "limitations": "Historical context records, physical lines and lexical matches are different units. Lexical matching does not parse TypeScript or prove admission, caller ordering, field coverage or runtime behavior. Historical record line numbers and hashes below are not silently rebound by this snapshot."
+    },
+    "files": [
+      "apps/api/src/appointments/appointment.application-service.ts",
+      "apps/api/src/auth/calendar-pilot-session.ts",
+      "apps/api/src/book-pilot/book-pilot.gate.ts",
+      "apps/api/src/business-delivery/reauthentication.ts",
+      "apps/api/src/business-delivery/synthetic-trial-adjustment.ts",
+      "apps/api/src/firestore/business-delivery-export.repository.ts",
+      "apps/api/src/firestore/business-delivery-retention.repository.ts",
+      "apps/api/src/firestore/business-delivery-termination.repository.ts",
+      "apps/api/src/firestore/calendar-pilot.repository.ts",
+      "apps/api/src/internal-test-booking/internal-test-booking.gate.ts",
+      "apps/api/src/patients/patient-directory.ts",
+      "apps/api/src/schedule/schedule.application-service.ts",
+      "apps/worker/src/calendar-port.ts",
+      "apps/worker/src/calendar-sync/calendar-pilot-activation.ts",
+      "apps/worker/src/calendar-sync/calendar-pilot-health.ts",
+      "apps/worker/src/calendar-sync/calendar-pilot-runtime.ts",
+      "apps/worker/src/calendar-sync/calendar-pilot-worker-lease.ts",
+      "apps/worker/src/calendar-sync/firestore-calendar-sync.repository.ts",
+      "apps/worker/src/calendar-sync/source-switch.ts",
+      "apps/worker/src/calendar-sync/sync-engine.ts",
+      "apps/worker/src/internal-test-outbox-runtime.ts",
+      "apps/worker/src/outbox-processor.ts",
+      "apps/worker/src/pilot/pilot-calendar-clients.ts"
+    ],
+    "sourceReview": [
+      {
+        "file": "apps/api/src/auth/calendar-pilot-session.ts",
+        "classification": "CODE_REVIEW_WITH_CANDIDATE_HELPER_REGRESSIONS",
+        "evidence": "proofLifetime validates UTC now before arithmetic. Active-session success requires evaluateStaffSession, which validates now, issuedAt and lastSeenAt in packages/domain/src/staff-session.ts. Authentication performs active-session admission before lastSeenAt metadata arithmetic. The expiry comparison itself precedes the shared domain check; this is not a claim that every Date.parse has a local guard or its own regression.",
+        "candidateRegressionSuite": "apps/api/src/auth/calendar-pilot-session.test.ts",
+        "candidateRegressionScope": "Direct active-session helper rejection for noncanonical now, createdAt, lastSeenAt and expiresAt, with canonical seconds, milliseconds and sub-millisecond representations retained. The candidate tests are not inherited from sourceExecutionReference.",
+        "notProved": "Complete service/controller authentication flows, cookie or transaction side effects, and exact sub-millisecond expiry semantics."
+      },
+      {
+        "file": "apps/worker/src/calendar-sync/calendar-pilot-runtime.ts",
+        "classification": "MERGED_PREFLIGHT_FIX_AND_PARTIAL_CODE_REVIEW",
+        "originalFixSha": "8faa156c95c8bd885daaaca528b60235a74e5c03",
+        "mergedPullRequest": 325,
+        "sourceBlob": "9d7af9411e764eb636d53c3cabd1e1e32c416166",
+        "evidence": "git rev-parse resolved the runtime file at sourceSha and originalFixSha to the same blob. The merged fix validates the fresh preflight clock before constructing the reader window. withLease obtains callback now from assertCalendarPilotWorkerLease, whose timestamp helper requires canonical UTC; retryJob consumes that admitted now. The lease helper also validates configuration, worker and job deadlines before returning.",
+        "notProved": "All runtime branches, provider behavior, a shared operational maintenance store, fleet drain or check-to-write race closure."
+      },
+      {
+        "file": "apps/worker/src/pilot/pilot-calendar-clients.ts",
+        "classification": "LEGACY_SOURCE_TRACE_ONLY_NO_NEW_GAP_ESTABLISHED",
+        "evidence": "The legacy runPilotImport source calls sanitizeEvents before the writer loop. pilot-sanitizer.ts requires finite parseRfc3339Timestamp results and emits ISO UTC startsAt/endAt. External legal RFC3339 offsets are normalization inputs, not domain UTC literals. runPilotImport currently throws LEGACY_PILOT_IMPORT_RETIRED before that unreachable legacy body.",
+        "notProved": "Arbitrary direct writer inputs or a live Calendar effect. The typed PilotEvent parameter alone is not runtime validation, and the retired entrypoint was not executed."
+      }
+    ],
+    "sourceExecutionReference": {
+      "run": 40738574981,
+      "attempt": 1,
+      "successfulJobs": 12,
+      "totalJobs": 12,
+      "limitations": "This run is bound to sourceSha, not the later documentation candidate. A full module pass is not per-field or complete caller-semantic acceptance. No new product-source test was run for these read-only traces."
+    },
+    "pendingSlices": [
+      {
+        "pullRequest": 326,
+        "scope": "Common API CAL-PILOT clock admission and consumer regressions."
+      },
+      {
+        "pullRequest": 327,
+        "scope": "Schedule caller clock regressions; not a production-source change."
+      },
+      {
+        "pullRequest": 329,
+        "scope": "Return-session read expiry admission and precision."
+      },
+      {
+        "pullRequest": 332,
+        "scope": "Two CAL-PILOT outbound query projections; not a whole UTC-caller acceptance claim."
+      }
+    ],
+    "completeCallerSemantics": false,
+    "packetCloseoutCredit": false,
+    "remaining": "Complete the per-context producer-to-consumer and regression classification. Keep unmerged source/test slices separate; do not combine their SHAs into one accepted main state. PR #328 remains outside the authorized CAL-PILOT read-path scope and gains no eligibility from this snapshot."
+  },
   "baseline": {
     "sourceSha": "a6d14a8eef7ca0c0d51e335303311afab28de64c",
     "run": 40168102780,

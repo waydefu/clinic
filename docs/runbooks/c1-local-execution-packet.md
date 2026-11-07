@@ -124,6 +124,7 @@ cd infra/terraform/c1-foundation
 terraform test
 cp terraform.tfvars.example terraform.tfvars
 # set project_id to $PROJECT_ID (24-30 chars), billing_account_id locally
+# github_repository_id / github_repository_owner_id: numeric ids read from GitHub (B-02)
 # exact_apply_authority_sha="$APPLY_SHA"
 terraform init \
   -backend-config="bucket=${STATE_BUCKET}" \
@@ -154,7 +155,9 @@ node scripts/c1-smoke-evidence.mjs /tmp/c1-smoke.json
 ```
 
 Expected JSON fields: `projectId`, `region`, `enabledApis`, `iamRoles`
-(terraform-ci SA only; the nine C1 least-privilege roles),
+(terraform-ci SA only; the nine current C1 role inventory, not proof of
+least privilege; see the source-only operation map in
+[`c1-foundation/README.md`](../../infra/terraform/c1-foundation/README.md)),
 `wifPoolId` (`c1-github`), `terraformCiSa` (`c1-terraform-ci`),
 `secretVersionCount` (`0`), `budgetAmountTwd` (`2000`),
 `budgetThresholds` (`[0.5, 0.8, 1.0]`), `billingDetached` (`false`),

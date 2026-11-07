@@ -117,6 +117,28 @@ describe('booking route truth', () => {
     expect(bookingAndWatchRemainUnrouted(routedWatch)).toBe(false);
   });
 
+  it.each(['BookPilotController', 'CalendarWatchController'])(
+    'blocks deferred %s when a reachable feature module mounts it',
+    (controller) => {
+      const truth = classifyBookingRouting(
+        new Map([
+          [
+            APP_MODULE_PATH,
+            `import { FeatureModule } from './feature.module.js';
+             @Module({ imports: [FeatureModule] }) export class AppModule {}`
+          ],
+          [
+            'apps/api/src/feature.module.ts',
+            `@Module({ controllers: [${controller}] }) export class FeatureModule {}`
+          ]
+        ])
+      );
+      expect(truth.routedControllers).toContain(controller);
+      expect(deferredBookingRoutingBlockers(truth)).not.toEqual([]);
+      expect(bookingAndWatchRemainUnrouted(truth)).toBe(false);
+    }
+  );
+
   it('treats a direct AppModule AppointmentController mount as a routing blocker', () => {
     expect(
       bookingAndWatchRemainUnrouted('controllers: [AppointmentController]')

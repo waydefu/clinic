@@ -60,6 +60,62 @@ variable "github_repository" {
   }
 }
 
+variable "github_repository_id" {
+  type        = string
+  description = "Immutable numeric GitHub repository id for waydefu/clinic, read by the owner from GitHub. Required before apply; never guess it."
+  default     = "not_granted"
+  validation {
+    condition = (
+      var.github_repository_id == "not_granted" ||
+      can(regex("^[1-9][0-9]{0,19}$", var.github_repository_id))
+    )
+    error_message = "github_repository_id must be not_granted or a numeric GitHub repository id."
+  }
+  validation {
+    condition = (
+      var.exact_apply_authority_sha == "not_granted" ||
+      can(regex("^[1-9][0-9]{0,19}$", var.github_repository_id))
+    )
+    error_message = "Applying C1 requires the numeric github_repository_id so the WIF trust is pinned to the immutable repository identity."
+  }
+}
+
+variable "github_repository_owner_id" {
+  type        = string
+  description = "Immutable numeric GitHub owner id for the repository owner, read by the owner from GitHub. Required before apply; never guess it."
+  default     = "not_granted"
+  validation {
+    condition = (
+      var.github_repository_owner_id == "not_granted" ||
+      can(regex("^[1-9][0-9]{0,19}$", var.github_repository_owner_id))
+    )
+    error_message = "github_repository_owner_id must be not_granted or a numeric GitHub owner id."
+  }
+  validation {
+    condition = (
+      var.exact_apply_authority_sha == "not_granted" ||
+      can(regex("^[1-9][0-9]{0,19}$", var.github_repository_owner_id))
+    )
+    error_message = "Applying C1 requires the numeric github_repository_owner_id so the WIF trust is pinned to the immutable owner identity."
+  }
+}
+
+variable "github_allowed_refs" {
+  type        = list(string)
+  description = "Exact Git refs allowed to impersonate the C1 Terraform service account. No wildcards."
+  default     = ["refs/heads/main"]
+  validation {
+    condition = (
+      length(var.github_allowed_refs) > 0 &&
+      alltrue([
+        for ref in var.github_allowed_refs :
+        can(regex("^refs/(heads|tags)/[A-Za-z0-9._/-]+$", ref))
+      ])
+    )
+    error_message = "github_allowed_refs must be a non-empty list of exact refs/heads/* or refs/tags/* names with no wildcard or quote."
+  }
+}
+
 variable "budget_amount_twd" {
   type        = number
   description = "Alerting budget in TWD; not a hard spending cap and never auto-detaches billing."

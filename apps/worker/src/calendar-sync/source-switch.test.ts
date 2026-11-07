@@ -126,6 +126,40 @@ describe('CalendarSourceSwitchService', () => {
     }
   );
 
+  it.each(['Jul 25 2026 Z', 'not-a-date'])(
+    'fails closed on a non-UTC configuration or preflight expiry %s',
+    async (expiresAt) => {
+      const repository = new MemoryRepository();
+      const switcher = service(repository);
+      const preflight = await switcher.preflight('source_b', NOW);
+      repository.preflights.set(preflight.preflightId, {
+        ...preflight,
+        expiresAt
+      });
+      await expect(
+        switcher.activate({
+          sourceId: 'source_b',
+          expectedVersion: 1,
+          preflightId: preflight.preflightId,
+          now: NOW
+        })
+      ).rejects.toThrow('UTC timestamp');
+      repository.configuration = { ...repository.configuration, expiresAt };
+      await expect(switcher.preflight('source_b', NOW)).rejects.toThrow(
+        'UTC timestamp'
+      );
+      await expect(
+        switcher.activate({
+          sourceId: 'source_b',
+          expectedVersion: 1,
+          preflightId: preflight.preflightId,
+          now: NOW
+        })
+      ).rejects.toThrow('UTC timestamp');
+      expect(repository.configuration.activeSourceId).toBe('source_a');
+    }
+  );
+
   it('accepts a real leap day with fractional UTC precision', async () => {
     const repository = new MemoryRepository();
     repository.configuration = {

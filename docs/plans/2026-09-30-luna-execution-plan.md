@@ -413,7 +413,7 @@ export function requestFreshIdToken(timeoutMs = 120_000) {
 1. 按鈕點下去**同步**發出 request 事件（不要先 `await` 別的東西），否則瀏覽器會擋彈出視窗。
 2. `apps/web/public/_headers` 或 Hosting 設定裡的 CSP 允許 Google 登入彈窗
    （`git grep -n "frame-src\|Cross-Origin-Opener-Policy" apps/web firebase.json`）；
-   若 `Cross-Origin-Opener-Policy` 是 `same-origin`，彈窗會失效 → 停止並回報，不要自己改 CSP。
+   若 `Cross-Origin-Opener-Policy` 是 `same-origin`，彈窗會失效 → 停止並回報，不要自己改 CSP。（2026-10-03 起 COOP 已依 `COOP-POPUP-REAUTH-2026-10-03` 改為 `same-origin-allow-popups`；現在的檢查是值正好為該值，更寬就停止；此為歷史原文）
 
 ### 4. 預算
 

@@ -122,6 +122,20 @@ const REQUIRED_CONDITIONS = [
     run: 'missing_calendar_sync_pseudonym_pin_is_rejected'
   },
   {
+    module: 'c1-foundation',
+    variable: 'github_repository_id',
+    message:
+      'Applying C1 requires the numeric github_repository_id so the WIF trust is pinned to the immutable repository identity.',
+    run: 'named_sha_without_repository_id_is_rejected'
+  },
+  {
+    module: 'c1-foundation',
+    variable: 'github_repository_owner_id',
+    message:
+      'Applying C1 requires the numeric github_repository_owner_id so the WIF trust is pinned to the immutable owner identity.',
+    run: 'named_sha_without_owner_id_is_rejected'
+  },
+  {
     module: 'wp-b4-alerting',
     variable: 'alert_email_address',
     message:

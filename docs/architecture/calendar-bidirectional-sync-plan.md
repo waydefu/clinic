@@ -40,6 +40,10 @@ audit/outbox。這種設計仍是 system-authoritative，與 ADR-0002 相容。
 若未來提案要自動套用 Google 變更、讓 Google 衝突優先，或把 Calendar 變成
 co-authority，才需要新的 accepted ADR 明確取代 ADR-0002；目前沒有這項 authority。
 
+> **閱讀下列歷史敘述：** D-009／D-016 的 pending 指 production；CAL-PILOT 的
+> synthetic-only 例外見上方註記。2026-08-16 的 30 分鐘 product target 已由
+> 2026-09-11 方向取代，不代表 executable path 已啟用。
+
 決策登錄 [D-016](../product/phase-1-decision-register.md) 目前為 pending。2026-08-16
 輸入已指定 manual review、system authoritative 與 30-minute target，但那是 recorded
 input，不是 formal approval；reviewer role、matching identity、刪除語意與 scope/exclusion
@@ -51,6 +55,10 @@ input，不是 formal approval；reviewer role、matching identity、刪除語�
 ---
 
 ## 2. 現況
+
+> **2026-08-04 歷史快照：** 以下保留原文，不代表目前實作或部署狀態。
+> 較新的 synthetic-only 例外見頁首；現行 executable split 見
+> [first-stage C0 authority](first-stage-c0-authority.md#calendar-executable-split-technical-truth)。
 
 已完成且經演練：
 

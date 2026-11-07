@@ -32,6 +32,17 @@ export const CalendarPilotSourceConfigurationSchema = z
   })
   .passthrough();
 
+export function hasCalendarPilotWorkerLease(
+  configuration: Readonly<Record<string, unknown>>
+): boolean {
+  return (
+    (configuration['workerLeaseOwner'] !== null &&
+      configuration['workerLeaseOwner'] !== undefined) ||
+    (configuration['workerLeaseExpiresAt'] !== null &&
+      configuration['workerLeaseExpiresAt'] !== undefined)
+  );
+}
+
 export const CalendarPilotConfigurationRecordSchema =
   CalendarPilotSourceConfigurationSchema.extend({
     health: CalendarSyncHealthSchema,
@@ -146,6 +157,16 @@ export const CalendarPilotCandidateRecordSchema =
     appointmentStatusAtDetection: nonEmpty.optional(),
     appointmentStartsAtAtDetection: UtcIsoTimestampSchema.optional()
   }).passthrough();
+
+// Sync reads partial legacy candidates before regenerating them.
+export const CalendarPilotCandidateSyncRecordSchema = z
+  .object({
+    ...unversioned,
+    status: CalendarChangeCandidateSchema.shape.status.optional(),
+    expectedEtag: z.string().nullish(),
+    supersededReason: z.string().nullish()
+  })
+  .passthrough();
 
 export const CalendarPilotAppointmentRecordSchema =
   SyntheticAppointmentSchema.extend({

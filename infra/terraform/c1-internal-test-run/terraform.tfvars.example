@@ -48,4 +48,4 @@ api_secret_versions = {
 worker_secret_versions = {
   GOOGLE_CALENDAR_ID = "2"
 }
-firebase_auth_domain                 = "beauessence-clinic-stg-c1a01--internal-preproduction-3u85hkcz.web.app"
+firebase_auth_domain                 = "beauessence-clinic-stg-c1a01.web.app"

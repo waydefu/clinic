@@ -290,6 +290,40 @@ describe('accountless booking and return lookup HTTP', () => {
     return { harness: instance, patients };
   }
 
+  it.each([{ name: '   ' }, { phone: '++++++++' }])(
+    'rejects invalid intake %o before reserving a slot or creating a patient',
+    async (override) => {
+      const { harness, patients } = await start();
+      const payload = {
+        idempotencyKey: 'synthetic-identity-invalid',
+        slotId: 'slot_001',
+        serviceId: 'service_consult',
+        bookingKind: 'initial',
+        intake: { ...INTAKE, ...override }
+      };
+      const rejected = await harness.inject({
+        method: 'POST',
+        url: '/v1/bookings',
+        payload
+      });
+      expect(rejected.statusCode).toBe(400);
+      expect(patients.appointments).toHaveLength(0);
+      expect(patients.createdPatientCount).toBe(0);
+      expect(patients.patients.size).toBe(0);
+
+      const control = await harness.inject({
+        method: 'POST',
+        url: '/v1/bookings',
+        payload: {
+          ...payload,
+          idempotencyKey: 'synthetic-identity-control',
+          intake: INTAKE
+        }
+      });
+      expect(control.statusCode).toBe(201);
+    }
+  );
+
   it.each([
     ['--02-30', 400, 404],
     ['--04-31', 400, 404],
@@ -527,6 +561,27 @@ describe('accountless booking and return lookup HTTP', () => {
         1_000
       )
     ).resolves.toMatchObject({ allowed: false });
+  });
+
+  it('bounds one source even when return lookup identities change', async () => {
+    const limiter = new WpB2RateLimiter(new InMemoryDurableRateLimitStore(), {
+      now: () => 1_000
+    });
+    const { harness } = await start({ limiter });
+    const limit = RATE_LIMIT_POLICIES.unauthenticated_general.limit;
+    for (let i = 0; i <= limit; i += 1) {
+      const response = await harness.inject({
+        method: 'POST',
+        url: '/v1/return-lookup',
+        payload: { phone: String(i).padStart(8, '0'), birthDate: '--01-15' }
+      });
+      expect(response.statusCode).toBe(i < limit ? 404 : 429);
+      if (i === limit) {
+        expect(response.headers['retry-after']).toEqual(
+          expect.stringMatching(/^\d+$/)
+        );
+      }
+    }
   });
 
   it('still 429s one lookup identity when every request spoofs a new X-Forwarded-For', async () => {

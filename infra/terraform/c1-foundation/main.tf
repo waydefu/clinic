@@ -63,11 +63,21 @@ resource "google_iam_workload_identity_pool_provider" "github" {
   workload_identity_pool_provider_id = "github-oidc"
   display_name                       = "GitHub OIDC"
   attribute_mapping = {
-    "google.subject"       = "assertion.sub"
-    "attribute.repository" = "assertion.repository"
-    "attribute.ref"        = "assertion.ref"
+    "google.subject"                = "assertion.sub"
+    "attribute.repository"          = "assertion.repository"
+    "attribute.repository_id"       = "assertion.repository_id"
+    "attribute.repository_owner_id" = "assertion.repository_owner_id"
+    "attribute.ref"                 = "assertion.ref"
   }
-  attribute_condition = "assertion.repository == '${var.github_repository}'"
+  # B-02: the repository name alone can be re-registered after a rename or
+  # transfer, so also pin the immutable numeric repository and owner ids and
+  # the approved refs. The ids are required before any apply (variables.tf).
+  attribute_condition = join(" && ", [
+    "assertion.repository == '${var.github_repository}'",
+    "assertion.repository_id == '${var.github_repository_id}'",
+    "assertion.repository_owner_id == '${var.github_repository_owner_id}'",
+    "assertion.ref in [${join(", ", [for ref in var.github_allowed_refs : "'${ref}'"])}]"
+  ])
   oidc {
     issuer_uri = "https://token.actions.githubusercontent.com"
   }
@@ -77,7 +87,7 @@ resource "google_service_account_iam_member" "terraform_ci_wif" {
   count              = local.apply_enabled ? 1 : 0
   service_account_id = google_service_account.terraform_ci[0].name
   role               = "roles/iam.workloadIdentityUser"
-  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github[0].name}/attribute.repository/${var.github_repository}"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github[0].name}/attribute.repository_id/${var.github_repository_id}"
 }
 
 resource "google_project_iam_member" "terraform_ci" {

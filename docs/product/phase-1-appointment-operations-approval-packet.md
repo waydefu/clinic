@@ -81,7 +81,7 @@ buffer／overrun 規則，讓每筆 reservation 有 operational interval，再�
 | 對象 | 身分驗證方法 | 失敗／換機處理 | 可接觸的最小資料 | 核准者 |
 | --- | --- | --- | --- | --- |
 | 病患 | `[待選定]` | `[待選定]` | `僅本人預約與取消必要資料` | `[診所＋資安負責人]` |
-| 櫃檯人員 | `✅ Google federated 或診所自管帳號；全員 MFA，自管帳號 TOTP` | `✅ 30m idle／8h absolute；停權後下一個 protected request 拒絕；recovery 實作待 Stage 2 review` | `當班必要的預約資訊` | `業主 2026-07-28` |
+| 櫃檯人員 | `✅ Google federated 或診所自管帳號；全員 MFA，自管帳號 TOTP` | `✅ 30m idle／8h absolute；停權後下一個 protected request 拒絕；recovery 實作待 Stage 2 review` （2026-10-03 起改為絕對 12 小時、無閒置登出，見 `STAFF-SESSION-12H-2026-10-03`；敏感操作 10 分鐘再驗證不變；此為歷史原文） | `當班必要的預約資訊` | `業主 2026-07-28` |
 | 醫師 | `✅ Google federated 或診所自管帳號；全員 MFA，自管帳號 TOTP` | `✅ 同上` | `臨床決策與本人負責案件的必要資料` | `業主 2026-07-28` |
 | 個案管理師 | `[待選定]` | `[停權、離職與復原流程]` | `經指派的個案必要資料` | `[診所＋資安負責人]` |
 | 主管／管理者 | `✅ Google federated 或診所自管帳號；全員 MFA，自管帳號 TOTP` | `✅ 同上` | `核准與稽核必要資料` | `業主 2026-07-28` |
@@ -114,7 +114,7 @@ D-015 核准。未核准前不得把這些角色加入正式 claims，也不得�
 
 D-006 已於 2026-07-28 完整核准：Google＋診所自管帳號、醫師角色、櫃檯／管理者
 完成到診、管理者直接刪除與多組授權碼委派、全員 MFA、自管帳號 TOTP、30 分鐘
-idle／8 小時 absolute session、停權後下一個 protected request 拒絕，以及授權碼
+idle／8 小時 absolute session（2026-10-03 起改為絕對 12 小時、無閒置登出，見 `STAFF-SESSION-12H-2026-10-03`；敏感操作 10 分鐘再驗證不變；此為歷史原文）、停權後下一個 protected request 拒絕，以及授權碼
 雜湊、個別撤銷、錯誤嘗試限制。Audit 永久、append-only，任何角色不能修改或
 刪除。這是 policy，不代表目前合成工作臺已成為安全邊界。
 
