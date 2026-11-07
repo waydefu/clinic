@@ -57,7 +57,7 @@ RC 完成條件（全部要有可查證據）：
 
 ### 11/19 前
 
-D-001、D-002（含 Google DPA、備份刪除語意、legal hold）、D-003（RC 只需草稿定案與審查安排）、D-009、D-016、Q-BACKUP、SOL-PRIVACY Q3／Q5、2026-10-24 第 6～9 題、#268 [H] 告知文字審閱、PUB-03 官網實機接受（可 12 月）。
+D-001、D-002（含 Google DPA、備份刪除語意、legal hold）、D-003（RC 只需草稿定案與審查安排）、D-009、D-016、Q-BACKUP、SOL-PRIVACY Q3／Q5、2026-10-24 第 6～9 題、#268 [H] 告知文字審閱、CP-10 A-10（Drive 文件與規則 crosswalk 的商務差異定案）、PUB-03 官網實機接受（可 12 月）。
 
 ### 隨時可回答
 
@@ -80,6 +80,8 @@ D-007、D-008（月結）、D-014、D-015 已 deferred，不在 RC。
 
 關鍵路徑：INGRESS → IAM／SESSION 外證 → 下游包 → 凍結 → CP-08 → CP-10。任何一項延誤超過 2 天，本檔要記錄並提出縮範圍選項（先砍：C2～C6 中做不到的切片、W3 才開工的無來源包、SOL-INTEGRATION 整合）。
 
+**下游包分兩段做，避免全部擠在 W3：** 表中排 W3 的包，若還有來源工作（補回歸、補程式），W2 就以 source-only 方式平行開工，不等上游外證；W3 只做「上游外證到位後的整包收尾驗收」。IAM、SESSION 的唯讀盤點與差異表在 W1 先做，W2 只剩負責人核准後的變更與讀回。無來源 7 包中，SOL-CALENDAR-RESTORE、SOL-HTML、SOL-RELEASE 在 W2 開始寫來源；SOL-INTEGRATION 維持最後。
+
 ## 四、59 包總表
 
 欄位出自 manifest；finding 層的回歸測試要求「依 manifest」，本表不複製。歸屬裁定：#419 K1 屬 NO-WORK；E1-26 屬 SOL-RUNTIME-EVIDENCE；E1-05 屬 SOL-RELEASE（#308 誤列）。manifest 過時：SOL-TTL、SOL-RBAC 的 OWNER_POLICY_PREREQUISITE 已有登記簿答案，由 RC-02 同步。
@@ -101,10 +103,10 @@ D-007、D-008（月結）、D-014、D-015 已 deferred，不在 RC。
 | SOL-CALENDAR-CANDIDATE | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-SCHEDULE | D-33 | apps/api/src/calendar/calendar-pilot.application-service.test.ts，apps/api/src/firestore/calendar-pilot.repository.ts | 已有來源切片 | #363（D-33 決策矩陣） | W3 | 長跑（gpt-6.1-terra） | 無 |
 | SOL-CALENDAR-ENVELOPE | PLANNED_CURRENT_EVIDENCE_SCOPE | MEDIUM | SOL-CALENDAR-LEASE | D-11、D-17、NEW-09 | apps/worker/src/calendar-sync/firestore-calendar-sync.repository.ts，apps/worker/src/calendar-sync/google-sync-client.ts，… | 已有來源切片 | #408（D-17 競態守護） | W2 | 長跑（gpt-6.1-terra） | 無（來源）；provider 外證需負責人開窗 |
 | SOL-CALENDAR-LEASE | PLANNED_CURRENT_EVIDENCE_SCOPE | MEDIUM | — | D-05、D-12 | apps/worker/src/calendar-sync/calendar-pilot-runtime.ts | 已有來源切片 | #434（Gate 2 決策）、#436–#446 | W1 | Haiku（實測）、負責人（登入與核准） | 續期執行；真實日曆寫入；LEASE 真實 runtime 接入範圍釐清（D 清單 11/12） |
-| SOL-CALENDAR-RESTORE | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-CALENDAR-ENVELOPE | D-31、D-32、D-01、D-02、D-03 | apps/worker/src/calendar-smoke.ts，apps/worker/src/calendar-sync/google-sync-client.ts，apps/worker/src/google-calendar.ts | 無來源（RBAC 僅有文件 PR） | 無來源 PR | W3 | 長跑（gpt-6.1-terra） | 無（來源）；真實日曆還原演練屬 12 月 |
+| SOL-CALENDAR-RESTORE | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-CALENDAR-ENVELOPE | D-31、D-32、D-01、D-02、D-03 | apps/worker/src/calendar-smoke.ts，apps/worker/src/calendar-sync/google-sync-client.ts，apps/worker/src/google-calendar.ts | 無來源 | 無來源 PR | W3 | 長跑（gpt-6.1-terra） | 無（來源）；真實日曆還原演練屬 12 月 |
 | SOL-CALENDAR-TESTS | PLANNED_CURRENT_EVIDENCE_SCOPE | MEDIUM | SOL-CALENDAR-ENVELOPE | D-41 | tests/firestore/calendar-stage-d-inbound.test.ts | 已有來源切片 | #362（D-41） | W3 | 長跑（gpt-6.1-terra） | 無 |
 | SOL-CALENDAR-WATCH | PLANNED_CURRENT_EVIDENCE_SCOPE | MEDIUM | — | D-28、D-29 | apps/worker/src/calendar-sync/watch-channel-lifecycle.test.ts，apps/worker/src/calendar-sync/watch-channel-lifecycle.ts，a… | DONE-MERGED（已終態） | 沿用 #268 對帳留言 6562505748 | — | — | 無 |
-| SOL-CI-IAC | PLANNED_CURRENT_EVIDENCE_SCOPE | MEDIUM | SOL-CI-SECURITY、SOL-IAC-LIFECYCLE、SOL-IAM、SOL-SUPPLY | B-05 | .github/workflows/verify.yml，infra/terraform/c1-foundation/noop.tftest.hcl | 已有來源切片 | #378（B-05 決定紀錄，非實作） | W3 | 長跑（gpt-6.1-terra） | 無（B-05 的受保護部分不動） |
+| SOL-CI-IAC | PLANNED_CURRENT_EVIDENCE_SCOPE | MEDIUM | SOL-CI-SECURITY、SOL-IAC-LIFECYCLE、SOL-IAM、SOL-SUPPLY | B-05 | .github/workflows/verify.yml，infra/terraform/c1-foundation/noop.tftest.hcl | 無來源 | 無來源 PR（#378 只是 B-05 決定紀錄） | W3 | 長跑（gpt-6.1-terra） | 無（B-05 的受保護部分不動） |
 | SOL-CI-SECURITY | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | — | B-27 | .github/workflows/verify.yml | DONE-MERGED（已終態） | #272 | — | — | 無 |
 | SOL-CLI | PLANNED_CURRENT_EVIDENCE_SCOPE | MEDIUM | SOL-CONFIG、SOL-OBSERVABILITY | E2-04、E2-05、E2-07 | scripts/historical-artifacts.mjs，scripts/phase0-snapshot.mjs，scripts/phase0-snapshot.test.mjs | 已有來源切片 | #372（E2-07，11/02 前） | W3 | 長跑（gpt-6.1-terra） | 無 |
 | SOL-CONFIG | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-IAC-LIFECYCLE | B-45、E1-15、E2-09 | apps/api/src/business-delivery/business-delivery.config.ts，apps/api/src/platform/runtime/c1-required-config.ts，infra/con… | 已有來源切片 | #366（B-45、E1-15、E2-09） | W3 | 長跑（gpt-6.1-terra） | 無 |
@@ -115,13 +117,13 @@ D-007、D-008（月結）、D-014、D-015 已 deferred，不在 RC。
 | SOL-DOCS | PLANNED_CURRENT_EVIDENCE_SCOPE | MEDIUM | SOL-GOVERNANCE、SOL-HTTP、SOL-PRIVACY、SOL-SESSION | B-46、D-39、E3-13、E3-31、B-12、C05、E3-04 | README.md，apps/api/src/app.module.ts，apps/api/src/calendar/calendar-watch.controller.ts | 已有來源切片 | #415、#424–#426（文件標註） | W3 | Sonnet（文件） | 文件類外證適用性（隨本計畫第二節決策一併問） |
 | SOL-EXPORT | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-CONTRACTS、SOL-RBAC | B-38、D-37、A09、NEW-06 | apps/api/src/business-delivery/business-export.application-service.test.ts，apps/api/src/business-delivery/business-expor… | 已有來源切片 | #328（schemaVersion 准入）、#422（閏年範圍） | W3 | 長跑（gpt-6.1-terra） | 無 |
 | SOL-GOVERNANCE | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-PRIVACY | B-18、E1-21、E1-25、E3-11、E3-20 | .claude/hooks/guard-commands.mjs，.claude/hooks/guard-commands.test.mjs，README.md | 已有來源切片 | #412（E1-21） | W3 | Sonnet | 無 |
-| SOL-HTML | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-PRIVACY、SOL-RUNTIME-EVIDENCE | B-22、X-C03 | apps/web/csp-policy.mjs，apps/web/public/modules/trusted-html.js，apps/web/src/security-headers.test.ts | 無來源（RBAC 僅有文件 PR） | 無來源 PR | W3 | 長跑（gpt-6.1-terra） | 無 |
+| SOL-HTML | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-PRIVACY、SOL-RUNTIME-EVIDENCE | B-22、X-C03 | apps/web/csp-policy.mjs，apps/web/public/modules/trusted-html.js，apps/web/src/security-headers.test.ts | 無來源 | 無來源 PR | W3 | 長跑（gpt-6.1-terra） | 無 |
 | SOL-HTTP | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-CONTRACTS、SOL-SESSION | K5、A01、A11、NEW-04 | apps/api/src/app.module.ts，apps/api/src/appointments/appointment.controller.ts，apps/api/src/auth/calendar-pilot.guard.ts | DONE-MERGED（已終態） | #245 | — | — | 無 |
-| SOL-IAC-LIFECYCLE | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-IAM、SOL-INGRESS | B-10、B-11、B-50、E2-08 | infra/terraform/c1-foundation/main.tf，infra/terraform/c1-foundation/noop.tftest.hcl，infra/terraform/c5-firestore/main.tf | 無來源（RBAC 僅有文件 PR） | 無來源 PR | W2 | 長跑（gpt-6.1-terra） | Terraform apply 需負責人核准（來源 PR 不需） |
+| SOL-IAC-LIFECYCLE | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-IAM、SOL-INGRESS | B-10、B-11、B-50、E2-08 | infra/terraform/c1-foundation/main.tf，infra/terraform/c1-foundation/noop.tftest.hcl，infra/terraform/c5-firestore/main.tf | 無來源 | 無來源 PR | W2 | 長跑（gpt-6.1-terra） | Terraform apply 需負責人核准（來源 PR 不需） |
 | SOL-IAM | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-INGRESS | B-49、E1-06、E1-24、E2-01、E3-08、E3-09、B-01、B-02、B-09、B-41、E1-12、NEW-10 | docs/README.md，docs/runbooks/cal-pilot-import.md，docs/runbooks/calendar-go-live.md | 已有來源切片 | #388、#392 | W2 | 負責人（IAM 核准）、Haiku（唯讀讀回）、長跑（gpt-6.1-terra） | IAM 變更與讀回窗口（逐批） |
 | SOL-IDENTITY | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-CONTRACTS、SOL-SESSION | B-34、D-10、K2、NEW-01 | apps/api/src/appointments/appointment.application-service.ts，apps/api/src/internal-test-booking/internal-test-booking.au… | 已有來源切片 | #389（K2）、#417（B-34） | W3 | 長跑（gpt-6.1-terra） | 無 |
 | SOL-INGRESS | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | — | K9、E1-04、E1-14、K6、B-03、X-C06 | apps/api/src/internal-test-booking/internal-test-booking.gate.test.ts，apps/api/src/internal-test-booking/internal-test-b… | 已有來源切片 | #385、#390、#391、#416、#437 | W1 | Haiku（唯讀讀回）、負責人（開窗） | 入口驗收窗口 |
-| SOL-INTEGRATION | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-ARCH-GATE、SOL-ASSET-BUILD、SOL-BUILD、SOL-BUSINESS、SOL-CALENDAR-CANDIDATE、SOL-CALENDAR-ENVELOPE、SOL-CALENDAR-LEASE、SOL-CALENDAR-RESTORE、SOL-CALENDAR-TESTS、SOL-CALENDAR-WATCH、SOL-CI-IAC、SOL-CI-SECURITY、SOL-CLI、SOL-CONFIG、SOL-CONTAINERS、SOL-CONTRACTS、SOL-DESIGN-GATE、SOL-DOC-GATE、SOL-DOCS、SOL-EXPORT、SOL-GOVERNANCE、SOL-HTML、SOL-HTTP、SOL-IAC-LIFECYCLE、SOL-IAM、SOL-IDENTITY、SOL-INGRESS、SOL-LIFECYCLE、SOL-LIST、SOL-MAINTENANCE、SOL-OBSERVABILITY、SOL-OUTBOX、SOL-PRIVACY、SOL-QUERY-INDEX、SOL-RBAC、SOL-RELEASE、SOL-RETENTION、SOL-RETURN、SOL-ROUTE-INVENTORY、SOL-RUNTIME-EVIDENCE、SOL-SAST、SOL-SCHEDULE、SOL-SECRETS、SOL-SESSION、SOL-SESSION-DOCS、SOL-SESSION-UI、SOL-STRUCTURE-GATE、SOL-SUPPLY、SOL-TTL、SOL-VISUAL-EVIDENCE | D-40、E3-12、E4-02、E4-04、E4-13、E4-01、E4-03、E4-12 | docs/implementation/phase-1-booking-mvp-execution-log.md，docs/plans/2026-09-14-internal-preproduction-remediation-plan.m… | 無來源（RBAC 僅有文件 PR） | 無來源 PR | W3（最後；上游未結則延後 12 月） | 長跑（gpt-6.1-terra） | 無（凍結前由 Claude 驗收） |
+| SOL-INTEGRATION | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-ARCH-GATE、SOL-ASSET-BUILD、SOL-BUILD、SOL-BUSINESS、SOL-CALENDAR-CANDIDATE、SOL-CALENDAR-ENVELOPE、SOL-CALENDAR-LEASE、SOL-CALENDAR-RESTORE、SOL-CALENDAR-TESTS、SOL-CALENDAR-WATCH、SOL-CI-IAC、SOL-CI-SECURITY、SOL-CLI、SOL-CONFIG、SOL-CONTAINERS、SOL-CONTRACTS、SOL-DESIGN-GATE、SOL-DOC-GATE、SOL-DOCS、SOL-EXPORT、SOL-GOVERNANCE、SOL-HTML、SOL-HTTP、SOL-IAC-LIFECYCLE、SOL-IAM、SOL-IDENTITY、SOL-INGRESS、SOL-LIFECYCLE、SOL-LIST、SOL-MAINTENANCE、SOL-OBSERVABILITY、SOL-OUTBOX、SOL-PRIVACY、SOL-QUERY-INDEX、SOL-RBAC、SOL-RELEASE、SOL-RETENTION、SOL-RETURN、SOL-ROUTE-INVENTORY、SOL-RUNTIME-EVIDENCE、SOL-SAST、SOL-SCHEDULE、SOL-SECRETS、SOL-SESSION、SOL-SESSION-DOCS、SOL-SESSION-UI、SOL-STRUCTURE-GATE、SOL-SUPPLY、SOL-TTL、SOL-VISUAL-EVIDENCE | D-40、E3-12、E4-02、E4-04、E4-13、E4-01、E4-03、E4-12 | docs/implementation/phase-1-booking-mvp-execution-log.md，docs/plans/2026-09-14-internal-preproduction-remediation-plan.m… | 無來源 | 無來源 PR | W3（最後；上游未結則延後 12 月） | 長跑（gpt-6.1-terra） | 無（凍結前由 Claude 驗收） |
 | SOL-LIFECYCLE | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-CONTRACTS | A06、D-09、D-23、E3-15 | docs/product/front-desk-followup-and-patient-ux-spec-2026-07-23.md，packages/contracts/src/payroll.ts，packages/domain/src… | DONE-MERGED（已終態） | #383 | — | — | 無 |
 | SOL-LIST | PLANNED_CURRENT_EVIDENCE_SCOPE | MEDIUM | SOL-CONTRACTS、SOL-IDENTITY、SOL-RETURN | K7、C07、E4-24 | apps/api/src/appointments/appointment.application-service.ts，apps/web/public/modules/admin-view.js，docs/architecture/api… | 已有來源切片 | #437（決定）、#448（K7 續讀 cursor） | W3 | 長跑（gpt-6.1-terra） | 無 |
 | SOL-MAINTENANCE | PLANNED_CURRENT_EVIDENCE_SCOPE | MEDIUM | — | E3-07 | apps/api/src/platform/runtime/maintenance-gate.ts，docs/runbooks/backup-and-restore.md，docs/runbooks/incident-response.md | 已有來源切片 | #386、#405、#447 | W1 | Haiku（實測）、負責人（開窗） | C1 維護開關實測窗口 |
@@ -129,8 +131,8 @@ D-007、D-008（月結）、D-014、D-015 已 deferred，不在 RC。
 | SOL-OUTBOX | PLANNED_CURRENT_EVIDENCE_SCOPE | MEDIUM | — | E4-21 | apps/worker/src/outbox-processor.ts | DONE-MERGED（已終態） | #258 | — | — | 無 |
 | SOL-PRIVACY | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-CALENDAR-ENVELOPE、SOL-CALENDAR-RESTORE、SOL-IDENTITY | D-14、D-16、D-30、E3-05、B-21、E3-01、E3-02、E3-03、E4-10 | .firebaserc，apps/web/public/privacy.html，apps/worker/README.md | 已有來源切片 | #364、#365 | W3（正式發布 12 月） | 長跑（gpt-6.1-terra）、負責人（文字審閱） | D-001～D-003；告知文字審閱（11/19） |
 | SOL-QUERY-INDEX | PLANNED_CURRENT_EVIDENCE_SCOPE | MEDIUM | SOL-CONTRACTS、SOL-EXPORT、SOL-TTL | B-44 | apps/api/src/firestore/business-delivery-export.repository.ts，apps/api/src/firestore/business-delivery.repository.ts，fir… | 已有來源切片 | #414、#427–#432（B-44） | W3 | 長跑（gpt-6.1-terra） | 索引部署需負責人核准（Firestore 索引屬雲端狀態） |
-| SOL-RBAC | OWNER_POLICY_PREREQUISITE | HIGH | SOL-CONTRACTS、SOL-SESSION | A04、D-22、E3-17、E4-09 | apps/api/src/platform/authorization/rbac-appointment-policy.ts，apps/api/src/schedule/schedule.application-service.ts，app… | 無來源（RBAC 僅有文件 PR） | #241、#251（文件） | W1（manifest 同步，RC-02）／W3（實作） | Sonnet（同步）、長跑（gpt-6.1-terra）（實作） | 無（E4-09 已決） |
-| SOL-RELEASE | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-IAC-LIFECYCLE、SOL-IAM、SOL-INGRESS | E1-03、E1-05、E1-07、E1-13、E1-01、E1-02、E1-11 | scripts/cal-pilot-build-images.ps1，scripts/cal-pilot-extension-policy.mjs，scripts/cal-pilot-extension-policy.test.mjs | 無來源（RBAC 僅有文件 PR） | 無來源 PR | W3 | 長跑（gpt-6.1-terra） | 部署相關變更需負責人核准 |
+| SOL-RBAC | OWNER_POLICY_PREREQUISITE | HIGH | SOL-CONTRACTS、SOL-SESSION | A04、D-22、E3-17、E4-09 | apps/api/src/platform/authorization/rbac-appointment-policy.ts，apps/api/src/schedule/schedule.application-service.ts，app… | 無來源 | #241、#251（文件） | W1（manifest 同步，RC-02）／W3（實作） | Sonnet（同步）、長跑（gpt-6.1-terra）（實作） | 無（E4-09 已決） |
+| SOL-RELEASE | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-IAC-LIFECYCLE、SOL-IAM、SOL-INGRESS | E1-03、E1-05、E1-07、E1-13、E1-01、E1-02、E1-11 | scripts/cal-pilot-build-images.ps1，scripts/cal-pilot-extension-policy.mjs，scripts/cal-pilot-extension-policy.test.mjs | 無來源 | 無來源 PR | W3 | 長跑（gpt-6.1-terra） | 部署相關變更需負責人核准 |
 | SOL-RETENTION | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-CONTRACTS | A03、D-36 | apps/api/src/business-delivery/business-retention.application-service.test.ts，apps/api/src/business-delivery/business-re… | ALREADY_FIXED（已終態） | 沿用 #268 對帳留言 6562505748 | — | — | 無 |
 | SOL-RETURN | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-CONTRACTS、SOL-IDENTITY、SOL-INGRESS | K4、D-08、E3-19 | apps/api/src/firestore/rate-limit.repository.ts，apps/api/src/patients/patient-directory.ts，apps/api/src/platform/runtime… | 已有來源切片 | #419（自述 K1，已裁定為額外回歸測試） | W3 | 長跑（gpt-6.1-terra） | 無（return_sessions 24 小時已決） |
 | SOL-ROUTE-INVENTORY | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-LIST、SOL-RETURN | E1-16、E1-17、E3-10 | docs/architecture/api-v1-contract.md，scripts/booking-route-truth.mjs，scripts/booking-route-truth.test.mjs | 已有來源切片 | #415、#420（E1-16、E1-17） | W3 | 長跑（gpt-6.1-terra） | 無 |
@@ -152,7 +154,7 @@ D-007、D-008（月結）、D-014、D-015 已 deferred，不在 RC。
 
 | ID | 名稱 | 目的 | 波次 | 執行者 | 需核准 |
 | --- | --- | --- | --- | --- | --- |
-| RC-01 | 供應鏈 braces | 移除 braces 例外，firebase-tools 升 15.35.0。 | W1 | 長跑（gpt-6.1-terra）（PR 已在處理） | 無（Claude 驗收後合併） |
+| RC-01 | 供應鏈 braces | 移除 braces 例外，firebase-tools 升 15.35.0。 | W1 | Claude（PR #453） | 無（Claude 驗收後合併） |
 | RC-02 | manifest 與台帳同步 | 把 manifest 狀態與歸屬裁定同步，並讓本檔取代 #268 承載台帳。 | W1 | Sonnet | 關閉 #268 需負責人同意；manifest 是機器權威，修改前先向負責人說明 |
 | RC-03 | 公開 repo 隱私收尾 | 清掉公開 repo 的個資疑慮。 | W1 | Haiku（掃描）、負責人（補同意） | 負責人補照片同意紀錄 |
 | RC-04 | 分支保護定期讀回 | 用腳本定期讀回 main 分支保護，不手寫現況。 | W2 | Sonnet | 新增 workflow 屬 CI 變更，先向負責人說明 |
@@ -227,7 +229,8 @@ D-007、D-008（月結）、D-014、D-015 已 deferred，不在 RC。
 來源：已合併 PR 436 筆、台帳留言 391 則、manifest executionGraph。本節取代 #268 本文，往後進度直接更新本節。
 - 59 包中 25 包已終態（台帳口徑：16 個 Phase0＋9 個已結束）；其餘 34 包**沒有任何一包整包完成**。
 - 25 包已有合併的來源切片、整包待外部證據或上游；2 包為部分修補或待政策（SOL-TTL、SOL-SUPPLY）；7 包尚無來源 PR（CALENDAR-RESTORE、CI-IAC、HTML、IAC-LIFECYCLE、RBAC、RELEASE、INTEGRATION）。各包逐項見第四節與細部包。
-- 開放中 PR：#268（本台帳舊本文，改由本檔承載後關閉，RC-02）、#235（視覺原型草稿）。
+- 開放中 PR：#268（本台帳舊本文，改由本檔承載後關閉，RC-02）、#235（視覺原型草稿）、#453（RC-01 braces）。
+- 2026-11-08 已合併：#451（RC-03 supportEmail 改為診所信箱、守門測試不再放行 `firebase.json`、醫師照片同意狀態登記）。
 - 外部證據最多卡在 IAM 與 SESSION；先排這兩包可一次解開最多下游。
 
 更新日：2026-11-08（每週治理讀回時更新，RC-11）。

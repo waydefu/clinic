@@ -172,7 +172,7 @@
 1. **目的**：處理 1 個 finding（B-05）的來源回歸與必要外部證據；manifest 狀態 `PLANNED_CURRENT_EVIDENCE_SCOPE`，風險 MEDIUM。
 2. **findings**：
    - B-05｜Medium｜Terraform mock tests 未納入 required CI，IaC 斷言只能靠人工執行。
-3. **現況**：已合併 #378（B-05 決定紀錄，非實作）；還缺：B-05 實作未開工；依賴 IAC-LIFECYCLE、IAM、SUPPLY。
+3. **現況**：無來源 PR（#378 只是 B-05 決定紀錄，非實作）；還缺：B-05 實作未開工；依賴 IAC-LIFECYCLE、IAM、SUPPLY。
 4. **下一步**：
    1) 等 IAM、IAC-LIFECYCLE 後，依 #378 的決定紀錄把 CI 的 IaC 檢查補成可驗證的負向測試。
    2) 不改 workflow 的 timeout 或 gate。
@@ -872,7 +872,7 @@
 - **完成標準**：例外已移除，供應鏈檢查在 exact head 全綠；合併即完成。
 - **依賴**：無
 - **波次**：W1
-- **執行者**：長跑（gpt-6.1-terra）（PR 已在處理）
+- **執行者**：Claude（PR #453）
 - **需負責人核准**：無（Claude 驗收後合併）
 
 ### RC-02 manifest 與台帳同步
