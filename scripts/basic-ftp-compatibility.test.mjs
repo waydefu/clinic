@@ -4,6 +4,17 @@ import { createRequire } from 'node:module';
 import { createConnection, createServer } from 'node:net';
 import { describe, expect, it } from 'vitest';
 
+// firebase-tools 15.35.0 dropped its direct proxy-agent dependency, so the
+// FTP chain is gone. Prove that absence from the manifest; if a later
+// firebase-tools brings proxy-agent back, the full chain checks run again.
+function firebaseToolsDependsOnProxyAgent() {
+  const manifestPath = createRequire(import.meta.url).resolve(
+    'firebase-tools/package.json'
+  );
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  return Object.hasOwn(manifest.dependencies ?? {}, 'proxy-agent');
+}
+
 function firebaseFtpDependencies() {
   let requireFromParent = createRequire(import.meta.url);
   const packages = [];
@@ -150,6 +161,14 @@ async function syntheticFtpServer() {
 
 describe('Firebase CLI FTP dependency compatibility', () => {
   it('resolves a version patched for GHSA-c475-qrg2-pj4r through the real CLI chain', () => {
+    if (!firebaseToolsDependsOnProxyAgent()) {
+      expect(() =>
+        createRequire(
+          createRequire(import.meta.url).resolve('firebase-tools/package.json')
+        ).resolve('proxy-agent/package.json')
+      ).toThrow();
+      return;
+    }
     const { packages, semver } = firebaseFtpDependencies();
     const basicFtp = packages.at(-1);
     expect(
@@ -180,6 +199,11 @@ describe('Firebase CLI FTP dependency compatibility', () => {
   });
 
   it('retrieves a loopback PAC file through get-uri listing fallback and honours cache', async () => {
+    if (!firebaseToolsDependsOnProxyAgent()) {
+      // No get-uri chain to exercise; the absence itself is asserted above.
+      expect(firebaseToolsDependsOnProxyAgent()).toBe(false);
+      return;
+    }
     const { getUri } = firebaseFtpDependencies();
     const fixture = await syntheticFtpServer();
     let stream;

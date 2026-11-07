@@ -996,6 +996,10 @@ merge、部署、secret、IAM、資料轉換與其他受保護動作，仍各自
 - 解除條件：任何 braces 修補版發布即改 override 並移除例外；或 firebase-tools 不再依賴
   chokidar@3 即升級並移除。到期仍無解時須再次取得業主核准，不得自行延長。
 - 只改例外到期日、理由與解除條件；不改 `audit:prod`／`audit:all` 門檻，不新增其他忽略項目。
+- **2026-11-08 解除**：firebase-tools 15.35.0（2026-11-04 發布）改依賴 chokidar ^4.0.3，符合上列
+  第二個解除條件。已升級 firebase-tools、重建 lockfile（braces@3.0.3 與 chokidar@3.6.0 不再出現），
+  移除 `pnpm-workspace.yaml` 的 `auditConfig.ignoreGhsas`，例外改列 `security/audit-exceptions.json`
+  的 `released`。負責人 2026-11-07 同意依此處理。`audit:prod`／`audit:all` 門檻不變。
 
 ## 2026-10-10～11 Sol 開工前問答的其餘業主決定（2026-10-14 補登）
 

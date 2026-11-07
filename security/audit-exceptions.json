@@ -10,20 +10,16 @@
       "releasedOn": "2026-08-01",
       "releaseReason": "The advisory was revised at 2026-07-31T19:37Z to list a first patched version for each affected major (1.1.17, 2.1.3, 3.0.3, 5.0.8), which satisfied the recorded release condition. The dependency was pinned per major instead and the ignore was removed, so the exception no longer exists.",
       "evidence": "docs/reviews/2026-08-01-sast-migration-and-audit-governance-delivery.md"
-    }
-  ],
-  "exceptions": [
+    },
     {
       "ghsa": "GHSA-vfj7-8cjw-p6xm",
       "package": "braces",
-      "severity": "high",
       "approvalId": "SUPPLY-CHAIN-BRACES-2026-10-10",
-      "approvalStatus": "approved",
       "approvedOn": "2026-10-10",
-      "expiresOn": "2026-11-30",
-      "scope": "dev-only: firebase-tools > chokidar@3 > braces@3.0.3 (CLI/emulator tooling, not shipped); audit:prod stays clean",
-      "reason": "Advisory raised to high at 2026-10-02T22:36Z. Re-checked 2026-10-11: the advisory lists no patched version (vulnerable <= 3.0.3, not withdrawn), the latest braces on npm is 3.0.3, and the latest firebase-tools (15.33.0) still depends on chokidar ^3.6.0, which pins braces ~3.0.2. No override can resolve it. Extends SUPPLY-CHAIN-BRACES-2026-10-03, which would otherwise expire on 2026-10-17.",
-      "releaseCondition": "Remove the ignore as soon as any patched braces release is published (then pin it by override), or as soon as firebase-tools no longer depends on chokidar@3 (then upgrade it)."
+      "releasedOn": "2026-11-08",
+      "releaseReason": "firebase-tools 15.35.0 (published 2026-11-04) depends on chokidar ^4.0.3 instead of chokidar@3, which satisfied the recorded release condition. firebase-tools was upgraded, braces@3.0.3 and chokidar@3.6.0 left the lockfile, and the ignore was removed, so the exception no longer exists.",
+      "evidence": "docs/product/phase-1-decision-register.md"
     }
-  ]
+  ],
+  "exceptions": []
 }
