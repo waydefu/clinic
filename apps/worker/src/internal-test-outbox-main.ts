@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
+import { createFirestoreMaintenanceControl } from '@beauessence/domain/maintenance-control.node';
+
 import { InMemoryCalendar } from './calendar-port.js';
 import { FirestoreCalendarTitleSource } from './calendar-title-source.js';
 import { createCalendarPort } from './google-calendar.js';
@@ -106,6 +108,7 @@ export function startInternalTestOutboxWorker(
   const db = getFirestore();
   const runtime = createInternalTestOutboxRuntime({
     db,
+    maintenanceControl: createFirestoreMaintenanceControl(db),
     calendar:
       execution === 'cloud' ? createCalendarPort(env) : new InMemoryCalendar(),
     ...(execution === 'cloud'

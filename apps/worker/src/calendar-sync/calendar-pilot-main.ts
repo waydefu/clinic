@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
+import { createFirestoreMaintenanceControl } from '@beauessence/domain/maintenance-control.node';
+
 import {
   inspectCalendarPilotHealth,
   type CalendarPilotHttpRuntime
@@ -74,7 +76,12 @@ export function createCalendarPilotServer(runtime: CalendarPilotHttpRuntime) {
 export function startCalendarPilotWorker(): void {
   if (getApps().length === 0) initializeApp();
   const db = getFirestore();
-  const runtime = new CalendarPilotRuntime(db);
+  const runtime = new CalendarPilotRuntime(
+    db,
+    process.env,
+    () => new Date().toISOString(),
+    createFirestoreMaintenanceControl(db)
+  );
   createCalendarPilotServer({
     run: () => runtime.run(),
     ...(process.env['CALENDAR_PILOT_RUNTIME_MODE'] === C1_SYNTHETIC_ADC_MODE

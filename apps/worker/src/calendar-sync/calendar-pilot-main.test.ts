@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { once } from 'node:events';
 import { request } from 'node:http';
+import { readFileSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
+import { fileURLToPath } from 'node:url';
 
 import { createCalendarPilotServer } from './calendar-pilot-main.js';
 import type { CalendarPilotHealthInspection } from './calendar-pilot-health.js';
@@ -164,5 +166,15 @@ describe('calendar-pilot HTTP surface (no watch webhook)', () => {
       server.close();
       await once(server, 'close');
     }
+  });
+});
+
+describe('calendar pilot production wiring', () => {
+  it('injects the Firestore maintenance control at the entry point', () => {
+    const source = readFileSync(
+      fileURLToPath(new URL('./calendar-pilot-main.ts', import.meta.url)),
+      'utf8'
+    );
+    expect(source).toContain('createFirestoreMaintenanceControl(db)');
   });
 });

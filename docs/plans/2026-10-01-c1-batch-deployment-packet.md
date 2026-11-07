@@ -297,6 +297,34 @@ firebase hosting:channel:deploy internal-preproduction \
 
 CP-02 若需 worker processing/drain/retry，或任何 Calendar create/update/delete，必須先取得獨立的 bounded approval，明列 worker processing 與 Scheduler 狀態、各操作調用上限、專用 synthetic calendar 與 rollback。不得一邊保持 worker processing false 又宣稱 Calendar projection 已完成；也不得將 CP-02 寫入本批預設 deploy authority。
 
+### F. 維護控制文件 `platform_controls/maintenance`（owner 核准、僅限 C1 窗口內）
+
+production 的 API 與兩個 worker 啟動時都用 Admin SDK 讀 Firestore 文件 `platform_controls/maintenance`（每次准入都重讀，不快取）。文件不存在、讀取失敗或格式不符時一律維持關閉（API 非 health 路由回 503、worker 不處理）。環境變數不會開啟此閘門；Firestore Rules 與 IAM 不變（Rules 已拒絕所有 client 存取，Admin SDK 繞過 Rules）。
+
+文件格式：`{ underMaintenance: boolean, expiresAtUtc: string(UTC ISO) }`。僅 `underMaintenance === false` 且 `expiresAtUtc` 尚未到期時開放。
+
+窗口開始後（owner 對此寫入單獨核准）建立文件，`expiresAtUtc` 設為窗口結束時間：
+
+```bash
+curl -sS -X PATCH \
+  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  -H "Content-Type: application/json" \
+  "https://firestore.googleapis.com/v1/projects/beauessence-clinic-stg-c1a01/databases/(default)/documents/platform_controls/maintenance" \
+  -d '{"fields":{"underMaintenance":{"booleanValue":false},"expiresAtUtc":{"stringValue":"<WINDOW_END_UTC_ISO，例如 2026-10-06T12:00:00Z>"}}}'
+```
+
+收尾（safe-close）時改回關閉：
+
+```bash
+curl -sS -X PATCH \
+  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  -H "Content-Type: application/json" \
+  "https://firestore.googleapis.com/v1/projects/beauessence-clinic-stg-c1a01/databases/(default)/documents/platform_controls/maintenance?updateMask.fieldPaths=underMaintenance" \
+  -d '{"fields":{"underMaintenance":{"booleanValue":true}}}'
+```
+
+此兩個寫入都計入 Firestore 寫入額度並寫入 ledger；`expiresAtUtc` 到期後即使忘記關閉也會自動 fail closed。
+
 ## 4. 候選驗收 checkpoints（本次不全跑）
 
 每一項只使用該次核准新建的 synthetic fixture；絕不直接寫 Firestore 或套用全選器。需在 private evidence manifest 記 `sourceSha`、API/worker revision＋digest、Hosting version/channel/expiry、UTC window、policy version、操作數、結果與 evidence hash。對外 PR 只放去識別 artifact 索引。
