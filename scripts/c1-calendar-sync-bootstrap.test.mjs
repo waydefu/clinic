@@ -168,9 +168,9 @@ describe('C1 Calendar sync renewal', () => {
     await expect(
       renew(db, { C1_CALENDAR_SYNC_EXPIRES_AT: '2027-01-07T12:00:00.000Z' })
     ).rejects.toThrow(/no more than 31 days/u);
-    await expect(
-      renew(db, { C1_CALENDAR_SYNC_OPERATOR: '' })
-    ).rejects.toThrow(/OPERATOR/u);
+    await expect(renew(db, { C1_CALENDAR_SYNC_OPERATOR: '' })).rejects.toThrow(
+      /OPERATOR/u
+    );
     expect(db.writes).toEqual([]);
   });
 });
