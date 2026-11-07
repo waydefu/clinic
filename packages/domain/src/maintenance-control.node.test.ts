@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   SharedMaintenanceControl,
+  createFirestoreMaintenanceControl,
+  firestoreMaintenanceControlReader,
   isMaintenanceWriteAllowed
 } from './maintenance-control.node.js';
 
@@ -116,5 +118,40 @@ describe('shared expiring maintenance control', () => {
     release();
     release();
     expect(control.inFlightCallbacks).toBe(0);
+  });
+});
+
+describe('firestore maintenance control reader', () => {
+  const fakeDb = (get: () => Promise<{ data(): unknown }>) => ({
+    doc: vi.fn((_path: string) => ({ get }))
+  });
+
+  it('reads platform_controls/maintenance and admits an open doc', async () => {
+    const db = fakeDb(() => Promise.resolve({ data: () => OPEN }));
+    const reader = firestoreMaintenanceControlReader(db);
+    expect(await reader()).toEqual(OPEN);
+    expect(db.doc).toHaveBeenCalledWith('platform_controls/maintenance');
+    const control = createFirestoreMaintenanceControl(
+      fakeDb(() =>
+        Promise.resolve({
+          data: () => ({
+            underMaintenance: false,
+            expiresAtUtc: '2999-01-01T00:00:00Z'
+          })
+        })
+      )
+    );
+    await expect(control.assertAvailable()).resolves.toBeUndefined();
+  });
+
+  it('stays closed for a missing doc or a read error', async () => {
+    const missing = createFirestoreMaintenanceControl(
+      fakeDb(() => Promise.resolve({ data: () => undefined }))
+    );
+    await expect(missing.assertAvailable()).rejects.toThrow();
+    const broken = createFirestoreMaintenanceControl(
+      fakeDb(() => Promise.reject(new Error('unavailable')))
+    );
+    await expect(broken.assertAvailable()).rejects.toThrow();
   });
 });

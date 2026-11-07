@@ -32,3 +32,11 @@
 
 實際 store、跨 process 原子性、writer inventory、控制權限、所有 instance／worker 接線、排程停用、provider 在途排空與安全恢復都未驗證。
 `MAINTENANCE_WRITE_QUIESCENCE = RUNTIME_PROOF_REQUIRED` 不變；來源或 callback 數歸零不能解除 restore／切換的 BLOCKED。
+
+## 2026-11-07 補充：production 接線與控制文件
+
+先前版本只有 reader 契約，production 沒有真實 reader，造成 API 非 health 路由與 worker 恆為關閉。現補上 Firestore reader：讀 `platform_controls/maintenance`，格式 `{ underMaintenance: boolean, expiresAtUtc: string(UTC ISO) }`，每次准入重讀、不快取；缺文件、讀取錯誤、格式不符仍 fail closed。
+
+接線只在 production composition root：API `bootstrap()`、`internal-test-outbox-main`、`calendar-pilot-main`。`createApplication()` 無參數、`new AppModule` 與 runtime 建構子預設仍 fail closed；不新增任何會開啟閘門的環境變數；Firestore Rules、IAM、Terraform、CI 與 guard 不變。
+
+仍欠外部證據（新增）：實際 `platform_controls/maintenance` 文件的建立／關閉流程尚未在雲端執行；operator 步驟見 `docs/plans/2026-10-01-c1-batch-deployment-packet.md` 第 3 節 F，須 owner 於 C1 窗口內單獨核准。

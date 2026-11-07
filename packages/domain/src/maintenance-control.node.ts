@@ -67,3 +67,26 @@ export class SharedMaintenanceControl {
     }
   }
 }
+
+/** Structural subset of the Admin SDK Firestore so domain stays SDK-free. */
+export interface MaintenanceControlFirestore {
+  doc(path: string): {
+    get(): Promise<{ data(): unknown }>;
+  };
+}
+
+export const MAINTENANCE_CONTROL_DOC_PATH = 'platform_controls/maintenance';
+
+/** No cache: every admission re-reads. Missing doc yields undefined (closed). */
+export function firestoreMaintenanceControlReader(
+  db: MaintenanceControlFirestore
+): MaintenanceControlReader {
+  return async () => (await db.doc(MAINTENANCE_CONTROL_DOC_PATH).get()).data();
+}
+
+/** Production composition roots only; defaults elsewhere stay fail-closed. */
+export function createFirestoreMaintenanceControl(
+  db: MaintenanceControlFirestore
+): SharedMaintenanceControl {
+  return new SharedMaintenanceControl(firestoreMaintenanceControlReader(db));
+}

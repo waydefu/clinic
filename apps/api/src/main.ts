@@ -8,10 +8,16 @@ import {
   type NestFastifyApplication
 } from '@nestjs/platform-fastify';
 
-import type { SharedMaintenanceControl } from '@beauessence/domain/maintenance-control.node';
+import { getFirestore } from 'firebase-admin/firestore';
+
+import {
+  createFirestoreMaintenanceControl,
+  type SharedMaintenanceControl
+} from '@beauessence/domain/maintenance-control.node';
 
 import { AppModule } from './app.module.js';
 import { fastifyTrustProxy } from './platform/runtime/client-ip.js';
+import { defaultFirebaseApp } from './platform/runtime/firebase-admin-app.js';
 import {
   MAINTENANCE_GATE,
   type ControlledMaintenanceGate
@@ -84,7 +90,9 @@ export async function createApplication(
 
 async function bootstrap(): Promise<void> {
   const host = resolveListenHost();
-  const app = await createApplication();
+  const app = await createApplication(
+    createFirestoreMaintenanceControl(getFirestore(defaultFirebaseApp()))
+  );
   await app.listen({
     host,
     port: Number(process.env['PORT'] ?? '3000')
