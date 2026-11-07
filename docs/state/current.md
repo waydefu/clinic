@@ -15,9 +15,9 @@ Phase 1 execution plan. Containing Git revision:
 | Path | sha256 |
 | --- | --- |
 | `docs/architecture/stage-2-gate-status.json` | `f00fd064a62094dc4850ffa990829e63c03b01030cba6e50f35811771c7d06b5` |
-| `security/audit-exceptions.json` | `8a3d1b347f4c60fce6857268d3d76a7ef80992948cae3950802c76244caa5239` |
+| `security/audit-exceptions.json` | `5ed5304f1892ce3a8590e7fa2495cb3cb3a606f5d879ae4302c7290d099e710c` |
 
-**sourceSnapshotSha256:** `07f1302c361da6ffb4e950852229ea97ec951b1aadc6322f396f1d21010c2e28`
+**sourceSnapshotSha256:** `786bc2b1cf28c0c12ec6f0f849ec5a7c3e3fc83034f1c33cf894fde247cbd447`
 
 ## Stage 2 (from stage-2-gate-status.json)
 
@@ -45,8 +45,8 @@ authority or enables a route.
 
 ## Audit exceptions (counts only)
 
-- active: 1
-- released: 1
+- active: 0
+- released: 2
 
 ## Pointers (paths only; not hashed)
 
