@@ -88,6 +88,10 @@ describe('assertRenderable', () => {
     ['href 的 data: URL', '<a href="data:text/html,synthetic">x</a>'],
     ['mixed-case data: URL', '<a HREF="DaTa:text/html,synthetic">x</a>'],
     ['src 的 data: URL', '<img src="data:text/html,synthetic">'],
+    ['href 的 ftp: URL', '<a href="ftp://example.invalid/file">x</a>'],
+    ['mixed-case blob: URL', '<a HREF="BlOb:synthetic">x</a>'],
+    ['unquoted custom scheme', '<a href=custom+test:synthetic>x</a>'],
+    ['svg xlink:href 的 urn: URL', '<a xlink:href="urn:synthetic">x</a>'],
     ['button formaction', '<button formaction="/other">x</button>'],
     ['input formaction', '<input type="submit" FORMACTION="/other">']
   ];
@@ -110,6 +114,7 @@ describe('assertRenderable', () => {
     ['HTTPS link', '<a href="https://example.invalid/" target="_blank">x</a>'],
     ['mailto link', '<a href="mailto:synthetic@example.invalid">x</a>'],
     ['tel 撥號連結', '<a href="tel:0900000000">x</a>'],
+    ['relative link', '<a href="/clinic">x</a>'],
     ['空字串', '']
   ];
 

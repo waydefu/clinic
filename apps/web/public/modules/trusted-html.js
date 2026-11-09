@@ -38,8 +38,8 @@ const EXECUTABLE_MARKUP = [
   // 標籤內的行內事件處理器（onclick、onerror…）。CSP 本來就會擋下它們執行，
   // 但它們出現在這裡就代表逸出漏了，應該更早失敗。
   /<[^>]+\son\w+\s*=/i,
-  // href/src 裡的可執行或內嵌資料 URL。
-  /<[^>]+(?:href|src|xlink:href)\s*=\s*["']?\s*(?:javascript|data):/i,
+  // 明寫的 URL scheme 僅允許核准的連結協定；相對路徑不在此列。
+  /<[^>]+(?:href|src|xlink:href)\s*=\s*["']?\s*(?!(?:https?|mailto|tel):)[a-z][a-z\d+.-]*:/i,
   // 不允許透過按鈕覆寫表單的送出目的地。
   /<[^>]+\sformaction\s*=/i
 ];
