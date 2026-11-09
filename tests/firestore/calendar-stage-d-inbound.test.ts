@@ -558,6 +558,10 @@ describe('Stage D Calendar inbound emulator', () => {
       .map((ref) => ref.id)
       .sort();
     const existingAppointmentIds = await documentIds('appointments');
+    const unrelatedPatient = await db
+      .collection('patients')
+      .doc(UNRELATED_PATIENT_ID)
+      .get();
     const repository = new FirestoreCalendarSyncRepository(
       db,
       'synthetic-pseudonym-key-32-characters-min'
@@ -592,6 +596,9 @@ describe('Stage D Calendar inbound emulator', () => {
     ).toBe(true);
     expect(patients.map((ref) => ref.id).sort()).toEqual(existingPatientIds);
     expect(existingPatientIds).toContain(UNRELATED_PATIENT_ID);
+    expect(
+      (await db.collection('patients').doc(UNRELATED_PATIENT_ID).get()).data()
+    ).toEqual(unrelatedPatient.data());
     const candidates = await db.collection('calendar_pilot_candidates').get();
     expect(candidates.docs[0]?.data()?.['kind']).toBe('unmatched');
     expect(candidates.docs[0]?.data()?.['status']).toBe('unmatched');
