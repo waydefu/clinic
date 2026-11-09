@@ -36,6 +36,40 @@ production booking route.
 | IP-001 return lookup | `POST /v1/return-lookup` | `ReturnLookupRequestSchema` / `ReturnLookupResponseSchema` | `ReturnLookupController` in `InternalTestBookingModule`; internal-test gate. Authentication is attempted but absence or failure does not itself deny lookup. Optional limiter and its limitations are described below. Default 503. Not public production. |
 | IP-001 internal-test schedule | `GET /v1/slots`, `GET /v1/schedule`, `POST /v1/schedule/publish` | `ListSlotsResponseSchema`, `GetPublishedScheduleResponseSchema`, `PublishScheduleRequestSchema` / `PublishScheduleResponseSchema` | Fail-closed published grid. Slot occupancy is lazy. Default 503. Not public production. |
 
+## Business-delivery routed inventory
+
+`BusinessDeliveryModule` is mounted by `AppModule`; its four controllers use
+`CalendarPilotSessionGuard`. Writes pass that guard's CSRF check. The service
+feature switch and role checks still apply; selected sensitive writes require
+fresh reauthentication. When business delivery is disabled, services fail
+closed; authentication can reject a request before it reaches that check.
+Routes being mounted is not production, real-data or deployment authority.
+
+- `GET /v1/business-delivery/monthly-usage`
+- `GET /v1/business-delivery/milestones`
+- `POST /v1/business-delivery/milestones/:milestoneId/acknowledgements`
+- `POST /v1/business-delivery/exports`
+- `GET /v1/business-delivery/exports/:exportId`
+- `GET /v1/business-delivery/exports/:exportId/download`
+- `POST /v1/business-delivery/exports/:exportId/revoke`
+- `POST /v1/business-delivery/retention/archive`
+- `POST /v1/business-delivery/retention/restore`
+- `GET /v1/business-delivery/retention/identity-candidates`
+- `POST /v1/business-delivery/retention/confirm-identity`
+- `POST /v1/business-delivery/retention/permanent-delete`
+- `POST /v1/business-delivery/retention/legal-hold`
+- `GET /v1/business-delivery/retention/pending-deletion`
+- `POST /v1/business-delivery/terminations`
+- `GET /v1/business-delivery/terminations/:terminationId`
+- `POST /v1/business-delivery/terminations/:terminationId/acknowledgements`
+- `POST /v1/business-delivery/terminations/:terminationId/close`
+
+Contracts and per-operation validation are owned by the corresponding
+business-delivery application services and `@beauessence/contracts` schemas;
+the CSV download uses `text/csv` and `Cache-Control: no-store`. This inventory
+does not claim that every other mounted controller has been individually
+catalogued.
+
 ## Reserved booking contracts
 
 The following schemas exist in `@beauessence/contracts` but are **not exposed
