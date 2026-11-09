@@ -962,7 +962,7 @@ function syncBell() {
       .map(({ appointment: item, reason }) => {
         const person = state.patients.find((p) => p.id === item.patientId);
         // 原因要寫出來。清單裡現在有兩種通知，而「排在前面」不是任何人讀得到的線索。
-        return `<li class="bell-row"><strong>${escapeHtml(person?.name ?? item.patientId)}</strong><span class="bell-reason">${escapeHtml(reason)}</span><span>${escapeHtml(maskPatientPhone(person?.phone))}</span><span class="code">${escapeHtml(formatFullDate(item.startsAt))} ${escapeHtml(formatTime(item.startsAt))} · ${escapeHtml(item.id)}</span></li>`;
+        return `<li class="bell-row"><strong>${escapeHtml(person?.name ?? item.patientId)}</strong><span class="bell-reason">${escapeHtml(reason)}</span><a href="tel:${escapeHtml(person?.phone ?? '')}">${escapeHtml(maskPatientPhone(person?.phone))}</a><span class="code">${escapeHtml(formatFullDate(item.startsAt))} ${escapeHtml(formatTime(item.startsAt))} · ${escapeHtml(item.id)}</span></li>`;
       })
       .join('')
   );
@@ -1663,8 +1663,7 @@ elements.appointments.addEventListener('click', async (event) => {
   }
 
   // W7：列印初診基本資料。不改任何狀態、不寫稽核——它只是把已有的資料排版。
-  // 內容用完就清掉：那張表上有完整的身分證字號，沒有理由讓它留在 DOM 裡等著
-  // 被下一個看螢幕的人捲到。
+  // 患者資料用完就清掉，不讓列印容器留在 DOM 裡。
   if (action === 'print_intake') {
     const sheet = elements['intake-print'];
     sheet.innerHTML = assertRenderable(renderIntakeSheet(state, id));

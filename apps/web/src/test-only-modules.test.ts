@@ -1920,30 +1920,23 @@ describe('工作臺批次的新行為', () => {
       expect(html).not.toContain('intake-print-only');
     });
 
-    // 舊紀錄仍帶證件時沿用原本的遮罩與列印層；新預約不會再有這些值。
-    it('舊紀錄的身分證字號在畫面上遮罩、列印時完整', () => {
+    // 舊紀錄畫面與列印都只保留首碼與末兩碼。
+    it('舊紀錄的身分證字號在畫面和列印均遮罩', () => {
       const state = initialState();
       const appointment = bookOne(state, ['service_snoring']);
       state.patients.at(-1).nationalId = 'A123456789';
       const html = sheetFor(state, appointment.id);
-      // 兩個值都在 DOM 裡，由 @media print 切換哪一個顯示。
-      expect(html).toContain('intake-screen-only');
-      expect(html).toContain('A12****789');
-      expect(html).toContain('intake-print-only');
-      expect(html).toContain('A123456789');
+      expect(html).toContain('A*******89');
+      expect(html).not.toContain('A123456789');
     });
 
-    it('舊紀錄的護照號碼同樣只在合成列印層顯示完整值', () => {
+    it('舊紀錄的護照號碼在畫面和列印均遮罩', () => {
       const state = initialState();
       const appointment = bookOne(state, ['service_snoring']);
       state.patients.at(-1).passportNumber = 'P12345678';
       const html = sheetFor(state, appointment.id);
-      expect(html).toContain(
-        '<span class="intake-screen-only">P12****678</span>'
-      );
-      expect(html).toContain(
-        '<span class="intake-print-only">P12345678（護照）</span>'
-      );
+      expect(html).toContain('P******78');
+      expect(html).not.toContain('P12345678');
     });
 
     // CSP 是 style-src 'self'：style 屬性會被整個擋掉，寬度必須走 class。
