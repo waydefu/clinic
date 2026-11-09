@@ -371,12 +371,12 @@ export function routeFamilyFromPath(path) {
         return 'return_lookup';
     if (path.includes('/bookings'))
         return 'public_booking';
+    if (path.includes('/calendar-session'))
+        return 'staff';
     if (path.includes('/calendar'))
         return 'calendar';
     if (path.includes('/schedule') || path.includes('/slots'))
         return 'schedule';
-    if (path.includes('/calendar-session'))
-        return 'staff';
     return 'other';
 }
 export function isBookingWritePath(method, path) {
