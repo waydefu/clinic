@@ -84,7 +84,12 @@ describe('assertRenderable', () => {
     ['行內 onerror', '<img src=x onerror="alert(1)">'],
     ['行內 onclick', '<button onclick="steal()">x</button>'],
     ['href 的 javascript: URL', '<a href="javascript:alert(1)">x</a>'],
-    ['src 的 javascript: URL', '<iframe src="javascript:alert(1)">']
+    ['src 的 javascript: URL', '<iframe src="javascript:alert(1)">'],
+    ['href 的 data: URL', '<a href="data:text/html,synthetic">x</a>'],
+    ['mixed-case data: URL', '<a HREF="DaTa:text/html,synthetic">x</a>'],
+    ['src 的 data: URL', '<img src="data:text/html,synthetic">'],
+    ['button formaction', '<button formaction="/other">x</button>'],
+    ['input formaction', '<input type="submit" FORMACTION="/other">']
   ];
 
   it.each(executable)('rejects %s', (_label, html) => {

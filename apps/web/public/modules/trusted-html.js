@@ -38,8 +38,10 @@ const EXECUTABLE_MARKUP = [
   // 標籤內的行內事件處理器（onclick、onerror…）。CSP 本來就會擋下它們執行，
   // 但它們出現在這裡就代表逸出漏了，應該更早失敗。
   /<[^>]+\son\w+\s*=/i,
-  // href/src 裡的 javascript: URL。
-  /<[^>]+(?:href|src|xlink:href)\s*=\s*["']?\s*javascript:/i
+  // href/src 裡的可執行或內嵌資料 URL。
+  /<[^>]+(?:href|src|xlink:href)\s*=\s*["']?\s*(?:javascript|data):/i,
+  // 不允許透過按鈕覆寫表單的送出目的地。
+  /<[^>]+\sformaction\s*=/i
 ];
 
 export function assertRenderable(html) {
