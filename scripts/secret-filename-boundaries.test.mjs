@@ -122,6 +122,7 @@ describe('filename boundaries without reading any credential content', () => {
       '**/.env',
       '**/.env.*',
       '**/secrets/**',
+      'cal-pilot-keys',
       '**/*credential*.json',
       '**/*service-account*.json',
       '**/*service_account*.json'
