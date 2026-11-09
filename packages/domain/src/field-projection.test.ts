@@ -4,6 +4,7 @@ import {
   isBlockedProjectionField,
   projectRecordFields
 } from './field-projection.js';
+import { ROLES } from './roles.js';
 
 const record = {
   appointmentId: 'appt_001',
@@ -39,6 +40,19 @@ describe('projectRecordFields', () => {
       slotId: 'slot_001',
       status: 'confirmed'
     });
+  });
+
+  it.each(ROLES)('omits unknown and nested fields for %s', (role) => {
+    expect(
+      projectRecordFields(role, {
+        ...record,
+        patientName: 'synthetic',
+        appointmentId: { nested: 'synthetic' },
+        slotId: ['synthetic'],
+        status: 'confirmed'
+      })
+    ).toEqual({ status: 'confirmed' });
+    expect(isBlockedProjectionField('patientName')).toBe(true);
   });
 
   it('names the blocked columns so callers can omit them at query time', () => {
