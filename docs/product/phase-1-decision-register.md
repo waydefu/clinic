@@ -1117,6 +1117,16 @@ merge、部署、secret、IAM、資料轉換與其他受保護動作，仍各自
   個人 Gmail 無法由診所強制。負責人另要求：「6 位數碼要求時要附詳細教學與手機驗證器下載連結」。
   敏感操作再驗證和第一次綁定驗證器的六位數畫面均須提供繁體中文、預設收合、可鍵盤操作的
   逐步教學與 Google、Microsoft 驗證器 iPhone／Android 商店連結，不載入外部腳本或圖片。
+  教學須解釋手機驗證器、下載 App、掃描綁定 QR code、開啟 App 並在「一森渼」一列
+  讀取六位數；數字每 30 秒更新，換手機或刪除 App 時找主管重設。
+  連結新分頁開啟並使用 `rel="noopener noreferrer"`：
+  [Google Authenticator iPhone](https://apps.apple.com/app/google-authenticator/id388497605)、
+  [Google Authenticator Android](https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2)、
+  [Microsoft Authenticator iPhone](https://apps.apple.com/app/microsoft-authenticator/id983156458)、
+  [Microsoft Authenticator Android](https://play.google.com/store/apps/details?id=com.azure.authenticator)。
+- **實作狀態：** 決定不等於來源已實作或部署。現有 Firebase TOTP 登入與敏感操作
+  再驗證共用第二因素；在釐清只改日常登入且維持 step-up 的可行路徑與 E4-14
+  authority 前，不應移除現有檢查，也不能把待辦行為寫成已上線。
 
 ## 2026-10-03 重新登入彈窗的瀏覽器隔離設定
 

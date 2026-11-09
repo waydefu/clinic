@@ -10,6 +10,10 @@
 
 ## 1. 登入工作臺
 
+> **2026-11-09 決定與現況：** 負責人已決定日常登入不再要求 TOTP，但來源實作
+> 與實測尚未完成；以下仍描述現有 source，不代表新登入方式已可使用。敏感操作
+> 維持 10 分鐘內 fresh Google＋TOTP。新方式以決策登記簿及完成後的驗證為準。
+
 ### 已有的登入方式（source 已有，部署與人工走查待驗證）
 
 1. 使用核准的 C1 `internal-preproduction` Hosting 網址，開啟 `/staff`。先核對瀏覽器網址的主機屬於 isolated C1；不可用正式網站、`beauessence-clinic-staging` 或舊 `synthetic-review` 預覽。
