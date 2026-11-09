@@ -249,6 +249,22 @@ D-007、D-008（月結）、D-014、D-015 已 deferred，不在 RC。
 | SOL-IAC-LIFECYCLE | #463：B-10 占位目標拒絕及 mock 測試 | B-11、B-50、E2-08 與其他來源前置仍待處理；真實狀態 plan／apply 未執行且須逐次核准 |
 | 台帳 | #464：本節記錄第一、二批來源切片與缺口 | 後續狀態由台帳負責人持續更新 |
 
+### 第三批 A：來源切片審查中
+
+| 包 | PR 與來源範圍 | 尚未完成 |
+| --- | --- | --- |
+| SOL-CALENDAR-CANDIDATE | #465：未授權拒絕不進入任一路徑 | 不同患者比對、SCHEDULE 依賴與 IAM／SESSION 外證 |
+| SOL-CALENDAR-RESTORE | #466：既存衝突 link 不符不得 PATCH | cancelled 還原／read-back、smoke 唯一識別及其他 finding；真實日曆演練屬 12 月 |
+| SOL-CALENDAR-TESTS | #467：合成非建檔時無關患者文件不變 | 獨跑、整套、反序與最終 RC 凍結 head 證據 |
+| SOL-CI-IAC | #468：mock runner 中途 init 失敗即停 | 未改 workflow 或 gate；受保護部分及外部依賴仍未完成 |
+| SOL-CLI | #469：合成 PATH 的明確 PATHEXT 正反例 | 其餘 CLI 入口／參數與依賴證據 |
+| SOL-CONFIG | #470：未知值遮蔽與輸入不變 | 雙向 inventory、其他 consumer 與 IAC-LIFECYCLE 依賴 |
+| SOL-EXPORT | #471：合成 CSV 引號與換行轉義 | 資源上限、交付額度、RBAC 及 RC-06 實測 |
+| SOL-GOVERNANCE | #472：waiver 缺 owner／approver／evidence 的拒絕測試 | 其他 waiver 案例、B-18、文件對帳及 PRIVACY 依賴；不宣稱遠端讀回 |
+| 台帳 | #473：本節更新第二批及第三批 A | 待審查，後續狀態以遠端讀回為準 |
+
+上列第三批均為 PR 來源切片，不代表已合併、整包完成或雲端實測；實際 PR、CI 狀態以遠端 exact head 為準。
+
 歷史基準：2026-11-07 main `63e59c94` 時，59 包中 25 包為台帳終態，另 34 包未整包完成；該快照不是目前重新盤點的數字。2026-11-08 已合併 #451（RC-03）。各包細節及依賴見第四節與細部包；外部證據仍以 IAM 與 SESSION 為主要依賴。
 
 ### 第三批 A／B 狀態快照（2026-11-09）
@@ -270,7 +286,7 @@ A 批 #466～#474 由 Claude 驗收合併中；以下只是來源切片，狀態
 
 | 第三批 B 包 | PR | 狀態及剩餘項 |
 | --- | --- | --- |
-| 員工登入決定與 SESSION 實作 | #475（決定文件） | 部分完成：安全邏輯、六位數 UI 與測試未實作；E4-14 authority 及 Firebase 第二因素分離路徑需先釐清，外證與部署另行授權 |
+| 員工登入決定與 SESSION 實作 | #475（決定文件） | 部分完成：七天安全邏輯、六位數 UI 與測試未實作；E4-14 authority、外證與部署另行處理 |
 | HTML | — | 部分完成：既有來源仍需完整對照；refresh 核准政策及 PRIVACY／RUNTIME 依賴未核清 |
 | IDENTITY | — | 部分完成：既有 #389／#417 之外的來源及 SESSION 外證未完成 |
 | LIST | — | 部分完成：既有 #448 之外的 UI／文件、IDENTITY／RETURN 依賴未完成 |

@@ -1109,15 +1109,17 @@ merge、部署、secret、IAM、資料轉換與其他受保護動作，仍各自
 - 負責人先對「把登入改成只用 Google、高權限動作才要 6 位數嗎？」回答「改，排進 SESSION」。
   因 Firebase 內建 MFA 對已綁定者每次登入均要求 TOTP，後續三案中負責人選第 1 案，原話「1」，取代前述方向。
 - 登入維持 Google＋TOTP；員工 session 改為絕對 7 天、不因閒置登出，取代
-  `STAFF-SESSION-12H-2026-10-03` 的 12 小時時效。停權即拒、登出撤銷、CSRF 與角色檢查不變。
+  `STAFF-SESSION-12H-2026-10-03` 的 12 小時時效。以最近一次完整 Google＋TOTP 的時間起算；
+  自動恢復不得延長，敏感操作完整再驗證成功可重新起算。停權即拒、登出撤銷、CSRF 與角色檢查不變。
   確認里程碑、建立匯出、封存、永久刪除、終止寫入仍須 10 分鐘內 fresh Google＋TOTP，
   ADR-0008～0011 不變。此決定不授權部署或真實資料操作。
 - 已知取捨：登入狀態保留 7 天，櫃台電腦離座須鎖定；「平常完全不用 6 位數」須自建
   step-up TOTP，另排 12 月，不在本次範圍。負責人另要求：「6 位數碼要求時要附詳細教學與手機驗證器下載連結」。
   登入第二步、敏感操作再驗證和第一次綁定驗證器的六位數畫面均須提供繁體中文、預設收合、可鍵盤操作的
   逐步教學與 Google、Microsoft 驗證器 iPhone／Android 商店連結，不載入外部腳本或圖片。
-  教學須解釋手機驗證器、下載 App、掃描綁定 QR code、開啟 App 並在「一森渼」一列
-  讀取六位數；數字每 30 秒更新，換手機或刪除 App 時找主管重設。
+  教學須解釋手機驗證器及下載 App：在 App 點「＋」→「輸入設定金鑰」，帳戶名稱填「一森渼」，
+  貼上畫面金鑰、類型選「依時間」；在「一森渼」一列讀取六位數，每 30 秒更新。
+  換手機或刪除 App 時找主管重設；本次不做 QR code 綁定。
   連結新分頁開啟並使用 `rel="noopener noreferrer"`：
   [Google Authenticator iPhone](https://apps.apple.com/app/google-authenticator/id388497605)、
   [Google Authenticator Android](https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2)、

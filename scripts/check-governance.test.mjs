@@ -186,6 +186,19 @@ describe('governance health check', () => {
     ).toBe(false);
   });
 
+  it.each(['owner', 'approver', 'evidence'])(
+    'does not apply a waiver missing %s',
+    (field) => {
+      const incomplete = waiver({ [field]: '' });
+      expect(
+        hasValidWaiver([incomplete], 'GOV-BOOT-SIZE', 'AGENTS.md', today)
+      ).toBe(false);
+      expect(
+        reviewWaivers({ registry: { waivers: [incomplete] }, today }).join('\n')
+      ).toContain(`missing ${field}`);
+    }
+  );
+
   it('detects reintroduced retired AGENTS headings', () => {
     expect(reviewRetiredHeadings('# boot\n')).toEqual([]);
     expect(
