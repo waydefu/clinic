@@ -38,7 +38,7 @@ Sol v2 四項決定已逐字登記在 [#268](https://github.com/waydefu/clinic/p
 | --- | --- | --- |
 | INGRESS／B-03 | [client-ip](../../apps/api/src/platform/runtime/client-ip.ts)、[WP-B2A 身分桶](../../apps/api/src/platform/runtime/wp-b2-rate-limiter.ts)、[internal-test gate](../../apps/api/src/internal-test-booking/internal-test-booking.gate.ts)、#278／#285／#292 | 方案 A 接受直連 run.app 可達；須驗核准正門正常、偽造最左側 X-Forwarded-For／格式錯誤／多地址與換 IP 不能重置身分桶鎖定、未核准 host 及關閉／逾期 gate 拒絕。安全計數取得仍有 §3.1 缺口；exact host、直連目標與操作時窗須新鮮核准 |
 | NOTIFICATION／B-08 | [WP-B4 main](../../infra/terraform/wp-b4-alerting/main.tf)、[設計](2026-10-30-sol-notification-design.md)、[consumer](../../apps/worker/src/alert-notification-consumer.ts)、#357／#384 | 純 consumer 與可選 publisher／subscription／DLQ 配對已有來源與合成測試；實際 principal、資源、worker transport／sender 與投遞仍未證實，不能只列「待實測」 |
-| MAINTENANCE／E3-07 | [maintenance gate](../../apps/api/src/platform/runtime/maintenance-gate.ts)、[共用來源候選](2026-11-02-sol-maintenance-source-control.md)、[AppModule](../../apps/api/src/app.module.ts)、[還原 runbook](../runbooks/backup-and-restore.md)、[事件應變](../runbooks/incident-response.md) | 10-31 已核准 source-only 施工；預設改為 unknown／到期即拒絕，API／worker／排程准入與在途 callback 可合成測試。實際 reader／store、跨 process 一致性、全部 writer 接線及 provider 排空仍未驗證，不把來源計數當作全域停寫 |
+| MAINTENANCE／E3-07 | [maintenance gate](../../apps/api/src/platform/runtime/maintenance-gate.ts)、[共用來源候選](2026-11-02-sol-maintenance-source-control.md)、[API 入口](../../apps/api/src/main.ts)、[outbox 入口](../../apps/worker/src/internal-test-outbox-main.ts)、[calendar worker 入口](../../apps/worker/src/calendar-sync/calendar-pilot-main.ts)、[還原 runbook](../runbooks/backup-and-restore.md)、[事件應變](../runbooks/incident-response.md) | #447 已將 Firestore 共用控制 reader 接入上述來源入口；這不是部署或 provider 證據。實際 store、跨 process 一致性、全部 writer 接線及 provider 排空仍未驗證，不把來源計數當作全域停寫 |
 | LEASE／D-05、D-12 | [runtime](../../apps/worker/src/calendar-sync/calendar-pilot-runtime.ts)、[協調設計](2026-10-22-sol-calendar-lease-coordination.md)、#287 | 合成協調測試不證明實際唯一 egress、舊 worker 終止／隔離與 provider 在途工作排空；未知必須 quarantine |
 | SECRETS／B-31、B-55 | [.claude source policy](../../.claude/settings.json)、[upload exclusion](../../.gcloudignore)、[tracked exclusions](../../.gitignore)、#277／#291 | Claude source deny 不自動涵蓋 Hermes、Codex 或其他工具；每個實際工具與 upload 路徑要各自驗證 admission-before-read |
 
@@ -168,7 +168,7 @@ API 必填驗證在 `variables.tf:313–326`，worker 在 `variables.tf:344–35
   **需要新的精確授權：共用控制來源、實例／排程範圍、停機時窗及回復方式；restore 另核准。**
 - 資料與允許效果：只有合成寫入探針與已知的在途合成工作；允許效果為核准時窗內拒絕／隔離，不是刪資料。
 - 人工步驟：
-  1. 先核對當日完整 route／writer inventory、共用控制接線與實例清單；仍只有 static gate 就停止準備，不宣稱可停寫。
+  1. 先核對當日完整 route／writer inventory、共用控制接線與實例清單；#447 的來源接線不代表實際部署或全 writer 涵蓋。若操作目標仍只有 static gate、控制不可讀或 inventory 不完整，就停止準備，不宣稱可停寫。
   2. 記錄所有寫入／外部投影與在途工作計數；只按已核准方式關閉新請求入口及排程。
   3. 讓在途工作排空，或按已核准設計隔離。對每條 API、worker、直接 callback 與重試路徑逐一送合成探針。
   4. 加入讀取控制失敗、控制未知／逾期與另一實例未更新的反例；均須 fail closed，而非用快取的允許狀態繼續寫。

@@ -6,6 +6,8 @@ Current source baseline `2f9360cf5d670879b98705cd9a3b04eb71fe20bd`；frozen研�
 
 表中CONFIRMED_CODE_FACT是source/model推論；LIKELY/CANDIDATE/NEEDS_RUNTIME_REPRODUCTION不是confirmed deployed bug。31 provenance gap永久終局，不再等原分冊，但歷史claim皆未verified。formal global net-new=null；raw NEW=10、confirmed minimum=0、2 current siblings、8 custody-limited identity ambiguity。
 
+2026-11-08 對帳：K1 屬 NO-WORK，#419 是 SOL-RETURN 的額外回歸；E1-26 屬 SOL-RUNTIME-EVIDENCE；E1-05 屬 SOL-RELEASE，#308 列入 IAM 為誤列。SOL-TTL 的 24 小時實體保留與 SOL-RBAC 的 E4-09 同職務答案見[決定登記簿](../product/phase-1-decision-register.md)；這不代表兩包完成，其他前置與權限不變。
+
 | ID | 原 severity | Current finding disposition | Provenance | 安全摘要 | 單一 primary/actor | Dedupe/current evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | B-10 | Medium | LIKELY | AVAILABLE_RECORDED_SOURCE | 排程啟用狀態與可接受的初始占位目標未形成一致的安全組態契約。 | SOL_PRIMARY_EXPERT_ONLY / SOL-IAC-LIFECYCLE | CUSTODY_LIMITED_AMBIGUOUS；source scope only |
