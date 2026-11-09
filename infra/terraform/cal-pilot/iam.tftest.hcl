@@ -3,12 +3,42 @@
 # Terraform 1.9.8 does not resolve those computed values in a plan-only run.
 mock_provider "google" {}
 
+run "unpaused_scheduler_rejects_placeholder" {
+  command = plan
+
+  variables {
+    project_id         = "synthetic-lifecycle-project"
+    billing_account_id = "000000-000000-000000"
+  }
+
+  expect_failures = [google_cloud_scheduler_job.sync]
+}
+
+run "unpaused_scheduler_accepts_worker_url" {
+  command = plan
+
+  variables {
+    project_id         = "synthetic-lifecycle-project"
+    billing_account_id = "000000-000000-000000"
+    worker_service_url = "https://cal-pilot-worker-synthetic.run.app"
+  }
+
+  assert {
+    condition = (
+      google_cloud_scheduler_job.sync.paused == false &&
+      google_cloud_scheduler_job.sync.http_target[0].uri == "https://cal-pilot-worker-synthetic.run.app/tasks/calendar-sync"
+    )
+    error_message = "A valid worker URL must preserve the existing unpaused scheduler target."
+  }
+}
+
 run "current_cal_pilot_iam_manifest" {
   command = plan
 
   variables {
     project_id         = "synthetic-iam-project"
     billing_account_id = "000000-000000-000000"
+    worker_service_url = "https://cal-pilot-worker-synthetic.run.app"
   }
 
   assert {
