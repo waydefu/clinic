@@ -10,6 +10,10 @@
 
 ## 1. 登入工作臺
 
+> **2026-11-09 決定與現況：** 登入維持 Google＋TOTP；負責人決定 session 改為
+> 7 天、無閒置登出，六位數畫面加教學。新時效與教學的來源實作及實測尚未完成；
+> 以下仍描述現有 source。敏感操作維持 10 分鐘內 fresh Google＋TOTP，離座須鎖定電腦。
+
 ### 已有的登入方式（source 已有，部署與人工走查待驗證）
 
 1. 使用核准的 C1 `internal-preproduction` Hosting 網址，開啟 `/staff`。先核對瀏覽器網址的主機屬於 isolated C1；不可用正式網站、`beauessence-clinic-staging` 或舊 `synthetic-review` 預覽。
