@@ -137,7 +137,7 @@ describe('CalendarPilotApplicationService role boundary', () => {
       service.reviewCandidate(
         'synthetic_candidate',
         'reject',
-        { idempotencyKey: 'synthetic_candidate_reject_001', expectedVersion: 1 },
+        { idempotencyKey: 'calendar_candidate_0002', expectedVersion: 1 },
         { actorId: 'synthetic_actor', actorRole: ROLES[4] }
       )
     ).rejects.toBeInstanceOf(AuthorizationDeniedError);
