@@ -2004,7 +2004,8 @@ describe('工作臺語意 T2-WB-02', () => {
       );
     expect(row('appointment_c1_nat_1')).toContain('國籍：外國');
     expect(row('appointment_c1_nat_2')).toContain('國籍：本國');
-    expect(row('appointment_c1_nat_2')).toContain('0900000000');
+    expect(row('appointment_c1_nat_2')).toContain('*******000');
+    expect(row('appointment_c1_nat_2')).not.toContain('0900000000');
   });
 
   it('回診待安排列不顯示來源 ID', () => {
