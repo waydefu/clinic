@@ -26,6 +26,7 @@ import {
   renderAppointments,
   renderFollowUps,
   renderIntakeSheet,
+  renderNextUp,
   summaryCounts
 } from '../public/modules/admin-view.js';
 import {
@@ -1890,6 +1891,27 @@ describe('工作臺批次的新行為', () => {
       Date.parse(appointment.startsAt) + 11 * 60_000
     );
     expect(tasks.overdueArrivals).toEqual([appointment.id]);
+  });
+
+  it.each([
+    ['nationalId', 'A123456789', 'A*******89'],
+    ['passportNumber', 'P12345678', 'P******78']
+  ])('清單與下一位遮罩電話，清單遮罩 %s', (field, document, masked) => {
+    const state = initialState();
+    const appointment = bookOne(state, ['service_snoring']);
+    state.patients.at(-1)[field] = document;
+    const list = renderAppointments(state, {
+      status: 'all',
+      kind: 'all',
+      query: ''
+    });
+    const next = renderNextUp(state, Date.parse(appointment.startsAt) - 1);
+    expect(list).toContain(masked);
+    expect(list).not.toContain(document);
+    for (const html of [list, next]) {
+      expect(html).toContain('*******678');
+      expect(html).not.toContain('0912345678');
+    }
   });
 
   // W7：初診資料列印頁。
