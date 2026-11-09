@@ -182,6 +182,10 @@ API 必填驗證在 `variables.tf:313–326`，worker 在 `variables.tf:344–35
 ## 6. LEASE：嚴格零派送與交接排空
 
 - 包／ID：SOL-CALENDAR-LEASE／D-05、D-12。
+- 來源證據索引：[合成協調測試](../../apps/worker/src/calendar-sync/calendar-pilot-lease-coordinator.synthetic.test.ts)
+  涵蓋到期拒絕、兩 worker 交接排空與舊 owner 不再派送；這是記憶體模型，不是 provider 或跨程序的實測證據。
+  [續期測試](../../scripts/c1-calendar-sync-bootstrap.test.mjs) 覆蓋到期邊界與拒絕案例；續期本身尚須逐次授權。
+  真實 runtime 的 LEASE 接入範圍仍待負責人釐清，不能以合成測試假設已接入或宣稱 Gate 2 完成。
 - SHA：執行當天的 main SHA，由操作者填。
 - 目標：既有 isolated C1 的精確兩個 worker 身分與核准合成 egress 目標。
   **需要新的精確授權：worker／egress／專用合成 calendar（若需要）的確切識別、允許效果、數量與 UTC 時窗。**
