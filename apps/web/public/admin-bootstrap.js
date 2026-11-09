@@ -1,8 +1,6 @@
 // Trusted Types default policy 必須先於其他模組註冊。
-import {
-  activateFormPlaceholders,
-  assertRenderable
-} from './modules/trusted-html.js';
+import { assertRenderable } from './modules/trusted-html.js';
+import { activateFormPlaceholders } from './modules/form-placeholders.js';
 
 import {
   appointmentPage,

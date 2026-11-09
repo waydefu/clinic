@@ -1,7 +1,5 @@
-import {
-  activateFormPlaceholders,
-  assertRenderable
-} from '../public/modules/trusted-html.js';
+import { assertRenderable } from '../public/modules/trusted-html.js';
+import { activateFormPlaceholders } from '../public/modules/form-placeholders.js';
 import { getApps, initializeApp } from 'firebase/app';
 import {
   GoogleAuthProvider,

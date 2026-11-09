@@ -54,7 +54,8 @@ describe('pilot handoff regressions', () => {
     const otpRegion = {
       hidden: true,
       innerHTML: '',
-      querySelector: () => otpForm
+      querySelector: () => otpForm,
+      querySelectorAll: () => []
     };
     const root = {
       innerHTML: '',

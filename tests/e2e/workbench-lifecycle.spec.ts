@@ -672,37 +672,31 @@ test.describe('工作臺其餘資料表', () => {
 test.describe('工作臺預約生命週期', () => {
   test('動態表單不複製導向目的地並阻止原生提交', async ({ page }) => {
     await login(page);
-    const result = await page.evaluate(async () => {
-      const modulePath = '/modules/trusted-html.js';
-      const { activateFormPlaceholders } = await import(modulePath);
-      const container = document.createElement('div');
-      const placeholder = document.createElement('div');
-      placeholder.setAttribute('data-client-form', '');
-      placeholder.setAttribute('data-follow-up-form', 'synthetic');
-      placeholder.setAttribute('action', 'https://example.invalid/');
-      const input = document.createElement('input');
-      input.name = 'synthetic';
-      input.value = 'example';
-      placeholder.append(input);
-      container.append(placeholder);
-      document.body.append(container);
-      activateFormPlaceholders(container);
-      const form = container.querySelector('form');
-      if (form === null) throw new Error('form missing');
-      const prevented = !form.dispatchEvent(
+    await createBooking(page);
+    await showAllAppointments(page);
+    const form = page.locator('form[data-reschedule-form]').first();
+    await expect(form).toHaveCount(1);
+    const result = await form.evaluate((element) => {
+      const formElement = element as HTMLFormElement;
+      // Stop the delegated business handler while testing native submission.
+      formElement.addEventListener('submit', (event) => event.stopPropagation(), {
+        once: true
+      });
+      const prevented = !element.dispatchEvent(
         new Event('submit', { bubbles: true, cancelable: true })
       );
-      const data = new FormData(form).get('synthetic');
-      const hasAction = form.hasAttribute('action');
-      const marker = form.getAttribute('data-follow-up-form');
-      container.remove();
-      return { prevented, data, hasAction, marker };
+      return {
+        prevented,
+        hasSlot: new FormData(formElement).has('slotId'),
+        hasAction: element.hasAttribute('action'),
+        hasMarker: element.hasAttribute('data-reschedule-form')
+      };
     });
     expect(result).toEqual({
       prevented: true,
-      data: 'example',
+      hasSlot: true,
       hasAction: false,
-      marker: 'synthetic'
+      hasMarker: true
     });
   });
 

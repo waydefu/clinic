@@ -75,32 +75,6 @@ export function assertRenderable(html) {
   return text;
 }
 
-// 動態表單只能以 DOM 建立，且不能有原生導向目的地。
-export function activateFormPlaceholders(container) {
-  const attributes = [
-    'id',
-    'class',
-    'hidden',
-    'data-reschedule-form',
-    'data-notes-form',
-    'data-follow-up-form',
-    'data-case-form',
-    'data-otp-form',
-    'data-correction-form',
-    'data-appointment-form'
-  ];
-  for (const placeholder of container.querySelectorAll('[data-client-form]')) {
-    const form = document.createElement('form');
-    for (const attribute of attributes) {
-      if (placeholder.hasAttribute(attribute))
-        form.setAttribute(attribute, placeholder.getAttribute(attribute));
-    }
-    form.addEventListener('submit', (event) => event.preventDefault());
-    form.append(...placeholder.childNodes);
-    placeholder.replaceWith(form);
-  }
-}
-
 /**
  * Firebase Auth 的 redirect resolver 會動態載入 Google API iframe loader。
  * `require-trusted-types-for 'script'` 同時保護 script.src，因此 default policy
