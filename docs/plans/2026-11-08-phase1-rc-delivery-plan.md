@@ -261,6 +261,7 @@ D-007、D-008（月結）、D-014、D-015 已 deferred，不在 RC。
 | SOL-CONFIG | #470：未知值遮蔽與輸入不變 | 雙向 inventory、其他 consumer 與 IAC-LIFECYCLE 依賴 |
 | SOL-EXPORT | #471：合成 CSV 引號與換行轉義 | 資源上限、交付額度、RBAC 及 RC-06 實測 |
 | SOL-GOVERNANCE | #472：waiver 缺 owner／approver／evidence 的拒絕測試 | 其他 waiver 案例、B-18、文件對帳及 PRIVACY 依賴；不宣稱遠端讀回 |
+| 台帳 | #473：本節更新第二批及第三批 A | 待審查，後續狀態以遠端讀回為準 |
 
 上列第三批均為 PR 來源切片，不代表已合併、整包完成或雲端實測；實際 PR、CI 狀態以遠端 exact head 為準。
 
