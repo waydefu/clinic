@@ -423,6 +423,36 @@ describe('GoogleCalendarEventWriter', () => {
     ).not.toHaveProperty('id');
   });
 
+  it('does not patch a conflicting event owned by another link', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(response({}, 409))
+      .mockResolvedValueOnce(
+        response({
+          id: 'calpilotevent001',
+          etag: '"etag-001"',
+          extendedProperties: { private: { beauessenceLinkId: 'other_link' } }
+        })
+      );
+    const writer = new GoogleCalendarEventWriter(
+      'calendar@example.invalid',
+      () => Promise.resolve('token'),
+      fetchImpl
+    );
+    await expect(
+      writer.upsert({
+        eventId: 'calpilotevent001',
+        title: '[忙碌] 合成',
+        startsAt: '2026-09-02T06:00:00.000Z',
+        endsAt: '2026-09-02T07:00:00.000Z',
+        linkId: 'block_001'
+      })
+    ).rejects.toThrow(/identity/iu);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(fetchImpl.mock.calls[0]?.[1]?.method).toBe('POST');
+    expect(fetchImpl.mock.calls[1]?.[1]?.method).toBe('GET');
+  });
+
   it('deletes only with the etag of the matching link and stops on 412', async () => {
     const fetchImpl = vi
       .fn()
