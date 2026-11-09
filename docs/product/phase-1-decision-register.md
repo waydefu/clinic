@@ -1104,16 +1104,41 @@ merge、部署、secret、IAM、資料轉換與其他受保護動作，仍各自
 
 - `STAFF-SESSION-12H-2026-10-03`：業主在本次對話對 `STAFF-SIX-DIGIT-EXCEPTIONS-2026-10-03`
   的對應選擇「登入保留 6 位數，但少輸入幾次」，並選「一天一次，不管閒置」。
-  - **登入 MFA 不變：** 全員仍以 Google（或自管帳號）＋TOTP 登入；伺服器建立
-    session 仍要求 TOTP 第二因素。
+  - **登入 MFA：** 全員以 Google（或自管帳號）＋TOTP 登入；2026-11-09 決定維持此架構，並取代以下 12 小時時效。
   - **時效：** 取代 D-006 的「閒置 30 分鐘／絕對 8 小時」，改為**絕對 12 小時、
-    不因閒置登出**，約一個工作天輸入一次。停權後下一個受保護請求即拒絕、登出撤銷、
+    不因閒置登出**，約一個工作天須重新登入。停權後下一個受保護請求即拒絕、登出撤銷、
     CSRF 與角色檢查都不變。
   - **敏感操作再驗證不變：** 確認里程碑、建立匯出、封存、永久刪除、終止寫入仍要求
     10 分鐘內 fresh Google＋TOTP（ADR-0008～0011）。
   - **已知取捨：** 不再閒置登出，櫃台電腦無人看管時畫面可被他人操作；以人員離座
     鎖定電腦補償。之後若要恢復閒置登出，只需改 `packages/domain/src/staff-session.ts`。
   - 早期文件中「30 分鐘 idle／8 小時 absolute」的敘述為歷史紀錄，以本項為準。
+
+## 2026-11-09 員工登入與七天 session 決定
+
+- 負責人先對「把登入改成只用 Google、高權限動作才要 6 位數嗎？」回答「改，排進 SESSION」。
+  因 Firebase 內建 MFA 對已綁定者每次登入均要求 TOTP，後續三案中負責人選第 1 案，原話「1」，取代前述方向。
+- 登入維持 Google＋TOTP；員工 session 改為絕對 7 天、不因閒置登出，取代
+  `STAFF-SESSION-12H-2026-10-03` 的 12 小時時效。期限為建立 session 所用 token 的
+  `auth_time` 加 7 天；沒有新 `auth_time` 的恢復不延長。敏感操作再驗證不直接更換
+  session cookie 或輪替 CSRF，但後續恢復若使用完整再驗證後的新 `auth_time`，
+  新 session 以該時間起算。停權即拒、登出撤銷、CSRF 與角色檢查不變。
+  確認里程碑、建立匯出、封存、永久刪除、終止寫入仍須 10 分鐘內 fresh Google＋TOTP，
+  ADR-0008～0011 不變。此決定不授權部署或真實資料操作。
+- 已知取捨：登入狀態保留 7 天，櫃台電腦離座須鎖定；「平常完全不用 6 位數」須自建
+  step-up TOTP，另排 12 月，不在本次範圍。負責人另要求：「6 位數碼要求時要附詳細教學與手機驗證器下載連結」。
+  登入第二步、敏感操作再驗證和第一次綁定驗證器的六位數畫面均須提供繁體中文、預設收合、可鍵盤操作的
+  逐步教學與 Google、Microsoft 驗證器 iPhone／Android 商店連結，不載入外部腳本或圖片。
+  教學須解釋手機驗證器及下載 App：在 App 點「＋」→「輸入設定金鑰」，帳戶名稱填「一森渼」，
+  貼上畫面金鑰、類型選「依時間」；在「一森渼」一列讀取六位數，每 30 秒更新。
+  換手機或刪除 App 時找主管重設；本次不做 QR code 綁定。
+  連結新分頁開啟並使用 `rel="noopener noreferrer"`：
+  [Google Authenticator iPhone](https://apps.apple.com/app/google-authenticator/id388497605)、
+  [Google Authenticator Android](https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2)、
+  [Microsoft Authenticator iPhone](https://apps.apple.com/app/microsoft-authenticator/id983156458)、
+  [Microsoft Authenticator Android](https://play.google.com/store/apps/details?id=com.azure.authenticator)。
+- **實作狀態：** 決定不等於七天時效及教學已實作、實測或部署；不得移除現有 MFA 檢查，
+  也不能把待辦行為寫成已上線。E4-14 authority 與真實 SDK 外證仍待處理。
 
 ## 2026-10-03 重新登入彈窗的瀏覽器隔離設定
 
@@ -1135,8 +1160,8 @@ merge、部署、secret、IAM、資料轉換與其他受保護動作，仍各自
   有效期是否調整；這些實作對應為 `IMPLEMENTATION_SCOPE_PENDING`。
   本次沒有改程式、停用登入 MFA、取消既有角色／session／CSRF 檢查，或修改
   D-006 與 ADR-0008～0011 的既有控制。不得把未回答的對應自行填成業主已確認。
-  **後續：** 對應已由 `STAFF-SESSION-12H-2026-10-03` 定案（登入保留 MFA、改為 12 小時、
-  不因閒置登出；操作前再驗證維持現行範圍）。
+  **後續：** 2026-10-03 對應曾定為登入保留 MFA、12 小時且操作前再驗證不變；
+  2026-11-09 維持登入 MFA 與敏感操作再驗證，時效改為 7 天。
   詳見[六位驗證需求與合併順序紀錄](../reviews/2026-10-03-verification-direction-and-merge-order.md)。
 
 ## 2026-10-03 開發工具 braces 弱點暫時例外

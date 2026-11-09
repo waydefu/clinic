@@ -760,6 +760,12 @@
 
 ### SOL-SESSION
 
+> 2026-11-09 負責人選第 1 案：登入維持 Google＋TOTP，session 改為絕對 7 天、
+> 無閒置登出；敏感操作維持 10 分鐘內 fresh Google＋TOTP，停權、登出撤銷、CSRF 與角色邊界不變。
+> 完成標準涵蓋 7 天到期、停權即拒、敏感操作缺 fresh TOTP 被拒，及登入、再驗證和首次綁定
+> 六位數畫面的可鍵盤操作、預設收合繁中教學與四個驗證器商店連結。此決定尚非實作完成。
+> E4-14 authority 未決及真實 SDK 外證不因新登入決定解除；不得以來源測試宣稱外證完成。
+
 1. **目的**：處理 8 個 finding（K3、E4-14、C02、X-C02、NEW-02、NEW-03、NEW-07、NEW-08）的來源回歸與必要外部證據；manifest 狀態 `PLANNED_CURRENT_EVIDENCE_SCOPE`，風險 HIGH。
 2. **findings**：
    - K3｜Low｜停用帳號驗證失敗與一般驗證失敗共用對外分類，細分分支可能無法由正常 SDK 路徑到達。
@@ -773,7 +779,7 @@
 3. **現況**：已合併 #387、#394、#397–#403、#406；還缺：真實 SDK 外證；E4-14 authority 決定。
 4. **下一步**：
    1) 負責人回答 E4-14（authority 決定）。
-   2) 在 C1 專案 beauessence-clinic-stg-c1a01 以真實 Identity SDK 跑登入、12 小時絕對到期、停權後拒絕，讀回結果。
+   2) 在取得另行授權後，以真實 Identity SDK 驗證登入、7 天絕對到期、停權後拒絕，讀回結果。
    3) 結果解開下游最多包，優先排。
 5. **完成標準**（manifest regressionTests；細節以 manifest 為準）：
    - `K3` 正：stub SDK 停用/撤銷/無效 token 與 verify 後停權競態皆拒絕；無 cookie/session 建立、無 PII 錯誤…；負：限定合成資料；驗證對應錯誤/未知/未授權/重放/失效case不變成功，不改既有契約與gate。
