@@ -125,6 +125,26 @@ describe('CalendarPilotApplicationService role boundary', () => {
     });
   });
 
+  it('denies an unrelated actor before either candidate reject path', async () => {
+    const repo = repository();
+    const tryReview = vi.fn();
+    const service = new CalendarPilotApplicationService(
+      repo.port,
+      { nowUtc: () => NOW },
+      { tryReview } as never
+    );
+    await expect(
+      service.reviewCandidate(
+        'synthetic_candidate',
+        'reject',
+        { idempotencyKey: 'synthetic_candidate_reject_001', expectedVersion: 1 },
+        { actorId: 'synthetic_actor', actorRole: ROLES[4] }
+      )
+    ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+    expect(tryReview).not.toHaveBeenCalled();
+    expect(repo.reviewCandidate).not.toHaveBeenCalled();
+  });
+
   it('denies every unrelated role even for reads', () => {
     const service = new CalendarPilotApplicationService(repository().port, {
       nowUtc: () => NOW
