@@ -6,9 +6,7 @@ import { permissionsFor } from '../../apps/web/public/modules/permissions.js';
 import { ROLES } from '../../apps/web/public/vendor/domain/roles.js';
 import { totpHelp } from '../../apps/web/src/totp-help.js';
 
-test('authenticator help opens and closes by keyboard and offers safe downloads', async ({
-  page
-}) => {
+test('TOTP help is keyboard accessible', async ({ page }) => {
   await page.setContent(totpHelp);
   const details = page.locator('details');
   const summary = page.getByText('如何使用手機驗證器？');
