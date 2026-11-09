@@ -145,6 +145,14 @@ describe('renderBusinessExportCsvFile', () => {
     expect(csv).toContain('"甲,乙\n丙"');
   });
 
+  it('normalises CRLF and escapes quotes in the same note', () => {
+    const csv = renderBusinessExportCsvFile({
+      rows: [toBusinessExportRow({ ...FULL, patientNote: '甲,"乙"\r\n丙' })]
+    });
+    expect(csv).toContain('"甲,""乙""\n丙"');
+    expect(csv).not.toContain('甲,""乙""\r\n丙');
+  });
+
   it('writes only the header for an empty range', () => {
     expect(
       renderBusinessExportCsvFile({ rows: [] }).split('\r\n')
