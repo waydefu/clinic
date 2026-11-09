@@ -164,6 +164,13 @@ resource "google_cloud_scheduler_job" "sync" {
   paused           = false
   attempt_deadline = "240s"
 
+  lifecycle {
+    precondition {
+      condition     = var.worker_service_url != "https://cal-pilot-worker.invalid"
+      error_message = "An unpaused CAL-PILOT Scheduler requires the exact worker URL, not the placeholder."
+    }
+  }
+
   retry_config {
     retry_count          = 2
     min_backoff_duration = "10s"
