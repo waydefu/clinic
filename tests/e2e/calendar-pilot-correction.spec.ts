@@ -22,9 +22,10 @@ test('TOTP help is keyboard accessible', async ({ page }) => {
     'https://play.google.com/store/apps/details?id=com.azure.authenticator'
   ];
   for (const [index, address] of addresses.entries()) {
-    await expect(links.nth(index)).toHaveAttribute('href', address);
-    await expect(links.nth(index)).toHaveAttribute('target', '_blank');
-    await expect(links.nth(index)).toHaveAttribute('rel', 'noopener noreferrer');
+    const link = links.nth(index);
+    await expect(link).toHaveAttribute('href', address);
+    await expect(link).toHaveAttribute('target', '_blank');
+    await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   }
   await expect(details).toContainText('輸入設定金鑰');
   await expect(details).toContainText('依時間');
