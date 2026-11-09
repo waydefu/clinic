@@ -53,6 +53,30 @@ describe('hosting security headers', () => {
     );
   });
 
+  it('keeps every catalog path aligned with local server CSP and framing', () => {
+    for (const [config, authFrame] of [
+      [firebaseConfig, STAGING_AUTH_FRAME],
+      [isolatedConfig, ISOLATED_AUTH_FRAME]
+    ] as const) {
+      for (const rule of config.hosting.headers) {
+        const csp = rule.headers.find(
+          (header: { key: string }) => header.key === 'Content-Security-Policy'
+        );
+        if (!csp) continue;
+        const path = rule.source.replace('/**', '/synthetic');
+        const local = hostingHeadersForPath(path, {
+          authFrame,
+          includeHsts: false
+        });
+        expect(local['Content-Security-Policy'], rule.source).toBe(csp.value);
+        const framing = rule.headers.find(
+          (header: { key: string }) => header.key === 'X-Frame-Options'
+        );
+        expect(local['X-Frame-Options'], rule.source).toBe(framing?.value);
+      }
+    }
+  });
+
   it('locks staff, booking and clinic CSP directives without wildcards', () => {
     const csp = headerOn(firebaseConfig, '/booking', 'Content-Security-Policy');
     const directives = new Set(
@@ -81,6 +105,22 @@ describe('hosting security headers', () => {
     expect(csp).not.toContain('unsafe-eval');
     expect(csp).not.toContain('https://*.googleapis.com');
     expect(csp).not.toContain('https://*.firebaseapp.com');
+  });
+
+  it('retains the auth frame for the staff reauthentication caller', () => {
+    const entry = readFileSync(
+      fileURLToPath(new URL('./calendar-pilot-entry.js', import.meta.url)),
+      'utf8'
+    );
+    expect(entry).toContain('await reauthenticateWithPopup(');
+    for (const [config, authFrame] of [
+      [firebaseConfig, STAGING_AUTH_FRAME],
+      [isolatedConfig, ISOLATED_AUTH_FRAME]
+    ] as const) {
+      expect(headerOn(config, '/staff', 'Content-Security-Policy')).toContain(
+        `frame-src 'self' ${authFrame}`
+      );
+    }
   });
 
   // 業主 2026-10-12：官網地圖「點了才載入 Google 地圖」。只有 clinic 這一面多開
