@@ -6,7 +6,8 @@
 不是診所業務決定或正式環境授權。未另提供 approval ID，不另造。
 
 - SOL-HTML X-C03：trusted-html 對導向語法預設拒絕，包括 meta refresh、base、
-  非 http(s) URL、form／formaction，以及 `<a target>` 以外的自動導向；
+  form／formaction，以及 `<a target>` 以外的自動導向。連結協定僅允許
+  `http`、`https`、`mailto`、`tel`；`tel:` 為撥號而非導向，其他協定一律拒絕。
   僅允許既有核准的安全標記，正反例均使用合成資料。
 - SOL-IDENTITY D-10：電話顯示僅保留最後三碼，證件號僅保留首碼與末兩碼；
   短至無法安全遮罩的舊值整段遮住。沿用既有電話格式驗證，不放寬。
