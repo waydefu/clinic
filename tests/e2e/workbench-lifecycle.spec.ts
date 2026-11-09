@@ -779,7 +779,7 @@ test.describe('工作臺預約生命週期', () => {
     expect(capture).not.toContain('A123456789');
   });
 
-  test('回診預填遮罩電話並保留原病患，修改身分後須重新輸入電話', async ({ page }) => {
+  test('回診電話遮罩與身分變更', async ({ page }) => {
     await login(page);
     await createBooking(page);
     await showAllAppointments(page);
