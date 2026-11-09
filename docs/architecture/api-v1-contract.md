@@ -170,6 +170,32 @@ For appointment events, `before` and `after` contain only `status` and
 Audit writes use Firestore transaction `create`, so an existing event cannot
 be updated through the booking repository.
 
+## Internal-test return lookup rate limits
+
+The gated internal-test route applies the following existing fixed-window
+policies from `packages/domain/src/rate-limit-parameters.ts`; these are not
+production launch authority:
+
+| Boundary | Limit | Window | Additional lock |
+| --- | ---: | ---: | ---: |
+| Every lookup request, per derived source IP | 60 | 1 minute | none |
+| Failed lookup, per opaque lookup identity and source IP | 5 | 15 minutes | 15 minutes after the fifth failure |
+| Failed lookup, per opaque lookup identity across source IPs | 10 | 15 minutes | none beyond the window |
+
+`ReturnLookupController` applies the source boundary before parsing and lookup;
+`AppointmentApplicationService.lookupReturn` applies both failure boundaries
+only after a lookup miss. The failure boundaries run in the order above; a
+rejection from the first prevents consuming the second for that request.
+`WpB2RateLimiter` combines a process-local burst limiter with durable state;
+when the limiter is present, storage failure fails closed as
+`SERVICE_UNAVAILABLE`. The controller's limiter is optional, so these source
+parameters alone do not prove that every assembly has the limiter wired.
+A rate limit is `RATE_LIMITED` (429), with `Retry-After` when supplied by the
+limiter. The derived IP depends on the configured trusted-proxy chain and is
+not a substitute for the identity boundary or proof of an individual's identity.
+The existing opaque lookup key is not a claim of keyed HMAC protection; D-08's
+keyed design and any migration remain separate work.
+
 ## Error envelope
 
 All future errors use `ApiErrorResponseSchema`:
