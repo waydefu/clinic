@@ -34039,7 +34039,7 @@
           "findingIDs": ["A04", "D-22", "E3-17", "E4-09"],
           "model": "SOL_PRIMARY_EXPERT_ONLY",
           "risk": "HIGH",
-          "status": "OWNER_POLICY_PREREQUISITE",
+          "status": "PLANNED_CURRENT_EVIDENCE_SCOPE",
           "dependsOn": ["SOL-CONTRACTS", "SOL-SESSION"],
           "blocks": [
             "SOL-EXPORT",
@@ -35265,7 +35265,7 @@
           "findingIDs": ["A05", "B-04", "NEW-05"],
           "model": "SOL_PRIMARY_EXPERT_ONLY",
           "risk": "HIGH",
-          "status": "OWNER_POLICY_PREREQUISITE",
+          "status": "PLANNED_CURRENT_EVIDENCE_SCOPE",
           "dependsOn": [
             "SOL-IAC-LIFECYCLE",
             "SOL-IDENTITY",
