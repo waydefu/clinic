@@ -26,8 +26,8 @@ it('does not copy navigation attributes into a dynamic form', () => {
     'data-follow-up-form',
     'synthetic'
   );
-  expect(form.setAttribute).not.toHaveBeenCalledWith('action', expect.anything());
-  expect(form.setAttribute).not.toHaveBeenCalledWith('method', expect.anything());
+  const attributeNames = form.setAttribute.mock.calls.map((call) => call[0]);
+  expect(attributeNames).toEqual(['data-follow-up-form']);
   expect(form.append).toHaveBeenCalledWith('synthetic-child');
   expect(placeholder.replaceWith).toHaveBeenCalledWith(form);
   const event = { preventDefault: vi.fn() };

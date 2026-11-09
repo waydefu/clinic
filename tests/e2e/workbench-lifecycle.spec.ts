@@ -679,9 +679,8 @@ test.describe('工作臺預約生命週期', () => {
     const result = await form.evaluate((element) => {
       const formElement = element as HTMLFormElement;
       // Stop the delegated business handler while testing native submission.
-      formElement.addEventListener('submit', (event) => event.stopPropagation(), {
-        once: true
-      });
+      const stop = (event: Event) => event.stopPropagation();
+      formElement.addEventListener('submit', stop, { once: true });
       const prevented = !element.dispatchEvent(
         new Event('submit', { bubbles: true, cancelable: true })
       );
