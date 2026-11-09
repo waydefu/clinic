@@ -41,6 +41,27 @@ describe('deriveClientIp', () => {
     ).toBe('198.51.100.10');
   });
 
+  it('does not treat a malformed selected forwarding hop as an address', () => {
+    expect(
+      deriveClientIp(
+        {
+          headers: { 'x-forwarded-for': '203.0.113.9, not_an_address' },
+          ip: '198.51.100.10'
+        },
+        1
+      )
+    ).toBe('unknown');
+    expect(
+      deriveClientIp(
+        {
+          headers: { 'x-forwarded-for': '203.0.113.9, 198.51.100.10' },
+          ip: '198.51.100.10'
+        },
+        2
+      )
+    ).toBe('203.0.113.9');
+  });
+
   it('falls back to the socket address when the header is absent', () => {
     expect(
       deriveClientIp({
