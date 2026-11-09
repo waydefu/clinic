@@ -4,6 +4,36 @@ import { initialState } from '../../apps/web/public/modules/state-schema.js';
 import { PERMISSIONS } from '../../apps/web/public/modules/constants.js';
 import { permissionsFor } from '../../apps/web/public/modules/permissions.js';
 import { ROLES } from '../../apps/web/public/vendor/domain/roles.js';
+import { totpHelp } from '../../apps/web/src/totp-help.js';
+
+test('TOTP help is keyboard accessible', async ({ page }) => {
+  await page.setContent(totpHelp);
+  const details = page.locator('details');
+  const summary = page.getByText('如何使用手機驗證器？');
+  await summary.focus();
+  await page.keyboard.press('Enter');
+  await expect(details).toHaveAttribute('open', '');
+  const links = details.locator('a');
+  await expect(links).toHaveCount(4);
+  const addresses = [
+    'https://apps.apple.com/app/google-authenticator/id388497605',
+    'https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2',
+    'https://apps.apple.com/app/microsoft-authenticator/id983156458',
+    'https://play.google.com/store/apps/details?id=com.azure.authenticator'
+  ];
+  for (const [index, address] of addresses.entries()) {
+    const link = links.nth(index);
+    await expect(link).toHaveAttribute('href', address);
+    await expect(link).toHaveAttribute('target', '_blank');
+    await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  }
+  await expect(details).toContainText('輸入設定金鑰');
+  await expect(details).toContainText('依時間');
+  await expect(details).toContainText('每 30 秒');
+  await summary.focus();
+  await page.keyboard.press('Enter');
+  await expect(details).not.toHaveAttribute('open', '');
+});
 
 const calendarBookingRole = ROLES.map((role) => {
   const accountId = `e2e-role-${role}`;

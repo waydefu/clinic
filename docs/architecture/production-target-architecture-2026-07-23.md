@@ -545,8 +545,8 @@ allow = authenticated
 ```
 
 > 2026-10-30 註記：上方 `idle age < 30 minutes`、`absolute age < 8 hours` 是
-> 2026-07-23 原稿。現行為 `absolute age < 12 hours`、不再有 idle 條件
-> （`STAFF-SESSION-12H-2026-10-03`）；敏感操作 10 分鐘 fresh Google＋TOTP 再驗證不變。
+> 2026-07-23 原稿。2026-11-09 決定為 `absolute age < 7 days`、不再有 idle 條件；
+> 期限以建立 session 所用 token 的 `auth_time` 起算，敏感操作 10 分鐘 fresh Google＋TOTP 再驗證不變。
 
 D-006 已核准 Phase 1 staff baseline：
 

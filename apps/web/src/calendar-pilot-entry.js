@@ -26,6 +26,7 @@ import {
   teardownCalendarPilotSessions
 } from '../public/modules/pilot-google-totp-session.js';
 import { bootCalendarPilot } from './calendar-pilot-boot.js';
+import { totpHelp } from './totp-help.js';
 import {
   createAppointmentCancel,
   createBookingHandoff,
@@ -210,6 +211,7 @@ function promptTotp({ enrollmentKey } = {}) {
       <div class="cp-otp">
         <h2>${enrollmentKey ? '設定驗證器' : '輸入動態驗證碼'}</h2>
         ${enrollmentKey ? `<p>請在驗證器 App 新增下列金鑰；金鑰只顯示這一次。</p><code class="cp-secret">${escapeHtml(enrollmentKey)}</code>` : ''}
+        ${totpHelp}
         <form data-otp-form class="cp-form">
           <label class="cp-full">6 位數驗證碼<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" required /></label>
           <button class="cp-button cp-button-primary cp-full" type="submit">驗證並繼續</button>
@@ -238,6 +240,9 @@ function promptReauthTotp() {
     form.className = 'cp-form';
     const heading = document.createElement('h2');
     heading.textContent = '輸入動態驗證碼';
+    const help = document.createElement('div');
+    help.className = 'cp-full';
+    help.innerHTML = assertRenderable(totpHelp);
     const label = document.createElement('label');
     label.className = 'cp-full';
     label.append('6 位數驗證碼');
@@ -257,7 +262,7 @@ function promptReauthTotp() {
     cancel.value = 'cancel';
     cancel.formNoValidate = true;
     cancel.textContent = '取消';
-    form.append(heading, label, confirm, cancel);
+    form.append(heading, help, label, confirm, cancel);
     dialog.append(form);
     dialog.addEventListener(
       'close',
