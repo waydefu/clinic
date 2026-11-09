@@ -124,6 +124,28 @@ describe('Terraform mock tests are part of required verify CI', () => {
     expect(output.join('')).toContain('mock assertion failed');
   });
 
+  it('stops before later modules when a later init fails', () => {
+    const calls = [];
+    expect(() =>
+      runTerraformMockTests({
+        cwd: root,
+        spawn: (_command, args) => {
+          calls.push(args);
+          if (calls.length === 3) return { status: 1, stderr: 'init failed' };
+          return {
+            status: 0,
+            stdout: args.includes('init') ? '' : 'Success! 1 passed, 0 failed.\n'
+          };
+        },
+        write: () => {},
+        writeError: () => {}
+      })
+    ).toThrow(/terraform init.*failed/i);
+    expect(calls).toHaveLength(3);
+    expect(calls[2]).toContain('init');
+    expect(calls[2]).toContain('-backend=false');
+  });
+
   it.each([
     ['missing summary', ''],
     ['zero tests', 'Success! 0 passed, 0 failed.\n'],
