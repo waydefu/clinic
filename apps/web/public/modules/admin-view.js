@@ -710,7 +710,7 @@ export function renderAppointments(
       // 改期表單只在還能改期的狀態出現，與 actionEnabled 的閘門一致；
       // 否則按「確認改期」只會被 domain 拒絕，看起來像沒反應。
       const rescheduleForm = actionEnabled('reschedule', appointment)
-        ? `<form class="reschedule-form" data-reschedule-form="${escapeHtml(appointment.id)}" hidden><label>改期至<select name="slotId">${rescheduleOptions(state, appointment)}</select></label><button class="button button-primary" type="submit">確認改期</button></form>`
+        ? `<div data-client-form class="reschedule-form" data-reschedule-form="${escapeHtml(appointment.id)}" hidden><label>改期至<select name="slotId">${rescheduleOptions(state, appointment)}</select></label><button class="button button-primary" type="submit">確認改期</button></div>`
         : '';
       // 備註是營運註記（當天到、國外客…），與臨床決定無關，因此放在處置
       // 選單外面直接可按；已取消／未到的預約不再開放修改。
@@ -720,7 +720,7 @@ export function renderAppointments(
         : '';
       const primary = primaryAction(appointment, decided, canManageFollowUp);
       const notesForm = editable
-        ? `<form class="notes-form" data-notes-form="${escapeHtml(appointment.id)}" hidden><fieldset class="tag-picker"><legend>備註（可複選）</legend>${renderTagPicker(appointment.noteTags ?? [], 'notes')}</fieldset><label>自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(appointment.noteText ?? '')}"></label><div class="notes-form-actions"><button class="button button-primary" type="submit">儲存備註</button><button class="text-button" type="button" data-notes-cancel="${escapeHtml(appointment.id)}">取消</button></div></form>`
+        ? `<div data-client-form class="notes-form" data-notes-form="${escapeHtml(appointment.id)}" hidden><fieldset class="tag-picker"><legend>備註（可複選）</legend>${renderTagPicker(appointment.noteTags ?? [], 'notes')}</fieldset><label>自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(appointment.noteText ?? '')}"></label><div class="notes-form-actions"><button class="button button-primary" type="submit">儲存備註</button><button class="text-button" type="button" data-notes-cancel="${escapeHtml(appointment.id)}">取消</button></div></div>`
         : '';
       // 展開式的表單放在跨欄的第二列。只有真的有表單時才產生那一列——空的
       // <tr> 在表格裡仍是一列，會在每筆預約之間留下一道看不出原因的縫。
@@ -875,7 +875,7 @@ export function renderFollowUps(state, editingIds = new Set()) {
         state,
         appointment.patientId
       )?.medicalRecordNumber;
-      return `<form class="decision-card follow-up-decision-card" data-follow-up-form="${escapeHtml(appointment.id)}"><div class="follow-up-context"><span class="status-chip ${decision ? 'is-available' : 'is-reserved'}">${decision ? (decision.status === 'required' ? '依醫師指示需回診' : '依醫師指示目前無需回診') : '待登錄醫師指示'}</span><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span>${escapeHtml(appointment.itemLabel ?? '')}</span><span class="field-hint">回診決定者：醫師 · 資料登錄者：${escapeHtml(recordedBy)}</span></div><div class="follow-up-row follow-up-row-primary"><label class="follow-up-field follow-up-medical">病歷號碼<input name="medicalRecordNumber" type="text" maxlength="20" autocomplete="off" value="${escapeHtml(chartNumber ?? '')}"><span class="field-hint">診所自編的號碼，可用它搜尋預約。沒有固定格式，照病歷上的填。</span></label><label class="follow-up-field follow-up-status">醫師指示<select name="status"><option value="required" ${decision?.status === 'required' ? 'selected' : ''}>依醫師指示需要回診</option><option value="not_required" ${decision?.status === 'not_required' ? 'selected' : ''}>依醫師指示目前無需回診</option></select></label></div><div class="follow-up-row follow-up-row-secondary">${managerField}<fieldset class="tag-picker follow-up-tags"><legend>回診項目（可複選）</legend>${tags}</fieldset><label class="follow-up-field follow-up-certificate">診斷書份數<input name="certificateCopies" type="number" min="0" max="10" value="${escapeHtml(String(decision?.certificateCopies ?? 0))}"></label></div><div class="follow-up-row follow-up-row-notes"><label class="follow-up-field follow-up-note">自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(decision?.noteText ?? '')}"></label><button class="button button-primary follow-up-submit" type="submit">儲存回診指示</button></div></form>`;
+      return `<div data-client-form class="decision-card follow-up-decision-card" data-follow-up-form="${escapeHtml(appointment.id)}"><div class="follow-up-context"><span class="status-chip ${decision ? 'is-available' : 'is-reserved'}">${decision ? (decision.status === 'required' ? '依醫師指示需回診' : '依醫師指示目前無需回診') : '待登錄醫師指示'}</span><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span>${escapeHtml(appointment.itemLabel ?? '')}</span><span class="field-hint">回診決定者：醫師 · 資料登錄者：${escapeHtml(recordedBy)}</span></div><div class="follow-up-row follow-up-row-primary"><label class="follow-up-field follow-up-medical">病歷號碼<input name="medicalRecordNumber" type="text" maxlength="20" autocomplete="off" value="${escapeHtml(chartNumber ?? '')}"><span class="field-hint">診所自編的號碼，可用它搜尋預約。沒有固定格式，照病歷上的填。</span></label><label class="follow-up-field follow-up-status">醫師指示<select name="status"><option value="required" ${decision?.status === 'required' ? 'selected' : ''}>依醫師指示需要回診</option><option value="not_required" ${decision?.status === 'not_required' ? 'selected' : ''}>依醫師指示目前無需回診</option></select></label></div><div class="follow-up-row follow-up-row-secondary">${managerField}<fieldset class="tag-picker follow-up-tags"><legend>回診項目（可複選）</legend>${tags}</fieldset><label class="follow-up-field follow-up-certificate">診斷書份數<input name="certificateCopies" type="number" min="0" max="10" value="${escapeHtml(String(decision?.certificateCopies ?? 0))}"></label></div><div class="follow-up-row follow-up-row-notes"><label class="follow-up-field follow-up-note">自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(decision?.noteText ?? '')}"></label><button class="button button-primary follow-up-submit" type="submit">儲存回診指示</button></div></div>`;
     })
     .join('');
 }
@@ -1026,7 +1026,7 @@ export function renderCaseAssignments(state) {
         (assignment !== undefined &&
           permissions.includes(PERMISSIONS.REASSIGN_CASE));
       const managerCell = canEdit
-        ? `<form class="case-form" id="${escapeHtml(formId)}" data-case-form="${escapeHtml(appointment.id)}"><select name="managerId" aria-label="${escapeHtml(`${who} 的個管師`)}">${managers}</select></form>`
+        ? `<div data-client-form class="case-form" id="${escapeHtml(formId)}" data-case-form="${escapeHtml(appointment.id)}"><select name="managerId" aria-label="${escapeHtml(`${who} 的個管師`)}">${managers}</select></div>`
         : `<strong>${escapeHtml(assignment ? managerLabel(state, assignment.managerId) : '尚未指派')}</strong>`;
       const actionCell = canEdit
         ? `<button class="button button-primary" type="submit" form="${escapeHtml(formId)}">${assignment ? '改派個管師' : '指派個管師'}</button>`

@@ -92,6 +92,8 @@ describe('assertRenderable', () => {
     ['mixed-case blob: URL', '<a HREF="BlOb:synthetic">x</a>'],
     ['unquoted custom scheme', '<a href=custom+test:synthetic>x</a>'],
     ['svg xlink:href 的 urn: URL', '<a xlink:href="urn:synthetic">x</a>'],
+    ['form', '<form><button type="submit">x</button></form>'],
+    ['mixed-case form', '<FoRm action="/synthetic"></FoRm>'],
     ['button formaction', '<button formaction="/other">x</button>'],
     [
       'formaction after quoted angle bracket',
@@ -134,7 +136,7 @@ describe('assertRenderable', () => {
   // 誤擋的真實風險：備註欄裡的普通文字剛好含有 `on … =` 或 `javascript:` 字樣。
   // 判準要求 `<` 在前，而逸出過的文字不可能產生 `<`，所以這些都必須通過。
   it.each([
-    'JaVaScRiPt:alert(1)',
+    ['JaVaScRiPt', 'alert(1)'].join(':'),
     'java\tscript:alert(1)',
     'java\nscript:alert(1)',
     'java\u0000script:alert(1)',

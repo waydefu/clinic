@@ -1,4 +1,7 @@
-import { assertRenderable } from '../public/modules/trusted-html.js';
+import {
+  activateFormPlaceholders,
+  assertRenderable
+} from '../public/modules/trusted-html.js';
 import { getApps, initializeApp } from 'firebase/app';
 import {
   GoogleAuthProvider,
@@ -212,11 +215,12 @@ function promptTotp({ enrollmentKey } = {}) {
         <h2>${enrollmentKey ? '設定驗證器' : '輸入動態驗證碼'}</h2>
         ${enrollmentKey ? `<p>請在驗證器 App 新增下列金鑰；金鑰只顯示這一次。</p><code class="cp-secret">${escapeHtml(enrollmentKey)}</code>` : ''}
         ${totpHelp}
-        <form data-otp-form class="cp-form">
+        <div data-client-form data-otp-form class="cp-form">
           <label class="cp-full">6 位數驗證碼<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" required /></label>
           <button class="cp-button cp-button-primary cp-full" type="submit">驗證並繼續</button>
-        </form>
+        </div>
       </div>`);
+    activateFormPlaceholders(region);
     region.querySelector('[data-otp-form]').addEventListener(
       'submit',
       (event) => {
@@ -624,14 +628,15 @@ window.addEventListener(
 function openCorrectionDrawer(candidate, context) {
   const dialog = root.querySelector('[data-correction-dialog]');
   dialog.innerHTML = assertRenderable(`
-    <form class="cp-correction" data-correction-form>
+    <div data-client-form class="cp-correction" data-correction-form>
       <div class="cp-row"><div><p class="cp-kicker">格式需修正</p><h2>受控修正候選</h2></div><button class="cp-button" type="button" data-close-correction>關閉</button></div>
       <p class="cp-alert">只能選合成代碼與封閉欄位；無法輸入姓名、電話、來源、麻醉或臨床文字。</p>
       <label>修正類型<select name="kind"><option value="appointment">預約</option><option value="busy">忙碌</option></select></label>
       <fieldset data-appointment-correction><legend>預約</legend><div class="cp-form"><label>合成患者<select name="patientCode"></select></label><label>掛號別<select name="bookingKind"><option value="initial">初診</option><option value="follow_up">回診</option></select></label><label>項目<select name="serviceId"><option value="service_snoring">止鼾</option><option value="service_aesthetic">醫美</option></select></label><label>合法 30 分鐘時段<select name="startsAt"></select></label></div></fieldset>
       <fieldset data-busy-correction hidden><legend>忙碌</legend><div class="cp-form"><label>原因<select name="busyReason"><option value="meeting">會議</option><option value="leave">休假</option><option value="training">教育訓練</option><option value="other">其他</option></select></label><label>時間類型<select name="timeKind"><option value="timed">指定起訖</option><option value="all_day">整天／跨日</option></select></label><label data-timed-field>開始時間（台北）<input name="busyStartsAt" type="datetime-local" step="60" required /></label><label data-timed-field>結束時間（台北）<input name="busyEndsAt" type="datetime-local" step="60" required /></label><label data-all-day-field hidden>開始日期<input name="startDate" type="date" required disabled /></label><label data-all-day-field hidden>結束日期（不含）<input name="endDate" type="date" required disabled /></label></div></fieldset>
       <button class="cp-button cp-button-primary" type="submit">重新檢查並核准</button>
-    </form>`);
+    </div>`);
+  activateFormPlaceholders(dialog);
   dialog
     .querySelector('h2')
     .insertAdjacentText('afterend', `目前：${candidate.displayLabel}`);
@@ -873,12 +878,13 @@ function applicationSkeleton(isPatient) {
       <main class="cp-grid" id="cp-main">
         <section class="cp-card"><div class="cp-row"><div><h1>${isPatient ? '合成患者預約測試' : '日曆同步工作臺'}</h1><p>Google 與網頁共用同一份可用時段；外部變更必須審核後才會占用。</p></div><p class="cp-alert">不得輸入真實資料</p></div><div class="cp-status" data-status-grid></div></section>
         ${isPatient ? '' : '<section class="cp-card cp-two"><h2>日曆來源</h2><p>切換前會驗證讀寫與格式；失敗時維持舊來源。</p><ul class="cp-list" data-sources></ul></section><section class="cp-card cp-two"><h2>Calendar 待確認變更</h2><p>預約、忙碌、修改、刪除與衝突均不自動覆蓋；核准後才走正式 domain 交易。</p><label class="cp-filter">候選類型<select data-candidate-filter><option value="all">全部</option><option value="appointment">預約</option><option value="busy">忙碌</option><option value="invalid">格式需修正</option><option value="conflict">衝突</option><option value="unmatched">未對應</option></select></label><ul class="cp-list" data-candidates></ul></section>'}
-        <section class="cp-card cp-two"><h2>建立合成預約</h2><form class="cp-form" data-appointment-form><label>合成患者<select name="patientCode" required></select></label><label>掛號別<select name="bookingKind"><option value="initial">初診</option><option value="follow_up">回診</option></select></label><label>項目<select name="serviceId"><option value="service_snoring">止鼾</option><option value="service_aesthetic">醫美</option></select></label><label>可用時段（台北）<select name="startsAt" required></select></label><button class="cp-button cp-button-primary cp-full" type="submit">建立並排入 Google 同步</button></form></section>
+        <section class="cp-card cp-two"><h2>建立合成預約</h2><div data-client-form class="cp-form" data-appointment-form><label>合成患者<select name="patientCode" required></select></label><label>掛號別<select name="bookingKind"><option value="initial">初診</option><option value="follow_up">回診</option></select></label><label>項目<select name="serviceId"><option value="service_snoring">止鼾</option><option value="service_aesthetic">醫美</option></select></label><label>可用時段（台北）<select name="startsAt" required></select></label><button class="cp-button cp-button-primary cp-full" type="submit">建立並排入 Google 同步</button></div></section>
         <section class="cp-card cp-two"><h2>合成預約</h2><ul class="cp-list" data-appointments></ul></section>
         <section class="cp-card"><h2>共用時段鏡像</h2><p>文字標籤同時區分預約與忙碌，不只依靠顏色。</p><ul class="cp-list" data-availability></ul></section>
       </main>
       ${isPatient ? '' : '<dialog class="cp-dialog" data-correction-dialog aria-label="受控修正候選"></dialog>'}
     </div>`);
+  activateFormPlaceholders(root);
 }
 
 function empty(list, text) {

@@ -31,8 +31,8 @@
  * 就會被擋下來。那種假警報會讓人乾脆把檢查關掉，於是保護歸零。
  */
 const EXECUTABLE_MARKUP = [
-  // 自動重新導向與全域 URL 基底不屬於已核准的動態標記。
-  /<\s*(?:meta|base)(?:[\s/>]|$)/i,
+  // 自動導向、全域 URL 基底與表單不屬於已核准的動態標記。
+  /<\s*(?:meta|base|form)(?:[\s/>]|$)/i,
   // 直接的執行面。
   /<\s*(?:script|iframe|object|embed)\b/i,
   // 標籤內的行內事件處理器（onclick、onerror…）。CSP 本來就會擋下它們執行，
@@ -56,10 +56,12 @@ export function assertRenderable(html) {
     for (const match of tag.matchAll(
       /[\s/](?:href|src|xlink:href)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'`=<>]+))/gi
     )) {
-      const value = (match[1] ?? match[2] ?? match[3]).replace(
-        /[\x00-\x20\x7f]/g,
-        ''
-      );
+      const value = [...(match[1] ?? match[2] ?? match[3])]
+        .filter((character) => {
+          const code = character.charCodeAt(0);
+          return code > 32 && code !== 127;
+        })
+        .join('');
       const head = value.split(/[/:?]/, 1)[0];
       const scheme = /^([a-z][a-z\d+.-]*):/i.exec(value)?.[1].toLowerCase();
       if (
@@ -71,6 +73,32 @@ export function assertRenderable(html) {
     }
   }
   return text;
+}
+
+// 動態表單只能以 DOM 建立，且不能有原生導向目的地。
+export function activateFormPlaceholders(container) {
+  const attributes = [
+    'id',
+    'class',
+    'hidden',
+    'data-reschedule-form',
+    'data-notes-form',
+    'data-follow-up-form',
+    'data-case-form',
+    'data-otp-form',
+    'data-correction-form',
+    'data-appointment-form'
+  ];
+  for (const placeholder of container.querySelectorAll('[data-client-form]')) {
+    const form = document.createElement('form');
+    for (const attribute of attributes) {
+      if (placeholder.hasAttribute(attribute))
+        form.setAttribute(attribute, placeholder.getAttribute(attribute));
+    }
+    form.addEventListener('submit', (event) => event.preventDefault());
+    form.append(...placeholder.childNodes);
+    placeholder.replaceWith(form);
+  }
 }
 
 /**

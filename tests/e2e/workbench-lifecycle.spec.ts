@@ -670,6 +670,42 @@ test.describe('工作臺其餘資料表', () => {
 });
 
 test.describe('工作臺預約生命週期', () => {
+  test('動態表單不複製導向目的地並阻止原生提交', async ({ page }) => {
+    await login(page);
+    const result = await page.evaluate(async () => {
+      const modulePath = '/modules/trusted-html.js';
+      const { activateFormPlaceholders } = await import(modulePath);
+      const container = document.createElement('div');
+      const placeholder = document.createElement('div');
+      placeholder.setAttribute('data-client-form', '');
+      placeholder.setAttribute('data-follow-up-form', 'synthetic');
+      placeholder.setAttribute('action', 'https://example.invalid/');
+      const input = document.createElement('input');
+      input.name = 'synthetic';
+      input.value = 'example';
+      placeholder.append(input);
+      container.append(placeholder);
+      document.body.append(container);
+      activateFormPlaceholders(container);
+      const form = container.querySelector('form');
+      if (form === null) throw new Error('form missing');
+      const prevented = !form.dispatchEvent(
+        new Event('submit', { bubbles: true, cancelable: true })
+      );
+      const data = new FormData(form).get('synthetic');
+      const hasAction = form.hasAttribute('action');
+      const marker = form.getAttribute('data-follow-up-form');
+      container.remove();
+      return { prevented, data, hasAction, marker };
+    });
+    expect(result).toEqual({
+      prevented: true,
+      data: 'example',
+      hasAction: false,
+      marker: 'synthetic'
+    });
+  });
+
   test('改期釋放原時段、占用新時段並留下 audit/outbox', async ({ page }) => {
     await login(page);
     await createBooking(page);
