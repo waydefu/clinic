@@ -7,8 +7,8 @@ change plan。它不建立 Firebase／Google Cloud project、不啟用 Identity 
 
 > **2026-10-30 註記（session 時效）：** 本文中「閒置 30 分鐘／絕對 8 小時」的設計、
 > server-side activity state 與 29:59／30:00、7:59:59／8:00:00 邊界測試是
-> 2026-07-28 原稿，保留作歷史。2026-10-03 起現行時效為絕對 12 小時、無閒置登出
-> （`STAFF-SESSION-12H-2026-10-03`）；登入 MFA、停權後下一個受保護請求即拒絕、
+> 2026-07-28 原稿，保留作歷史。2026-11-09 決定改為絕對 7 天、無閒置登出，
+> 期限以建立 session 所用 token 的 `auth_time` 起算；登入 MFA、停權後下一個受保護請求即拒絕、
 > CSRF 與敏感操作 10 分鐘 fresh Google＋TOTP 再驗證都不變。
 
 Stage 2 只允許隔離環境中的合成資料。正式預約、真實員工／病患資料、production

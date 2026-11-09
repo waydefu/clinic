@@ -142,7 +142,9 @@ describe('SOL29 session proof and allowlist regressions', () => {
 
   it('keeps the original seven-day deadline when a session is restored', async () => {
     const b = fixture();
-    const later = new Date(Date.parse(NOW) + 2 * 24 * 60 * 60 * 1000).toISOString();
+    const later = new Date(
+      Date.parse(NOW) + 2 * 24 * 60 * 60 * 1000
+    ).toISOString();
     const issued = await b.service.create('opaque_token', later);
     expect(issued.cookieMaxAgeSeconds).toBe(5 * 24 * 60 * 60);
     expect([...b.rows.values()][0]?.expiresAt).toBe(
@@ -150,10 +152,25 @@ describe('SOL29 session proof and allowlist regressions', () => {
     );
   });
 
+  it('starts a new seven-day lifetime from the token authentication time', async () => {
+    const later = new Date(
+      Date.parse(NOW) + 2 * 24 * 60 * 60 * 1000
+    ).toISOString();
+    const b = fixture({ auth_time: Date.parse(later) / 1000 });
+    const issued = await b.service.create('opaque_token', later);
+    expect(issued.cookieMaxAgeSeconds).toBe(7 * 24 * 60 * 60);
+    expect([...b.rows.values()][0]?.expiresAt).toBe(
+      new Date(Date.parse(later) + 7 * 24 * 60 * 60 * 1000).toISOString()
+    );
+  });
+
   it('rejects exchange at the seven-day boundary', async () => {
     const b = fixture();
     await expect(
-      b.service.create('opaque_token', new Date(Date.parse(NOW) + 7 * 24 * 60 * 60 * 1000).toISOString())
+      b.service.create(
+        'opaque_token',
+        new Date(Date.parse(NOW) + 7 * 24 * 60 * 60 * 1000).toISOString()
+      )
     ).rejects.toBeInstanceOf(AuthenticationRequiredError);
     expect(b.auth.createSessionCookie).not.toHaveBeenCalled();
   });

@@ -1090,6 +1090,16 @@ merge、部署、secret、IAM、資料轉換與其他受保護動作，仍各自
   - **對應實作：** `AUD-15`（`apps/web/public/patient-app.js` 在 API 模式把「只存瀏覽器」的
     四句換成「會送到診所的測試伺服器」）。
 
+## 2026-11-09 員工 session 時效
+
+- 負責人選第 1 案（原話「1」）：登入維持 Google＋TOTP，員工 session 改為
+  7 天絕對時效，不因閒置登出；敏感操作仍要求 10 分鐘內 fresh Google＋TOTP。
+- 期限為建立 session 所用 token 的 `auth_time` 加 7 天；沒有新 `auth_time` 的
+  恢復不延長。敏感操作再驗證不直接更換 session cookie 或輪替 CSRF；後續恢復
+  使用完整再驗證後的新 `auth_time` 時，新 session 以該時間起算。
+- 此決定不授權部署或真實資料；櫃台人員離座須鎖定電腦。六位數畫面應提供手動
+  輸入金鑰教學與驗證器下載連結；QR code 綁定留待之後。
+
 ## 2026-10-03 員工登入時效（六位驗證方向的對應）
 
 - `STAFF-SESSION-12H-2026-10-03`：業主在本次對話對 `STAFF-SIX-DIGIT-EXCEPTIONS-2026-10-03`
