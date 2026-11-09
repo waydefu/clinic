@@ -56,6 +56,11 @@ describe('C1 smoke evidence evaluator', () => {
       evaluateC1Smoke({ ...evidence, budgetAmountTwd: 2000 }, syntheticRecs)
         .issues
     ).toContain('C1 budget amount must be NT$3000.');
+    const staleThresholds = evaluateC1Smoke(
+      passingEvidence({ budgetAmountTwd: 3000 }),
+      syntheticRecs
+    );
+    expect(staleThresholds.issues).toContain('C1 budget must notify at 25/75.');
     expect(
       evaluateC1Smoke(
         { ...evidence, budgetThresholds: [0.25, 1] },
