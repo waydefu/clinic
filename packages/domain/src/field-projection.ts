@@ -7,21 +7,9 @@ import { isRole, type Role } from './roles.js';
  *
  * rbac-matrix.md §4.3 / §7: consultant-vs-consultant commission filtering
  * and physician amount visibility stay unimplemented until those questions
- * are answered. This helper only fail-closes the blocked columns.
+ * are answered. Unknown fields are omitted rather than exposed by default.
  */
-const MONEY_FIELD_NAMES = new Set([
-  'settlementAmount',
-  'consultantCommission',
-  'paymentAmount',
-  'fee',
-  'price'
-]);
-
-const CLINICAL_FIELD_NAMES = new Set([
-  'clinicalNotes',
-  'anesthesia',
-  'surgeryNotes'
-]);
+const APPROVED_FIELD_NAMES = new Set(['appointmentId', 'slotId', 'status']);
 
 export function projectRecordFields(
   role: Role | undefined,
@@ -30,14 +18,12 @@ export function projectRecordFields(
   if (role === undefined || !isRole(role)) return {};
   const projected: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(record)) {
-    if (MONEY_FIELD_NAMES.has(key) || CLINICAL_FIELD_NAMES.has(key)) continue;
+    if (!APPROVED_FIELD_NAMES.has(key) || typeof value !== 'string') continue;
     projected[key] = value;
   }
   return projected;
 }
 
 export function isBlockedProjectionField(fieldName: string): boolean {
-  return (
-    MONEY_FIELD_NAMES.has(fieldName) || CLINICAL_FIELD_NAMES.has(fieldName)
-  );
+  return !APPROVED_FIELD_NAMES.has(fieldName);
 }
