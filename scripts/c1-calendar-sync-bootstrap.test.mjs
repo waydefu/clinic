@@ -155,6 +155,18 @@ describe('C1 Calendar sync renewal', () => {
     expect(db.writes).toEqual([]);
   });
 
+  it('accepts expiry at the exact boundary but refuses malformed expiry', async () => {
+    const atBoundary = fakeDb(state({ expiresAt: RENEW_NOW.toISOString() }));
+    await renew(atBoundary);
+    expect(atBoundary.writes).toHaveLength(2);
+
+    for (const expiresAt of [undefined, '', '2026-02-30T12:00:00Z']) {
+      const db = fakeDb(state({ expiresAt }));
+      await expect(renew(db)).rejects.toThrow(/unexpired config/u);
+      expect(db.writes).toEqual([]);
+    }
+  });
+
   it('refuses a non-synthetic source or missing documents', async () => {
     const bad = fakeDb(state({}, { synthetic: false }));
     await expect(renew(bad)).rejects.toThrow(/non-C1 state/u);
