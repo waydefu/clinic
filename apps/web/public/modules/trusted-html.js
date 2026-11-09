@@ -31,13 +31,15 @@
  * 就會被擋下來。那種假警報會讓人乾脆把檢查關掉，於是保護歸零。
  */
 const EXECUTABLE_MARKUP = [
+  // 自動導向、全域 URL 基底與表單不屬於已核准的動態標記。
+  /<\s*(?:meta|base|form)(?:[\s/>]|$)/i,
   // 直接的執行面。
   /<\s*(?:script|iframe|object|embed)\b/i,
   // 標籤內的行內事件處理器（onclick、onerror…）。CSP 本來就會擋下它們執行，
   // 但它們出現在這裡就代表逸出漏了，應該更早失敗。
   /<[^>]+\son\w+\s*=/i,
-  // href/src 裡的 javascript: URL。
-  /<[^>]+(?:href|src|xlink:href)\s*=\s*["']?\s*javascript:/i
+  // 不允許透過按鈕覆寫表單的送出目的地。
+  /<[^>]+[\s/]formaction(?=[\s=/>]|$)/i
 ];
 
 export function assertRenderable(html) {
@@ -45,6 +47,29 @@ export function assertRenderable(html) {
   for (const pattern of EXECUTABLE_MARKUP) {
     if (pattern.test(text)) {
       throw new TypeError('Unsafe HTML; check escapeHtml().');
+    }
+  }
+  // shortcut: lexical tags are not a full HTML parser; upgrade before treating this as complete sanitization.
+  for (const [tag] of text.matchAll(/<(?:"[^"]*"|'[^']*'|[^'">])*>/g)) {
+    if (/[\s/]formaction(?=[\s=/>]|$)/i.test(tag))
+      throw new TypeError('Unsafe HTML; check escapeHtml().');
+    for (const match of tag.matchAll(
+      /[\s/](?:href|src|xlink:href)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'`=<>]+))/gi
+    )) {
+      const value = [...(match[1] ?? match[2] ?? match[3])]
+        .filter((character) => {
+          const code = character.charCodeAt(0);
+          return code > 32 && code !== 127;
+        })
+        .join('');
+      const head = value.split(/[/:?]/, 1)[0];
+      const scheme = /^([a-z][a-z\d+.-]*):/i.exec(value)?.[1].toLowerCase();
+      if (
+        /[&%]/.test(head) ||
+        (scheme !== undefined &&
+          !['http', 'https', 'mailto', 'tel'].includes(scheme))
+      )
+        throw new TypeError('Unsafe HTML; check escapeHtml().');
     }
   }
   return text;

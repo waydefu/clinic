@@ -670,6 +670,35 @@ test.describe('工作臺其餘資料表', () => {
 });
 
 test.describe('工作臺預約生命週期', () => {
+  test('動態表單不複製導向目的地並阻止原生提交', async ({ page }) => {
+    await login(page);
+    await createBooking(page);
+    await showAllAppointments(page);
+    const form = page.locator('form[data-reschedule-form]').first();
+    await expect(form).toHaveCount(1);
+    const result = await form.evaluate((element) => {
+      const formElement = element as HTMLFormElement;
+      // Stop the delegated business handler while testing native submission.
+      const stop = (event: Event) => event.stopPropagation();
+      formElement.addEventListener('submit', stop, { once: true });
+      const prevented = !element.dispatchEvent(
+        new Event('submit', { bubbles: true, cancelable: true })
+      );
+      return {
+        prevented,
+        hasSlot: new FormData(formElement).has('slotId'),
+        hasAction: element.hasAttribute('action'),
+        hasMarker: element.hasAttribute('data-reschedule-form')
+      };
+    });
+    expect(result).toEqual({
+      prevented: true,
+      hasSlot: true,
+      hasAction: false,
+      hasMarker: true
+    });
+  });
+
   test('改期釋放原時段、占用新時段並留下 audit/outbox', async ({ page }) => {
     await login(page);
     await createBooking(page);

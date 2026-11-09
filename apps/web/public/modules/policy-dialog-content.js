@@ -75,9 +75,12 @@ function ensureDialog() {
 
 /** 只取政策頁的主要內容，捨棄它自己的頁首頁尾——那些在彈窗裡是重複的。 */
 function extractPolicyBody(html) {
-  // DOMParser 產生的是一份**不會執行指令碼、不會載入資源**的離線文件，
-  // 因此不需要 innerHTML，也就不會碰到 Trusted Types 的接收點。
-  const parsed = new DOMParser().parseFromString(html, 'text/html');
+  // parseFromString 也是 Trusted Types 接收點；只檢查實際要匯入的 main，
+  // 不把靜態頁面 head 的 meta 標記送進政策檢查。
+  // shortcut: expects a simple main start tag, upgrade to a structural parser if attributes contain >.
+  const mainMarkup = html.match(/<main(?:\s[^>]*)?>[\s\S]*?<\/main\s*>/i)?.[0];
+  if (mainMarkup === undefined) return undefined;
+  const parsed = new DOMParser().parseFromString(mainMarkup, 'text/html');
   const main = parsed.querySelector('main');
   if (main === null) return undefined;
   // 彈窗自己有標題，內文的 h1 拿掉避免重複報讀。

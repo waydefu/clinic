@@ -54,10 +54,12 @@ describe('pilot handoff regressions', () => {
     const otpRegion = {
       hidden: true,
       innerHTML: '',
-      querySelector: () => otpForm
+      querySelector: () => otpForm,
+      querySelectorAll: () => []
     };
     const root = {
       innerHTML: '',
+      querySelectorAll: () => [],
       querySelector(selector: string) {
         if (selector === '[data-otp-region]') {
           return this.innerHTML.includes('data-otp-region') ? otpRegion : null;
