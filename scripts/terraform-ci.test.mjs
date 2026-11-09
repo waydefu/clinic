@@ -134,7 +134,9 @@ describe('Terraform mock tests are part of required verify CI', () => {
           if (calls.length === 3) return { status: 1, stderr: 'init failed' };
           return {
             status: 0,
-            stdout: args.includes('init') ? '' : 'Success! 1 passed, 0 failed.\n'
+            stdout: args.includes('init')
+              ? ''
+              : 'Success! 1 passed, 0 failed.\n'
           };
         },
         write: () => {},
