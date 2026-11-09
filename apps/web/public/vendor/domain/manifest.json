@@ -23,7 +23,7 @@
     "denied-access-audit.js": "98f24db03de0c2cc600dcb0af8e9f4807aa79d414a0cc7e9dc533745a79b1cfa",
     "denied-delegation-audit.js": "50a182729da3ab1a275c47c0c562d42e348fcaad1a89060b2bb117b6928e0191",
     "errors.js": "f427a34853268c1436ce2d4ad966fc55a6499464f44ca337f6e7cc6be9ae26aa",
-    "field-projection.js": "8f71cd906a1a6c3d0b7a84f064595cb12160849316fd1e5c2525f087940f5432",
+    "field-projection.js": "47c681035ccd8269aa5f84dd5d2a73c178317400abbfd9a2f62df92095f04005",
     "follow-up.js": "d91cf246ed7d967ae0780935d84ca6643102c10c737df8b673cb31a91cf4aa29",
     "idempotency.js": "b16ce5c3118c799ded30a1ab3930279e29f0212e40973a05e133fe1fc4d21a3a",
     "index.js": "d6f56f8f065976c52faefdc2d5fda0d6babebda01180b5b31e889287941b9342",
