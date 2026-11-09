@@ -71,6 +71,16 @@ describe('assertRenderable', () => {
     ['iframe', '<iframe src="//evil.test"></iframe>'],
     ['object', '<object data="x"></object>'],
     ['embed', '<embed src="x">'],
+    [
+      'meta refresh',
+      '<meta http-equiv="refresh" content="0;url=https://example.invalid/">'
+    ],
+    [
+      'mixed-case meta refresh',
+      '<MeTa HTTP-EQUIV="Refresh" content="0;url=/">'
+    ],
+    ['base', '<base href="https://example.invalid/">'],
+    ['base with slash', '<BASE/href="https://example.invalid/">'],
     ['行內 onerror', '<img src=x onerror="alert(1)">'],
     ['行內 onclick', '<button onclick="steal()">x</button>'],
     ['href 的 javascript: URL', '<a href="javascript:alert(1)">x</a>'],
@@ -91,6 +101,10 @@ describe('assertRenderable', () => {
     ['已逸出的角括號', '<td>&lt;script&gt;alert(1)&lt;/script&gt;</td>'],
     ['已逸出的引號與 &', '<td>Tom &amp; Jerry &quot;quoted&quot;</td>'],
     ['option 清單', '<option value="12:00">12:00</option>'],
+    ['HTTP link', '<a href="http://example.invalid/">x</a>'],
+    ['HTTPS link', '<a href="https://example.invalid/" target="_blank">x</a>'],
+    ['mailto link', '<a href="mailto:synthetic@example.invalid">x</a>'],
+    ['tel 撥號連結', '<a href="tel:0900000000">x</a>'],
     ['空字串', '']
   ];
 

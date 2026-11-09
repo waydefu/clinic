@@ -31,6 +31,8 @@
  * 就會被擋下來。那種假警報會讓人乾脆把檢查關掉，於是保護歸零。
  */
 const EXECUTABLE_MARKUP = [
+  // 自動重新導向與全域 URL 基底不屬於已核准的動態標記。
+  /<\s*(?:meta|base)(?:[\s/>]|$)/i,
   // 直接的執行面。
   /<\s*(?:script|iframe|object|embed)\b/i,
   // 標籤內的行內事件處理器（onclick、onerror…）。CSP 本來就會擋下它們執行，
