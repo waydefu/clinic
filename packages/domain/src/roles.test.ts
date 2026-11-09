@@ -52,6 +52,16 @@ describe('roles', () => {
       expect(normaliseRole(aliases[0])).toBe(LEGACY_ROLE_ALIASES.admin);
     });
 
+    it('maps the legacy case-manager alias to the consultant without adding a role', () => {
+      const canonical = LEGACY_ROLE_ALIASES.case_manager;
+      const legacy = Object.keys(LEGACY_ROLE_ALIASES).find(
+        (alias) => LEGACY_ROLE_ALIASES[alias] === canonical
+      );
+      expect(ROLE_LABELS[canonical]).toBe('諮詢師');
+      expect(normaliseRole(legacy)).toBe(canonical);
+      expect(isRole(legacy)).toBe(false);
+    });
+
     // 認不得的身分必須失去權限，不得繼承任何人的。
     it.each([undefined, null, '', 'superuser', 42, {}])(
       'returns undefined for %p rather than defaulting',
