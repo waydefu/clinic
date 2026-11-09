@@ -955,6 +955,26 @@ describe('bounded inbound commit and terminal checkpoint protocol', () => {
     }
     expect(repository.commits.at(-1)?.nextSyncToken).toBe('bounded-complete');
   });
+  it.each([20, 40])(
+    'checkpoints exactly full chunks without an extra empty commit: %i',
+    async (size) => {
+      const repository = new MemoryRepository();
+      const events = Array.from({ length: size }, (_, index) =>
+        appointment(`exact_event_${index}`, `exact_etag_${index}`)
+      );
+      await new CalendarSyncEngine(
+        new FakeReader([{ events, nextSyncToken: 'exact-complete' }]),
+        repository
+      ).run(NOW);
+      expect(repository.commits).toHaveLength(size / 20);
+      for (const commit of repository.commits) {
+        expect(commit.mutations).toHaveLength(20);
+      }
+      for (const commit of repository.commits.slice(0, -1))
+        expect(commit.nextSyncToken).toBeUndefined();
+      expect(repository.commits.at(-1)?.nextSyncToken).toBe('exact-complete');
+    }
+  );
   it('resumes a failed middle chunk from the unchanged sync token without replaying the durable prefix', async () => {
     class Interrupted extends MemoryRepository {
       attempts = 0;
