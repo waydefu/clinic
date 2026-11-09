@@ -6,6 +6,7 @@ import {
 
 import {
   appointmentPage,
+  appointmentPageLabels,
   DEFAULT_APPOINTMENT_PAGE_SIZE,
   DEFAULT_APPOINTMENT_SORT,
   renderAccounts,
@@ -626,12 +627,13 @@ function renderAppointmentList() {
     })
   );
   activateFormPlaceholders(elements.appointments);
-  elements['appointment-result-summary'].textContent =
-    `${state.appointmentsTruncated ? '至少' : '共'} ${page.totalCount} 筆結果，本頁顯示 ${page.ids.length} 筆` +
-    `（第 ${page.page} 頁，共 ${page.totalPages} 頁）`;
+  const labels = appointmentPageLabels(
+    page,
+    state.appointmentsTruncated === true
+  );
+  elements['appointment-result-summary'].textContent = labels.summary;
   elements['appointment-pagination'].hidden = page.totalCount === 0;
-  elements['appointment-page-status'].textContent =
-    `第 ${page.page} 頁，共 ${page.totalPages} 頁`;
+  elements['appointment-page-status'].textContent = labels.status;
   elements['appointment-page-prev'].disabled = page.page <= 1;
   elements['appointment-page-next'].disabled = page.page >= page.totalPages;
   renderBatchBar();

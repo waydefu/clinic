@@ -32,6 +32,8 @@ production booking route.
 | `GET` | `/v1/health/operational` | `OperationalHealthResponseSchema` | Always 200. Body distinguishes `healthy` / `degraded` / `unhealthy`. See [Stage E monitoring](stage-e-monitoring.md). |
 | CAL-PILOT session / calendar | `/v1/calendar-session/*`, `/v1/calendar/*` | CAL-PILOT contracts in `@beauessence/contracts` | Decision Register synthetic-only sub-scope: Google+TOTP, closed synthetic fields, expiry and exclusions in the register. Not production D-009/D-016, not public production booking. |
 | IP-001 internal-test booking | `POST /v1/bookings`, `GET /v1/bookings` (list, see below), `GET /v1/bookings/:id`, `POST /v1/bookings/:id/cancel`, `POST /v1/bookings/:id/reschedule`, `POST /v1/bookings/:id/complete`, `POST /v1/bookings/:id/no-show`, `POST /v1/bookings/:id/follow-up`, `POST /v1/bookings/:id/delete` | Appointment command/query schemas, `RecordFollowUpRequestSchema` / `RecordFollowUpResponseSchema`, and `DeleteAppointmentRequestSchema` / `DeleteAppointmentResponseSchema` | Fail-closed isolated-test reads/writes. Default 503. Follow-up is scheduling-only (`required` / `not_required` + target time); clinical notes, certificate count and case-manager assignment stay off this command. Delete is administrator record hygiene with a closed `reasonCode` list; the appointment row is removed and the audit event survives. Front-desk delegated codes stay unrouted. Patient-initiated erasure is not this endpoint. Not public production. |
+| IP-001 arrival | `POST /v1/bookings/:id/arrive` | `CancelAppointmentRequestSchema` / `TransitionAppointmentResponseSchema` | `AppointmentController` in `InternalTestBookingModule`; internal-test gate, authenticated and authorized transition. Default 503. Not public production. |
+| IP-001 return lookup | `POST /v1/return-lookup` | `ReturnLookupRequestSchema` / `ReturnLookupResponseSchema` | `ReturnLookupController` in `InternalTestBookingModule`; internal-test gate. Authentication is attempted but absence or failure does not itself deny lookup. Optional limiter and its limitations are described below. Default 503. Not public production. |
 | IP-001 internal-test schedule | `GET /v1/slots`, `GET /v1/schedule`, `POST /v1/schedule/publish` | `ListSlotsResponseSchema`, `GetPublishedScheduleResponseSchema`, `PublishScheduleRequestSchema` / `PublishScheduleResponseSchema` | Fail-closed published grid. Slot occupancy is lazy. Default 503. Not public production. |
 
 ## Reserved booking contracts
@@ -169,6 +171,32 @@ For appointment events, `before` and `after` contain only `status` and
 `slotId`. The strict schema rejects patient/contact fields and free text.
 Audit writes use Firestore transaction `create`, so an existing event cannot
 be updated through the booking repository.
+
+## Internal-test return lookup rate limits
+
+The gated internal-test route applies the following existing fixed-window
+policies from `packages/domain/src/rate-limit-parameters.ts`; these are not
+production launch authority:
+
+| Boundary | Limit | Window | Additional lock |
+| --- | ---: | ---: | ---: |
+| Every lookup request, per derived source IP | 60 | 1 minute | none |
+| Failed lookup, per opaque lookup identity and source IP | 5 | 15 minutes | 15 minutes after the fifth failure |
+| Failed lookup, per opaque lookup identity across source IPs | 10 | 15 minutes | none beyond the window |
+
+`ReturnLookupController` applies the source boundary before parsing and lookup;
+`AppointmentApplicationService.lookupReturn` applies both failure boundaries
+only after a lookup miss. The failure boundaries run in the order above; a
+rejection from the first prevents consuming the second for that request.
+`WpB2RateLimiter` combines a process-local burst limiter with durable state;
+when the limiter is present, storage failure fails closed as
+`SERVICE_UNAVAILABLE`. The controller's limiter is optional, so these source
+parameters alone do not prove that every assembly has the limiter wired.
+A rate limit is `RATE_LIMITED` (429), with `Retry-After` when supplied by the
+limiter. The derived IP depends on the configured trusted-proxy chain and is
+not a substitute for the identity boundary or proof of an individual's identity.
+The existing opaque lookup key is not a claim of keyed HMAC protection; D-08's
+keyed design and any migration remain separate work.
 
 ## Error envelope
 

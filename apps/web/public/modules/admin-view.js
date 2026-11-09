@@ -654,6 +654,17 @@ export function appointmentPage(
   };
 }
 
+export function appointmentPageLabels(page, truncated = false) {
+  const status = truncated
+    ? `第 ${page.page} 頁，已載入 ${page.totalPages} 頁`
+    : `第 ${page.page} 頁，共 ${page.totalPages} 頁`;
+  const count = `${truncated ? '至少' : '共'} ${page.totalCount} 筆結果，本頁顯示 ${page.ids.length} 筆`;
+  return {
+    status,
+    summary: `${count}（${status}）${truncated ? '；尚有資料未載入，篩選與搜尋僅涵蓋已載入資料。' : ''}`
+  };
+}
+
 export function renderAppointments(
   state,
   filters,
@@ -664,6 +675,11 @@ export function renderAppointments(
   const page = appointmentPage(state, filters, sort, pagination);
   const entries = page.entries;
 
+  if (page.totalCount === 0 && state.appointmentsTruncated === true)
+    return emptyState(
+      '已載入的資料沒有符合條件的預約',
+      '尚有資料未載入；篩選與搜尋僅涵蓋已載入資料。'
+    );
   if (page.totalCount === 0)
     return emptyState(
       filters.status === 'today' ? '今日尚無預約' : '沒有符合條件的預約',

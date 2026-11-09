@@ -254,6 +254,17 @@ describe('shard 目錄一致（寫入端＝讀取端）', () => {
     expect(writerDir).toBe(readerDir);
   });
 
+  it('正規化絕對 support 路徑，不同根目錄解析到不同位置', () => {
+    const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
+    const support = join(repoRoot, 'tests', 'e2e', 'support');
+    expect(resolveShardDir(`${support}/../support/.`)).toBe(
+      join(repoRoot, ...SHARD_DIR_PARTS)
+    );
+    expect(resolveShardDir(join(repoRoot, 'synthetic', 'support'))).not.toBe(
+      join(repoRoot, ...SHARD_DIR_PARTS)
+    );
+  });
+
   it('兩端的 head SHA 都是 40 字小寫 hex（fail closed 的形狀）', () => {
     expect(headSha()).toMatch(/^[0-9a-f]{40}$/);
     expect(evidenceHeadSha()).toMatch(/^[0-9a-f]{40}$/);
