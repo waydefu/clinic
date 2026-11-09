@@ -14,7 +14,7 @@ function iso(ms: number): string {
 }
 
 describe('evaluateStaffSession', () => {
-  it('keeps a session active inside the 12-hour window', () => {
+  it('keeps a session active inside the seven-day window', () => {
     expect(
       evaluateStaffSession({
         now: iso(issuedMs + 10 * 60 * 1000),
@@ -48,8 +48,8 @@ describe('evaluateStaffSession', () => {
     ).toEqual({ active: true });
   });
 
-  it('enforces the 12-hour absolute lifetime even if lastSeen is fresh', () => {
-    expect(STAFF_ABSOLUTE_SESSION_MS).toBe(12 * 60 * 60 * 1000);
+  it('enforces the seven-day absolute lifetime even if lastSeen is fresh', () => {
+    expect(STAFF_ABSOLUTE_SESSION_MS).toBe(7 * 24 * 60 * 60 * 1000);
     const nowMs = issuedMs + STAFF_ABSOLUTE_SESSION_MS;
     expect(
       evaluateStaffSession({
