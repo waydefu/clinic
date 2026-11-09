@@ -77,6 +77,7 @@ function ensureDialog() {
 function extractPolicyBody(html) {
   // parseFromString 也是 Trusted Types 接收點；只檢查實際要匯入的 main，
   // 不把靜態頁面 head 的 meta 標記送進政策檢查。
+  // shortcut: expects a simple main start tag, upgrade to a structural parser if attributes contain >.
   const mainMarkup = html.match(/<main(?:\s[^>]*)?>[\s\S]*?<\/main\s*>/i)?.[0];
   if (mainMarkup === undefined) return undefined;
   const parsed = new DOMParser().parseFromString(mainMarkup, 'text/html');
