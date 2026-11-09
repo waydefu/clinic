@@ -125,7 +125,7 @@ describe('CalendarPilotApplicationService role boundary', () => {
     });
   });
 
-  it('denies an unrelated actor before either candidate reject path', async () => {
+  it('denies an unrelated actor before rejecting', async () => {
     const repo = repository();
     const tryReview = vi.fn();
     const service = new CalendarPilotApplicationService(
