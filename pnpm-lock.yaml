@@ -32,7 +32,6 @@ overrides:
   re2: 1.26.1
   morgan: 1.12.0
   qs@^6: 6.16.0
-  get-uri@6.0.5>basic-ftp: 6.2.1
   proxy-addr@^2: 2.0.8
   source-map-js@^1: 1.2.2
   compression@^1: 1.8.2
