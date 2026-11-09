@@ -760,6 +760,13 @@
 
 ### SOL-SESSION
 
+> 2026-11-09 負責人決定：日常員工 session 建立不再要求 TOTP；Google（或既有
+> 自管帳號流程）登入仍須驗證身分。敏感操作的 10 分鐘內 fresh Google＋TOTP、
+> 停權、12 小時、登出撤銷、CSRF 與角色邊界不變。完成標準須同時涵蓋只用 Google
+> 建立 session、敏感操作缺 fresh TOTP 被拒、停權／角色／CSRF 拒絕，以及所有六位數
+> 再驗證及首次綁定畫面提供可鍵盤操作、預設收合的繁體中文教學與四個驗證器商店連結。
+> E4-14 authority 未決及真實 SDK 外證不因新登入決定解除；不得以來源測試宣稱外證完成。
+
 1. **目的**：處理 8 個 finding（K3、E4-14、C02、X-C02、NEW-02、NEW-03、NEW-07、NEW-08）的來源回歸與必要外部證據；manifest 狀態 `PLANNED_CURRENT_EVIDENCE_SCOPE`，風險 HIGH。
 2. **findings**：
    - K3｜Low｜停用帳號驗證失敗與一般驗證失敗共用對外分類，細分分支可能無法由正常 SDK 路徑到達。
