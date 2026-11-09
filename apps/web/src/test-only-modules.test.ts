@@ -1939,6 +1939,19 @@ describe('工作臺批次的新行為', () => {
       expect(html).not.toContain('P12345678');
     });
 
+    it('舊紀錄的短電話與短證件在列印時全部遮住', () => {
+      const state = initialState();
+      const appointment = bookOne(state, ['service_snoring']);
+      const record = state.patients.at(-1);
+      record.phone = '123';
+      record.nationalId = 'AB12';
+      const html = sheetFor(state, appointment.id);
+      expect(html).not.toContain('123');
+      expect(html).not.toContain('AB12');
+      expect(html).toContain('<span class="intake-value">***</span>');
+      expect(html).toContain('<span class="intake-value">****</span>');
+    });
+
     // CSP 是 style-src 'self'：style 屬性會被整個擋掉，寬度必須走 class。
     it('不含任何 inline style 屬性', () => {
       const state = initialState();
