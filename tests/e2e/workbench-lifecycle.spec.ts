@@ -779,6 +779,46 @@ test.describe('工作臺預約生命週期', () => {
     expect(capture).not.toContain('A123456789');
   });
 
+  test('回診預填遮罩電話並保留原病患，修改身分後須重新輸入電話', async ({ page }) => {
+    await login(page);
+    await createBooking(page);
+    await showAllAppointments(page);
+    await finishVisit(page);
+    const followUpForm = page
+      .locator('#follow-up-list [data-follow-up-form]')
+      .first();
+    await followUpForm
+      .locator('select[name="status"]')
+      .selectOption('required');
+    await followUpForm.locator('button[type="submit"]').click();
+    const card = page.locator('[data-follow-up-pending]').first();
+    await expect(card).toBeVisible();
+    await card.locator('[data-follow-up-book]').click();
+
+    const phone = page.locator('#booking-phone');
+    await expect(phone).toHaveValue('');
+    await expect(phone).toHaveAttribute('placeholder', '*******678');
+    await expect(phone).not.toHaveAttribute('required', '');
+    await page.locator('#booking-name').fill('另一位合成病患');
+    await expect(phone).toHaveAttribute('required', '');
+    await expect(phone).not.toHaveAttribute('placeholder', '*******678');
+
+    await card.locator('[data-follow-up-book]').click();
+    await expect(phone).toHaveAttribute('placeholder', '*******678');
+    await page.locator('#booking-items [data-booking-item]').first().check();
+    await page.locator('#slots [data-select-slot]').first().click();
+    await page.locator('#booking-form button[type="submit"]').click();
+    await expect(page.locator('#status')).toContainText('預約已建立');
+    const patientIds = await page.evaluate((key) => {
+      const state = JSON.parse(window.localStorage.getItem(key) ?? 'null');
+      return state.appointments.map((item) => item.patientId);
+    }, STORAGE_KEY);
+    expect(patientIds).toHaveLength(2);
+    expect(patientIds[1]).toBe(patientIds[0]);
+    await expect(phone).toHaveValue('');
+    await expect(phone).toHaveAttribute('required', '');
+  });
+
   test('登入→建立→到診→回診→刪除', async ({ page }) => {
     await login(page);
     await createBooking(page);

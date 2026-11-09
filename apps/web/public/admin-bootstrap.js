@@ -251,6 +251,7 @@ const BATCH_ELIGIBLE_STATUS = {
 let slotKind = 'initial';
 let selectedSlotId;
 let bookingSuggestion;
+let prefilledBookingPhone;
 // 已決定回診但被「調整回診」重新開啟編輯的預約 id；讓它暫時回到逐筆回診確認。
 const editingFollowUps = new Set();
 // 週檢視目前顯示的週一（YYYY-MM-DD）。undefined 時於首次 render 對齊到
@@ -1176,7 +1177,26 @@ function openBookingWorkflow({ focusFirstField = false } = {}) {
   }, 0);
 }
 
+function clearPrefilledBookingPhone() {
+  prefilledBookingPhone = undefined;
+  elements['booking-phone'].required = true;
+  elements['booking-phone'].removeAttribute('placeholder');
+}
+
+for (const id of [
+  'booking-name',
+  'booking-phone',
+  'booking-birth-month',
+  'booking-birth-day',
+  'booking-nationality'
+]) {
+  elements[id].addEventListener('input', clearPrefilledBookingPhone);
+  elements[id].addEventListener('change', clearPrefilledBookingPhone);
+}
+elements['booking-form'].addEventListener('reset', clearPrefilledBookingPhone);
+
 function openOrdinaryBookingWorkflow(options = {}) {
+  clearPrefilledBookingPhone();
   if (bookingSuggestion !== undefined) clearBookingSuggestion();
   openBookingWorkflow(options);
 }
@@ -1192,6 +1212,7 @@ function setBookingSuggestion(detail) {
   )
     return;
 
+  clearPrefilledBookingPhone();
   bookingSuggestion = {
     patientId: detail.patientId,
     patientName: detail.patientName,
@@ -1229,6 +1250,7 @@ function setBookingSuggestion(detail) {
 }
 
 function clearBookingSuggestion() {
+  clearPrefilledBookingPhone();
   bookingSuggestion = undefined;
   const patientFieldset =
     elements['booking-form'].querySelector('.field-group');
@@ -1379,7 +1401,7 @@ elements['booking-form'].addEventListener('submit', async (event) => {
   const bookedSlotId = selectedSlotId;
   const patient = {
     name: elements['booking-name'].value,
-    phone: elements['booking-phone'].value,
+    phone: prefilledBookingPhone ?? elements['booking-phone'].value,
     birthDate: staffMonthDay(),
     nationality: elements['booking-nationality'].value
   };
@@ -1572,6 +1594,7 @@ elements.appointments.addEventListener('click', (event) => {
   const source = state.appointments.find((item) => item.id === sourceId);
   if (decision === undefined || source === undefined) return;
   const record = state.patients.find((item) => item.id === source.patientId);
+  if (bookingSuggestion !== undefined) clearBookingSuggestion();
 
   elements['booking-workflow'].open = true;
   slotKind = 'follow_up';
@@ -1579,9 +1602,15 @@ elements.appointments.addEventListener('click', (event) => {
   // 時段類型的下拉也要跟著切，否則清單已經換成回診時段、選單卻還顯示「初診」，
   // 櫃台會以為自己在挑初診的格子。
   elements['slot-kind-filter'].value = 'follow_up';
+  clearPrefilledBookingPhone();
+  elements['booking-phone'].value = '';
   if (record !== undefined) {
     elements['booking-name'].value = record.name;
-    elements['booking-phone'].value = record.phone;
+    if (typeof record.phone === 'string' && record.phone !== '') {
+      prefilledBookingPhone = record.phone;
+      elements['booking-phone'].placeholder = maskPatientPhone(record.phone);
+      elements['booking-phone'].required = false;
+    }
     // 新紀錄是 `--MM-DD`，瀏覽器端舊紀錄可能是完整日期；兩者都只取末五碼的
     // 月日帶入，年份不再收集。
     const [month = '', day = ''] = String(record.birthDate ?? '')
