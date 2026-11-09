@@ -26,6 +26,7 @@ import {
   evaluatePublicBookingGateOpen,
   firingImmediateAlerts,
   renderWeekdayOperationalSummary,
+  routeFamilyFromPath,
   sanitizeStructuredLog
 } from './observability.js';
 
@@ -229,6 +230,16 @@ describe('fail-closed completeness', () => {
 });
 
 describe('structured logs and metric labels', () => {
+  it.each([
+    ['/v1/calendar-session', 'staff'],
+    ['/v1/calendar-session/me', 'staff'],
+    ['/v1/calendar/sources', 'calendar'],
+    ['/v1/calendar-session/bookings', 'public_booking'],
+    ['/v1/unknown', 'other']
+  ])('classifies %s as %s', (path, family) => {
+    expect(routeFamilyFromPath(path)).toBe(family);
+  });
+
   it('rejects phone, DOB, token and cookie fields', () => {
     expect(() =>
       sanitizeStructuredLog({
