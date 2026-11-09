@@ -11,13 +11,14 @@ import {
   birthDateHasYear,
   maskIdentityDocument,
   maskNationalId,
+  maskPatientPhone,
   normalisePatientIdentity,
   patientIdentityIssues,
   patientIdentityKey,
   resolveIntakeCandidate
 } from '../vendor/domain/patient-identity.js';
 
-export { birthDateHasYear, maskIdentityDocument, maskNationalId };
+export { birthDateHasYear, maskIdentityDocument, maskNationalId, maskPatientPhone };
 
 /** 身分比對鍵。名稱維持 `identityKey`，呼叫端與既有測試都用這個名字。 */
 export const identityKey = patientIdentityKey;

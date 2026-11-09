@@ -1902,7 +1902,8 @@ describe('工作臺批次的新行為', () => {
       const appointment = bookOne(state, ['service_snoring']);
       const html = sheetFor(state, appointment.id);
       expect(html).toContain('測試患者甲');
-      expect(html).toContain('0912345678');
+      expect(html).toContain('*******678');
+      expect(html).not.toContain('0912345678');
       // 住址、職業、聯絡人等刻意不線上收集：留白給櫃台或患者手寫，
       // 不印「未填」——紙上要看得出「這裡等著被寫」。
       expect(html).toContain('住址');

@@ -205,10 +205,19 @@ export function birthDateHasYear(value: unknown): boolean {
   return CALENDAR_DATE_PATTERN.test(text(value));
 }
 
-/** 身分證字號的遮罩呈現，只用於顯示舊紀錄。長度不足回破折號，不回半截號碼。 */
+/** 舊證件只露首碼與末兩碼；短值全部遮住。 */
 export function maskNationalId(value: unknown): string {
-  if (typeof value !== 'string' || value.length <= 6) return '——';
-  return `${value.slice(0, 3)}****${value.slice(-3)}`;
+  if (typeof value !== 'string' || value.length === 0) return '——';
+  if (value.length <= 6) return '*'.repeat(value.length);
+  return `${value[0]}${'*'.repeat(value.length - 3)}${value.slice(-2)}`;
+}
+
+/** 電話只顯示最後三碼，短值全部遮住。 */
+export function maskPatientPhone(value: unknown): string {
+  if (typeof value !== 'string' || value.length === 0) return '——';
+  const digits = value.replace(/\D/g, '');
+  if (digits.length <= 3) return '*'.repeat(value.length);
+  return `${'*'.repeat(digits.length - 3)}${digits.slice(-3)}`;
 }
 
 export interface LegacyIdentityDocumentInput {

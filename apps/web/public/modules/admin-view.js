@@ -11,7 +11,11 @@ import {
   WEEKDAY_LABELS,
   ACTIVE_BOOKING_STATUSES
 } from './constants.js';
-import { birthDateHasYear, maskIdentityDocument } from './patient-registry.js';
+import {
+  birthDateHasYear,
+  maskIdentityDocument,
+  maskPatientPhone
+} from './patient-registry.js';
 import { renderTagOptions } from './tag-picker.js';
 import { isUpcomingSlot } from './schedule-engine.js';
 import { taipeiDate, taipeiIso, taipeiTodayDate } from './taipei-time.js';
@@ -106,7 +110,7 @@ function patientDetail(state, appointment) {
     : record.birthDate.slice(2).replace('-', '/');
   // 沒有值的段落整段不出現（filter 掉 falsy），而不是印一個空欄位。
   return [
-    escapeHtml(record.phone),
+    escapeHtml(maskPatientPhone(record.phone)),
     escapeHtml(birth),
     shownNationality,
     identityReview,
@@ -357,7 +361,7 @@ export function renderNextUp(state, now = Date.now()) {
   const phone =
     record?.phone === undefined
       ? ''
-      : `<span class="code">${escapeHtml(record.phone)}</span>`;
+      : `<span class="code">${escapeHtml(maskPatientPhone(record.phone))}</span>`;
   return `<p class="eyebrow">NEXT UP · 下一位</p><p class="next-up-time"><strong>${escapeHtml(formatTime(next.startsAt))}</strong><span>${escapeHtml(formatFullDate(next.startsAt))}</span></p><p class="next-up-patient"><strong>${escapeHtml(patientLabel(state, next.patientId))}</strong><span>${escapeHtml(BOOKING_KIND_LABELS[next.bookingKind] ?? '')}${next.itemLabel ? ` · ${escapeHtml(next.itemLabel)}` : ''}</span>${phone}</p><a class="summary-action" href="#appointments-section"><span class="summary-action-icon" aria-hidden="true">&#8594;</span>前往處理清單</a>`;
 }
 
@@ -913,11 +917,10 @@ export function renderIntakeSheet(state, appointmentId) {
     ? `${record.birthDate.slice(0, 4)} 年 ${record.birthDate.slice(5, 7)} 月 ${record.birthDate.slice(8, 10)} 日`
     : `${blankLine('sm')} 年 ${(record.birthDate ?? '').slice(2, 4)} 月 ${(record.birthDate ?? '').slice(5, 7)} 日`;
 
-  // 身分證：新預約不再收集，列印出空白讓到診時在紙本填寫。舊紀錄仍有值時，
-  // 畫面遮罩、列印完整，兩個值都在，靠 @media print 換。身分證優先，沒有才看護照。
+  // 舊證件在畫面與列印皆採最小揭露；新預約留白供到診時填寫。
   const legacyDocument = record.nationalId || record.passportNumber;
   const document_ = legacyDocument
-    ? `<span class="intake-screen-only">${escapeHtml(maskIdentityDocument(record))}</span><span class="intake-print-only">${escapeHtml(legacyDocument)}${record.nationalId ? '' : '（護照）'}</span>`
+    ? escapeHtml(maskIdentityDocument(record))
     : blankLine();
 
   const sources = tagLabels(appointment.sourceTags, PATIENT_SOURCE_TAGS);
@@ -961,7 +964,7 @@ export function renderIntakeSheet(state, appointmentId) {
           appointment.intakeNationality ?? record.nationality
         ] ?? `${blankLine('xs')} 本國 ／ ${blankLine('xs')} 外國`
       )}
-      ${cell('手機', record.phone ? escapeHtml(record.phone) : blankLine())}
+      ${cell('手機', record.phone ? escapeHtml(maskPatientPhone(record.phone)) : blankLine())}
       ${cell('市話', blankLine())}
       ${cell('婚姻', `${blankLine('xs')} 已婚 ／ ${blankLine('xs')} 單身`)}
       ${cell('住址', blankLine('full'), 3)}

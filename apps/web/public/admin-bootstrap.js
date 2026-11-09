@@ -27,7 +27,7 @@ import {
   isInternalTestBookingEnabled,
   resolveApiClient
 } from './modules/api-client.js';
-import { upsertPatient } from './modules/patient-registry.js';
+import { maskPatientPhone, upsertPatient } from './modules/patient-registry.js';
 import { runPendingAction } from './modules/async-action.js';
 import { confirmDialog, confirmWithReason } from './modules/confirm-dialog.js';
 import {
@@ -962,7 +962,7 @@ function syncBell() {
       .map(({ appointment: item, reason }) => {
         const person = state.patients.find((p) => p.id === item.patientId);
         // 原因要寫出來。清單裡現在有兩種通知，而「排在前面」不是任何人讀得到的線索。
-        return `<li class="bell-row"><strong>${escapeHtml(person?.name ?? item.patientId)}</strong><span class="bell-reason">${escapeHtml(reason)}</span><a href="tel:${escapeHtml(person?.phone ?? '')}">${escapeHtml(person?.phone ?? '—')}</a><span class="code">${escapeHtml(formatFullDate(item.startsAt))} ${escapeHtml(formatTime(item.startsAt))} · ${escapeHtml(item.id)}</span></li>`;
+        return `<li class="bell-row"><strong>${escapeHtml(person?.name ?? item.patientId)}</strong><span class="bell-reason">${escapeHtml(reason)}</span><span>${escapeHtml(maskPatientPhone(person?.phone))}</span><span class="code">${escapeHtml(formatFullDate(item.startsAt))} ${escapeHtml(formatTime(item.startsAt))} · ${escapeHtml(item.id)}</span></li>`;
       })
       .join('')
   );

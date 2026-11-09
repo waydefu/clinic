@@ -208,13 +208,13 @@ describe('resolveReturnCandidate', () => {
 describe('maskIdentityDocument（只用於顯示舊紀錄）', () => {
   it('有身分證就遮身分證', () => {
     expect(maskIdentityDocument({ nationalId: 'A123456789' })).toBe(
-      'A12****789'
+      'A*******89'
     );
   });
 
   it('沒有身分證時改遮護照', () => {
     expect(maskIdentityDocument({ passportNumber: 'SYNTH0001' })).toBe(
-      'SYN****001'
+      'S******01'
     );
   });
 
@@ -224,12 +224,12 @@ describe('maskIdentityDocument（只用於顯示舊紀錄）', () => {
 });
 
 describe('maskNationalId（只用於顯示舊紀錄）', () => {
-  it('只露出前三碼與後三碼', () => {
-    expect(maskNationalId('A123456789')).toBe('A12****789');
+  it('只露出首碼與後兩碼', () => {
+    expect(maskNationalId('A123456789')).toBe('A*******89');
   });
 
-  it('長度不足或不是字串時回破折號，不回半截號碼', () => {
-    expect(maskNationalId('A123')).toBe('——');
+  it('長度不足或不是字串時不回半截號碼', () => {
+    expect(maskNationalId('A123')).toBe('****');
     expect(maskNationalId(undefined)).toBe('——');
   });
 });
