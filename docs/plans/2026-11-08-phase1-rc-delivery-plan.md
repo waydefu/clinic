@@ -247,5 +247,6 @@ D-007、D-008（月結）、D-014、D-015 已 deferred，不在 RC。
 | SOL-CALENDAR-LEASE | #461：合成來源證據索引 | exact-head CI 首輪 Gitleaks 下載 504 失敗，仍為 Draft；真實 runtime 接入範圍待釐清，續期、寫入與 Gate 2 窗口待負責人 |
 | SOL-CALENDAR-ENVELOPE | #462：既有 inbound 拆批整數邊界測試 | 只屬來源切片；byte／time 與 provider 外證未完成，窗口待負責人 |
 | SOL-IAC-LIFECYCLE | #463：B-10 占位目標拒絕及 mock 測試 | B-11、B-50、E2-08 與其他來源前置仍待處理；真實狀態 plan／apply 未執行且須逐次核准 |
+| 台帳 | #464：本節記錄第一、二批來源切片與缺口 | PR 待審查；後續狀態由台帳負責人持續更新 |
 
 歷史基準：2026-11-07 main `63e59c94` 時，59 包中 25 包為台帳終態，另 34 包未整包完成；該快照不是目前重新盤點的數字。2026-11-08 已合併 #451（RC-03）。各包細節及依賴見第四節與細部包；外部證據仍以 IAM 與 SESSION 為主要依賴。
