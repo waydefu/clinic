@@ -38,10 +38,8 @@ const EXECUTABLE_MARKUP = [
   // 標籤內的行內事件處理器（onclick、onerror…）。CSP 本來就會擋下它們執行，
   // 但它們出現在這裡就代表逸出漏了，應該更早失敗。
   /<[^>]+\son\w+\s*=/i,
-  // 明寫的 URL scheme 僅允許核准的連結協定；相對路徑不在此列。
-  /<[^>]+(?:href|src|xlink:href)\s*=\s*["']?\s*(?!(?:https?|mailto|tel):)[a-z][a-z\d+.-]*:/i,
   // 不允許透過按鈕覆寫表單的送出目的地。
-  /<[^>]+\sformaction\s*=/i
+  /<[^>]+[\s/]formaction(?=[\s=/>]|$)/i
 ];
 
 export function assertRenderable(html) {
@@ -49,6 +47,27 @@ export function assertRenderable(html) {
   for (const pattern of EXECUTABLE_MARKUP) {
     if (pattern.test(text)) {
       throw new TypeError('Unsafe HTML; check escapeHtml().');
+    }
+  }
+  // shortcut: lexical tags are not a full HTML parser; upgrade before treating this as complete sanitization.
+  for (const [tag] of text.matchAll(/<(?:"[^"]*"|'[^']*'|[^'">])*>/g)) {
+    if (/[\s/]formaction(?=[\s=/>]|$)/i.test(tag))
+      throw new TypeError('Unsafe HTML; check escapeHtml().');
+    for (const match of tag.matchAll(
+      /[\s/](?:href|src|xlink:href)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'`=<>]+))/gi
+    )) {
+      const value = (match[1] ?? match[2] ?? match[3]).replace(
+        /[\x00-\x20\x7f]/g,
+        ''
+      );
+      const head = value.split(/[/:?]/, 1)[0];
+      const scheme = /^([a-z][a-z\d+.-]*):/i.exec(value)?.[1].toLowerCase();
+      if (
+        /[&%]/.test(head) ||
+        (scheme !== undefined &&
+          !['http', 'https', 'mailto', 'tel'].includes(scheme))
+      )
+        throw new TypeError('Unsafe HTML; check escapeHtml().');
     }
   }
   return text;
