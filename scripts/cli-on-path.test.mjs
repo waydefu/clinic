@@ -53,6 +53,15 @@ describe('PATH scan on win32', () => {
     expect(hasCli('firebase', win32('C:/tools'))).toBe(true);
   });
 
+  it('respects an explicit PATHEXT that excludes the installed command', () => {
+    expect(hasCli('terraform', win32('C:/tools', { PATHEXT: '.EXE' }))).toBe(
+      false
+    );
+    expect(hasCli('firebase', win32('C:/tools', { PATHEXT: '.EXE' }))).toBe(
+      true
+    );
+  });
+
   it('does not accept a bare name without a PATHEXT extension', () => {
     expect(hasCli('bare', win32('C:/tools'))).toBe(false);
     expect(hasCli('gcloud', win32('bin one'))).toBe(false);
