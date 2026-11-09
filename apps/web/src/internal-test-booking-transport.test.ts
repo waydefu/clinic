@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -9,6 +6,7 @@ import {
 } from '../public/modules/api-client.js';
 import {
   appointmentPage,
+  appointmentPageLabels,
   renderAppointments
 } from '../public/modules/admin-view.js';
 import { DEFAULT_BLOCKED_TIMES } from '../public/modules/constants.js';
@@ -1545,15 +1543,35 @@ describe('staff list follows the continuation cursor', () => {
     expect(page.totalCount).toBe(250);
   });
 
-  // The workbench count sits in admin-bootstrap.js, which has no DOM harness
-  // here; pin the wording to the flag so a loaded count is never called a total.
-  it('words the workbench count as a minimum when the state is truncated', () => {
-    const bootstrap = readFileSync(
-      fileURLToPath(new URL('../public/admin-bootstrap.js', import.meta.url)),
-      'utf8'
-    );
-    expect(bootstrap).toContain(
-      "`${state.appointmentsTruncated ? '至少' : '共'} ${page.totalCount} 筆結果"
-    );
+  it('distinguishes incomplete filtered rows and pages from a complete total', () => {
+    const page = {
+      totalCount: 50,
+      ids: Array.from({ length: 20 }, () => 'synthetic'),
+      page: 2,
+      totalPages: 3
+    };
+    expect(appointmentPageLabels(page, true)).toEqual({
+      status: '第 2 頁，已載入 3 頁',
+      summary:
+        '至少 50 筆結果，本頁顯示 20 筆（第 2 頁，已載入 3 頁）；尚有資料未載入，篩選與搜尋僅涵蓋已載入資料。'
+    });
+    expect(appointmentPageLabels(page, false)).toEqual({
+      status: '第 2 頁，共 3 頁',
+      summary: '共 50 筆結果，本頁顯示 20 筆（第 2 頁，共 3 頁）'
+    });
+  });
+
+  it('does not claim there are no matching appointments when pages are missing', () => {
+    const state: any = initialState();
+    state.appointments = [];
+    state.appointmentsTruncated = true;
+    const html = renderAppointments(state, {
+      status: 'all',
+      kind: 'all',
+      query: 'synthetic_no_match'
+    });
+    expect(html).toContain('已載入的資料沒有符合條件的預約');
+    expect(html).toContain('尚有資料未載入');
+    expect(html).not.toContain('<strong>沒有符合條件的預約</strong>');
   });
 });
