@@ -966,9 +966,10 @@ describe('bounded inbound commit and terminal checkpoint protocol', () => {
         new FakeReader([{ events, nextSyncToken: 'exact-complete' }]),
         repository
       ).run(NOW);
-      expect(repository.commits.map((commit) => commit.mutations.length)).toEqual(
-        Array(size / 20).fill(20)
-      );
+      expect(repository.commits).toHaveLength(size / 20);
+      for (const commit of repository.commits) {
+        expect(commit.mutations).toHaveLength(20);
+      }
       for (const commit of repository.commits.slice(0, -1))
         expect(commit.nextSyncToken).toBeUndefined();
       expect(repository.commits.at(-1)?.nextSyncToken).toBe('exact-complete');
