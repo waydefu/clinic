@@ -150,6 +150,17 @@ describe('log redaction follows the contract class (E1-15)', () => {
     });
   });
 
+  it('redacts unknown entries without changing the input object', () => {
+    const input = {
+      GOOGLE_CLOUD_PROJECT: 'synthetic-project',
+      UNLISTED_SYNTHETIC_VALUE: 'synthetic-sensitive-value'
+    };
+    const out = redactConfigForLogs(input, contract);
+    expect(out.UNLISTED_SYNTHETIC_VALUE).toBe('[redacted]');
+    expect(input.UNLISTED_SYNTHETIC_VALUE).toBe('synthetic-sensitive-value');
+    expect(out.GOOGLE_CLOUD_PROJECT).toBe('synthetic-project');
+  });
+
   it('keeps a secret-looking name when the contract says it is not secret', () => {
     const custom = {
       entries: [{ name: 'LOOKS_LIKE_A_TOKEN', class: 'NON_SECRET_CONFIG' }]
