@@ -65,6 +65,26 @@ describe('durable full-key quota and conservative legacy cutover', () => {
     expect(rows.has(hashed(b))).toBe(true);
   });
 
+  it('inherits a colliding legacy lock conservatively without sharing new rows', async () => {
+    const { store, rows } = database();
+    const a = `opaque_${'a'.repeat(160)}_x`;
+    const b = `opaque_${'a'.repeat(160)}_y`;
+    expect(legacy(a)).toBe(legacy(b));
+    rows.set(legacy(a), {
+      count: policy.limit,
+      windowStartMs: NOW,
+      lockedUntilMs: NOW + policy.lockMs
+    });
+    expect((await store.consume(a, policy, NOW)).allowed).toBe(false);
+    expect((await store.consume(b, policy, NOW)).allowed).toBe(false);
+    expect(hashed(a)).not.toBe(hashed(b));
+    expect(rows.has(hashed(a))).toBe(true);
+    expect(rows.has(hashed(b))).toBe(true);
+    const afterExpiry = NOW + Math.max(policy.windowMs, policy.lockMs) + 1;
+    expect((await store.consume(a, policy, afterExpiry)).allowed).toBe(true);
+    expect((await store.consume(b, policy, afterExpiry)).allowed).toBe(true);
+  });
+
   it('preserves active legacy counters, locks, restart and natural expiry', async () => {
     const { store, rows, db } = database();
     const key = 'opaque:legacy';

@@ -321,3 +321,22 @@ A 批 #466～#474 由 Claude 驗收合併中；以下只是來源切片，狀態
 | 台帳 | #481 | 本快照屬文件變更；此 PR exact-head CI 及狀態以遠端讀回為準。 |
 
 上述 PR 的狀態可能變更；合併、Ready 或 CI 綠燈均不等於整包完成、正式部署或雲端／實際資料權限。
+
+### 後續切片快照（2026-11-10）
+
+- #479：合入當時的 `origin/main` 解衝突；補拒絕編碼 scheme、動態
+  form／formaction 的切片及回歸。仍保留 WIP／Draft；確切 head 的 CI
+  正在執行，詞法 guard 不等於完整 HTML parser。
+- #480：Ready、exact-head CI 曾通過；列印是否顯示完整身分證號待
+  負責人決定，依指示不再推該分支。
+- #484：D-22 預設拒絕未知欄位的部分切片已合併；其他 RBAC 項目仍待完成。
+- #485（本 PR）：X-C03 協定裁定、RETURN 舊鍵碰撞測試、商業交付路由
+  清單、E1-26 過期 threshold 測試、SESSION 權威指標及 OBSERVABILITY
+  log cap 測試皆屬部分切片。台帳提交前的 head CI 通過；本提交後以
+  新 exact-head checks 為準。日誌目的地尚待負責人決定，未建立 sink。
+- #486：移除已不在 lockfile 依賴圖的 FTP override；lockfile-only
+  重產本機逾時，手動刪除對應 override，凍結安裝與 audits 由 CI 驗證。
+  當時為 Draft、CI 執行中；其餘 SUPPLY 項目未完成。
+
+各 PR 的後續狀態以遠端實際 head 與檢查為準；不把未驗證的外部效果、
+整包完成、部署或真實資料權限寫成已達成。
