@@ -85,6 +85,7 @@ export function createInternalTestOutboxRuntime(
     },
     async inspect(nowUtc = options.clock?.() ?? new Date().toISOString()) {
       const snapshot = await readOutboxQueueSnapshot(options.db, nowUtc);
+      const hasClaimableWork = await readHasClaimableWork(options.db, nowUtc);
       const failRate = attemptFailRate10m(metrics);
       logInternalTestOutboxSnapshot(snapshot);
       return {
@@ -93,6 +94,7 @@ export function createInternalTestOutboxRuntime(
         alerts: evaluateOutboxSlo({
           attemptFailRate10m: failRate,
           consecutiveEmptyBatchesWithPending: emptyStreak,
+          hasClaimableWork,
           snapshot
         })
       };
@@ -106,7 +108,8 @@ export function createInternalTestOutboxRuntime(
       } catch {
         // Metrics must not change delivery, matching OutboxProcessor.
       }
-      if (summary.completed === 0 && snapshot.pending > 0) emptyStreak += 1;
+      const hasClaimableWork = await readHasClaimableWork(options.db, nowUtc);
+      if (summary.completed === 0 && hasClaimableWork) emptyStreak += 1;
       else emptyStreak = 0;
       logInternalTestOutboxSnapshot(snapshot);
       const failRate = attemptFailRate10m(metrics);
@@ -117,6 +120,7 @@ export function createInternalTestOutboxRuntime(
         alerts: evaluateOutboxSlo({
           attemptFailRate10m: failRate,
           consecutiveEmptyBatchesWithPending: emptyStreak,
+          hasClaimableWork,
           snapshot
         })
       };
@@ -289,4 +293,26 @@ export function logInternalTestOutboxSnapshot(
       retryState: snapshot.deadLettered > 0 ? 'dead_lettered' : 'none'
     })
   );
+}
+
+/** Mirrors OutboxProcessor's claim queries: due pending or expired-lease in_progress. */
+export async function readHasClaimableWork(
+  db: Firestore,
+  nowUtc: string
+): Promise<boolean> {
+  assertUtcTimestamp(nowUtc, 'nowUtc');
+  const collection = db.collection(OUTBOX_COLLECTION);
+  const [duePending, expiredLease] = await Promise.all([
+    collection
+      .where('status', '==', 'pending')
+      .where('nextAttemptAt', '<=', nowUtc)
+      .limit(1)
+      .get(),
+    collection
+      .where('status', '==', 'in_progress')
+      .where('leaseExpiresAt', '<=', nowUtc)
+      .limit(1)
+      .get()
+  ]);
+  return !duePending.empty || !expiredLease.empty;
 }
