@@ -13,9 +13,11 @@ checkpoints, not a live deployment report. For current scoped work, start with
 the [task retrieval map](docs/INDEX.md), then the
 [Phase 1 execution plan](docs/phase-1-execution-plan.md) and the routed Canon.
 The [generated state](docs/state/current.md) is a projection, not approval.
-For delivery sequencing, see the [Phase 1 RC delivery plan](docs/plans/2026-11-08-phase1-rc-delivery-plan.md)
-and its [work packets](docs/plans/2026-11-08-phase1-rc-packets.md). They are
-plan-only: neither an RC target nor a packet status authorises production.
+For delivery sequencing, the [Phase 1 RC delivery plan](docs/plans/2026-11-08-phase1-rc-delivery-plan.md)
+is the current plan entry and progress ledger; its [work packets](docs/plans/2026-11-08-phase1-rc-packets.md)
+contain the packet details. Their current/historical plan index is in section 7
+of the RC plan. Both are plan-only: neither an RC target nor a packet status
+authorises production.
 Preview availability and other remote state are `UNVERIFIED` by this README;
 local code, dated evidence and an expired preview are not deployment authority.
 

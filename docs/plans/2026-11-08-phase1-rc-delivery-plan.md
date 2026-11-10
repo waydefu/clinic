@@ -195,12 +195,12 @@ D-007、D-008（月結）、D-014、D-015 已 deferred，不在 RC。
 | 13 | 2026-10-01-c1-batch-deployment-packet.md | C1 商務交付批次部署 packet | 現行 |
 | 14 | 2026-10-01-cp-08-regression-evidence-worksheet.md | CP-08 全系統回歸證據 worksheet | 現行 |
 | 15 | 2026-10-01-cp-10-current-project-acceptance-checklist.md | CP-10 現有專案業主驗收清單 | 現行 |
-| 16 | 2026-10-05-audit-followup-luna-plan.md | 外部稽核後續逐步計畫（Luna） | 待確認 |
-| 17 | 2026-10-05-audit-gap-sol-luna-execution-plan.md | 稽核漏網複核與 Sol／Luna 執行圖補充 | 歷史（疑似已被取代，待確認） |
+| 16 | 2026-10-05-audit-followup-luna-plan.md | 外部稽核後續逐步計畫（Luna） | 歷史（執行入口；原稽核對照保留） |
+| 17 | 2026-10-05-audit-gap-sol-luna-execution-plan.md | 稽核漏網複核與 Sol／Luna 執行圖補充 | 歷史（執行入口；原複核脈絡保留） |
 | 18 | 2026-10-06-sol00-finding-manifest.md | SOL-00 254 ID current-evidence 索引（v3） | 現行 |
 | 19 | 2026-10-06-sol00-safe-manifest-closeout-plan.md | SOL-00 current-evidence planning closeout | 現行 |
 | 20 | 2026-10-06-sol00-safe-manifest.json | SOL-00 safe manifest（機器權威） | 現行 |
-| 21 | 2026-10-18-sol-luna-autorun-prompts.md | Sol／Luna 一路跑完：設定與提示詞 | 待確認 |
+| 21 | 2026-10-18-sol-luna-autorun-prompts.md | Sol／Luna 一路跑完：設定與提示詞 | 歷史（執行入口；設定與提示詞為當時脈絡） |
 | 22 | 2026-10-22-sol-business-adjustment-design.md | SOL-BUSINESS 可追溯試用調整模型提案 | 現行 |
 | 23 | 2026-10-22-sol-calendar-lease-coordination.md | SOL-CALENDAR-LEASE 協調設計候選 | 現行 |
 | 24 | 2026-10-25-external-acceptance-runsheet.md | Sol v2 外部驗收測試單 | 現行 |
