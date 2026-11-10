@@ -54,10 +54,44 @@ RC 完成條件（全部要有可查證據）：
 | OR-37 | 止鼾療程時長 | 已改為到診後確認；請確認不再回頭 | 無（關閉題目） |
 | D-24 | 試用調整模型是否採用 | DESIGN-PROPOSED／BLOCKED-OWNER | SOL-BUSINESS 延伸工作 |
 | LEASE Gate 2 | 真實 runtime 接入範圍 | `2026-10-22-sol-calendar-lease-coordination.md` 檔頭與 :17、:176 不一致，請釐清 | RC-07 |
+| CAL-PILOT 延期 | 合成子範圍 2026-11-28T04:51:37Z（台北 11/28 12:51）到期，落在 CP-10 驗收當中；是否延期 | 原排 11/25；建議提前在此批決定，延到 12/31 | RC-07、CP-10 |
 
 ### 11/19 前
 
-D-001、D-002（含 Google DPA、備份刪除語意、legal hold）、D-003（RC 只需草稿定案與審查安排）、D-009、D-016、Q-BACKUP、SOL-PRIVACY Q3／Q5、2026-10-24 第 6～9 題、#268 [H] 告知文字審閱、CP-10 A-10（Drive 文件與規則 crosswalk 的商務差異定案）、PUB-03 官網實機接受（可 12 月）。
+「建議預設」是 Claude 依既有輸入整理的提案，不等於核准；負責人逐列回答後轉成正式核准紀錄。
+
+| ID | 要回答什麼 | 已有輸入 | 建議預設 | 出處 |
+| --- | --- | --- | --- | --- |
+| D-001 | 控制者名稱、隱私聯絡窗口、權利請求流程 | 暫定診所電話為窗口 | 控制者用診所登記名稱；窗口＝診所電話＋一個角色信箱（不用個人信箱）；請求由負責人受理並留紀錄 | DR:2153–2155、DR:1380 |
+| D-002 | 保存、刪除、Google DPA、備份刪除語意、legal hold | 預約保存 2 年；legal hold 只限負責人 | 刪除不追溯備份，備份到期自然汰除，保存期內不宣稱已徹底刪除（與 A-06 一致）；還原後重播刪除紀錄；Google DPA：確認 Google Cloud 已接受資料處理附約，截圖存 repo 外 | DR:291–296、DR:2276–2282 |
+| D-003 | 隱私政策全文、版本號、發布流程 | 內測 v1.0 不是發布核准 | RC 只定案草稿 v1.0＋下方審查安排；正式發布 12 月 | DR:1382 |
+| D-009 | 正式日曆擁有者、授權、scope | RC 用專用測試日曆，管理者為負責人 | 正式日曆歸診所帳號（非個人帳號）；只給讀寫事件的最小 scope；RC 沿用測試日曆 | DR:2785–2787、DR:1388 |
+| D-016 | 回寫匹配、衝突、同步 SLO | 09-11 CAL-SYNC-DIR：push 後增量＋1～5 分鐘補償 | 採 09-11 方案；衝突以系統（真相來源）為準，日曆端改動只告警不回寫 | DR:1395 |
+| Q-BACKUP | 備份目的地、地域、存取、保存、成本、刪除傳播 | Sheets 副本不能取代還原備份 | Firestore 排程匯出到同區域儲存桶；只負責人可讀；保存期跟 D-002；成本納入第八節費用上限 | [follow-up](2026-09-18-business-delivery-follow-up.md):71 |
+| SOL-PRIVACY Q3 | acknowledgement log 保存年限 | 暫按個資處理 | 與預約同為 2 年 | [privacy 草稿](../legal/privacy-engineering-review-draft-2026-10-29.md):36–47 |
+| SOL-PRIVACY Q5 | 去識別 write allowlist | 目前為空，受保護來源不改 | 維持空白（不開放去識別寫入） | 同檔 :77–93 |
+| 10-24 第 6～9 題 | 已答 A，但還缺告知原句、角色信箱、保存數值、商務來源、去重方案 | 第 6～9 題均選 A | 原句與信箱併 D-001、保存數值併 D-002 一次給；第 8、9 題等 Sol 的短設計 | DR:810–814、DR:836 |
+| #268 [H] | 告知最終版本、版本號、生效安排 | 保存、回診、電話窗口、署名已決 | 版本號 v1.0；生效日＝正式上線日；由診所審定文字 | issue #268 留言 |
+| CP-10 A-10 | Drive 00 index 與 repo 規則的價格、分期、試用差異 | 暫保留 repo 原值、不覆寫 | 由 Claude 列差異表，負責人逐條選；歸屬 RC | [CP-10](2026-10-01-cp-10-current-project-acceptance-checklist.md):36、:45 |
+| PUB-03 | 官網實機接受 | C1 實機未完成 | 移 12 月（本計畫已允許） | 本檔 A-11 |
+
+`DR` = [決定紀錄](../product/phase-1-decision-register.md)。
+
+### 法律審查安排（RC 完成條件第 5 點）
+
+RC 只要求「答案定案＋審查安排」；審查完成是 12 月正式上線前條件。下表的條文依全國法規資料庫 2026-11-10 現行版；個資法 114 年修正的部分條文（含第 12、21 條，原第 27 條改列第 20-1 條）網站標示施行日期未定，審查時以當時施行版本為準。
+
+| 題目 | 相關條文 | 白話結論 | 要審查的事 |
+| --- | --- | --- | --- |
+| 預約資料是否屬醫療個資 | 個資法第 2 條、第 6 條 | 「醫療」「病歷」是特種個資，原則不得蒐集；例外之一是當事人書面同意，但不得只靠同意、不得逾必要範圍 | 預約表單的療程欄位算不算醫療個資；若算，同意取得方式（電子勾選是否等同書面） |
+| 告知內容 | 個資法第 8 條 | 直接向病患蒐集時，要告知機關名稱、目的、類別、利用期間地區對象方式、當事人權利、不提供的影響 | D-003 草稿是否涵蓋全部告知事項 |
+| 保存期與刪除 | 醫療法第 67 條、第 70 條 | 病歷至少保存 7 年；預約資料若不構成病歷，依目的必要範圍刪除 | 系統資料是否落入病歷範圍；D-002 的 2 年是否成立 |
+| 保密 | 醫療法第 72 條、第 103 條 | 醫療機構不得無故洩漏病人病情或健康資訊，違者罰 5 萬至 25 萬元 | 員工權限（C4）與匯出（CSV）是否足以防止無故洩漏 |
+| 外洩處理 | 個資法第 12 條 | 外洩要通知當事人，符合範圍還要通報主管機關並留紀錄 | 事故流程（第八節）是否含通知與通報 |
+| 雲端與境外 | 個資法第 21 條 | 主管機關得限制國際傳輸 | Google 雲端資料所在地與 DPA |
+| 安全維護 | 個資法第 20-1 條（原第 27 條） | 保有個資者要辦理安全維護 | 現行資安措施是否足以對應 |
+
+審查人與完成日期由負責人在 11/19 一併指定（律師、隱私顧問或診所自行審閱皆可，紀錄具名）。
 
 ### 隨時可回答
 
@@ -80,11 +114,26 @@ D-007、D-008（月結）、D-014、D-015 已 deferred，不在 RC。
 
 關鍵路徑：INGRESS → IAM／SESSION 外證 → 下游包 → 凍結 → CP-08 → CP-10。任何一項延誤超過 2 天，本檔要記錄並提出縮範圍選項（先砍：C2～C6 中做不到的切片、W3 才開工的無來源包、SOL-INTEGRATION 整合）。
 
+### 雲端窗口排程（2026-11-10 補）
+
+W1 的外證與實測都要負責人開窗，原表只排到週。下表的日期是建議，負責人確認後改成「已排」；每列仍需該批明確同意，核准不延伸。
+
+| 窗口 | 內容 | 建議日期 | 為何排這天 | 狀態 |
+| --- | --- | --- | --- | --- |
+| RC-07 日曆續期 | 專用測試日曆續期，開始真實日曆實測 | 11/12 | 實測至少 50 次收斂需要時間；CAL-PILOT 子範圍 11/28 到期 | 未排 |
+| INGRESS 外證 | 唯讀讀回＋必要變更 | 11/12–11/13 | 關鍵路徑第一站 | 未排 |
+| RC-05 | Terraform 流量跟隨最新 revision（plan → apply → 讀回） | 11/13 | 後續部署都靠它 | 未排 |
+| MAINTENANCE、SECRETS 外證 | 唯讀讀回＋必要變更 | 11/13–11/14 | W1 尾巴 | 未排 |
+| RC-06 C1 員工端第二窗口 | 含 7 日登入測試 | 11/14 開、11/21 讀回 | 7 日測試要倒推 | 未排 |
+| IAM、SESSION 外證 | 負責人核准後的變更與讀回 | 11/17–11/18 | 解開最多下游包 | 未排 |
+| C2～C6 切片 | 逐片 request → 核准 → 部署 → 讀回 | request 草稿 11/14 前交；部署 11/17–11/21 | 11/22 要決定移 12 月的切片 | 個別 request 未見，只有空白模板；[first-stage](../architecture/first-stage-c1-c6-execution.md) 記載各片 authority granted、合成 smoke PASS，先釐清可否沿用，再由 Claude 補草稿 |
+| CP-10 負責人驗收 | 簽 CP-10 | 11/28–11/29（週末） | 若週末不便，改 11/27 並把凍結提前到 11/25 | 待負責人確認 |
+
 **下游包分兩段做，避免全部擠在 W3：** 表中排 W3 的包，若還有來源工作（補回歸、補程式），W2 就以 source-only 方式平行開工，不等上游外證；W3 只做「上游外證到位後的整包收尾驗收」。IAM、SESSION 的唯讀盤點與差異表在 W1 先做，W2 只剩負責人核准後的變更與讀回。無來源 7 包中，SOL-CALENDAR-RESTORE、SOL-HTML、SOL-RELEASE 在 W2 開始寫來源；SOL-INTEGRATION 維持最後。
 
 ## 四、59 包總表
 
-欄位出自 manifest；finding 層的回歸測試要求「依 manifest」，本表不複製。歸屬裁定：#419 K1 屬 NO-WORK；E1-26 屬 SOL-RUNTIME-EVIDENCE；E1-05 屬 SOL-RELEASE（#308 誤列）。manifest 過時：SOL-TTL、SOL-RBAC 的 OWNER_POLICY_PREREQUISITE 已有登記簿答案，由 RC-02 同步。
+欄位出自 manifest；finding 層的回歸測試要求「依 manifest」，本表不複製。歸屬裁定：#419 K1 屬 NO-WORK；E1-26 屬 SOL-RUNTIME-EVIDENCE；E1-05 屬 SOL-RELEASE（#308 誤列）。SOL-TTL、SOL-RBAC 的既有政策答案已由 RC-02（#454）同步至 manifest；不代表相關來源工作或外證完成。
 
 | 包 | manifest status | risk | dependsOn | findings | write-set（前 3） | 現況 | 已合併 PR | RC 波次 | 執行者 | 需負責人核准 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -131,7 +180,7 @@ D-007、D-008（月結）、D-014、D-015 已 deferred，不在 RC。
 | SOL-OUTBOX | PLANNED_CURRENT_EVIDENCE_SCOPE | MEDIUM | — | E4-21 | apps/worker/src/outbox-processor.ts | DONE-MERGED（已終態） | #258 | — | — | 無 |
 | SOL-PRIVACY | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-CALENDAR-ENVELOPE、SOL-CALENDAR-RESTORE、SOL-IDENTITY | D-14、D-16、D-30、E3-05、B-21、E3-01、E3-02、E3-03、E4-10 | .firebaserc，apps/web/public/privacy.html，apps/worker/README.md | 已有來源切片 | #364、#365 | W3（正式發布 12 月） | 長跑（gpt-6.1-terra）、負責人（文字審閱） | D-001～D-003；告知文字審閱（11/19） |
 | SOL-QUERY-INDEX | PLANNED_CURRENT_EVIDENCE_SCOPE | MEDIUM | SOL-CONTRACTS、SOL-EXPORT、SOL-TTL | B-44 | apps/api/src/firestore/business-delivery-export.repository.ts，apps/api/src/firestore/business-delivery.repository.ts，fir… | 已有來源切片 | #414、#427–#432（B-44） | W3 | 長跑（gpt-6.1-terra） | 索引部署需負責人核准（Firestore 索引屬雲端狀態） |
-| SOL-RBAC | OWNER_POLICY_PREREQUISITE | HIGH | SOL-CONTRACTS、SOL-SESSION | A04、D-22、E3-17、E4-09 | apps/api/src/platform/authorization/rbac-appointment-policy.ts，apps/api/src/schedule/schedule.application-service.ts，app… | 無來源 | #241、#251（文件） | W1（manifest 同步，RC-02）／W3（實作） | Sonnet（同步）、長跑（gpt-6.1-terra）（實作） | 無（E4-09 已決） |
+| SOL-RBAC | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-CONTRACTS、SOL-SESSION | A04、D-22、E3-17、E4-09 | apps/api/src/platform/authorization/rbac-appointment-policy.ts，apps/api/src/schedule/schedule.application-service.ts，app… | 部分／待同 SHA 回歸及 SESSION 外證 | #241、#251（文件）、#454（規劃狀態）、#484（D-22） | W1（manifest 同步，RC-02）／W3（實作） | Sonnet（同步）、長跑（gpt-6.1-terra）（實作） | 無（E4-09 已決） |
 | SOL-RELEASE | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-IAC-LIFECYCLE、SOL-IAM、SOL-INGRESS | E1-03、E1-05、E1-07、E1-13、E1-01、E1-02、E1-11 | scripts/cal-pilot-build-images.ps1，scripts/cal-pilot-extension-policy.mjs，scripts/cal-pilot-extension-policy.test.mjs | 無來源 | 無來源 PR | W3 | 長跑（gpt-6.1-terra） | 部署相關變更需負責人核准 |
 | SOL-RETENTION | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-CONTRACTS | A03、D-36 | apps/api/src/business-delivery/business-retention.application-service.test.ts，apps/api/src/business-delivery/business-re… | ALREADY_FIXED（已終態） | 沿用 #268 對帳留言 6562505748 | — | — | 無 |
 | SOL-RETURN | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-CONTRACTS、SOL-IDENTITY、SOL-INGRESS | K4、D-08、E3-19 | apps/api/src/firestore/rate-limit.repository.ts，apps/api/src/patients/patient-directory.ts，apps/api/src/platform/runtime… | 已有來源切片 | #419（自述 K1，已裁定為額外回歸測試） | W3 | 長跑（gpt-6.1-terra） | 無（return_sessions 24 小時已決） |
@@ -145,7 +194,7 @@ D-007、D-008（月結）、D-014、D-015 已 deferred，不在 RC。
 | SOL-SESSION-UI | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-SESSION | C03、C09、X-C04、X-C05 | apps/web/public/admin-bootstrap.js，apps/web/public/calendar-pilot.css，apps/web/public/index.html | DONE-MERGED（已終態） | #245 | — | — | 無 |
 | SOL-STRUCTURE-GATE | PLANNED_CURRENT_EVIDENCE_SCOPE | MEDIUM | — | E1-30 | scripts/check-structure.mjs，scripts/check-structure.test.mjs | DONE-MERGED（已終態） | #254 | — | — | 無 |
 | SOL-SUPPLY | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-CI-SECURITY、SOL-CONTRACTS、SOL-OBSERVABILITY | B-19、B-32、B-20、B-42、E1-08、E2-12、B-48、E4-08 | .github/workflows/verify.yml，.npmrc，docs/product/luna-local-project-completion-master-plan.md | 部分／待政策或文件 | #280（最小修補）、#281（決定） | W1（braces，RC-01）／W3（整包） | 長跑（gpt-6.1-terra） | 無（不新增例外） |
-| SOL-TTL | OWNER_POLICY_PREREQUISITE | HIGH | SOL-IAC-LIFECYCLE、SOL-IDENTITY、SOL-RETURN、SOL-SESSION | A05、B-04、NEW-05 | apps/api/src/firestore/rate-limit.repository.ts，apps/api/src/internal-test-booking/internal-test-booking.authenticator.t… | 部分／待政策或文件 | #371（A05、B-04、B-52、NEW-05） | W1（manifest 同步，RC-02） | Sonnet | 無（已決） |
+| SOL-TTL | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-IAC-LIFECYCLE、SOL-IDENTITY、SOL-RETURN、SOL-SESSION | A05、B-04、NEW-05 | apps/api/src/firestore/rate-limit.repository.ts，apps/api/src/internal-test-booking/internal-test-booking.authenticator.t… | 部分／待上游及同 SHA 回歸；現行雲端 TTL 未讀回 | #371（來源切片）、#454（規劃狀態） | W1（manifest 同步，RC-02） | Sonnet | 無（已決） |
 | SOL-VISUAL-EVIDENCE | PLANNED_CURRENT_EVIDENCE_SCOPE | MEDIUM | — | E5-01、E5-02、E5-03、E5-04、E5-05、E5-06、E5-07、E5-08、E5-09、E5-10 | — | DONE-MERGED（已終態） | 沿用 #268 對帳留言 6562505748 | — | — | 無 |
 
 ## 五、RC 新增包（11）摘要
@@ -195,12 +244,12 @@ D-007、D-008（月結）、D-014、D-015 已 deferred，不在 RC。
 | 13 | 2026-10-01-c1-batch-deployment-packet.md | C1 商務交付批次部署 packet | 現行 |
 | 14 | 2026-10-01-cp-08-regression-evidence-worksheet.md | CP-08 全系統回歸證據 worksheet | 現行 |
 | 15 | 2026-10-01-cp-10-current-project-acceptance-checklist.md | CP-10 現有專案業主驗收清單 | 現行 |
-| 16 | 2026-10-05-audit-followup-luna-plan.md | 外部稽核後續逐步計畫（Luna） | 待確認 |
-| 17 | 2026-10-05-audit-gap-sol-luna-execution-plan.md | 稽核漏網複核與 Sol／Luna 執行圖補充 | 歷史（疑似已被取代，待確認） |
+| 16 | 2026-10-05-audit-followup-luna-plan.md | 外部稽核後續逐步計畫（Luna） | 歷史（執行入口；原稽核對照保留） |
+| 17 | 2026-10-05-audit-gap-sol-luna-execution-plan.md | 稽核漏網複核與 Sol／Luna 執行圖補充 | 歷史（執行入口；原複核脈絡保留） |
 | 18 | 2026-10-06-sol00-finding-manifest.md | SOL-00 254 ID current-evidence 索引（v3） | 現行 |
 | 19 | 2026-10-06-sol00-safe-manifest-closeout-plan.md | SOL-00 current-evidence planning closeout | 現行 |
 | 20 | 2026-10-06-sol00-safe-manifest.json | SOL-00 safe manifest（機器權威） | 現行 |
-| 21 | 2026-10-18-sol-luna-autorun-prompts.md | Sol／Luna 一路跑完：設定與提示詞 | 待確認 |
+| 21 | 2026-10-18-sol-luna-autorun-prompts.md | Sol／Luna 一路跑完：設定與提示詞 | 歷史（執行入口；設定與提示詞為當時脈絡） |
 | 22 | 2026-10-22-sol-business-adjustment-design.md | SOL-BUSINESS 可追溯試用調整模型提案 | 現行 |
 | 23 | 2026-10-22-sol-calendar-lease-coordination.md | SOL-CALENDAR-LEASE 協調設計候選 | 現行 |
 | 24 | 2026-10-25-external-acceptance-runsheet.md | Sol v2 外部驗收測試單 | 現行 |
@@ -211,7 +260,7 @@ D-007、D-008（月結）、D-014、D-015 已 deferred，不在 RC。
 
 `2026-11-08-phase1-rc-*` 兩份為新增現行。#23 的 Gate 2 敘述（檔頭與 :17、:176）不一致，待負責人釐清。
 
-## 八、12 月正式上線草案（不排日期）
+## 八、12 月正式上線草案（日期於 RC tag 後排定）
 
 | 項目 | 前置條件 |
 | --- | --- |
@@ -223,6 +272,15 @@ D-007、D-008（月結）、D-014、D-015 已 deferred，不在 RC。
 | 五方簽核 | clinic、privacy、security、operations、technical 對同一 RC 共同決定 |
 | 程式切分（RC-08） | Gate 2 結束；先補回歸 |
 | 其餘 CP-10 12 月項目 | 見第一節表 |
+| 正式網域與站台切換 | D-011 定案後：`robots`／indexability 改 route-specific fail-closed、`og:url`／canonical 換網域、分享預覽與快取在正式網域驗證、預覽頻道改正式 Hosting 並建立回滾流程、移除 `ONLINE PREVIEW` 標示、資料保存告知依核准政策改寫（[roadmap 第四節](../roadmap.md)） |
+| 資安決定草稿定案 | T10 身分安全參數（TOTP 容忍窗、錯誤鎖定、手機遺失重綁、授權碼效期）上線前訂死；T11 維持不設 break-glass 萬能憑證；D-012 用到正式網站屬新情境須重新核准；T7、T9、T12、T14～T17 由負責人或資安定案（[草稿](../security/technical-security-decision-draft-2026-08-23.md):161–186、:266–269） |
+| 員工帳號開通與教學 | A-09 手冊盲走通過；具名開通人、帳號清單、第一次教學日期 |
+| 告警收件與事故聯絡 | 告警收件人、事故聯絡人與備援、日誌匯出去處（SOL-OBSERVABILITY 待決） |
+| 既有預約資料 | 決定上線當天舊預約是否搬入；搬就需要對照與讀回，不搬就寫明人工並行期間 |
+| 費用上限 | 雲端預算告警金額與收件人（屬雲端設定，負責人核准） |
+| 實機相容 | 診所實際使用的裝置與瀏覽器清單，逐一跑主要流程 |
+| 暫時做法升級 | `trusted-html.js` 換完整淨化（`shortcut:` 註記）；日曆對帳單次上限 100 筆的實際量評估；`packages/domain/src/audit.ts` 角色 claims 映射與執行（目前沒有封包涵蓋，最接近 SOL-RBAC；需指定歸屬） |
+| 交付後安排 | 保固期與回報管道；第二階段範圍；本節各項的日期與負責人在 RC tag 後 3 日內排定 |
 
 ## 九、台帳現況（更新日 2026-11-09）
 

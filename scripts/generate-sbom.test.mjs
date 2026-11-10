@@ -2,10 +2,20 @@ import { describe, expect, it } from 'vitest';
 import {
   isLicenseAllowed,
   packageUrl,
-  planLicenseReview
+  planLicenseReview as reviewSbom,
+  planSbom
 } from './generate-sbom.mjs';
 
 const allowed = new Set(['MIT', 'Apache-2.0', 'ISC', 'BSD-3-Clause']);
+const root = {
+  name: 'synthetic',
+  version: '1.0.0',
+  purl: 'pkg:npm/synthetic@1.0.0'
+};
+
+function planLicenseReview(document, options) {
+  return reviewSbom({ metadata: { component: root }, ...document }, options);
+}
 
 function component({
   name = 'left-pad',
@@ -80,6 +90,51 @@ describe('package URL', () => {
   it('encodes a scoped package so the slash is not read as a path', () => {
     expect(packageUrl('@scope/pkg', '2.0.0')).toContain('2.0.0');
     expect(packageUrl('@scope/pkg', '2.0.0')).toMatch(/^pkg:npm\//u);
+  });
+});
+
+describe('SBOM root identity', () => {
+  it.each([
+    [{}, 'metadata.component'],
+    [{ metadata: {} }, 'metadata.component'],
+    [{ metadata: { component: { ...root, name: '' } } }, 'name'],
+    [{ metadata: { component: { ...root, version: ' ' } } }, 'version'],
+    [{ metadata: { component: { ...root, purl: null } } }, 'purl']
+  ])('rejects missing root metadata for %s', (partial, field) => {
+    expect(() => reviewSbom({ components: [], ...partial })).toThrow(field);
+  });
+
+  it('rejects a missing component list instead of passing review', () => {
+    expect(() => reviewSbom({ metadata: { component: root } })).toThrow(
+      'components must be an array'
+    );
+  });
+
+  it.each([
+    [[{ version: '1.0.0' }], 'name'],
+    [[{ name: 'synthetic' }], 'version']
+  ])('rejects a source project missing root %s', (projects, field) => {
+    expect(() =>
+      planSbom(projects, {
+        inspectPackage: () => ({ installed: false }),
+        timestamp: '2030-01-01T00:00:00.000Z',
+        serialNumber: 'synthetic'
+      })
+    ).toThrow(field);
+  });
+
+  it('preserves valid root metadata through generation and review', () => {
+    const document = planSbom([{ name: root.name, version: root.version }], {
+      inspectPackage: () => ({ installed: false }),
+      timestamp: '2030-01-01T00:00:00.000Z',
+      serialNumber: 'synthetic'
+    });
+    expect(document.metadata.component).toMatchObject(root);
+    const review = reviewSbom(document, { allowed, exceptions: noExceptions });
+    expect(review).toEqual({
+      violations: [],
+      accepted: []
+    });
   });
 });
 

@@ -24,7 +24,10 @@ These are routing and projection files, not a second decision register.
 
 ## 1. Start here
 
-Read in this order before changing a boundary or enabling a capability.
+Read in this order before changing a boundary or enabling a capability. For
+current delivery sequencing and the current/historical plan index, use the
+[Phase 1 RC delivery plan](plans/2026-11-08-phase1-rc-delivery-plan.md);
+it is plan-only and does not replace the Canon below.
 
 | # | Document | Why |
 | --- | --- | --- |
@@ -51,10 +54,10 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [商務交付政策封板（2026-09-29）](product/2026-09-29-business-delivery-policy-decisions.md) — `BD-POLICY-2026-09-29`：業主對匯出、保存刪除、月用量、驗收尾款、還原演練、終止返還及測試期天數的回答；只適用 C1 合成環境，production 仍需專業審閱與另行授權
 - [Luna local authorized playbook](product/luna-local-authorized-playbook.md) — Luna starts here; `GROK_RESTS` / `LUNA_SOLE_EXECUTOR`. Not production authority
 - [Luna remaining-work map](product/luna-local-project-completion-master-plan.md) — Phases 0 and A–L for Luna after playbook Card 8 PASS. Not production authority
-- [Current execution and approval plan](product/current-execution-and-approval-plan.md) — human approval-packet checklist; remaining work is Luna-only after 2026-09-12
+- [Current execution and approval plan](product/current-execution-and-approval-plan.md) — human approval-packet checklist; for delivery sequencing use the [RC plan](plans/2026-11-08-phase1-rc-delivery-plan.md)
 - [2026-07-27 owner request batch](product/2026-07-27-owner-request-batch.md) — the 19 owner requests of 2026-07-27 turned into scoped items, the decisions already taken, the paper intake form they map onto, and a batched execution sheet
-- [Full-project master plan (2026-07-31)](product/full-project-master-plan-2026-07-31.md) — the single technical-strategy and open-work baseline for all 39 owner questions, T／D／OR items, repository debt, the unfinished clinic-site acceptance／licensed-media batch, C1～C6, Calendar, public／operations release, Production, Expansion S and BAU, with WBS, milestones, owners, evidence, risks and authoritative controls
-- [Full-project execution book (2026-07-31)](product/full-project-execution-book-2026-07-31.md) — the complete status board and step-by-step execution path for every master-plan work package, including decision intake, parallel technical hardening, request/plan/apply/verify/stabilize/handoff, product and Expansion slices, Go/No-Go, BAU cadence and reusable evidence／tracking templates
+- [Full-project master plan (2026-07-31)](product/full-project-master-plan-2026-07-31.md) — historical technical-strategy and open-work baseline; current delivery sequencing is in the [RC plan](plans/2026-11-08-phase1-rc-delivery-plan.md)
+- [Full-project execution book (2026-07-31)](product/full-project-execution-book-2026-07-31.md) — historical status board and execution path; it is not the current delivery ledger
 - [Consolidated owner-request index (2026-07-31)](product/owner-requests-consolidated-2026-07-31.md) — every owner request from the 2026-07-26～28 desktop notes numbered OR-01…OR-69 with its current state, the four contradictions still needing an owner answer, and the decision blocking each unbuilt item
 - [Surgery, follow-up, payment and settlement expansion plan (2026-07-28)](product/2026-07-28-surgery-follow-up-expansion-plan.md) — plan-only normalization of the owner-provided surgery workflow into a separate Expansion S track, including Calendar inbound review, clinical/financial data boundaries and D-014～D-016
 - [Stage 2 identity and cloud change plan (2026-07-28)](architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md) — plan-only translation of approved D-006/D-010 values into reviewable identity, MFA, session, revocation, delegation-code and isolated-staging slices
@@ -87,10 +90,10 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [PR 全歷史與目前有效性（2026-09-22）](plans/2026-09-22-current-project-pr-history.md) — #1～161 狀態與 #112～161 current-path 判讀；#122 已合併，舊 evidence 不自動升級。
 
 - [GPT-6 Luna 逐步執行計畫（2026-09-30）](plans/2026-09-30-luna-execution-plan.md) — L1 封存刪除、L2 日曆新格式、L3 工作臺商務分頁與重新登入、L4 還原驗證工具、L5 合作終止、L6 批次部署清單、L7 回歸／手冊／驗收；每包寫明檔案、規則、測試與停止條件
-- [2026-10-05 外部稽核後續逐步計畫（Luna 可執行）](plans/2026-10-05-audit-followup-luna-plan.md) — plan-only：244 項稽核的 Wave 0～4 小包（一包一 PR）、Q1～Q9 業主決定、等 #238 標記與 ID 對照；braces 例外 10-17 到期優先；不授權部署、apply 或歷史改寫。
-- [2026-10-05 稽核漏網複核與 Sol／Luna 執行圖補充計畫](plans/2026-10-05-audit-gap-sol-luna-execution-plan.md) — planning-only：#239 的增量複核、NEW 候選證據與限制、244 IDs 唯一 primary 路由、Sol-only 安全架構與有界 Luna 小包、依賴／平行群組／自主施工契約；W4 安全摘要缺失不冒稱 ready，不授權修復、Luna 施工、merge 或雲端操作。
+- [2026-10-05 外部稽核後續逐步計畫](plans/2026-10-05-audit-followup-luna-plan.md) — 歷史執行入口；保留 244 項稽核對照。現行交付順序見 [RC 計畫](plans/2026-11-08-phase1-rc-delivery-plan.md)。
+- [2026-10-05 稽核漏網複核與 Sol／Luna 執行圖補充計畫](plans/2026-10-05-audit-gap-sol-luna-execution-plan.md) — 歷史執行入口；保留增量複核與候選脈絡，不授權修復、merge 或雲端操作。
 - [SOL-00 current-evidence closeout](plans/2026-10-06-sol00-safe-manifest-closeout-plan.md) — CLOSED_PENDING_PROTECTED_MERGE：254唯一primary，31 provenance永久closed-with-gap／historical claims未驗；40原Sol與全部舊rows保留，3 Luna-ready／cap2／parent不並行；只docs，不施工。
-- [2026-10-18 Sol／Luna 一路跑完：設定與提示詞](plans/2026-10-18-sol-luna-autorun-prompts.md) — planning-only：GPT-6.1 Sol 父代理＋最多 2 個 GPT-6 Luna 子代理、CI 優先；凍結條件為 manifest 55 個 Sol packet 全部完成，終態定義、strict 分支保護下的合併節奏、Codex 設定檔與規則檔、受保護動作硬停、`/goal`；不授權 merge／部署。
+- [2026-10-18 Sol／Luna 一路跑完：設定與提示詞](plans/2026-10-18-sol-luna-autorun-prompts.md) — 歷史執行入口；設定與提示詞保留當時脈絡，現行交付順序見 [RC 計畫](plans/2026-11-08-phase1-rc-delivery-plan.md)。不授權 merge／部署。
 - [Sol v2 外部驗收測試單（2026-10-25）](plans/2026-10-25-external-acceptance-runsheet.md) — PLAN-ONLY／NOT_RUN：INGRESS、NOTIFICATION、MAINTENANCE、LEASE、SECRETS 的逐項人工操作、反例、停止／回復與安全證據；附不含 secret 的 publisher／topic／subscription 來源清單及未審定隱私草稿，不授權任何實測或部署。
 - [SOL-CALENDAR-LEASE 嚴格零派送協調設計（2026-10-22）](plans/2026-10-22-sol-calendar-lease-coordination.md) — design-proposed：D-05／D-12 保留零派送承諾；排空後生效、未知狀態停止的 admission 邊界待核，既有一次窗口與文件 CI 不是 provider 證據。
 - [SOL-00 逐 ID 安全摘要索引](plans/2026-10-06-sol00-finding-manifest.md) — 244 原列與 NEW 去重／精確 blocker 表；不將 source 閱讀當 runtime 驗證。

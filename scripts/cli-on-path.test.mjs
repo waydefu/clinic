@@ -1,4 +1,6 @@
-import { basename, dirname, extname } from 'node:path';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { basename, dirname, extname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { hasCli, terraformCliStatus } from './cli-on-path.mjs';
@@ -98,6 +100,28 @@ describe('terraformCliStatus', () => {
 });
 
 describe('default file-system probe', () => {
+  it('does not count an executable directory as a POSIX or Windows CLI', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'synthetic-cli-probe-'));
+    try {
+      mkdirSync(join(directory, 'synthetic-cli'));
+      mkdirSync(join(directory, 'synthetic-cli.CMD'));
+      expect(
+        hasCli('synthetic-cli', {
+          env: { PATH: directory },
+          platform: 'linux'
+        })
+      ).toBe(false);
+      expect(
+        hasCli('synthetic-cli', {
+          env: { PATH: directory, PATHEXT: '.CMD' },
+          platform: 'win32'
+        })
+      ).toBe(false);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it('finds the running node binary and not a made-up name', () => {
     const env = {
       PATH: dirname(process.execPath),

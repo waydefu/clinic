@@ -3,9 +3,15 @@
 **狀態：** 現況 inventory＋plan-only 權限提案。Canonical role 集合已於 2026-08-06
 收斂到 domain；2026-09-13 已補上委派授權碼的 server-side KDF verifier、
 atomic attempt persistence、denied-event sink、staff IdP mapping、session
-lifetime 評估，以及工作臺 stored role `admin→manager`（schema v8）。正式 routed
-Session/RBAC 與 query enforcement 仍未完成。
-**不是** protected-route 實作證據，也不關閉任何 D-series 決策。
+lifetime 評估，以及工作臺 stored role `admin→manager`（schema v8）。
+
+**來源接線與證據界線：** `InternalTestBookingModule` 使用
+`createRbacAppointmentPolicy` 與 `createScheduleAuthorizationPolicy`，兩者呼叫
+`evaluateAccess`；這是受 IP-001 gate 限制的隔離測試組裝，不是未接線的全域
+候選，也不是公開 production 授權。實際環境執行狀態 `UNVERIFIED`；正式
+Session/RBAC 與 query enforcement 仍未完成。下方權限表是提案，不是逐項
+已實作或已核准宣告；`physician` 的現行權限清單仍為空。本文件不關閉任何
+D-series 決策。
 
 **撰寫日期：** 2026-08-04
 
@@ -25,7 +31,7 @@ leftover `admin` 讀取時對齊 `normaliseRole`）。`/index.html` gzip total �
 | 來源 | 角色 | 數量 |
 | --- | --- | --- |
 | [`packages/domain/src/roles.ts`](../../packages/domain/src/roles.ts) | `manager`、`front_desk`、`consultant`、`physician`、`patient`、`system_admin`、`auditor`、`service_account` | 8；canonical |
-| [`apps/api/src/platform/authorization/rbac.ts`](../../apps/api/src/platform/authorization/rbac.ts) | 從 domain 匯入 canonical `Role`；candidate permission table 未 routed | 8 |
+| [`apps/api/src/platform/authorization/rbac.ts`](../../apps/api/src/platform/authorization/rbac.ts) | 從 domain 匯入 canonical `Role`；candidate evaluator 已供隔離測試 policy 使用，非 production 放行 | 8 |
 | [`apps/web/public/modules/permissions.js`](../../apps/web/public/modules/permissions.js) | `manager`、`front_desk` | 2；工作臺子集，stored `admin` 已遷移 |
 | D-006 核准基線（2026-07-28） | administrator／front-desk／**physician** | 3 |
 | 負責人 2026-08-04 需求 | 管理者、櫃檯、諮詢師、醫師、病患（＋未來護理師、麻醉、財務） | 5＋3 |

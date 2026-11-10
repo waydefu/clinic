@@ -13,9 +13,11 @@ checkpoints, not a live deployment report. For current scoped work, start with
 the [task retrieval map](docs/INDEX.md), then the
 [Phase 1 execution plan](docs/phase-1-execution-plan.md) and the routed Canon.
 The [generated state](docs/state/current.md) is a projection, not approval.
-For delivery sequencing, see the [Phase 1 RC delivery plan](docs/plans/2026-11-08-phase1-rc-delivery-plan.md)
-and its [work packets](docs/plans/2026-11-08-phase1-rc-packets.md). They are
-plan-only: neither an RC target nor a packet status authorises production.
+For delivery sequencing, the [Phase 1 RC delivery plan](docs/plans/2026-11-08-phase1-rc-delivery-plan.md)
+is the current plan entry and progress ledger; its [work packets](docs/plans/2026-11-08-phase1-rc-packets.md)
+contain the packet details. Their current/historical plan index is in section 7
+of the RC plan. Both are plan-only: neither an RC target nor a packet status
+authorises production.
 Preview availability and other remote state are `UNVERIFIED` by this README;
 local code, dated evidence and an expired preview are not deployment authority.
 
@@ -224,13 +226,15 @@ live/production deployment.
    [Phase 1 decision register](docs/product/phase-1-decision-register.md);
    formal clinic approvals are recorded only there.
 4. Use the
-   [current execution and approval plan](docs/product/current-execution-and-approval-plan.md)
-   for the plain-language next-action order and the consolidated approval list.
+   [Phase 1 RC delivery plan](docs/plans/2026-11-08-phase1-rc-delivery-plan.md)
+   for the current delivery order and ledger; the
+   [execution and approval plan](docs/product/current-execution-and-approval-plan.md)
+   remains an approval-packet reference.
 5. Use the
    [production target architecture](docs/architecture/production-target-architecture-2026-07-23.md)
-   for technical boundaries and the
+   for technical boundaries; the
    [production-readiness delivery plan](docs/product/production-readiness-delivery-plan-2026-07-23.md)
-   for implementation order.
+   provides historical implementation context.
 6. Read the
    [enterprise readiness review](docs/reviews/2026-07-23-enterprise-production-readiness-review.md)
    for the evidence baseline and unresolved findings.
