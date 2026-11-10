@@ -130,6 +130,33 @@ beforeEach(async () => {
 });
 
 describe('export creation', () => {
+  it('round-trips a supplementary character across a stored chunk boundary', async () => {
+    const baseline = await repository.create(command());
+    const baselineFile = await repository.download(
+      baseline.exportId,
+      ACTOR,
+      NOW
+    );
+    const noteOffset = baselineFile!.content.indexOf('合成備註');
+    expect(noteOffset).toBeGreaterThan(0);
+    const note = `${'a'.repeat(199_999 - noteOffset)}😀tail`;
+    await db
+      .collection(COLLECTIONS.appointments)
+      .doc('appointment_exp_in_1')
+      .update({ patientNote: note });
+
+    const job = await repository.create(
+      command({ idempotencyKey: 'export-key-utf8-boundary' })
+    );
+    const file = await repository.download(job.exportId, ACTOR, NOW);
+    expect(file!.content.includes(note)).toBe(true);
+    const chunks = await db
+      .collection(EXPORT_COLLECTIONS.chunks)
+      .where('exportId', '==', job.exportId)
+      .get();
+    expect(chunks.size).toBe(2);
+  });
+
   it('writes the approved columns for the Taipei range only', async () => {
     const job = await repository.create(command());
     expect(job).toMatchObject({
