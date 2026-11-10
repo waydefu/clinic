@@ -271,6 +271,96 @@ describe('GoogleCalendarEventReader', () => {
       );
     }
   );
+  it.each([
+    null,
+    {},
+    { id: 'synthetic', status: 'confirmed' },
+    { id: 'synthetic', etag: 'v1', status: 'unknown' },
+    { id: ' ', etag: 'v1', status: 'confirmed' }
+  ])(
+    'rejects malformed event %j without returning a checkpoint',
+    async (item) => {
+      const reader = new GoogleCalendarEventReader(
+        'synthetic',
+        () => Promise.resolve('synthetic-token'),
+        () =>
+          Promise.resolve(
+            response({
+              items: [{ id: 'valid', etag: 'v1', status: 'confirmed' }, item],
+              nextSyncToken: 'must-not-commit'
+            })
+          )
+      );
+      await expect(reader.listEvents({})).rejects.toMatchObject({
+        name: 'GoogleCalendarSyncError',
+        status: 200,
+        retryable: false,
+        message: 'Google Calendar returned 1 malformed event(s).'
+      });
+    }
+  );
+
+  it('reports only the count when several malformed events carry private fields', async () => {
+    const reader = new GoogleCalendarEventReader(
+      'synthetic',
+      () => Promise.resolve('synthetic-token'),
+      () =>
+        Promise.resolve(
+          response({
+            items: [{ summary: 'SYNTHETIC_PRIVATE_CANARY' }, null],
+            nextSyncToken: 'must-not-commit'
+          })
+        )
+    );
+    await expect(reader.listEvents({})).rejects.toThrow(
+      'Google Calendar returned 2 malformed event(s).'
+    );
+  });
+
+  it.each([100, 101])(
+    'enforces the requested page bound for %i synthetic events',
+    async (count) => {
+      const items = Array.from({ length: count }, (_, index) => ({
+        id: `event_${index}`,
+        etag: 'v1',
+        status: 'confirmed'
+      }));
+      const reader = new GoogleCalendarEventReader(
+        'synthetic',
+        () => Promise.resolve('synthetic-token'),
+        () => Promise.resolve(response({ items, nextSyncToken: 'next-token' }))
+      );
+      if (count === 100) {
+        await expect(reader.listEvents({})).resolves.toMatchObject({
+          events: items,
+          nextSyncToken: 'next-token'
+        });
+      } else {
+        await expect(reader.listEvents({})).rejects.toMatchObject({
+          name: 'GoogleCalendarSyncError',
+          retryable: false,
+          message: 'Google Calendar returned an invalid response.'
+        });
+      }
+    }
+  );
+
+  it('keeps valid confirmed and cancelled events on a terminal page', async () => {
+    const items = [
+      { id: 'first', etag: 'v1', status: 'confirmed' },
+      { id: 'second', etag: 'v2', status: 'cancelled' }
+    ];
+    const reader = new GoogleCalendarEventReader(
+      'synthetic',
+      () => Promise.resolve('synthetic-token'),
+      () => Promise.resolve(response({ items, nextSyncToken: 'next-token' }))
+    );
+    await expect(reader.listEvents({})).resolves.toEqual({
+      events: items,
+      nextSyncToken: 'next-token'
+    });
+  });
+
   it('keeps an omitted items property valid for a genuine empty final page', async () => {
     const reader = new GoogleCalendarEventReader(
       'calendar@example.invalid',
@@ -282,7 +372,17 @@ describe('GoogleCalendarEventReader', () => {
       nextSyncToken: 'empty-final'
     });
   });
-  it('does not let a malformed nextPageToken reach an engine commit or healthy checkpoint', async () => {
+  it.each([
+    {
+      items: [],
+      nextPageToken: { malformed: true },
+      nextSyncToken: 'must-not-commit'
+    },
+    {
+      items: [{ id: 'synthetic', status: 'confirmed' }],
+      nextSyncToken: 'must-not-commit'
+    }
+  ])('rejects malformed pages before any commit', async (body) => {
     const commitSync = vi.fn(() => Promise.resolve());
     const repository: CalendarSyncRepository = {
       loadConfiguration: () =>
@@ -303,14 +403,7 @@ describe('GoogleCalendarEventReader', () => {
     const reader = new GoogleCalendarEventReader(
       'calendar@example.invalid',
       () => Promise.resolve('synthetic-token'),
-      () =>
-        Promise.resolve(
-          response({
-            items: [],
-            nextPageToken: { malformed: true },
-            nextSyncToken: 'must-not-commit'
-          })
-        )
+      () => Promise.resolve(response(body))
     );
     await expect(
       new CalendarSyncEngine(reader, repository).run('2026-09-01T00:00:00Z')

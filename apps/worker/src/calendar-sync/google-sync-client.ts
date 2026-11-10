@@ -11,6 +11,7 @@ import {
 
 const API_BASE = 'https://www.googleapis.com/calendar/v3';
 const DEFAULT_TIMEOUT_MS = 10_000;
+const MAX_SYNC_EVENTS_PER_PAGE = 100;
 
 type FetchLike = typeof fetch;
 
@@ -191,7 +192,7 @@ export class GoogleCalendarEventReader implements CalendarEventReader {
     );
     url.searchParams.set('singleEvents', 'true');
     url.searchParams.set('showDeleted', 'true');
-    url.searchParams.set('maxResults', '100');
+    url.searchParams.set('maxResults', String(MAX_SYNC_EVENTS_PER_PAGE));
     if (request.syncToken !== undefined)
       url.searchParams.set('syncToken', request.syncToken);
     else {
@@ -237,19 +238,28 @@ export class GoogleCalendarEventReader implements CalendarEventReader {
     });
     if (
       invalidToken ||
-      (Object.hasOwn(body, 'items') && !Array.isArray(body['items']))
+      (Object.hasOwn(body, 'items') && !Array.isArray(body['items'])) ||
+      (Array.isArray(body['items']) &&
+        body['items'].length > MAX_SYNC_EVENTS_PER_PAGE)
     )
       throw new GoogleCalendarSyncError(
         'Google Calendar returned an invalid response.',
         response.status,
         false
       );
-    const events = Array.isArray(body['items'])
-      ? body['items'].flatMap((item) => {
-          const event = safeEvent(item);
-          return event === undefined ? [] : [event];
-        })
-      : [];
+    const events: ExternalCalendarEvent[] = [];
+    let malformedEvents = 0;
+    for (const item of (body['items'] ?? []) as unknown[]) {
+      const event = safeEvent(item);
+      if (event === undefined) malformedEvents += 1;
+      else events.push(event);
+    }
+    if (malformedEvents > 0)
+      throw new GoogleCalendarSyncError(
+        `Google Calendar returned ${malformedEvents} malformed event(s).`,
+        response.status,
+        false
+      );
     const nextPageToken =
       typeof body['nextPageToken'] === 'string'
         ? body['nextPageToken']
