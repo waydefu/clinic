@@ -84,7 +84,7 @@ D-007、D-008（月結）、D-014、D-015 已 deferred，不在 RC。
 
 ## 四、59 包總表
 
-欄位出自 manifest；finding 層的回歸測試要求「依 manifest」，本表不複製。歸屬裁定：#419 K1 屬 NO-WORK；E1-26 屬 SOL-RUNTIME-EVIDENCE；E1-05 屬 SOL-RELEASE（#308 誤列）。manifest 過時：SOL-TTL、SOL-RBAC 的 OWNER_POLICY_PREREQUISITE 已有登記簿答案，由 RC-02 同步。
+欄位出自 manifest；finding 層的回歸測試要求「依 manifest」，本表不複製。歸屬裁定：#419 K1 屬 NO-WORK；E1-26 屬 SOL-RUNTIME-EVIDENCE；E1-05 屬 SOL-RELEASE（#308 誤列）。SOL-TTL、SOL-RBAC 的既有政策答案已由 RC-02（#454）同步至 manifest；不代表相關來源工作或外證完成。
 
 | 包 | manifest status | risk | dependsOn | findings | write-set（前 3） | 現況 | 已合併 PR | RC 波次 | 執行者 | 需負責人核准 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -131,7 +131,7 @@ D-007、D-008（月結）、D-014、D-015 已 deferred，不在 RC。
 | SOL-OUTBOX | PLANNED_CURRENT_EVIDENCE_SCOPE | MEDIUM | — | E4-21 | apps/worker/src/outbox-processor.ts | DONE-MERGED（已終態） | #258 | — | — | 無 |
 | SOL-PRIVACY | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-CALENDAR-ENVELOPE、SOL-CALENDAR-RESTORE、SOL-IDENTITY | D-14、D-16、D-30、E3-05、B-21、E3-01、E3-02、E3-03、E4-10 | .firebaserc，apps/web/public/privacy.html，apps/worker/README.md | 已有來源切片 | #364、#365 | W3（正式發布 12 月） | 長跑（gpt-6.1-terra）、負責人（文字審閱） | D-001～D-003；告知文字審閱（11/19） |
 | SOL-QUERY-INDEX | PLANNED_CURRENT_EVIDENCE_SCOPE | MEDIUM | SOL-CONTRACTS、SOL-EXPORT、SOL-TTL | B-44 | apps/api/src/firestore/business-delivery-export.repository.ts，apps/api/src/firestore/business-delivery.repository.ts，fir… | 已有來源切片 | #414、#427–#432（B-44） | W3 | 長跑（gpt-6.1-terra） | 索引部署需負責人核准（Firestore 索引屬雲端狀態） |
-| SOL-RBAC | OWNER_POLICY_PREREQUISITE | HIGH | SOL-CONTRACTS、SOL-SESSION | A04、D-22、E3-17、E4-09 | apps/api/src/platform/authorization/rbac-appointment-policy.ts，apps/api/src/schedule/schedule.application-service.ts，app… | 無來源 | #241、#251（文件） | W1（manifest 同步，RC-02）／W3（實作） | Sonnet（同步）、長跑（gpt-6.1-terra）（實作） | 無（E4-09 已決） |
+| SOL-RBAC | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-CONTRACTS、SOL-SESSION | A04、D-22、E3-17、E4-09 | apps/api/src/platform/authorization/rbac-appointment-policy.ts，apps/api/src/schedule/schedule.application-service.ts，app… | 部分／待同 SHA 回歸及 SESSION 外證 | #241、#251（文件）、#454（規劃狀態）、#484（D-22） | W1（manifest 同步，RC-02）／W3（實作） | Sonnet（同步）、長跑（gpt-6.1-terra）（實作） | 無（E4-09 已決） |
 | SOL-RELEASE | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-IAC-LIFECYCLE、SOL-IAM、SOL-INGRESS | E1-03、E1-05、E1-07、E1-13、E1-01、E1-02、E1-11 | scripts/cal-pilot-build-images.ps1，scripts/cal-pilot-extension-policy.mjs，scripts/cal-pilot-extension-policy.test.mjs | 無來源 | 無來源 PR | W3 | 長跑（gpt-6.1-terra） | 部署相關變更需負責人核准 |
 | SOL-RETENTION | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-CONTRACTS | A03、D-36 | apps/api/src/business-delivery/business-retention.application-service.test.ts，apps/api/src/business-delivery/business-re… | ALREADY_FIXED（已終態） | 沿用 #268 對帳留言 6562505748 | — | — | 無 |
 | SOL-RETURN | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-CONTRACTS、SOL-IDENTITY、SOL-INGRESS | K4、D-08、E3-19 | apps/api/src/firestore/rate-limit.repository.ts，apps/api/src/patients/patient-directory.ts，apps/api/src/platform/runtime… | 已有來源切片 | #419（自述 K1，已裁定為額外回歸測試） | W3 | 長跑（gpt-6.1-terra） | 無（return_sessions 24 小時已決） |
@@ -145,7 +145,7 @@ D-007、D-008（月結）、D-014、D-015 已 deferred，不在 RC。
 | SOL-SESSION-UI | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-SESSION | C03、C09、X-C04、X-C05 | apps/web/public/admin-bootstrap.js，apps/web/public/calendar-pilot.css，apps/web/public/index.html | DONE-MERGED（已終態） | #245 | — | — | 無 |
 | SOL-STRUCTURE-GATE | PLANNED_CURRENT_EVIDENCE_SCOPE | MEDIUM | — | E1-30 | scripts/check-structure.mjs，scripts/check-structure.test.mjs | DONE-MERGED（已終態） | #254 | — | — | 無 |
 | SOL-SUPPLY | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-CI-SECURITY、SOL-CONTRACTS、SOL-OBSERVABILITY | B-19、B-32、B-20、B-42、E1-08、E2-12、B-48、E4-08 | .github/workflows/verify.yml，.npmrc，docs/product/luna-local-project-completion-master-plan.md | 部分／待政策或文件 | #280（最小修補）、#281（決定） | W1（braces，RC-01）／W3（整包） | 長跑（gpt-6.1-terra） | 無（不新增例外） |
-| SOL-TTL | OWNER_POLICY_PREREQUISITE | HIGH | SOL-IAC-LIFECYCLE、SOL-IDENTITY、SOL-RETURN、SOL-SESSION | A05、B-04、NEW-05 | apps/api/src/firestore/rate-limit.repository.ts，apps/api/src/internal-test-booking/internal-test-booking.authenticator.t… | 部分／待政策或文件 | #371（A05、B-04、B-52、NEW-05） | W1（manifest 同步，RC-02） | Sonnet | 無（已決） |
+| SOL-TTL | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-IAC-LIFECYCLE、SOL-IDENTITY、SOL-RETURN、SOL-SESSION | A05、B-04、NEW-05 | apps/api/src/firestore/rate-limit.repository.ts，apps/api/src/internal-test-booking/internal-test-booking.authenticator.t… | 部分／待上游及同 SHA 回歸；現行雲端 TTL 未讀回 | #371（來源切片）、#454（規劃狀態） | W1（manifest 同步，RC-02） | Sonnet | 無（已決） |
 | SOL-VISUAL-EVIDENCE | PLANNED_CURRENT_EVIDENCE_SCOPE | MEDIUM | — | E5-01、E5-02、E5-03、E5-04、E5-05、E5-06、E5-07、E5-08、E5-09、E5-10 | — | DONE-MERGED（已終態） | 沿用 #268 對帳留言 6562505748 | — | — | 無 |
 
 ## 五、RC 新增包（11）摘要
@@ -195,12 +195,12 @@ D-007、D-008（月結）、D-014、D-015 已 deferred，不在 RC。
 | 13 | 2026-10-01-c1-batch-deployment-packet.md | C1 商務交付批次部署 packet | 現行 |
 | 14 | 2026-10-01-cp-08-regression-evidence-worksheet.md | CP-08 全系統回歸證據 worksheet | 現行 |
 | 15 | 2026-10-01-cp-10-current-project-acceptance-checklist.md | CP-10 現有專案業主驗收清單 | 現行 |
-| 16 | 2026-10-05-audit-followup-luna-plan.md | 外部稽核後續逐步計畫（Luna） | 待確認 |
-| 17 | 2026-10-05-audit-gap-sol-luna-execution-plan.md | 稽核漏網複核與 Sol／Luna 執行圖補充 | 歷史（疑似已被取代，待確認） |
+| 16 | 2026-10-05-audit-followup-luna-plan.md | 外部稽核後續逐步計畫（Luna） | 歷史（執行入口；原稽核對照保留） |
+| 17 | 2026-10-05-audit-gap-sol-luna-execution-plan.md | 稽核漏網複核與 Sol／Luna 執行圖補充 | 歷史（執行入口；原複核脈絡保留） |
 | 18 | 2026-10-06-sol00-finding-manifest.md | SOL-00 254 ID current-evidence 索引（v3） | 現行 |
 | 19 | 2026-10-06-sol00-safe-manifest-closeout-plan.md | SOL-00 current-evidence planning closeout | 現行 |
 | 20 | 2026-10-06-sol00-safe-manifest.json | SOL-00 safe manifest（機器權威） | 現行 |
-| 21 | 2026-10-18-sol-luna-autorun-prompts.md | Sol／Luna 一路跑完：設定與提示詞 | 待確認 |
+| 21 | 2026-10-18-sol-luna-autorun-prompts.md | Sol／Luna 一路跑完：設定與提示詞 | 歷史（執行入口；設定與提示詞為當時脈絡） |
 | 22 | 2026-10-22-sol-business-adjustment-design.md | SOL-BUSINESS 可追溯試用調整模型提案 | 現行 |
 | 23 | 2026-10-22-sol-calendar-lease-coordination.md | SOL-CALENDAR-LEASE 協調設計候選 | 現行 |
 | 24 | 2026-10-25-external-acceptance-runsheet.md | Sol v2 外部驗收測試單 | 現行 |
