@@ -211,7 +211,7 @@ describe('Calendar candidate rejection transaction', () => {
           .get()
       ).data()
     ).toMatchObject({ patientCode: 'A17', status: 'confirmed', version: 1 });
-    const outbox = await db.collection('calendar_pilot_outbox_jobs').get();
+    const outbox = await db.collection('calendar_pilot_outbox').get();
     expect(outbox.size).toBe(1);
     expect(outbox.docs[0]?.data()).toMatchObject({
       kind: 'calendar_projection_restore',
