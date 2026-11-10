@@ -8,6 +8,12 @@ const APPROVED_PROJECT = 'beauessence-clinic-staging';
 const APPROVED_EXPIRY = '2026-11-28T04:51:37Z';
 const MIGRATION_REASON = 'legacy_candidate_requires_resync';
 
+function assertMigrationNotExpired() {
+  const now = Date.now();
+  if (!Number.isFinite(now) || now >= Date.parse(APPROVED_EXPIRY))
+    throw new Error('CAL-PILOT migration authority has expired.');
+}
+
 function missingExpectedEtag(candidate) {
   return (
     typeof candidate.expectedEtag !== 'string' ||
@@ -33,6 +39,7 @@ export async function inspectLegacyCalendarCandidates({
   expectedSourceGeneration
 }) {
   assertProjectAndCount(projectId, expectedCount);
+  assertMigrationNotExpired();
   const [configurationDocument, enabledSources, pendingCandidates] =
     await Promise.all([
       db.collection('calendar_pilot_configuration').doc('active').get(),
@@ -117,6 +124,7 @@ export async function migrateLegacyCalendarCandidates({
   const auditRef = db.collection('calendar_pilot_audit_events').doc(auditId);
 
   await db.runTransaction(async (transaction) => {
+    assertMigrationNotExpired();
     const [configurationDocument, sourceDocument] = await Promise.all([
       transaction.get(configRef),
       transaction.get(sourceRef)
@@ -183,6 +191,7 @@ export async function migrateLegacyCalendarCandidates({
         throw new Error('Legacy mirror is not safe to rebuild.');
     }
 
+    assertMigrationNotExpired();
     for (const { document, candidate } of candidateRecords)
       transaction.update(document.ref, {
         status: 'superseded',
@@ -216,6 +225,7 @@ export async function verifyLegacyCalendarCandidateRegeneration({
   expectedSourceGeneration
 }) {
   assertProjectAndCount(projectId, expectedCount);
+  assertMigrationNotExpired();
   const [configurationDocument, audits, pending, mirrors] = await Promise.all([
     db.collection('calendar_pilot_configuration').doc('active').get(),
     db
@@ -298,6 +308,8 @@ async function main() {
     10
   );
   const mode = process.env['CALENDAR_PILOT_LEGACY_MIGRATION_MODE'] ?? 'plan';
+  assertProjectAndCount(projectId, expectedCount);
+  assertMigrationNotExpired();
   if (getApps().length === 0) initializeApp({ projectId });
   const db = getFirestore();
 
