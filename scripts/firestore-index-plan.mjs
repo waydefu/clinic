@@ -13,7 +13,7 @@ function indexKey(index) {
   const fields = (index.fields ?? [])
     .map((field) => `${field.fieldPath}:${field.order ?? field.arrayConfig}`)
     .join(',');
-  return `${index.collectionGroup}|${fields}`;
+  return `${index.collectionGroup}|${index.queryScope}|${fields}`;
 }
 
 export function loadQueryIndexMatrix(readFile = readFileSync) {
@@ -292,14 +292,23 @@ export function evaluateFirestoreIndexPlan({
     issues.push('Index plan must keep Firestore Rules deny-all for browsers.');
   }
   const defined = new Set((indexes.indexes ?? []).map(indexKey));
+  const expectedIndexes = new Set();
   for (const query of matrix.queries ?? []) {
     if (!query.composite) continue;
-    const expected = `${query.collection}|${(query.fields ?? [])
+    const expected = `${query.collection}|COLLECTION|${(query.fields ?? [])
       .map((field) => `${field}:ASCENDING`)
       .join(',')}`;
+    expectedIndexes.add(expected);
     if (!defined.has(expected)) {
       issues.push(
         `Missing composite index for ${query.id} (${query.collection}: ${query.fields.join(', ')}).`
+      );
+    }
+  }
+  for (const index of indexes.indexes ?? []) {
+    if (!expectedIndexes.has(indexKey(index))) {
+      issues.push(
+        `Unlisted composite index ${index.collectionGroup} (${index.queryScope}).`
       );
     }
   }

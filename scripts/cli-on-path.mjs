@@ -1,4 +1,4 @@
-import { accessSync, constants } from 'node:fs';
+import { accessSync, constants, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const DEFAULT_PATHEXT = '.COM;.EXE;.BAT;.CMD';
@@ -17,7 +17,10 @@ export function hasCli(
   {
     env = process.env,
     platform = process.platform,
-    access = (path) => accessSync(path, constants.X_OK)
+    access = (path) => {
+      accessSync(path, constants.X_OK);
+      if (!statSync(path).isFile()) throw new Error('Not a file.');
+    }
   } = {}
 ) {
   const win32 = platform === 'win32';

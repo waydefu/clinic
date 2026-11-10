@@ -344,6 +344,22 @@ describe.each(['firestore', 'memory'] as const)(
       }
     );
 
+    it('uses the slot duration across the UTC day boundary', async () => {
+      const start = '2028-02-29T23:45:00.000Z';
+      const fixture = setup(start);
+      const result = await fixture.directory.lookupReturn(
+        INTAKE.phone,
+        INTAKE.birthDate,
+        NOW,
+        fixture.allocateId
+      );
+      expect(result).toMatchObject({
+        outcome: 'existing',
+        startsAt: start,
+        endsAt: '2028-03-01T00:15:00.000Z'
+      });
+    });
+
     it.each([
       ['short', INTAKE.birthDate],
       [INTAKE.phone, '1990-01-15']
