@@ -18,13 +18,13 @@ describe('maintainability baseline', () => {
     const block = 'a\nb\nc\nd\ne';
     expect(duplicateLineCounts([block, `  ${block}`])).toEqual([5, 5]);
     expect(duplicateLineCounts([`${block}\n\n${block}`])).toEqual([10]);
-    expect(duplicateLineCounts(['a\nb\n\nd\ne', 'a\nb\n\nd\ne'])).toEqual([
-      0, 0
-    ]);
+    const interrupted = 'a\nb\n\nd\ne';
+    expect(duplicateLineCounts([interrupted, interrupted])).toEqual([0, 0]);
   });
 
   it('measures nested functions separately and rejects malformed code', () => {
-    const source = 'function outer(a) { if (a && a.ok) return () => a ? 1 : 0; }';
+    const source =
+      'function outer(a) { if (a && a.ok) return () => a ? 1 : 0; }';
     expect(complexity(source, 'test.js')).toEqual({
       functions: 2,
       max: 3,

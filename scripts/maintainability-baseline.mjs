@@ -123,7 +123,10 @@ export function buildReport(files) {
 
 async function main() {
   const files = await Promise.all(
-    TARGETS.map(async (path) => ({ path, source: await readFile(path, 'utf8') }))
+    TARGETS.map(async (path) => ({
+      path,
+      source: await readFile(path, 'utf8')
+    }))
   );
   const report = buildReport(files);
   if (process.env.GITHUB_STEP_SUMMARY) {
@@ -133,7 +136,10 @@ async function main() {
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   main().catch((error) => {
     console.error(error);
     process.exitCode = 1;
