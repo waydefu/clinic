@@ -276,6 +276,9 @@ describe('GoogleCalendarEventReader', () => {
     {},
     { id: 'synthetic', status: 'confirmed' },
     { id: 'synthetic', etag: 'v1', status: 'unknown' },
+    { id: 'synthetic', etag: 'v1', status: ['confirmed'] },
+    { id: 'synthetic', etag: 'v1', status: ['cancelled'] },
+    { id: 'synthetic', etag: 'v1', status: 0 },
     { id: ' ', etag: 'v1', status: 'confirmed' }
   ])(
     'rejects malformed event %j without returning a checkpoint',
