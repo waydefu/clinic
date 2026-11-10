@@ -170,8 +170,21 @@ describe('TestCalendarWriter', () => {
       expect(body).not.toHaveProperty(forbidden);
   });
 
-  it('409 視為冪等成功——重跑不會產生第二筆', async () => {
-    const { impl } = fakeFetch([{ status: 409, body: '{}' }]);
+  it('409 在讀回相符的有效事件後視為冪等成功，不產生第二筆', async () => {
+    const { impl, calls } = fakeFetch([
+      { status: 409, body: '{}' },
+      {
+        status: 200,
+        body: JSON.stringify({
+          id: 'calpilotabcdef0123456789abcdef0123456789',
+          status: 'confirmed',
+          summary: '患者 A17',
+          description: 'CAL-PILOT batch batch_0001',
+          start: { dateTime: '2030-01-10T02:00:00.000Z' },
+          end: { dateTime: '2030-01-10T02:30:00.000Z' }
+        })
+      }
+    ]);
     const writer = new TestCalendarWriter({
       calendarId: 'test@group.calendar.google.com',
       getAccessToken: token,
@@ -186,6 +199,72 @@ describe('TestCalendarWriter', () => {
         startsAt: '2030-01-10T02:00:00.000Z'
       })
     ).resolves.toBeUndefined();
+    expect(calls.map((call) => call.method)).toEqual(['POST', 'GET']);
+    expect(calls[1]?.url).toContain(
+      '/events/calpilotabcdef0123456789abcdef0123456789'
+    );
+  });
+
+  it.each([
+    { status: 'cancelled' },
+    { status: 'tentative' },
+    { id: 'another-event' },
+    { summary: 'different synthetic title' },
+    { description: 'different synthetic batch' },
+    { start: { dateTime: '2030-01-10T03:00:00.000Z' } },
+    { end: { dateTime: '2030-01-10T03:30:00.000Z' } }
+  ])('409 refuses mismatched or inactive read-back %j', async (changed) => {
+    const { impl, calls } = fakeFetch([
+      { status: 409, body: '{}' },
+      {
+        status: 200,
+        body: JSON.stringify({
+          id: 'calpilotabcdef0123456789abcdef0123456789',
+          status: 'confirmed',
+          summary: '患者 A17',
+          description: 'CAL-PILOT batch batch_0001',
+          start: { dateTime: '2030-01-10T02:00:00.000Z' },
+          end: { dateTime: '2030-01-10T02:30:00.000Z' },
+          ...changed
+        })
+      }
+    ]);
+    const writer = new TestCalendarWriter({
+      calendarId: 'test@group.calendar.google.com',
+      getAccessToken: token,
+      batchId: 'batch_0001',
+      fetchImpl: impl
+    });
+    await expect(
+      writer.insert({
+        pilotId: 'abcdef0123456789abcdef0123456789',
+        displayLabel: '患者 A17',
+        startsAt: '2030-01-10T02:00:00.000Z'
+      })
+    ).rejects.toThrow('Existing test event could not be verified.');
+    expect(calls.map((call) => call.method)).toEqual(['POST', 'GET']);
+  });
+
+  it.each([
+    { status: 404, body: '{}' },
+    { status: 200, body: '{' },
+    { status: 200, body: '{}' }
+  ])('409 refuses failed or malformed read-back %j', async (readBack) => {
+    const { impl, calls } = fakeFetch([{ status: 409, body: '{}' }, readBack]);
+    const writer = new TestCalendarWriter({
+      calendarId: 'test@group.calendar.google.com',
+      getAccessToken: token,
+      batchId: 'batch_0001',
+      fetchImpl: impl
+    });
+    await expect(
+      writer.insert({
+        pilotId: 'abcdef0123456789abcdef0123456789',
+        displayLabel: '患者 A17',
+        startsAt: '2030-01-10T02:00:00.000Z'
+      })
+    ).rejects.toThrow('Existing test event could not be verified.');
+    expect(calls.map((call) => call.method)).toEqual(['POST', 'GET']);
   });
 });
 
