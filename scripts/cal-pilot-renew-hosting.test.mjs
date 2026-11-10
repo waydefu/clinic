@@ -8,7 +8,8 @@ const source = readFileSync(
   'utf8'
 );
 const helper = source.match(/^function Get-Channel \{[\s\S]*?^\}/mu)?.[0];
-if (helper === undefined) throw new Error('Channel selection helper is missing.');
+if (helper === undefined)
+  throw new Error('Channel selection helper is missing.');
 
 describe('CAL-PILOT synthetic channel selection', () => {
   it('rejects zero or duplicate matches and selects the unique match', () => {
