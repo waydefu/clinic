@@ -156,6 +156,10 @@ afterAll(async () => {
 describe('Calendar candidate rejection transaction', () => {
   it('rejects an update and queues an ETag guarded restore for the linked appointment', async () => {
     const repository = new FirestoreCalendarPilotRepository(db);
+    const appointmentRef = db
+      .collection('calendar_pilot_appointments')
+      .doc(APPOINTMENT_ID);
+    const appointmentBefore = (await appointmentRef.get()).data();
     const response = await repository.reviewCandidate(reviewCommand());
 
     expect(response.candidate).toMatchObject({
@@ -176,9 +180,72 @@ describe('Calendar candidate rejection transaction', () => {
       generation: 1,
       status: 'pending'
     });
+    const audits = await db.collection('calendar_pilot_audit_events').get();
+    expect(audits.size).toBe(1);
+    expect(audits.docs[0]?.data()).toMatchObject({
+      action: 'calendar_candidate_reject',
+      actorId: 'manager_001',
+      candidateId: CANDIDATE_ID
+    });
+    expect((await appointmentRef.get()).data()).toEqual(appointmentBefore);
+  });
+
+  it('restores the linked patient when the rejected edit names another patient', async () => {
+    await db.collection('calendar_pilot_mirrors').doc(MIRROR_ID).update({
+      'parsed.patientCode': 'A18',
+      'parsed.displayLabel': 'A18，初診，止鼾'
+    });
+    await db.collection('calendar_pilot_candidates').doc(CANDIDATE_ID).update({
+      'parsed.patientCode': 'A18',
+      'parsed.displayLabel': 'A18，初診，止鼾',
+      displayLabel: 'A18，初診，止鼾'
+    });
+    const repository = new FirestoreCalendarPilotRepository(db);
+    const response = await repository.reviewCandidate(reviewCommand());
+    expect(response.candidate.status).toBe('rejected');
     expect(
-      (await db.collection('calendar_pilot_audit_events').get()).size
-    ).toBe(1);
+      (
+        await db
+          .collection('calendar_pilot_appointments')
+          .doc(APPOINTMENT_ID)
+          .get()
+      ).data()
+    ).toMatchObject({ patientCode: 'A17', status: 'confirmed', version: 1 });
+    const outbox = await db.collection('calendar_pilot_outbox_jobs').get();
+    expect(outbox.size).toBe(1);
+    expect(outbox.docs[0]?.data()).toMatchObject({
+      kind: 'calendar_projection_restore',
+      restoreSource: 'confirmed_appointment',
+      localRecordId: APPOINTMENT_ID,
+      mirrorId: MIRROR_ID,
+      expectedEtag: '"etag-001"'
+    });
+    const audits = await db.collection('calendar_pilot_audit_events').get();
+    expect(audits.size).toBe(1);
+    expect(audits.docs[0]?.data()).toMatchObject({
+      action: 'calendar_candidate_reject'
+    });
+  });
+
+  it('rejects stale or already decided update candidates without writes', async () => {
+    const repository = new FirestoreCalendarPilotRepository(db);
+    const beforeStale = await candidateDecisionSnapshot();
+    await expect(
+      repository.reviewCandidate(reviewCommand({ expectedVersion: 0 }))
+    ).rejects.toBeInstanceOf(ConflictError);
+    expect(await candidateDecisionSnapshot()).toEqual(beforeStale);
+
+    await repository.reviewCandidate(reviewCommand());
+    const beforeSecondDecision = await candidateDecisionSnapshot();
+    await expect(
+      repository.reviewCandidate(
+        reviewCommand({
+          expectedVersion: 2,
+          idempotencyKey: 'candidate_reject_second_decision'
+        })
+      )
+    ).rejects.toBeInstanceOf(ConflictError);
+    expect(await candidateDecisionSnapshot()).toEqual(beforeSecondDecision);
   });
 
   it('replays the same request before stale candidate checks without duplicate writes', async () => {
