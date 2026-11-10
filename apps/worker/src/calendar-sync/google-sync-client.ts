@@ -39,7 +39,8 @@ function safeEvent(value: unknown): ExternalCalendarEvent | undefined {
     raw['id'].trim() === '' ||
     typeof raw['etag'] !== 'string' ||
     raw['etag'].trim() === '' ||
-    !['confirmed', 'tentative', 'cancelled'].includes(String(raw['status']))
+    typeof raw['status'] !== 'string' ||
+    !['confirmed', 'tentative', 'cancelled'].includes(raw['status'])
   )
     return undefined;
 
