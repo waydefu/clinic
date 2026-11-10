@@ -20,9 +20,9 @@ if ($ExpectedHostingVersion -notmatch '^projects/beauessence-clinic-staging/site
 
 function Get-Channel {
   $channels = firebase hosting:channel:list --project $projectId --json | ConvertFrom-Json
-  $matches = @($channels.result.channels | Where-Object { $_.name -eq "projects/$projectId/sites/$projectId/channels/$channel" })
-  if ($matches.Count -ne 1) { throw 'CAL-PILOT Hosting channel was not found.' }
-  return $matches[0]
+  $channelMatches = @($channels.result.channels | Where-Object { $_.name -eq "projects/$projectId/sites/$projectId/channels/$channel" })
+  if ($channelMatches.Count -ne 1) { throw 'CAL-PILOT Hosting channel was not found.' }
+  return $channelMatches[0]
 }
 
 $current = Get-Channel

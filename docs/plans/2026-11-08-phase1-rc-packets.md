@@ -591,16 +591,16 @@
 
 ### SOL-RBAC
 
-1. **目的**：處理 4 個 finding（A04、D-22、E3-17、E4-09）的來源回歸與必要外部證據；manifest 狀態 `OWNER_POLICY_PREREQUISITE`，風險 HIGH。
+1. **目的**：處理 4 個 finding（A04、D-22、E3-17、E4-09）的來源回歸與必要外部證據；manifest 狀態 `PLANNED_CURRENT_EVIDENCE_SCOPE`，風險 HIGH。
 2. **findings**：
    - A04｜Low｜讀公開可預約網格沿用建立預約權限，完整班表與 slot view 的授權目的未分離。
    - D-22｜Medium｜角色投影 helper 對未知新增欄位沒有預設拒絕機制。
    - E3-17｜Medium｜RBAC 文件把已用於受控組裝的 evaluator 仍描述為完全未 routed。
    - E4-09｜Medium｜角色別名仍依尚未獲明文解答的職務等同假設映射。
-3. **現況**：已合併 #241、#251（文件）；還缺：整包未實作（A04、D-22、E3-17、E4-09）；E4-09 已有登記簿答案（個管師＝諮詢師）。
+3. **現況**：#454 已同步 E4-09 既有政策答案與 manifest 規劃狀態；#484 是 D-22 來源切片。隔離測試 policy 使用 evaluator，但 A04、E3-17、E4-09 的完整回歸與 SESSION 外證仍未結束，不能宣稱整包完成。
 4. **下一步**：
-   1) W1：RC-02 把 E4-09 的 OWNER_POLICY_PREREQUISITE 依 DR:1003 同步。
-   2) W3：SESSION 外證後實作 A04、D-22、E3-17 的伺服端授權回歸。
+   1) 依登記簿與 #484 保留既有權限邊界，完成 A04、E3-17、E4-09 的同 SHA 回歸。
+   2) SESSION 實際環境證據另依授權窗口收集；來源接線不等於 production 權限。
 5. **完成標準**（manifest regressionTests；細節以 manifest 為準）：
    - `A04` 正：patient/accountless 只獲核定網格欄位；physician/未知角色不得增權；publish 僅既定角色，讀不帶任何患者資…；負：限定合成資料；驗證對應錯誤/未知/未授權/重放/失效case不變成功，不改既有契約與gate。
    - `D-22` 正：逐角色已核定欄位；未知及嵌套欄位拒絕，未知角色空物件，clinical/money/physician 不增權。；負：限定合成資料；驗證對應錯誤/未知/未授權/重放/失效case不變成功，不改既有契約與gate。
@@ -851,14 +851,14 @@
 
 ### SOL-TTL
 
-1. **目的**：處理 3 個 finding（A05、B-04、NEW-05）的來源回歸與必要外部證據；manifest 狀態 `OWNER_POLICY_PREREQUISITE`，風險 HIGH。
+1. **目的**：處理 3 個 finding（A05、B-04、NEW-05）的來源回歸與必要外部證據；manifest 狀態 `PLANNED_CURRENT_EVIDENCE_SCOPE`，風險 HIGH。
 2. **findings**：
    - A05｜Low｜回診會話期限以字串儲存，與原生 TTL 型別要求不一致。
    - B-04｜Medium｜限流狀態集合缺原生期限清除的單一設定權威。
    - NEW-05｜UNKNOWN｜return-session header缺opaque ID界限，錯誤會傳至資料路徑解析。
-3. **現況**：已合併 #371（A05、B-04、B-52、NEW-05）；還缺：manifest 狀態仍為 OWNER_POLICY_PREREQUISITE，但 24 小時保留已決、C5 已套用。
+3. **現況**：已合併 #371（A05、B-04、B-52、NEW-05）；#454 已依決定登記簿同步 manifest 規劃狀態。`return_sessions` 24 小時已有決定，但來源切片及規劃狀態不代表整包完成或現行雲端 TTL 已讀回。
 4. **下一步**：
-   1) RC-02 依 DR:316、DR:999 同步 manifest 狀態；整包仍依賴 IAC-LIFECYCLE、IDENTITY、RETURN、SESSION。
+   1) 依 IAC-LIFECYCLE、IDENTITY、RETURN、SESSION 上游結果完成同 SHA 回歸；C5 舊證據不替代本輪雲端讀回。雲端變更另需明確授權。
 5. **完成標準**（manifest regressionTests；細節以 manifest 為準）：
    - `A05` 正：New synthetic session remains unusable at/after expiresAt regardless o…；負：Do not accept a missing/malformed expiresAt, alter session duration, d…
    - `B-04` 正：Limiter state and 429 timing stay identical across restarts; newly wri…；負：Never purge an active lock, switch to wall-clock deletion as the enfor…

@@ -190,7 +190,17 @@ export function planSbom(
     }
   };
 
-  const rootProject = projects.find((project) => !project.name.startsWith('@'));
+  const rootProject = projects.find(
+    (project) =>
+      typeof project.name === 'string' && !project.name.startsWith('@')
+  );
+  if (typeof rootProject?.name !== 'string' || rootProject.name.trim() === '')
+    throw new Error('SBOM root project name is required.');
+  if (
+    typeof rootProject.version !== 'string' ||
+    rootProject.version.trim() === ''
+  )
+    throw new Error('SBOM root project version is required.');
   const rootRef = packageUrl(rootProject.name, rootProject.version);
 
   for (const project of projects) {
@@ -306,6 +316,15 @@ export function planLicenseReview(
   document,
   { allowed = ALLOWED_LICENSES, exceptions = REVIEWED_EXCEPTIONS } = {}
 ) {
+  const root = document?.metadata?.component;
+  if (typeof root !== 'object' || root === null || Array.isArray(root))
+    throw new Error('SBOM metadata.component is required.');
+  for (const field of ['name', 'version', 'purl']) {
+    if (typeof root[field] !== 'string' || root[field].trim() === '')
+      throw new Error(`SBOM metadata.component.${field} is required.`);
+  }
+  if (!Array.isArray(document.components))
+    throw new Error('SBOM components must be an array.');
   const violations = [];
   const accepted = [];
 
