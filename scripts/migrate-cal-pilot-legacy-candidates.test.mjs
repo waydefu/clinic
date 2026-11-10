@@ -31,9 +31,9 @@ describe('CAL-PILOT migration expiry', () => {
   });
 
   it('refuses the transaction if expiry passes after preflight', async () => {
-    vi.spyOn(Date, 'now')
-      .mockReturnValueOnce(expiry - 1)
-      .mockReturnValue(expiry);
+    const clock = vi.spyOn(Date, 'now');
+    clock.mockReturnValueOnce(expiry - 1);
+    clock.mockReturnValue(expiry);
     const configuration = {
       expiresAt: '2026-11-28T04:51:37Z',
       version: 1,
