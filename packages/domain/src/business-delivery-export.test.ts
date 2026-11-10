@@ -124,6 +124,27 @@ describe('renderBusinessExportCsvPage', () => {
     expect(csv).not.toContain('patient-id');
   });
 
+  it.each([
+    ['\n=1+1', `"'\n=1+1"`],
+    ['\r\n+1', `"'\n+1"`],
+    ['\u00a0@value', "'\u00a0@value"],
+    ['\t-1', "'\t-1"]
+  ])('neutralises formula following whitespace in %j', (value, expected) => {
+    const csv = renderBusinessExportCsvPage({
+      fields: ['value'],
+      rows: [{ value }]
+    });
+    expect(csv).toBe(`\uFEFFvalue\r\n${expected}\r\n`);
+  });
+
+  it('keeps ordinary multiline text intact while escaping quotes', () => {
+    const csv = renderBusinessExportCsvPage({
+      fields: ['value'],
+      rows: [{ value: 'first, "quoted"\r\nsecond' }]
+    });
+    expect(csv).toBe('\uFEFFvalue\r\n"first, ""quoted""\nsecond"\r\n');
+  });
+
   it('does not render fields that are not in the requested header list', () => {
     expect(
       renderBusinessExportCsvPage({
