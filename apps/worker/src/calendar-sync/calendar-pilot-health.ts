@@ -56,7 +56,9 @@ export interface CalendarPilotHealthStore {
       field: string,
       op: string,
       value: unknown
-    ): { get(): Promise<{ size: number }> };
+    ): {
+      count(): { get(): Promise<{ data(): { count: number } }> };
+    };
   };
 }
 
@@ -125,10 +127,16 @@ export async function inspectCalendarPilotHealth(
   const outbox = db.collection('calendar_pilot_outbox');
   const [configuration, pending, processing, failed] = await Promise.all([
     db.collection('calendar_pilot_configuration').doc('active').get(),
-    outbox.where('status', '==', 'pending').get(),
-    outbox.where('status', '==', 'processing').get(),
-    outbox.where('status', '==', 'failed').get()
+    outbox.where('status', '==', 'pending').count().get(),
+    outbox.where('status', '==', 'processing').count().get(),
+    outbox.where('status', '==', 'failed').count().get()
   ]);
+  const pendingCount = pending.data().count;
+  const processingCount = processing.data().count;
+  const failedCount = failed.data().count;
+  const counts = [pendingCount, processingCount, failedCount];
+  if (counts.some((count) => !Number.isSafeInteger(count) || count < 0))
+    throw new Error('Unreadable CAL-PILOT job counts.');
   const data = configuration.exists
     ? parseCalendarPilotRecord(
         CalendarPilotHealthRecordSchema,
@@ -144,7 +152,7 @@ export async function inspectCalendarPilotHealth(
     expiresAt: recordField(data, 'expiresAt'),
     inboundEnabled,
     outboundEnabled,
-    failedJobs: failed.size
+    failedJobs: failedCount
   });
   return {
     health: evaluated.health,
@@ -153,9 +161,9 @@ export async function inspectCalendarPilotHealth(
     outboundEnabled:
       typeof outboundEnabled === 'boolean' ? outboundEnabled : null,
     snapshot: {
-      pending: pending.size,
-      processing: processing.size,
-      failed: failed.size
+      pending: pendingCount,
+      processing: processingCount,
+      failed: failedCount
     }
   };
 }

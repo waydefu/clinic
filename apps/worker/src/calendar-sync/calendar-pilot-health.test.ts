@@ -14,6 +14,7 @@ const NOW = '2026-09-14T01:00:00.000Z';
 function fakeStore(options: {
   readonly config: Record<string, unknown> | null;
   readonly jobs?: Readonly<Record<string, number>>;
+  readonly failStatus?: string;
 }): CalendarPilotHealthStore {
   const jobs = options.jobs ?? {};
   return {
@@ -30,7 +31,11 @@ function fakeStore(options: {
             };
           },
           where() {
-            return { get: () => Promise.resolve({ size: 0 }) };
+            return {
+              count: () => ({
+                get: () => Promise.resolve({ data: () => ({ count: 0 }) })
+              })
+            };
           }
         };
       }
@@ -43,7 +48,14 @@ function fakeStore(options: {
         where(_field: string, _op: string, value: unknown) {
           const status = typeof value === 'string' ? value : '';
           return {
-            get: () => Promise.resolve({ size: jobs[status] ?? 0 })
+            count: () => ({
+              get: () =>
+                status === options.failStatus
+                  ? Promise.reject(new Error('Synthetic aggregation failure.'))
+                  : Promise.resolve({
+                      data: () => ({ count: jobs[status] ?? 0 })
+                    })
+            })
           };
         }
       };
@@ -216,6 +228,30 @@ describe('inspectCalendarPilotHealth', () => {
       ]
     });
   });
+
+  it.each(['pending', 'processing', 'failed'])(
+    'fails closed if the %s aggregate fails',
+    async (failStatus) => {
+      await expect(
+        inspectCalendarPilotHealth(
+          fakeStore({ config: healthyConfiguration, failStatus }),
+          NOW
+        )
+      ).rejects.toThrow('Synthetic aggregation failure.');
+    }
+  );
+
+  it.each([-1, Number.NaN, Number.POSITIVE_INFINITY, 1.5])(
+    'rejects an invalid aggregate count %s',
+    async (count) => {
+      await expect(
+        inspectCalendarPilotHealth(
+          fakeStore({ config: healthyConfiguration, jobs: { failed: count } }),
+          NOW
+        )
+      ).rejects.toThrow('Unreadable CAL-PILOT job counts.');
+    }
+  );
 
   it('does not import the Google Calendar adapter or watch controller', () => {
     const source = readFileSync(
