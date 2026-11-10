@@ -41,15 +41,14 @@ describe('CAL-PILOT migration expiry', () => {
       inboundEnabled: false,
       outboundEnabled: false
     };
+    const candidate = { kind: 'invalid_format' };
     const snapshots = {
       calendar_pilot_configuration: { exists: true, data: () => configuration },
       calendar_pilot_sources: {
         docs: [{ id: 'synthetic_primary' }, { id: 'synthetic_secondary' }]
       },
       calendar_pilot_candidates: {
-        docs: [
-          { id: 'synthetic_candidate', data: () => ({ kind: 'invalid_format' }) }
-        ]
+        docs: [{ id: 'synthetic_candidate', data: () => candidate }]
       }
     };
     const transaction = { get: vi.fn(), update: vi.fn(), delete: vi.fn() };
