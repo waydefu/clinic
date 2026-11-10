@@ -71,10 +71,36 @@ describe('assertRenderable', () => {
     ['iframe', '<iframe src="//evil.test"></iframe>'],
     ['object', '<object data="x"></object>'],
     ['embed', '<embed src="x">'],
+    [
+      'meta refresh',
+      '<meta http-equiv="refresh" content="0;url=https://example.invalid/">'
+    ],
+    [
+      'mixed-case meta refresh',
+      '<MeTa HTTP-EQUIV="Refresh" content="0;url=/">'
+    ],
+    ['base', '<base href="https://example.invalid/">'],
+    ['base with slash', '<BASE/href="https://example.invalid/">'],
     ['行內 onerror', '<img src=x onerror="alert(1)">'],
     ['行內 onclick', '<button onclick="steal()">x</button>'],
     ['href 的 javascript: URL', '<a href="javascript:alert(1)">x</a>'],
-    ['src 的 javascript: URL', '<iframe src="javascript:alert(1)">']
+    ['src 的 javascript: URL', '<iframe src="javascript:alert(1)">'],
+    ['href 的 data: URL', '<a href="data:text/html,synthetic">x</a>'],
+    ['mixed-case data: URL', '<a HREF="DaTa:text/html,synthetic">x</a>'],
+    ['src 的 data: URL', '<img src="data:text/html,synthetic">'],
+    ['href 的 ftp: URL', '<a href="ftp://example.invalid/file">x</a>'],
+    ['mixed-case blob: URL', '<a HREF="BlOb:synthetic">x</a>'],
+    ['unquoted custom scheme', '<a href=custom+test:synthetic>x</a>'],
+    ['svg xlink:href 的 urn: URL', '<a xlink:href="urn:synthetic">x</a>'],
+    ['form', '<form><button type="submit">x</button></form>'],
+    ['mixed-case form', '<FoRm action="/synthetic"></FoRm>'],
+    ['button formaction', '<button formaction="/other">x</button>'],
+    [
+      'formaction after quoted angle bracket',
+      '<button title=">" formaction="/other">x</button>'
+    ],
+    ['empty formaction', '<button formaction>x</button>'],
+    ['input formaction', '<input type="submit" FORMACTION="/other">']
   ];
 
   it.each(executable)('rejects %s', (_label, html) => {
@@ -91,6 +117,15 @@ describe('assertRenderable', () => {
     ['已逸出的角括號', '<td>&lt;script&gt;alert(1)&lt;/script&gt;</td>'],
     ['已逸出的引號與 &', '<td>Tom &amp; Jerry &quot;quoted&quot;</td>'],
     ['option 清單', '<option value="12:00">12:00</option>'],
+    ['HTTP link', '<a href="http://example.invalid/">x</a>'],
+    ['HTTPS link', '<a href="https://example.invalid/" target="_blank">x</a>'],
+    ['mailto link', '<a href="mailto:synthetic@example.invalid">x</a>'],
+    ['tel 撥號連結', '<a href="tel:0900000000">x</a>'],
+    ['relative link', '<a href="/clinic">x</a>'],
+    [
+      'HTTPS encoded path and query',
+      '<a href="https://example.invalid/a%20b?q=one&amp;v=2">x</a>'
+    ],
     ['空字串', '']
   ];
 
@@ -100,6 +135,27 @@ describe('assertRenderable', () => {
 
   // 誤擋的真實風險：備註欄裡的普通文字剛好含有 `on … =` 或 `javascript:` 字樣。
   // 判準要求 `<` 在前，而逸出過的文字不可能產生 `<`，所以這些都必須通過。
+  it.each([
+    ['JaVaScRiPt', 'alert(1)'].join(':'),
+    'java\tscript:alert(1)',
+    'java\nscript:alert(1)',
+    'java\u0000script:alert(1)',
+    'jav&#x61;script:alert(1)',
+    'javascript&#58;alert(1)',
+    'javascript&colon;alert(1)',
+    'java&#9;script:alert(1)',
+    'j%61vascript:alert(1)',
+    'javascript%3Aalert(1)',
+    'd&#97;ta:text/html,synthetic',
+    'd%61ta:text/html,synthetic',
+    'vbs&#99;ript:synthetic',
+    'vb%73cript:synthetic'
+  ])('rejects an encoded or obfuscated URL: %s', (url) => {
+    expect(() => assertRenderable(`<a title=">" href="${url}">x</a>`)).toThrow(
+      TypeError
+    );
+  });
+
   it('does not mistake prose for markup', () => {
     for (const html of [
       '<td>簽到 on = yes</td>',

@@ -42,6 +42,22 @@ describe('audit exception governance', () => {
     ]);
   });
 
+  it('reads multiple quoted block-list entries without neighbouring values', () => {
+    const workspace = [
+      'auditConfig:',
+      '  ignoreGhsas:',
+      "    - 'GHSA-aaaa-bbbb-cccc'",
+      '    - "GHSA-dddd-eeee-ffff"',
+      '  otherSetting: unrelated',
+      'overrides:',
+      '  synthetic: GHSA-gggg-hhhh-jjjj'
+    ].join('\n');
+    expect(parseIgnoredAdvisories(workspace)).toEqual([
+      'GHSA-aaaa-bbbb-cccc',
+      'GHSA-dddd-eeee-ffff'
+    ]);
+  });
+
   it('reads nothing when no advisory is ignored', () => {
     expect(
       parseIgnoredAdvisories(

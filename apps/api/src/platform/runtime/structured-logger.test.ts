@@ -30,6 +30,22 @@ describe('StdoutStructuredLogger', () => {
     expect(lines[0]).not.toMatch(/0912/);
   });
 
+  it('rejects forbidden fields even at the cap and resumes in the next window', () => {
+    const lines: string[] = [];
+    let now = 1;
+    const logger = new StdoutStructuredLogger(
+      () => now,
+      (line) => lines.push(line)
+    );
+    for (let i = 0; i < 120; i += 1) logger.emit(BASE);
+    const unsafe = { ...BASE, phone: 'synthetic' };
+    expect(() => logger.emit(unsafe)).toThrow('forbidden');
+    expect(lines).toHaveLength(120);
+    now = 60_001;
+    logger.emit(BASE);
+    expect(lines).toHaveLength(121);
+  });
+
   it('caps log volume within a minute', () => {
     const lines: string[] = [];
     const logger = new StdoutStructuredLogger(

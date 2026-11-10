@@ -48,11 +48,12 @@ and production backend enablement.
 - Developer-held test billing is allowed; private account / project id /
   billing / email must not be hardcoded as production dependencies.
 - Production eventually clinic-owned (IAM, billing, domain, highest admin).
-- Staff: independent accounts, Google + clinic-managed, MFA, absolute 12
-  hours with no idle timeout (`STAFF-SESSION-12H-2026-10-03`; D-006 originally
-  idle 30 minutes / absolute 8 hours, kept as history), 10-minute fresh
-  Google + TOTP reauthentication for sensitive operations,
-  disable-on-next-request.
+- Staff: independent accounts, Google + clinic-managed, MFA, absolute 7 days
+  from the `auth_time` of the token used to create the session, with no idle
+  timeout. No new `auth_time` means no extended expiry. The 12-hour and original
+  30-minute idle / 8-hour absolute limits are historical; the 2026-11-09
+  decision supersedes them. Sensitive operations require 10-minute fresh
+  Google + TOTP reauthentication; disable applies on the next request.
 - Phase 1 owner-visible vs hidden capabilities: FS-001.
 - Existing public site stays; suggested hostnames are not DNS authority.
 - Calendar bidirectional sync is a Phase 1 product capability, with

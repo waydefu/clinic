@@ -1,8 +1,10 @@
 // Trusted Types default policy 必須先於其他模組註冊。
 import { assertRenderable } from './modules/trusted-html.js';
+import { activateFormPlaceholders } from './modules/form-placeholders.js';
 
 import {
   appointmentPage,
+  appointmentPageLabels,
   DEFAULT_APPOINTMENT_PAGE_SIZE,
   DEFAULT_APPOINTMENT_SORT,
   renderAccounts,
@@ -623,12 +625,14 @@ function renderAppointmentList() {
       pageSize: page.pageSize
     })
   );
-  elements['appointment-result-summary'].textContent =
-    `${state.appointmentsTruncated ? '至少' : '共'} ${page.totalCount} 筆結果，本頁顯示 ${page.ids.length} 筆` +
-    `（第 ${page.page} 頁，共 ${page.totalPages} 頁）`;
+  activateFormPlaceholders(elements.appointments);
+  const labels = appointmentPageLabels(
+    page,
+    state.appointmentsTruncated === true
+  );
+  elements['appointment-result-summary'].textContent = labels.summary;
   elements['appointment-pagination'].hidden = page.totalCount === 0;
-  elements['appointment-page-status'].textContent =
-    `第 ${page.page} 頁，共 ${page.totalPages} 頁`;
+  elements['appointment-page-status'].textContent = labels.status;
   elements['appointment-page-prev'].disabled = page.page <= 1;
   elements['appointment-page-next'].disabled = page.page >= page.totalPages;
   renderBatchBar();
@@ -838,6 +842,8 @@ function render() {
   elements['case-assignment-list'].innerHTML = assertRenderable(
     renderCaseAssignments(state)
   );
+  activateFormPlaceholders(elements['follow-up-list']);
+  activateFormPlaceholders(elements['case-assignment-list']);
   // 每個清單的內容都是整批置換，所以清單本身不是 live region；改由這些簡短的
   // 摘要負責公告「變了、現在有幾筆」。詳見 index.html 裡 #appointments 上方的
   // 說明。計數一律直接數 DOM，數字才不會和實際畫出來的東西分家。
