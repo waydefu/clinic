@@ -8,6 +8,7 @@ import {
   isPatientBirthMonthDay,
   resolveIntakeCandidate,
   resolveReturnCandidate,
+  SLOT_DURATION_MINUTES,
   type PatientCandidate
 } from '@beauessence/domain';
 import { opaqueLookupIdentity } from '@beauessence/domain/patient-lookup-identity.node';
@@ -555,7 +556,9 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
         existing = {
           appointmentId: activeId,
           startsAt,
-          endsAt: new Date(Date.parse(startsAt) + 30 * 60_000).toISOString()
+          endsAt: new Date(
+            Date.parse(startsAt) + SLOT_DURATION_MINUTES * 60_000
+          ).toISOString()
         };
       }
     }
@@ -857,7 +860,7 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
           appointmentId: activeId,
           startsAt: appointment.startsAt,
           endsAt: new Date(
-            Date.parse(appointment.startsAt) + 30 * 60_000
+            Date.parse(appointment.startsAt) + SLOT_DURATION_MINUTES * 60_000
           ).toISOString()
         };
       }
