@@ -24,6 +24,8 @@ export interface OutboxAlert {
 export interface OutboxSloInput {
   readonly attemptFailRate10m: number;
   readonly consecutiveEmptyBatchesWithPending: number;
+  /** 有已到期的 pending 或 lease 已過期的 in_progress（即 claim 查詢撈得到的工作）。 */
+  readonly hasClaimableWork: boolean;
   readonly snapshot: WorkerQueueSnapshotMetric;
 }
 
@@ -37,7 +39,7 @@ export function evaluateOutboxSlo(input: OutboxSloInput): OutboxAlert[] {
   }
   if (
     input.consecutiveEmptyBatchesWithPending >= EMPTY_BATCH_STREAK_ALERT &&
-    input.snapshot.pending > 0
+    input.hasClaimableWork
   ) {
     alerts.push({
       code: 'empty_batches_with_pending',

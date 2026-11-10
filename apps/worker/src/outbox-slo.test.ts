@@ -16,6 +16,7 @@ describe('evaluateOutboxSlo', () => {
       evaluateOutboxSlo({
         attemptFailRate10m: 0.19,
         consecutiveEmptyBatchesWithPending: 2,
+        hasClaimableWork: true,
         snapshot: { ...emptyQueue, pending: 4, inProgress: 1 }
       })
     ).toEqual([]);
@@ -26,6 +27,7 @@ describe('evaluateOutboxSlo', () => {
       evaluateOutboxSlo({
         attemptFailRate10m: 0.21,
         consecutiveEmptyBatchesWithPending: 3,
+        hasClaimableWork: true,
         snapshot: {
           pending: 2,
           inProgress: 0,
@@ -41,10 +43,34 @@ describe('evaluateOutboxSlo', () => {
     ]);
   });
 
+  it('does not flag a streak when only not-yet-due backoff work is pending', () => {
+    expect(
+      evaluateOutboxSlo({
+        attemptFailRate10m: 0,
+        consecutiveEmptyBatchesWithPending: 3,
+        hasClaimableWork: false,
+        snapshot: { ...emptyQueue, pending: 1 }
+      })
+    ).toEqual([]);
+  });
+
+  it('flags a streak when due or expired-lease work stays unclaimed', () => {
+    // hasClaimableWork covers both due pending and in_progress with an expired lease.
+    expect(
+      evaluateOutboxSlo({
+        attemptFailRate10m: 0,
+        consecutiveEmptyBatchesWithPending: 3,
+        hasClaimableWork: true,
+        snapshot: { ...emptyQueue, inProgress: 1 }
+      })
+    ).toEqual([{ code: 'empty_batches_with_pending', severity: 'immediate' }]);
+  });
+
   it('does not put identifiers into alert payloads', () => {
     const alerts = evaluateOutboxSlo({
       attemptFailRate10m: 1,
       consecutiveEmptyBatchesWithPending: 3,
+      hasClaimableWork: true,
       snapshot: {
         pending: 1,
         inProgress: 0,
