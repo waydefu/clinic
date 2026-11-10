@@ -851,14 +851,14 @@
 
 ### SOL-TTL
 
-1. **目的**：處理 3 個 finding（A05、B-04、NEW-05）的來源回歸與必要外部證據；manifest 狀態 `OWNER_POLICY_PREREQUISITE`，風險 HIGH。
+1. **目的**：處理 3 個 finding（A05、B-04、NEW-05）的來源回歸與必要外部證據；manifest 狀態 `PLANNED_CURRENT_EVIDENCE_SCOPE`，風險 HIGH。
 2. **findings**：
    - A05｜Low｜回診會話期限以字串儲存，與原生 TTL 型別要求不一致。
    - B-04｜Medium｜限流狀態集合缺原生期限清除的單一設定權威。
    - NEW-05｜UNKNOWN｜return-session header缺opaque ID界限，錯誤會傳至資料路徑解析。
-3. **現況**：已合併 #371（A05、B-04、B-52、NEW-05）；還缺：manifest 狀態仍為 OWNER_POLICY_PREREQUISITE，但 24 小時保留已決、C5 已套用。
+3. **現況**：已合併 #371（A05、B-04、B-52、NEW-05）；#454 已依決定登記簿同步 manifest 規劃狀態。`return_sessions` 24 小時已有決定，但來源切片及規劃狀態不代表整包完成或現行雲端 TTL 已讀回。
 4. **下一步**：
-   1) RC-02 依 DR:316、DR:999 同步 manifest 狀態；整包仍依賴 IAC-LIFECYCLE、IDENTITY、RETURN、SESSION。
+   1) 依 IAC-LIFECYCLE、IDENTITY、RETURN、SESSION 上游結果完成同 SHA 回歸；C5 舊證據不替代本輪雲端讀回。雲端變更另需明確授權。
 5. **完成標準**（manifest regressionTests；細節以 manifest 為準）：
    - `A05` 正：New synthetic session remains unusable at/after expiresAt regardless o…；負：Do not accept a missing/malformed expiresAt, alter session duration, d…
    - `B-04` 正：Limiter state and 429 timing stay identical across restarts; newly wri…；負：Never purge an active lock, switch to wall-clock deletion as the enfor…

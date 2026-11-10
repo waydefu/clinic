@@ -84,7 +84,7 @@ D-007、D-008（月結）、D-014、D-015 已 deferred，不在 RC。
 
 ## 四、59 包總表
 
-欄位出自 manifest；finding 層的回歸測試要求「依 manifest」，本表不複製。歸屬裁定：#419 K1 屬 NO-WORK；E1-26 屬 SOL-RUNTIME-EVIDENCE；E1-05 屬 SOL-RELEASE（#308 誤列）。manifest 過時：SOL-TTL、SOL-RBAC 的 OWNER_POLICY_PREREQUISITE 已有登記簿答案，由 RC-02 同步。
+欄位出自 manifest；finding 層的回歸測試要求「依 manifest」，本表不複製。歸屬裁定：#419 K1 屬 NO-WORK；E1-26 屬 SOL-RUNTIME-EVIDENCE；E1-05 屬 SOL-RELEASE（#308 誤列）。SOL-TTL、SOL-RBAC 的既有政策答案已由 RC-02（#454）同步至 manifest；不代表相關來源工作或外證完成。
 
 | 包 | manifest status | risk | dependsOn | findings | write-set（前 3） | 現況 | 已合併 PR | RC 波次 | 執行者 | 需負責人核准 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -145,7 +145,7 @@ D-007、D-008（月結）、D-014、D-015 已 deferred，不在 RC。
 | SOL-SESSION-UI | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-SESSION | C03、C09、X-C04、X-C05 | apps/web/public/admin-bootstrap.js，apps/web/public/calendar-pilot.css，apps/web/public/index.html | DONE-MERGED（已終態） | #245 | — | — | 無 |
 | SOL-STRUCTURE-GATE | PLANNED_CURRENT_EVIDENCE_SCOPE | MEDIUM | — | E1-30 | scripts/check-structure.mjs，scripts/check-structure.test.mjs | DONE-MERGED（已終態） | #254 | — | — | 無 |
 | SOL-SUPPLY | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-CI-SECURITY、SOL-CONTRACTS、SOL-OBSERVABILITY | B-19、B-32、B-20、B-42、E1-08、E2-12、B-48、E4-08 | .github/workflows/verify.yml，.npmrc，docs/product/luna-local-project-completion-master-plan.md | 部分／待政策或文件 | #280（最小修補）、#281（決定） | W1（braces，RC-01）／W3（整包） | 長跑（gpt-6.1-terra） | 無（不新增例外） |
-| SOL-TTL | OWNER_POLICY_PREREQUISITE | HIGH | SOL-IAC-LIFECYCLE、SOL-IDENTITY、SOL-RETURN、SOL-SESSION | A05、B-04、NEW-05 | apps/api/src/firestore/rate-limit.repository.ts，apps/api/src/internal-test-booking/internal-test-booking.authenticator.t… | 部分／待政策或文件 | #371（A05、B-04、B-52、NEW-05） | W1（manifest 同步，RC-02） | Sonnet | 無（已決） |
+| SOL-TTL | PLANNED_CURRENT_EVIDENCE_SCOPE | HIGH | SOL-IAC-LIFECYCLE、SOL-IDENTITY、SOL-RETURN、SOL-SESSION | A05、B-04、NEW-05 | apps/api/src/firestore/rate-limit.repository.ts，apps/api/src/internal-test-booking/internal-test-booking.authenticator.t… | 部分／待上游及同 SHA 回歸；現行雲端 TTL 未讀回 | #371（來源切片）、#454（規劃狀態） | W1（manifest 同步，RC-02） | Sonnet | 無（已決） |
 | SOL-VISUAL-EVIDENCE | PLANNED_CURRENT_EVIDENCE_SCOPE | MEDIUM | — | E5-01、E5-02、E5-03、E5-04、E5-05、E5-06、E5-07、E5-08、E5-09、E5-10 | — | DONE-MERGED（已終態） | 沿用 #268 對帳留言 6562505748 | — | — | 無 |
 
 ## 五、RC 新增包（11）摘要
