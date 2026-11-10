@@ -7,6 +7,7 @@ import {
   loadC1ConfigContract,
   redactConfigForLogs
 } from './c1-config-contract.mjs';
+import { envNamesRead } from './c1-env-read-inventory.mjs';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const contract = loadC1ConfigContract();
@@ -18,20 +19,8 @@ const CLASSES = new Set([
 ]);
 const LOGGABLE = new Set(['NON_SECRET_CONFIG', 'RUNTIME_DERIVED']);
 
-// shortcut: static text scan of literal names. It sees process.env['X'],
-// env['X'], environment['X'], env.X and the CAL-PILOT import CLI's
-// required('X'); a name built at run time is invisible. Move to a TypeScript
-// AST scan if a read ever builds its name dynamically.
-const ENV_READ =
-  /(?:process\.env|\benv|\benvironment)\s*(?:\[\s*'([A-Za-z_][A-Za-z0-9_]*)'\s*\]|\.([A-Za-z_][A-Za-z0-9_]*))|\brequired\(\s*'([A-Z][A-Z0-9_]+)'\s*\)/g;
-
-function envNamesRead(source) {
-  return new Set(
-    [...source.matchAll(ENV_READ)].map(
-      (match) => match[1] ?? match[2] ?? match[3]
-    )
-  );
-}
+// Static literal reads only; computed keys and destructuring remain outside the
+// scanner's coverage and require separate review.
 
 function runtimeSources(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -62,6 +51,29 @@ describe('environment inventory (B-45): code -> contract, no values read', () =>
       'D_FOUR',
       'E_FIVE'
     ]);
+  });
+
+  it('finds double quotes, literal templates and optional reads but not comments', () => {
+    const source = [
+      'process.env["DOUBLE_QUOTED"]',
+      'env[`TEMPLATE_LITERAL`]',
+      'environment?.OPTIONAL_VALUE',
+      'required("REQUIRED_VALUE")',
+      '// process.env.COMMENT_ONLY',
+      'const example = "env.STRING_ONLY";'
+    ].join('\n');
+    expect([...envNamesRead(source)].sort()).toEqual([
+      'DOUBLE_QUOTED',
+      'OPTIONAL_VALUE',
+      'REQUIRED_VALUE',
+      'TEMPLATE_LITERAL'
+    ]);
+  });
+
+  it('fails closed when source cannot be parsed', () => {
+    expect(() => envNamesRead('function invalid(')).toThrow(
+      'Cannot parse an environment inventory source file.'
+    );
   });
 
   it('lists every variable apps/api and apps/worker read, each with a class', () => {
