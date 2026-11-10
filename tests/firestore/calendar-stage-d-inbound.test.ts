@@ -604,6 +604,50 @@ describe('Stage D Calendar inbound emulator', () => {
     expect(candidates.docs[0]?.data()?.['status']).toBe('unmatched');
   });
 
+  it.each([
+    ['forward', ['manual-a', 'manual-b']],
+    ['reverse', ['manual-b', 'manual-a']]
+  ] as const)(
+    'keeps patients unchanged for unmatched events in %s order',
+    async (_label, ids) => {
+      await seedUnrelatedFixtures();
+      const patientIds = await documentIds('patients');
+      const unrelated = await db
+        .collection('patients')
+        .doc(UNRELATED_PATIENT_ID)
+        .get();
+      const events = ids.map((id) => ({
+        id,
+        etag: 'synthetic-etag',
+        status: 'confirmed' as const,
+        summary: 'Birthday party',
+        start: { dateTime: '2026-09-02T14:00:00+08:00' },
+        end: { dateTime: '2026-09-02T15:00:00+08:00' }
+      }));
+      const repository = new FirestoreCalendarSyncRepository(
+        db,
+        'synthetic-pseudonym-key-32-characters-min'
+      );
+      await new CalendarSyncEngine(
+        {
+          listEvents: () =>
+            Promise.resolve({ events, nextSyncToken: 'synthetic-sync' })
+        },
+        repository
+      ).run(NOW);
+      expect(await documentIds('patients')).toEqual(patientIds);
+      expect(patientIds.has(UNRELATED_PATIENT_ID)).toBe(true);
+      expect(
+        (await db.collection('patients').doc(UNRELATED_PATIENT_ID).get()).data()
+      ).toEqual(unrelated.data());
+      const candidates = await db.collection('calendar_pilot_candidates').get();
+      expect(candidates.docs.map((doc) => doc.data()['kind'])).toEqual([
+        'unmatched',
+        'unmatched'
+      ]);
+    }
+  );
+
   it('suggests the sole active phone + month-day match without storing contact values', async () => {
     const patientId = SUGGESTION_PATIENT_IDS[0];
     const existingAppointmentIds = await documentIds('appointments');
