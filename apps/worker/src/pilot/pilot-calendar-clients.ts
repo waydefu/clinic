@@ -157,6 +157,7 @@ export class TestCalendarWriter {
       Date.parse(event.startsAt) + 30 * 60_000
     ).toISOString();
 
+    const eventId = `calpilot${event.pilotId}`;
     const response = await this.fetchImpl(
       `${API_BASE}/calendars/${encodeURIComponent(this.calendarId)}/events`,
       {
@@ -170,14 +171,52 @@ export class TestCalendarWriter {
           description: `CAL-PILOT batch ${this.batchId}`,
           start: { dateTime: event.startsAt, timeZone: 'Asia/Taipei' },
           end: { dateTime: endsAt, timeZone: 'Asia/Taipei' },
-          // 同一個 pilotId 重跑會撞到既有事件（409），因此重跑不會產生第二筆。
-          id: `calpilot${event.pilotId}`
+          // 同一個 pilotId 重跑會撞到既有事件（409），須先驗證既有事件。
+          id: eventId
         })
       }
     );
 
-    // 409 = 這筆已經寫過了。重跑本來就該是冪等的，視為成功。
-    if (response.status === 409) return;
+    // 409 只代表 ID 已存在，不能證明它是本批次、相同內容且仍為有效事件。
+    if (response.status === 409) {
+      const verificationError = 'Existing test event could not be verified.';
+      const existingResponse = await this.fetchImpl(
+        `${API_BASE}/calendars/${encodeURIComponent(this.calendarId)}/events/${encodeURIComponent(eventId)}`,
+        {
+          method: 'GET',
+          headers: { Authorization: ['Bearer', token].join(' ') }
+        }
+      );
+      if (existingResponse.status !== 200)
+        throw new PilotCalendarError(
+          verificationError,
+          existingResponse.status
+        );
+      let existing: unknown;
+      try {
+        existing = JSON.parse(await existingResponse.text()) as unknown;
+      } catch {
+        throw new PilotCalendarError(verificationError);
+      }
+      if (typeof existing !== 'object' || existing === null)
+        throw new PilotCalendarError(verificationError);
+      const record = existing as Record<string, unknown>;
+      const dateTime = (value: unknown): number => {
+        if (typeof value !== 'object' || value === null) return Number.NaN;
+        const date = (value as Record<string, unknown>)['dateTime'];
+        return typeof date === 'string' ? Date.parse(date) : Number.NaN;
+      };
+      if (
+        record['id'] !== eventId ||
+        record['status'] !== 'confirmed' ||
+        record['summary'] !== event.displayLabel ||
+        record['description'] !== `CAL-PILOT batch ${this.batchId}` ||
+        dateTime(record['start']) !== Date.parse(event.startsAt) ||
+        dateTime(record['end']) !== Date.parse(endsAt)
+      )
+        throw new PilotCalendarError(verificationError);
+      return;
+    }
     if (response.status < 200 || response.status >= 300)
       throw new PilotCalendarError(
         `Test calendar write failed (${response.status}).`,
