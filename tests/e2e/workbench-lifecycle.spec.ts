@@ -777,9 +777,8 @@ test.describe('工作臺預約生命週期', () => {
     });
   });
 
-  // BOOKING-MINIMIZATION-2026-09-22 之後新預約不收證件；只有較早的紀錄還帶著，
-  // 那些紀錄的遮罩與列印層必須照舊。
-  test('舊紀錄的身分證在螢幕上遮罩，完整值只存在列印層', async ({ page }) => {
+  // 列印期間擷取合成表單，驗證螢幕與列印樣式的揭露範圍。
+  test('身分證畫面遮罩、列印完整', async ({ page }) => {
     await login(page);
     await createBooking(page);
     await page.evaluate((key) => {
@@ -792,32 +791,71 @@ test.describe('工作臺預約生命週期', () => {
 
     await page.evaluate(() => {
       window.print = () => {
-        const screen = document.querySelector('.intake-screen-only');
-        const print = document.querySelector('.intake-print-only');
-        if (screen === null || print === null)
-          throw new Error('找不到初診資料的螢幕／列印身分欄。');
-        (window as any).__intakeIdentityCapture = {
-          screenText: screen.textContent,
-          printText: print.textContent,
-          screenDisplay: getComputedStyle(screen).display,
-          printDisplay: getComputedStyle(print).display
-        };
+        const sheet = document.querySelector('#intake-print');
+        if (sheet === null) throw new Error('找不到初診資料列印區。');
+        const capture = sheet.cloneNode(true) as HTMLElement;
+        capture.id = 'synthetic-intake-capture';
+        document.body.append(capture);
       };
     });
 
     const card = page.locator('[data-appointment-card]').first();
+    await expect(card).toContainText('A*******89');
+    await expect(card).not.toContainText('A123456789');
     await card.locator('summary').click();
     await card.locator('[data-appointment-action="print_intake"]').click();
-    const capture = await page.evaluate(
-      () => (window as any).__intakeIdentityCapture
-    );
+    const capture = page.locator('#synthetic-intake-capture');
+    const screenId = capture.locator('.intake-screen-only');
+    const printId = capture.locator('.intake-print-only');
+    await expect(screenId).toHaveText('A*******89');
+    await expect(screenId).toBeVisible();
+    await expect(printId).toHaveText('A123456789');
+    await expect(printId).toHaveCSS('display', 'none');
+    await expect(page.locator('#intake-print')).toBeEmpty();
 
-    expect(capture).toMatchObject({
-      screenText: 'A12****789',
-      printText: 'A123456789',
-      printDisplay: 'none'
-    });
-    expect(capture.screenDisplay).not.toBe('none');
+    await page.emulateMedia({ media: 'print' });
+    await expect(screenId).toHaveCSS('display', 'none');
+    await expect(printId).toHaveCSS('display', 'inline');
+  });
+
+  test('回診電話遮罩與身分變更', async ({ page }) => {
+    await login(page);
+    await createBooking(page);
+    await showAllAppointments(page);
+    await finishVisit(page);
+    const followUpForm = page
+      .locator('#follow-up-list [data-follow-up-form]')
+      .first();
+    await followUpForm
+      .locator('select[name="status"]')
+      .selectOption('required');
+    await followUpForm.locator('button[type="submit"]').click();
+    const card = page.locator('[data-follow-up-pending]').first();
+    await expect(card).toBeVisible();
+    await card.locator('[data-follow-up-book]').click();
+
+    const phone = page.locator('#booking-phone');
+    await expect(phone).toHaveValue('');
+    await expect(phone).toHaveAttribute('placeholder', '*******678');
+    await expect(phone).not.toHaveAttribute('required', '');
+    await page.locator('#booking-name').fill('另一位合成病患');
+    await expect(phone).toHaveAttribute('required', '');
+    await expect(phone).not.toHaveAttribute('placeholder', '*******678');
+
+    await card.locator('[data-follow-up-book]').click();
+    await expect(phone).toHaveAttribute('placeholder', '*******678');
+    await page.locator('#booking-items [data-booking-item]').first().check();
+    await page.locator('#slots [data-select-slot]').first().click();
+    await page.locator('#booking-form button[type="submit"]').click();
+    await expect(page.locator('#status')).toContainText('預約已建立');
+    const patientIds = await page.evaluate((key) => {
+      const state = JSON.parse(window.localStorage.getItem(key) ?? 'null');
+      return state.appointments.map((item) => item.patientId);
+    }, STORAGE_KEY);
+    expect(patientIds).toHaveLength(2);
+    expect(patientIds[1]).toBe(patientIds[0]);
+    await expect(phone).toHaveValue('');
+    await expect(phone).toHaveAttribute('required', '');
   });
 
   test('登入→建立→到診→回診→刪除', async ({ page }) => {

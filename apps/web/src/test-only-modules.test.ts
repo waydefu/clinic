@@ -26,6 +26,7 @@ import {
   renderAppointments,
   renderFollowUps,
   renderIntakeSheet,
+  renderNextUp,
   summaryCounts
 } from '../public/modules/admin-view.js';
 import {
@@ -1892,6 +1893,27 @@ describe('工作臺批次的新行為', () => {
     expect(tasks.overdueArrivals).toEqual([appointment.id]);
   });
 
+  it.each([
+    ['nationalId', 'A123456789', 'A*******89'],
+    ['passportNumber', 'P12345678', 'P******78']
+  ])('清單與下一位遮罩電話，清單遮罩 %s', (field, document, masked) => {
+    const state = initialState();
+    const appointment = bookOne(state, ['service_snoring']);
+    state.patients.at(-1)[field] = document;
+    const list = renderAppointments(state, {
+      status: 'all',
+      kind: 'all',
+      query: ''
+    });
+    const next = renderNextUp(state, Date.parse(appointment.startsAt) - 1);
+    expect(list).toContain(masked);
+    expect(list).not.toContain(document);
+    for (const html of [list, next]) {
+      expect(html).toContain('*******678');
+      expect(html).not.toContain('0912345678');
+    }
+  });
+
   // W7：初診資料列印頁。
   describe('初診基本資料列印頁', () => {
     const sheetFor = (state: any, appointmentId: string) =>
@@ -1902,7 +1924,8 @@ describe('工作臺批次的新行為', () => {
       const appointment = bookOne(state, ['service_snoring']);
       const html = sheetFor(state, appointment.id);
       expect(html).toContain('測試患者甲');
-      expect(html).toContain('0912345678');
+      expect(html).toContain('*******678');
+      expect(html).not.toContain('0912345678');
       // 住址、職業、聯絡人等刻意不線上收集：留白給櫃台或患者手寫，
       // 不印「未填」——紙上要看得出「這裡等著被寫」。
       expect(html).toContain('住址');
@@ -1919,30 +1942,49 @@ describe('工作臺批次的新行為', () => {
       expect(html).not.toContain('intake-print-only');
     });
 
-    // 舊紀錄仍帶證件時沿用原本的遮罩與列印層；新預約不會再有這些值。
-    it('舊紀錄的身分證字號在畫面上遮罩、列印時完整', () => {
+    // 身分證只在列印層顯示完整值。
+    it('舊紀錄的身分證畫面遮罩、列印完整', () => {
       const state = initialState();
       const appointment = bookOne(state, ['service_snoring']);
       state.patients.at(-1).nationalId = 'A123456789';
       const html = sheetFor(state, appointment.id);
-      // 兩個值都在 DOM 裡，由 @media print 切換哪一個顯示。
-      expect(html).toContain('intake-screen-only');
-      expect(html).toContain('A12****789');
-      expect(html).toContain('intake-print-only');
-      expect(html).toContain('A123456789');
+      expect(html).toContain(
+        '<span class="intake-screen-only">A*******89</span>'
+      );
+      expect(html).toContain(
+        '<span class="intake-print-only">A123456789</span>'
+      );
     });
 
-    it('舊紀錄的護照號碼同樣只在合成列印層顯示完整值', () => {
+    it('列印層的舊身分證資料會跳脫 HTML', () => {
+      const state = initialState();
+      const appointment = bookOne(state, ['service_snoring']);
+      state.patients.at(-1).nationalId = '<b>test</b>';
+      const html = sheetFor(state, appointment.id);
+      expect(html).toContain('&lt;b&gt;test&lt;/b&gt;');
+      expect(html).not.toContain('<b>test</b>');
+    });
+
+    it('舊紀錄的護照號碼在畫面和列印均遮罩', () => {
       const state = initialState();
       const appointment = bookOne(state, ['service_snoring']);
       state.patients.at(-1).passportNumber = 'P12345678';
       const html = sheetFor(state, appointment.id);
-      expect(html).toContain(
-        '<span class="intake-screen-only">P12****678</span>'
-      );
-      expect(html).toContain(
-        '<span class="intake-print-only">P12345678（護照）</span>'
-      );
+      expect(html).toContain('P******78');
+      expect(html).not.toContain('P12345678');
+    });
+
+    it('短電話與短證件在螢幕全部遮住，僅身分證列印完整', () => {
+      const state = initialState();
+      const appointment = bookOne(state, ['service_snoring']);
+      const record = state.patients.at(-1);
+      record.phone = '123';
+      record.nationalId = 'AB12';
+      const html = sheetFor(state, appointment.id);
+      expect(html).not.toContain('123');
+      expect(html).toContain('<span class="intake-print-only">AB12</span>');
+      expect(html).toContain('<span class="intake-value">***</span>');
+      expect(html).toContain('<span class="intake-screen-only">****</span>');
     });
 
     // CSP 是 style-src 'self'：style 屬性會被整個擋掉，寬度必須走 class。
@@ -2010,7 +2052,8 @@ describe('工作臺語意 T2-WB-02', () => {
       );
     expect(row('appointment_c1_nat_1')).toContain('國籍：外國');
     expect(row('appointment_c1_nat_2')).toContain('國籍：本國');
-    expect(row('appointment_c1_nat_2')).toContain('0900000000');
+    expect(row('appointment_c1_nat_2')).toContain('*******000');
+    expect(row('appointment_c1_nat_2')).not.toContain('0900000000');
   });
 
   it('回診待安排列不顯示來源 ID', () => {

@@ -11,7 +11,11 @@ import {
   WEEKDAY_LABELS,
   ACTIVE_BOOKING_STATUSES
 } from './constants.js';
-import { birthDateHasYear, maskIdentityDocument } from './patient-registry.js';
+import {
+  birthDateHasYear,
+  maskIdentityDocument,
+  maskPatientPhone
+} from './patient-registry.js';
 import { renderTagOptions } from './tag-picker.js';
 import { isUpcomingSlot } from './schedule-engine.js';
 import { taipeiDate, taipeiIso, taipeiTodayDate } from './taipei-time.js';
@@ -106,7 +110,7 @@ function patientDetail(state, appointment) {
     : record.birthDate.slice(2).replace('-', '/');
   // 沒有值的段落整段不出現（filter 掉 falsy），而不是印一個空欄位。
   return [
-    escapeHtml(record.phone),
+    escapeHtml(maskPatientPhone(record.phone)),
     escapeHtml(birth),
     shownNationality,
     identityReview,
@@ -357,7 +361,7 @@ export function renderNextUp(state, now = Date.now()) {
   const phone =
     record?.phone === undefined
       ? ''
-      : `<span class="code">${escapeHtml(record.phone)}</span>`;
+      : `<span class="code">${escapeHtml(maskPatientPhone(record.phone))}</span>`;
   return `<p class="eyebrow">NEXT UP · 下一位</p><p class="next-up-time"><strong>${escapeHtml(formatTime(next.startsAt))}</strong><span>${escapeHtml(formatFullDate(next.startsAt))}</span></p><p class="next-up-patient"><strong>${escapeHtml(patientLabel(state, next.patientId))}</strong><span>${escapeHtml(BOOKING_KIND_LABELS[next.bookingKind] ?? '')}${next.itemLabel ? ` · ${escapeHtml(next.itemLabel)}` : ''}</span>${phone}</p><a class="summary-action" href="#appointments-section"><span class="summary-action-icon" aria-hidden="true">&#8594;</span>前往處理清單</a>`;
 }
 
@@ -903,11 +907,8 @@ export function renderFollowUps(state, editingIds = new Set()) {
  * 其餘欄位輸出空白底線讓患者或櫃台到診時手寫。**不儲存任何病歷內容**——真正的
  * 電子病歷受醫療法與《醫療機構電子病歷製作及管理辦法》規範，那是另一件事。
  *
- * 身分證字號在**畫面上遮罩、列印時完整**，只為驗證 2026-07-27 業主指定的合成
- * 報到單版面。這不代表正式紙本必須收完整號碼，也不代表目前的瀏覽器內登入 gate
- * 已取得真實資料存取權；必要性、列印與銷毀規則仍待 D-002，D-006 核准的存取
- * 控制則仍待 Stage 2 C2～C4 實作與驗證。
- * 兩個值都在 DOM 裡，由 `@media print` 切換，所以列印後必須立即清空容器。
+ * 舊證件在畫面與列印均以最小揭露遮罩，列印後仍立即清空容器。
+ * D-002、D-006 核准的存取控制仍待 Stage 2 C2～C4 實作與驗證。
  *
  * 沒有收集的欄位（住址、職業、婚姻、市話、聯絡人、LineID、性別、年齡）一律留白：
  * 那是資料最小化的結果，不是漏印。空白底線讓紙上看得出「這裡要填」。
@@ -929,12 +930,15 @@ export function renderIntakeSheet(state, appointmentId) {
     ? `${record.birthDate.slice(0, 4)} 年 ${record.birthDate.slice(5, 7)} 月 ${record.birthDate.slice(8, 10)} 日`
     : `${blankLine('sm')} 年 ${(record.birthDate ?? '').slice(2, 4)} 月 ${(record.birthDate ?? '').slice(5, 7)} 日`;
 
-  // 身分證：新預約不再收集，列印出空白讓到診時在紙本填寫。舊紀錄仍有值時，
-  // 畫面遮罩、列印完整，兩個值都在，靠 @media print 換。身分證優先，沒有才看護照。
+  // 只有初診單列印身分證完整值；護照維持遮罩。
   const legacyDocument = record.nationalId || record.passportNumber;
-  const document_ = legacyDocument
-    ? `<span class="intake-screen-only">${escapeHtml(maskIdentityDocument(record))}</span><span class="intake-print-only">${escapeHtml(legacyDocument)}${record.nationalId ? '' : '（護照）'}</span>`
-    : blankLine();
+  let document_ = blankLine();
+  if (legacyDocument) {
+    const masked = escapeHtml(maskIdentityDocument(record));
+    document_ = record.nationalId
+      ? `<span class="intake-screen-only">${masked}</span><span class="intake-print-only">${escapeHtml(record.nationalId)}</span>`
+      : masked;
+  }
 
   const sources = tagLabels(appointment.sourceTags, PATIENT_SOURCE_TAGS);
   const referral =
@@ -977,7 +981,7 @@ export function renderIntakeSheet(state, appointmentId) {
           appointment.intakeNationality ?? record.nationality
         ] ?? `${blankLine('xs')} 本國 ／ ${blankLine('xs')} 外國`
       )}
-      ${cell('手機', record.phone ? escapeHtml(record.phone) : blankLine())}
+      ${cell('手機', record.phone ? escapeHtml(maskPatientPhone(record.phone)) : blankLine())}
       ${cell('市話', blankLine())}
       ${cell('婚姻', `${blankLine('xs')} 已婚 ／ ${blankLine('xs')} 單身`)}
       ${cell('住址', blankLine('full'), 3)}

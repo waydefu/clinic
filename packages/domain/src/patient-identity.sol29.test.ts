@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   isPatientBirthMonthDay,
   maskNationalId,
+  maskPatientPhone,
   patientIdentityIssues,
   patientIdentityKey
 } from './patient-identity.js';
@@ -49,6 +50,11 @@ describe('canonical identity and bounded legacy disclosure', () => {
     }
   );
   it('keeps valid-length masking', () => {
-    expect(maskNationalId('ABCDEFGHIJ')).toBe('ABC****HIJ');
+    expect(maskNationalId('ABCDEFGHIJ')).toBe('A*******IJ');
+  });
+  it('masks phone digits without weakening validation', () => {
+    expect(maskPatientPhone('+000 000 0000')).toBe('*******000');
+    expect(maskPatientPhone('123')).toBe('***');
+    expect(maskPatientPhone(undefined)).toBe('——');
   });
 });

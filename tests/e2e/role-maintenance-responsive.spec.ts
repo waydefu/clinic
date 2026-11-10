@@ -260,6 +260,12 @@ test.describe('行動版 header 與重排', () => {
     await bell.click();
     await expect(bell).toHaveAttribute('aria-expanded', 'true');
     await expect(page.locator('#notification-popover')).toBeVisible();
+    const notificationPhone = page.locator('#notification-list .bell-row a');
+    await expect(notificationPhone).toHaveText('*******678');
+    await expect(notificationPhone).toHaveAttribute('href', 'tel:0912345678');
+    await expect(page.locator('#notification-list')).not.toContainText(
+      '0912345678'
+    );
     await expect(page.locator('#notification-list')).not.toHaveAttribute(
       'aria-live',
       /.*/

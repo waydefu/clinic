@@ -182,7 +182,7 @@ describe('患者資料驗證與遮罩', () => {
 
   // 只用於顯示舊紀錄。
   it('舊紀錄的身分證字號一律以遮罩呈現', () => {
-    expect(maskNationalId('A123456789')).toBe('A12****789');
+    expect(maskNationalId('A123456789')).toBe('A*******89');
     expect(maskNationalId('A123456789')).not.toContain('456');
     expect(maskNationalId('')).toBe('——');
     expect(maskNationalId(undefined)).toBe('——');
