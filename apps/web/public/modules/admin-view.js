@@ -930,11 +930,15 @@ export function renderIntakeSheet(state, appointmentId) {
     ? `${record.birthDate.slice(0, 4)} 年 ${record.birthDate.slice(5, 7)} 月 ${record.birthDate.slice(8, 10)} 日`
     : `${blankLine('sm')} 年 ${(record.birthDate ?? '').slice(2, 4)} 月 ${(record.birthDate ?? '').slice(5, 7)} 日`;
 
-  // 舊證件在畫面與列印皆採最小揭露；新預約留白供到診時填寫。
+  // 只有初診單列印身分證完整值；護照維持遮罩。
   const legacyDocument = record.nationalId || record.passportNumber;
-  const document_ = legacyDocument
-    ? escapeHtml(maskIdentityDocument(record))
-    : blankLine();
+  let document_ = blankLine();
+  if (legacyDocument) {
+    const masked = escapeHtml(maskIdentityDocument(record));
+    document_ = record.nationalId
+      ? `<span class="intake-screen-only">${masked}</span><span class="intake-print-only">${escapeHtml(record.nationalId)}</span>`
+      : masked;
+  }
 
   const sources = tagLabels(appointment.sourceTags, PATIENT_SOURCE_TAGS);
   const referral =

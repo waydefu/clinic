@@ -777,8 +777,8 @@ test.describe('工作臺預約生命週期', () => {
     });
   });
 
-  // 舊紀錄的遮罩在螢幕與列印都必須一致，DOM 不得包含完整值。
-  test('舊紀錄的身分證在畫面及列印時遮罩', async ({ page }) => {
+  // 列印期間擷取合成表單，驗證螢幕與列印樣式的揭露範圍。
+  test('身分證畫面遮罩、列印完整', async ({ page }) => {
     await login(page);
     await createBooking(page);
     await page.evaluate((key) => {
@@ -793,19 +793,29 @@ test.describe('工作臺預約生命週期', () => {
       window.print = () => {
         const sheet = document.querySelector('#intake-print');
         if (sheet === null) throw new Error('找不到初診資料列印區。');
-        (window as any).__intakeIdentityCapture = sheet.textContent;
+        const capture = sheet.cloneNode(true) as HTMLElement;
+        capture.id = 'synthetic-intake-capture';
+        document.body.append(capture);
       };
     });
 
     const card = page.locator('[data-appointment-card]').first();
+    await expect(card).toContainText('A*******89');
+    await expect(card).not.toContainText('A123456789');
     await card.locator('summary').click();
     await card.locator('[data-appointment-action="print_intake"]').click();
-    const capture = await page.evaluate(
-      () => (window as any).__intakeIdentityCapture
-    );
+    const capture = page.locator('#synthetic-intake-capture');
+    const screenId = capture.locator('.intake-screen-only');
+    const printId = capture.locator('.intake-print-only');
+    await expect(screenId).toHaveText('A*******89');
+    await expect(screenId).toBeVisible();
+    await expect(printId).toHaveText('A123456789');
+    await expect(printId).toHaveCSS('display', 'none');
+    await expect(page.locator('#intake-print')).toBeEmpty();
 
-    expect(capture).toContain('A*******89');
-    expect(capture).not.toContain('A123456789');
+    await page.emulateMedia({ media: 'print' });
+    await expect(screenId).toHaveCSS('display', 'none');
+    await expect(printId).toHaveCSS('display', 'inline');
   });
 
   test('回診電話遮罩與身分變更', async ({ page }) => {

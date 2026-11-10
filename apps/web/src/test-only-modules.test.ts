@@ -1942,14 +1942,27 @@ describe('工作臺批次的新行為', () => {
       expect(html).not.toContain('intake-print-only');
     });
 
-    // 舊紀錄畫面與列印都只保留首碼與末兩碼。
-    it('舊紀錄的身分證字號在畫面和列印均遮罩', () => {
+    // 身分證只在列印層顯示完整值。
+    it('舊紀錄的身分證畫面遮罩、列印完整', () => {
       const state = initialState();
       const appointment = bookOne(state, ['service_snoring']);
       state.patients.at(-1).nationalId = 'A123456789';
       const html = sheetFor(state, appointment.id);
-      expect(html).toContain('A*******89');
-      expect(html).not.toContain('A123456789');
+      expect(html).toContain(
+        '<span class="intake-screen-only">A*******89</span>'
+      );
+      expect(html).toContain(
+        '<span class="intake-print-only">A123456789</span>'
+      );
+    });
+
+    it('列印層的舊身分證資料會跳脫 HTML', () => {
+      const state = initialState();
+      const appointment = bookOne(state, ['service_snoring']);
+      state.patients.at(-1).nationalId = '<b>test</b>';
+      const html = sheetFor(state, appointment.id);
+      expect(html).toContain('&lt;b&gt;test&lt;/b&gt;');
+      expect(html).not.toContain('<b>test</b>');
     });
 
     it('舊紀錄的護照號碼在畫面和列印均遮罩', () => {
@@ -1961,7 +1974,7 @@ describe('工作臺批次的新行為', () => {
       expect(html).not.toContain('P12345678');
     });
 
-    it('舊紀錄的短電話與短證件在列印時全部遮住', () => {
+    it('短電話與短證件在螢幕全部遮住，僅身分證列印完整', () => {
       const state = initialState();
       const appointment = bookOne(state, ['service_snoring']);
       const record = state.patients.at(-1);
@@ -1969,9 +1982,9 @@ describe('工作臺批次的新行為', () => {
       record.nationalId = 'AB12';
       const html = sheetFor(state, appointment.id);
       expect(html).not.toContain('123');
-      expect(html).not.toContain('AB12');
+      expect(html).toContain('<span class="intake-print-only">AB12</span>');
       expect(html).toContain('<span class="intake-value">***</span>');
-      expect(html).toContain('<span class="intake-value">****</span>');
+      expect(html).toContain('<span class="intake-screen-only">****</span>');
     });
 
     // CSP 是 style-src 'self'：style 屬性會被整個擋掉，寬度必須走 class。
