@@ -24,7 +24,27 @@ export function envNamesRead(source) {
     (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node));
 
   function visit(node) {
-    if (ts.isPropertyAccessExpression(node) && isEnvironment(node.expression)) {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isObjectBindingPattern(node.name) &&
+      node.initializer &&
+      isEnvironment(node.initializer)
+    ) {
+      for (const element of node.name.elements) {
+        if (element.dotDotDotToken)
+          throw new Error('Cannot inventory an environment rest binding.');
+        const key = element.propertyName ?? element.name;
+        const literal = ts.isComputedPropertyName(key) ? key.expression : key;
+        if (!ts.isIdentifier(literal) && !isLiteral(literal))
+          throw new Error('Cannot inventory a computed environment binding.');
+        if (ts.isComputedPropertyName(key) && !isLiteral(literal))
+          throw new Error('Cannot inventory a computed environment binding.');
+        names.add(literal.text);
+      }
+    } else if (
+      ts.isPropertyAccessExpression(node) &&
+      isEnvironment(node.expression)
+    ) {
       names.add(node.name.text);
     } else if (
       ts.isElementAccessExpression(node) &&
