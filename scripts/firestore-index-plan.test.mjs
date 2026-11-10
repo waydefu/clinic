@@ -169,6 +169,48 @@ describe('code -> matrix direction (B-44)', () => {
   });
 });
 
+describe('matrix <-> index definitions (B-44)', () => {
+  const index = {
+    collectionGroup: 'widgets',
+    queryScope: 'COLLECTION',
+    fields: [
+      { fieldPath: 'owner', order: 'ASCENDING' },
+      { fieldPath: 'createdAt', order: 'ASCENDING' }
+    ]
+  };
+  const matrix = matrixOf(entry('widgets', ['owner', 'createdAt'], true));
+
+  it('accepts matching definitions and rejects an unlisted index', () => {
+    expect(
+      evaluateFirestoreIndexPlan({
+        matrix,
+        indexes: { indexes: [index] },
+        sources: []
+      })
+    ).toEqual({ ok: true, issues: [] });
+    const result = evaluateFirestoreIndexPlan({
+      matrix: matrixOf(),
+      indexes: { indexes: [index] },
+      sources: []
+    });
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContain(
+      'Unlisted composite index widgets (COLLECTION).'
+    );
+  });
+
+  it('does not accept a collection-group index for a collection query', () => {
+    const result = evaluateFirestoreIndexPlan({
+      matrix,
+      indexes: { indexes: [{ ...index, queryScope: 'COLLECTION_GROUP' }] },
+      sources: []
+    });
+    expect(result.ok).toBe(false);
+    expect(result.issues.join('\n')).toContain('Missing composite index');
+    expect(result.issues.join('\n')).toContain('Unlisted composite index');
+  });
+});
+
 describe('repository inventory', () => {
   it('scans the API Firestore repositories and skips test files', () => {
     const paths = loadQuerySources().map((source) => source.path);
