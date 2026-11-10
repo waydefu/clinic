@@ -15,6 +15,10 @@ import {
 } from 'firebase-admin/firestore';
 
 import { ConflictError } from '../platform/errors/api-error.js';
+import {
+  businessExportChunkCount,
+  splitBusinessExportChunks
+} from './business-export-chunks.js';
 import { COLLECTIONS } from './booking.repository.js';
 import { PATIENT_COLLECTIONS } from '../patients/patient-directory.js';
 
@@ -24,12 +28,6 @@ export const EXPORT_COLLECTIONS = {
   log: 'bd_export_log'
 } as const;
 
-/**
- * Characters per chunk. Firestore caps a document at 1 MiB; Traditional
- * Chinese is three UTF-8 bytes per character, so 200 000 characters stays
- * under 600 KB. The chunk count cap keeps one export inside one transaction.
- */
-const CHUNK_CHARACTERS = 200_000;
 const MAX_CHUNKS = 20;
 const HOUR_MS = 3_600_000;
 
@@ -235,13 +233,14 @@ export class FirestoreBusinessExportRepository {
       });
 
       const csv = renderBusinessExportCsvFile({ rows });
-      const chunkCount = Math.max(1, Math.ceil(csv.length / CHUNK_CHARACTERS));
+      const chunkCount = businessExportChunkCount(csv);
       if (chunkCount > MAX_CHUNKS) {
         throw new DomainError(
           'INVALID_VALUE',
           'the export is too large; choose a shorter date range.'
         );
       }
+      const chunks = splitBusinessExportChunks(csv);
 
       const nowMs = Date.parse(command.now);
       const purgeAt = Timestamp.fromMillis(
@@ -278,10 +277,7 @@ export class FirestoreBusinessExportRepository {
           {
             exportId,
             index,
-            content: csv.slice(
-              index * CHUNK_CHARACTERS,
-              (index + 1) * CHUNK_CHARACTERS
-            ),
+            content: chunks[index],
             purgeAt
           }
         );
