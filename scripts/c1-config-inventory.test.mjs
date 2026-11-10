@@ -19,8 +19,8 @@ const CLASSES = new Set([
 ]);
 const LOGGABLE = new Set(['NON_SECRET_CONFIG', 'RUNTIME_DERIVED']);
 
-// Static literal reads only; computed keys and destructuring remain outside the
-// scanner's coverage and require separate review.
+// Static literal reads and destructuring only; computed access remains outside
+// the scanner's coverage and requires separate review.
 
 function runtimeSources(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -68,6 +68,27 @@ describe('environment inventory (B-45): code -> contract, no values read', () =>
       'REQUIRED_VALUE',
       'TEMPLATE_LITERAL'
     ]);
+  });
+
+  it('finds literal destructured names, aliases, defaults and computed literals', () => {
+    const source = [
+      "const { FIRST, SECOND: alias, THIRD = 'default', ['FOURTH']: other } = process.env;",
+      'const { FIFTH } = environment;'
+    ].join('\n');
+    expect([...envNamesRead(source)].sort()).toEqual([
+      'FIFTH',
+      'FIRST',
+      'FOURTH',
+      'SECOND',
+      'THIRD'
+    ]);
+  });
+
+  it.each([
+    'const { [variable]: value } = process.env;',
+    'const { FIRST, ...remaining } = env;'
+  ])('rejects an unbounded destructuring form: %s', (source) => {
+    expect(() => envNamesRead(source)).toThrow(/Cannot inventory/u);
   });
 
   it('fails closed when source cannot be parsed', () => {
