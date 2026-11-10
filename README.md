@@ -226,13 +226,15 @@ live/production deployment.
    [Phase 1 decision register](docs/product/phase-1-decision-register.md);
    formal clinic approvals are recorded only there.
 4. Use the
-   [current execution and approval plan](docs/product/current-execution-and-approval-plan.md)
-   for the plain-language next-action order and the consolidated approval list.
+   [Phase 1 RC delivery plan](docs/plans/2026-11-08-phase1-rc-delivery-plan.md)
+   for the current delivery order and ledger; the
+   [execution and approval plan](docs/product/current-execution-and-approval-plan.md)
+   remains an approval-packet reference.
 5. Use the
    [production target architecture](docs/architecture/production-target-architecture-2026-07-23.md)
-   for technical boundaries and the
+   for technical boundaries; the
    [production-readiness delivery plan](docs/product/production-readiness-delivery-plan-2026-07-23.md)
-   for implementation order.
+   provides historical implementation context.
 6. Read the
    [enterprise readiness review](docs/reviews/2026-07-23-enterprise-production-readiness-review.md)
    for the evidence baseline and unresolved findings.
