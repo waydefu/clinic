@@ -130,9 +130,8 @@ describe('SBOM root identity', () => {
       serialNumber: 'synthetic'
     });
     expect(document.metadata.component).toMatchObject(root);
-    expect(
-      reviewSbom(document, { allowed, exceptions: noExceptions })
-    ).toEqual({
+    const review = reviewSbom(document, { allowed, exceptions: noExceptions });
+    expect(review).toEqual({
       violations: [],
       accepted: []
     });
