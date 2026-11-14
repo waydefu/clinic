@@ -1,5 +1,27 @@
 # Phase 1 Decision Register
 
+## APPROVAL-RC-2026-11-14：RC 第一批 9 項決定
+
+決策人：負責人。核准日期（Asia/Taipei）：2026-11-14。
+依據：Claude 於對話中逐題列出 9 題與建議答案（出處：
+[交付計畫第二節](../plans/2026-11-08-phase1-rc-delivery-plan.md)），負責人回覆「全照建議」。
+未另提供 approval ID，不另造；以各題的 Decision ID 為準。
+本節是 RC（11/30 上線候選版）層級的答案；不改變 production、法律審查、五方簽核與真實資料的禁線，
+也不授權部署、雲端操作或真實資料。下方 D-004／D-005／D-011 表格列的「pending」是 production 狀態，
+RC 答案以本節為準。
+
+| ID | 答案 | 範圍與明確排除 | 殘餘風險／後續 |
+| --- | --- | --- | --- |
+| D-004 | 同一時段容量 1；預約期間 1 個月；多項療程時長不加總 | 止鼾等療程時長仍「到診後確認」（見 OR-37）；休診日見 OR-48；不含正式法律／production 核准 | 無新增 |
+| D-005 | 取消截止：預約當日 10:00；爽約只記錄、不自動限制後續預約 | 不含爽約收費（維持內測 IP-001 不收費，正式費用另議）；本表另需 legal owner，法律審查依交付計畫「法律審查安排」於正式上線前完成 | 爽約是否限制預約，法律審查時一併確認 |
+| D-011 | 正式網址 `beauessence.com.tw/booking`；系統異常時改電話預約 | 不授權 DNS 變更、網域設定或上線；無障礙／語言需求未涵蓋；公開預約寫入仍屬 12 月（需 D-001～D-005 全數核准與五方簽核） | 電話窗口號碼待 D-001 定案 |
+| OR-22 | 同一手機號碼視為同一人；同時最多 1 筆尚未到診的預約 | 只定義判定規則；手機號碼屬個資，儲存與比對方式須符合 D-003 隱私政策（參考 `scripts/owner-personal-contact.test.mjs:12` 的指紋空間限制） | 家人共用同一支手機會被擋；例外處理另案決定 |
+| OR-48 | 休診日與國定假日預設不開放預約；僅管理者可個別開放 | 與「營業時間外僅管理者可 override」一致；不含國定假日清單的維護者與來源 | 假日清單由誰維護，後續另案 |
+| OR-37 | 止鼾療程時長改為到診後確認，不再回頭 | 結案題目 | 無 |
+| D-24 | RC 不採用試用調整模型，12 月後再談 | SOL-BUSINESS 延伸工作維持不做；不新增付款或薪資 ledger | 無 |
+| LEASE Gate 2 | RC 只接專用測試日曆、只用合成資料；不碰診所正式日曆 | 沿用 2026-11-04 Gate 2 核准的界線；真實日曆寫入仍須負責人另核 C1 雲端批次；不授權 IAM 或部署 | [協調計畫](../plans/2026-10-22-sol-calendar-lease-coordination.md) 的狀態行與「Gate 2 仍等待…」為歷史描述，已加註以本節為準 |
+| CAL-PILOT 延期 | 合成子範圍延到 2026-12-31（台北時間） | 範圍與排除項不變：僅合成、僅專用測試日曆，不是 production D-009／D-016，也不是 Stage 2 | 實際到期時間戳在 RC-07 續期窗口決定並讀回；程式與雲端設定尚未修改 |
+
 ## IDENTITY-PRINT-FULL-ID-2026-11-10
 
 決策人：負責人。初診單列印時顯示完整身分證號；螢幕一律遮罩。
@@ -1380,14 +1402,14 @@ production, not public booking, and not a D-series close.
 | D-001 | Legal data-controller name, privacy contact channel and rights-request process | Clinic owner + privacy/legal owner | pending (owner input recorded 2026-08-16; internal-test implementation rules in IP-001, 2026-09-13 — not legal/production approval) | Published privacy policy |
 | D-002 | Booking-data retention, deletion workflow and vendor/data-region record | Privacy/legal owner + operations | pending (owner input recorded 2026-08-16; backup-deletion semantics and the Google processor agreement remain unanswered; internal-test retention numbers in IP-001, 2026-09-13 — not legal/production approval) | Collecting patient data |
 | D-003 | Final policy text, version identifier and publication workflow | Clinic owner + privacy/legal owner | pending (owner input recorded 2026-08-16; final text, version ID and publication approval outstanding; internal-test policy version `v1.0` in IP-001 — not publication approval) | Privacy acceptance or public booking |
-| D-004 | Services, practitioners/resources, slot duration/capacity, booking horizon and blackout rules | Clinic operations owner | pending (superseding owner direction recorded 2026-08-16: capacity 1, booking horizon 1 month; internal-test operational rules in IP-001, 2026-09-13, including unspecified duration default 30 min — not production/legal approval; does not retire the 2026-07-28 “duration known only at visit” production answer) | Slot reservation |
-| D-005 | Cancellation cutoff, patient/admin flow, no-show handling and fees | Clinic operations owner + legal owner | pending (superseding owner direction recorded 2026-08-16: cutoff is 10:00 on the appointment day; internal-test override/no-show/no-fee rules in IP-001, 2026-09-13 — not production/legal approval) | Cancellation route or notice |
+| D-004 | Services, practitioners/resources, slot duration/capacity, booking horizon and blackout rules | Clinic operations owner | pending (superseding owner direction recorded 2026-08-16: capacity 1, booking horizon 1 month; internal-test operational rules in IP-001, 2026-09-13, including unspecified duration default 30 min — not production/legal approval; does not retire the 2026-07-28 “duration known only at visit” production answer; RC answer approved 2026-11-14, see APPROVAL-RC-2026-11-14) | Slot reservation |
+| D-005 | Cancellation cutoff, patient/admin flow, no-show handling and fees | Clinic operations owner + legal owner | pending (superseding owner direction recorded 2026-08-16: cutoff is 10:00 on the appointment day; internal-test override/no-show/no-fee rules in IP-001, 2026-09-13 — not production/legal approval; RC answer approved 2026-11-14, see APPROVAL-RC-2026-11-14) | Cancellation route or notice |
 | D-006 | Identity provider, staff roles, completion authority, permissions and audit retention | Clinic owner + security owner | approved (2026-07-28; implementation evidence pending) | Authenticated write endpoint |
 | D-007 | Case-manager assignment/reassignment, patient-merge review and exception evidence | Case-management owner + operations | deferred (DEFERRED_OUTSIDE_CURRENT_PHASE1_DELIVERY; owner 2026-09-13) | Assignment write path |
 | D-008 | Payroll metric/rule version, period-lock owner, review and adjustment approval | Finance owner + case-management owner | pending; period-close and adjustment sub-items deferred (owner direction recorded 2026-08-16) | Payroll-credit persistence |
 | D-009 | Calendar owner, selected calendar, authorization model, scopes and minimum event fields | Clinic owner + security owner | pending for production; CAL-PILOT synthetic-only sub-scope approved 2026-08-28 and extended through 2026-11-28 by the owner on 2026-08-31 (dedicated allowlisted calendars, closed synthetic fields, no real data). The 2026-08-31 controlled-correction apply is dated evidence; any new apply still needs a fresh exact SHA. 2026-09-11 C0-DIR records Phase 1 *product* bidirectional-sync direction (not production D-009) | Outbound Calendar integration review |
 | D-010 | Environments, Firebase-project ownership, IAM, backups and monitoring owner | Technical owner + security owner | approved (target architecture and SLO, 2026-07-28) | Cloud deployment |
-| D-011 | Booking-site URL, accessibility/language needs and manual-booking fallback | Clinic operations owner | pending (GO_LIVE_DEFERRED for internal-preproduction; 2026-09-13). Production URL still undecided; Firebase preview / `.web.app` is the current internal-test entry. 2026-09-11 FS-001 hostnames are not DNS mutation authority | Public production booking UX / official DNS |
+| D-011 | Booking-site URL, accessibility/language needs and manual-booking fallback | Clinic operations owner | pending (GO_LIVE_DEFERRED for internal-preproduction; 2026-09-13). Production URL still undecided; Firebase preview / `.web.app` is the current internal-test entry. 2026-09-11 FS-001 hostnames are not DNS mutation authority. RC answer approved 2026-11-14, see APPROVAL-RC-2026-11-14 | Public production booking UX / official DNS |
 | D-012 | Displaying the NHI contracted-institution mark on a publicly reachable page | Clinic owner | approved (preview scope only, 2026-07-26) | Showing the mark outside the clinic's own domain |
 | D-013 | Branch protection on `main`: required checks and who may bypass them | Technical owner | approved (2026-07-26; amended 2026-09-09: administrators also bound; WP-B5-2 2026-09-15 keeps `required_approving_review_count=0`) | Treating a green CI run as a merge gate |
 | D-014 | Clinical/surgical record boundary, accountable medical owner, fields, retention, correction and export | Medical owner + privacy/legal owner | deferred (DEFERRED_OUTSIDE_CURRENT_PHASE1_DELIVERY; owner 2026-09-13) | Storing surgery, anesthesia or clinical follow-up data |
