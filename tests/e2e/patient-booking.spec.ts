@@ -33,6 +33,15 @@ test.describe('患者線上預約', () => {
     await page.reload();
   });
 
+  // 2026-11-15：頁尾門診時間把連續且同時段的星期合併，和頁首資訊卡同一種寫法。
+  test('頁尾門診時間合併連續星期，不逐日重複', async ({ page }) => {
+    const footer = page.locator('#patient-hours-footer');
+    await expect(footer).toHaveText(
+      /週三至週五 12:00–20:00\s+週六 10:00–18:00/
+    );
+    await expect(footer).not.toContainText('週四');
+  });
+
   test('初次載入停在頁首，三步驟依序採指定的全寬版面', async ({ page }) => {
     // The one-month booking horizon spans two month tabs in mid-month.
     // At month end the first month's slots can all be past; wall-clock time

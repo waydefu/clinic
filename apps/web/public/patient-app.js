@@ -283,20 +283,38 @@ function latestFollowUp() {
     );
 }
 
+// 2026-11-15：頁尾改成和頁首資訊卡同樣的兩行：連續且時段相同的星期合併成「週三至週五」，
+// 不再逐日重複，也不帶「門診時間：」前綴（上方 <h2> 已經是這個標題）。
 function clinicHoursSummary() {
-  const lines = [...state.schedule.weeklyAvailability]
+  const days = [...state.schedule.weeklyAvailability]
     .sort((left, right) => left.weekday - right.weekday)
-    .map(
-      (entry) =>
-        `${WEEKDAY_LABELS[entry.weekday]} ${entry.intervals
-          .map(
-            (interval) => `${interval.startLocalTime}–${interval.endLocalTime}`
-          )
-          .join('、')}`
-    );
-  return lines.length > 0
-    ? `門診時間：${lines.join('；')}`
-    : '目前未開放門診時間';
+    .map((entry) => ({
+      weekday: entry.weekday,
+      hours: entry.intervals
+        .map(
+          (interval) => `${interval.startLocalTime}–${interval.endLocalTime}`
+        )
+        .join('、')
+    }));
+  const groups = [];
+  for (const day of days) {
+    const last = groups.at(-1);
+    if (
+      last !== undefined &&
+      last.hours === day.hours &&
+      last.end + 1 === day.weekday
+    )
+      last.end = day.weekday;
+    else
+      groups.push({ start: day.weekday, end: day.weekday, hours: day.hours });
+  }
+  const lines = groups.map(
+    (group) =>
+      `${WEEKDAY_LABELS[group.start]}${
+        group.end > group.start ? `至${WEEKDAY_LABELS[group.end]}` : ''
+      } ${group.hours}`
+  );
+  return lines.length > 0 ? lines.join('\n') : '目前未開放門診時間';
 }
 
 function renderHours() {

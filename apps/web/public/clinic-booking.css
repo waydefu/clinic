@@ -749,3 +749,33 @@ html {
   background: var(--brand-social-instagram);
   background-color: var(--brand-social-instagram-solid);
 }
+
+/* 2026-11-15：看診項目只有一張卡時撐滿整列，不留半邊空白。 */
+#patient-services > :only-child {
+  grid-column: 1 / -1;
+}
+
+/* 2026-11-15：回診狀態列貼在回診卡正下方沒有間距；.field-hint 排在後面會蓋掉
+   .booking-type-hint 的上緣距離，所以用 id 加權。 */
+#follow-up-choice-status {
+  margin-top: var(--space-xs);
+}
+
+/* 2026-11-15：步驟 1 卡片下方兩段說明原本偏小偏灰，改用內文字級與主文字色。 */
+#follow-up-choice-status,
+.booking-service-hint {
+  color: var(--ink);
+  font-size: var(--text-body);
+  opacity: 1;
+}
+
+/* 2026-11-15：未到的步驟數字與標籤原本同為淡灰，數字看不清楚，兩者改用主文字色。 */
+.booking-stepper li:not(.is-active):not(.is-complete),
+.booking-stepper li:not(.is-active):not(.is-complete) span {
+  color: var(--ink);
+}
+
+/* 2026-11-15：頁尾門診時間改成與資訊卡相同的兩行，換行靠這條。 */
+#patient-hours-footer {
+  white-space: pre-line;
+}
