@@ -224,6 +224,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-11-15 | [官網／預約頁／隱私權頁／工作台六項評分](reviews/2026-11-15-ui-six-dimension-scoring.md) | 受評 #393 `722f6d9f`（官網等）與 #435 `1fa6bf43`（工作台），截圖＋原始碼、未實測：官網 83.7、預約頁 89.1、隱私權頁 93.2、工作台 90.4（皆為上限）。首頁中段截圖空白、工作台只評到首頁分區；附逐筆扣分、優先清單與第一批修正範圍 |
 | 2026-10-25 | [官網與預約頁綜合評分（v2 標準）](reviews/2026-10-25-public-site-audit-v2.md) | 受評 #302（`a0409c2` 預覽／`acb1d1d` 本機）：官網 64.5／100、預約頁 77／100，視覺 61.8／44.6；官網比 v1 低 4 分主要因標準變嚴（F 上限、H 檔案大小、B 實測）。最大缺口：官網醫療廣告用語、原始 HTML 無正文、節流 LCP 4.3～4.5 秒、官網焦點框對比 2.45:1 |
 | 2026-10-25 | [官網改進候選（#302）synthetic-review 預覽部署](reviews/2026-10-25-clinic-learnings-synthetic-preview-deployment.md) | PR #302 head `36f182c`（CI 12/12）部署至 `synthetic-review`，30 天至 2026-11-24 15:35（Asia/Taipei），取代上午的 main `aee87f5`；靜態-only、未碰 live／CAL-PILOT。`/clinic`、`/clinic/doctors` 等內頁 200 無轉址且 JS 前即有各自標題與 og；不存在路徑仍顯示 404 畫面；卡片到內頁轉場經 `pageswap` 確認；面板內 lazy 圖片不載入屬測試環境限制；同日依序追加 `b681e59`、`a0409c2`、`85b8312`（評分後的焦點框、canonical／og:image、預約頁回官網與備註提醒），現行為 `85b8312`，到期 2026-11-24 22:06 |
 | 2026-10-25 | [官網與預約頁 synthetic-review 預覽部署](reviews/2026-10-25-clinic-booking-synthetic-preview-deployment.md) | Exact `aee87f5` 已部署至 `beauessence-clinic-staging` 的 `synthetic-review`，30 天，至 2026-11-24 13:21（Asia/Taipei）；靜態-only、未碰 live／CAL-PILOT。`/clinic`、`/booking` 實機開啟正常，`/v1/health` 404；`verify:preview` 298/451，失敗為雜湊資產 CSP 與工作臺文案的既有腳本假設，已如實記錄 |

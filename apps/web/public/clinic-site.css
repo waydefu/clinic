@@ -879,6 +879,13 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   content: '';
 }
 
+/* 2026-11-15：手機上五張卡折成兩欄，箭頭會被誤讀成先後順序，成因是並列的，不畫。 */
+@media (max-width: 48rem) {
+  .clinic-causes__item::after {
+    display: none;
+  }
+}
+
 .clinic-causes__card {
   width: 100%;
   height: 100%;
@@ -1304,7 +1311,9 @@ body:not(:has(.clinic-noscript)) #clinic-main {
 .clinic-service-hero__copy
   > p:not(.clinic-eyebrow, .clinic-service-hero__subtitle) {
   margin: 0 0 1.5rem;
-  color: var(--clinic-muted);
+  /* 2026-11-15：導言原本比下方卡片內文更小更灰，層級顛倒。 */
+  color: var(--clinic-ink);
+  font-size: var(--clinic-text-prose);
 }
 
 .clinic-service-hero__image {
@@ -2434,6 +2443,15 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   }
 }
 
+/* 2026-11-15：列印與存成 PDF 不會捲動，進場前的隱藏狀態會讓內容印成空白。 */
+@media print {
+  .clinic-motion [data-reveal],
+  .clinic-motion [data-reveal] img {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* ==========================================================================
    Homepage 2026-08 hybrid direction
    Task-first hero + symptom guide + assessment process. The visual frame owns
@@ -3238,7 +3256,7 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   }
 }
 
-/* 手機：品牌牆在上、以標誌為中心的方形裁切，標題與資訊卡依序排在下面；
+/* 手機：品牌牆在上、以標誌為中心的 16:10 裁切（2026-11-15 由方形壓扁，標題與預約鈕上移），標題與資訊卡依序排在下面；
    門診時間與交通改成資訊卡在上、地圖在下。 */
 @media (max-width: 48rem) {
   .clinic-arrival {
@@ -3262,7 +3280,7 @@ body:not(:has(.clinic-noscript)) #clinic-main {
     height: auto;
     min-height: 0;
     max-height: none;
-    aspect-ratio: 1 / 1;
+    aspect-ratio: 16 / 10;
     border-radius: var(--clinic-radius-lg);
   }
 
@@ -3556,6 +3574,29 @@ body:not(:has(.clinic-noscript)) #clinic-main {
 .clinic-footer a:hover,
 .clinic-text-link:hover {
   background-color: var(--clinic-sage-50);
+}
+
+/* 2026-11-15：電話與地址連結長得像輸入框，改回底線文字（R-2 底線即可辨識；
+   R-3 以 min-height 2.75rem 保住 44px）。頁尾預約鈕、隱私權、社群維持按鈕外觀。 */
+.clinic-hero-fact a:not(.clinic-social),
+.clinic-footer address a {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  padding: 0;
+  color: var(--clinic-forest);
+  background-color: transparent;
+  border-color: transparent;
+  border-radius: 0;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25em;
+}
+
+.clinic-hero-fact a:not(.clinic-social):hover,
+.clinic-footer address a:hover {
+  background-color: transparent;
+  text-decoration-thickness: 2px;
 }
 
 /* 純色區塊改成柔和漸層（2026-10-25，負責人：「單色背景看要不做點漸層」）。每區保留

@@ -363,7 +363,7 @@ function renderFollowUpChoice() {
   const followUp = latestFollowUp();
   elements['follow-up-choice-status'].textContent =
     followUp === undefined && !verifiedReturnBooking
-      ? '回診狀態：尚待醫師確認。醫師登錄回診指示後，這裡才會開放回診。'
+      ? '回診狀態：目前沒有可預約的回診。醫師看診後若安排回診，這裡會自動開放。'
       : followUp === undefined
         ? '回診狀態：已確認回診身分，這次請改約回診；初診暫不開放。'
         : `回診狀態：醫師已登錄回診指示（建議 ${followUp.dueDate}${followUp.dueTime ? ` ${followUp.dueTime}` : ''}），這次請改約回診；初診暫不開放。`;
