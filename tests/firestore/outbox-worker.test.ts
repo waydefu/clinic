@@ -31,6 +31,7 @@ import {
   OUTBOX_COLLECTION,
   OutboxProcessor
 } from '../../apps/worker/src/outbox-processor.js';
+import { readHasClaimableWork } from '../../apps/worker/src/internal-test-outbox-runtime.js';
 import {
   LOCAL_FIREBASE_PROJECT_ID,
   requireLocalFirestoreEmulatorTarget
@@ -1148,6 +1149,50 @@ describe('outbox worker', () => {
     expect((await jobState())?.['status']).toBe('completed');
     expect((await jobState())?.['attempts']).toBe(1);
   });
+});
+
+describe('readHasClaimableWork', () => {
+  const setJob = (fields: Record<string, unknown>) =>
+    db
+      .collection(OUTBOX_COLLECTION)
+      .doc('outbox_claimable')
+      .set({ attempts: 0, ...fields });
+
+  it('is false for an empty outbox', async () => {
+    expect(await readHasClaimableWork(db, NOW)).toBe(false);
+  });
+
+  it('is false for a pending job that is not due yet', async () => {
+    await setJob({ status: 'pending', nextAttemptAt: later(60) });
+    expect(await readHasClaimableWork(db, NOW)).toBe(false);
+  });
+
+  it('is true for a due pending job', async () => {
+    await setJob({ status: 'pending', nextAttemptAt: later(-60) });
+    expect(await readHasClaimableWork(db, NOW)).toBe(true);
+  });
+
+  it('is false for an in_progress job whose lease is still valid', async () => {
+    await setJob({ status: 'in_progress', leaseExpiresAt: later(60) });
+    expect(await readHasClaimableWork(db, NOW)).toBe(false);
+  });
+
+  it('is true for an in_progress job whose lease has expired', async () => {
+    await setJob({ status: 'in_progress', leaseExpiresAt: later(-60) });
+    expect(await readHasClaimableWork(db, NOW)).toBe(true);
+  });
+
+  it.each(['completed', 'dead_letter'])(
+    'is false for a %s job even when its times are past',
+    async (status) => {
+      await setJob({
+        status,
+        nextAttemptAt: later(-60),
+        leaseExpiresAt: later(-60)
+      });
+      expect(await readHasClaimableWork(db, NOW)).toBe(false);
+    }
+  );
 });
 
 // AUD-05: the reminder event is a projection of the LATEST stored decision
