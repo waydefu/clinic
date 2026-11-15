@@ -5,6 +5,8 @@
 > 不再適用；既有設計與尚未證明的限制保留。真實 Calendar 寫入僅限另核 C1 批次內的測試日曆，
 > 不授權正式日曆、真實資料、IAM 或部署。此授權不代表 source 接線或任何外部驗收已完成。
 
+>
+> **2026-11-14 釐清：**RC 的 Gate 2 範圍只接專用測試日曆、只用合成資料，不碰正式日曆（見決定登記 APPROVAL-RC-2026-11-14）。下方狀態行與「Gate 2 仍等待…」為歷史描述，以本釐清為準。
 日期：2026-10-22；更新：2026-10-30（Asia/Taipei）。狀態：**GATE-1-AUTHORIZED／Gate 1 合成來源項目已全數補齊、待 exact-head CI 與 Sol 審查（PROOF-INCOMPLETE）；GATE-2-BLOCKED-OWNER＋BLOCKED-EXTERNAL**。
 Packet：SOL-CALENDAR-LEASE；findingIDs：D-05、D-12。原始研究 base：`37c10796d5e8f05a2d7b63b4bda7b7d7e99c6746`。
 依據：[#268 保守方向](https://github.com/waydefu/clinic/pull/268#issuecomment-6322342715)、登記 PR #281，
