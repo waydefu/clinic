@@ -62,6 +62,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Surgery, follow-up, payment and settlement expansion plan (2026-07-28)](product/2026-07-28-surgery-follow-up-expansion-plan.md) — plan-only normalization of the owner-provided surgery workflow into a separate Expansion S track, including Calendar inbound review, clinical/financial data boundaries and D-014～D-016
 - [Stage 2 identity and cloud change plan (2026-07-28)](architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md) — plan-only translation of approved D-006/D-010 values into reviewable identity, MFA, session, revocation, delegation-code and isolated-staging slices
 - [第一階段 RC 交付計畫（2026-11-08）](plans/2026-11-08-phase1-rc-delivery-plan.md) — PLAN-ONLY／現行唯一計畫入口與進度台帳：11/30 目標為上線候選版（RC），含 CP-10 歸屬、待決期限、時程與 59 包總表；不是核准或證據。
+- [C2～C6 RC 部署申請草稿（2026-11-15）](plans/2026-11-15-c2-c6-rc-deployment-requests.md) — DRAFT／逐片申請，不是核准；每片部署前負責人逐片同意
 - [第一階段 RC 細部包（2026-11-08）](plans/2026-11-08-phase1-rc-packets.md) — PLAN-ONLY：70 包（manifest 59＋RC-01～RC-11）逐包作法與 254 個 finding 對照。
 - [RC-11 治理分工與每週讀回](plans/2026-11-09-rc11-governance-review.md) — 待負責人審閱的角色分工提案與每週檢查清單；不授權部署或雲端操作。
 - [E3-07 共用停寫來源候選（2026-11-02）](plans/2026-11-02-sol-maintenance-source-control.md) — SOURCE-ONLY：共用到期 reader、unknown-default 拒絕、API／worker／排程准入及在途 callback 計數；不建 store、不接 provider，計數不是全域零寫入或還原授權。
