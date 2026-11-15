@@ -3576,29 +3576,6 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   background-color: var(--clinic-sage-50);
 }
 
-/* 2026-11-15：電話與地址連結長得像輸入框，改回底線文字（R-2 底線即可辨識；
-   R-3 以 min-height 2.75rem 保住 44px）。頁尾預約鈕、隱私權、社群維持按鈕外觀。 */
-.clinic-hero-fact a:not(.clinic-social),
-.clinic-footer address a {
-  display: inline-flex;
-  min-height: 2.75rem;
-  align-items: center;
-  padding: 0;
-  color: var(--clinic-forest);
-  background-color: transparent;
-  border-color: transparent;
-  border-radius: 0;
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 0.25em;
-}
-
-.clinic-hero-fact a:not(.clinic-social):hover,
-.clinic-footer address a:hover {
-  background-color: transparent;
-  text-decoration-thickness: 2px;
-}
-
 /* 純色區塊改成柔和漸層（2026-10-25，負責人：「單色背景看要不做點漸層」）。每區保留
    原本的底色當 background-color，上面疊一層同色系的直向漸層與一處淡白光暈：
    色階只在相鄰的品牌 token 之間移動，不新增顏色，文字對比不受影響（底色最深處仍是
