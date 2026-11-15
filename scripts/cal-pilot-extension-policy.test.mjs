@@ -172,8 +172,8 @@ describe('CAL-PILOT extension policy', () => {
     ).toThrow('final seven days');
     expect(
       nextHostingExpiry({
-        now: '2026-11-20T04:51:37Z',
-        currentExpiry: '2026-11-22T04:51:37Z',
+        now: '2026-12-24T04:51:37Z',
+        currentExpiry: '2026-12-26T04:51:37Z',
         targetExpiry: CAL_PILOT_EXTENDED_EXPIRY
       })
     ).toBe(CAL_PILOT_EXTENDED_EXPIRY.replace('Z', '.000Z'));
