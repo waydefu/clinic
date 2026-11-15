@@ -48,7 +48,7 @@ async function seed(): Promise<void> {
   await db.collection('calendar_pilot_configuration').doc('active').set({
     activeSourceId: 'calendar_source_primary',
     version: 1,
-    expiresAt: '2026-11-28T04:51:37Z',
+    expiresAt: '2026-12-31T04:51:37Z',
     health: 'healthy',
     lastSuccessfulSyncAt: NOW,
     nextScheduledSyncAt: '2026-09-06T08:05:00.000Z',

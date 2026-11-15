@@ -9,7 +9,7 @@ $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
 $projectId = 'beauessence-clinic-staging'
 $channel = 'cal-pilot'
-$approvedTarget = '2026-11-28T04:51:37Z'
+$approvedTarget = '2026-12-31T04:51:37Z'
 $renewalWindow = [TimeSpan]::FromDays(7)
 $maximumLifetime = [TimeSpan]::FromDays(30)
 

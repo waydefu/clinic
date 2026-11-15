@@ -19,7 +19,7 @@ $PSNativeCommandUseErrorActionPreference = $true
 $projectId = 'beauessence-clinic-staging'
 $region = 'asia-east1'
 $channel = 'cal-pilot'
-$expectedApplicationExpiry = '2026-11-28T04:51:37Z'
+$expectedApplicationExpiry = '2026-12-31T04:51:37Z'
 $expectedSchedulerMember = "serviceAccount:cal-pilot-scheduler@$projectId.iam.gserviceaccount.com"
 $approvedSecrets = @(
   'cal-pilot-manager-allowlist',

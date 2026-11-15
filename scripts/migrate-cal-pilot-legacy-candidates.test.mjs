@@ -11,7 +11,7 @@ const request = {
   expectedCount: 1,
   expectedSourceGeneration: 1
 };
-const expiry = Date.parse('2026-11-28T04:51:37Z');
+const expiry = Date.parse('2026-12-31T04:51:37Z');
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -35,7 +35,7 @@ describe('CAL-PILOT migration expiry', () => {
     clock.mockReturnValueOnce(expiry - 1);
     clock.mockReturnValue(expiry);
     const configuration = {
-      expiresAt: '2026-11-28T04:51:37Z',
+      expiresAt: '2026-12-31T04:51:37Z',
       version: 1,
       activeSourceId: 'synthetic_primary',
       inboundEnabled: false,

@@ -99,7 +99,7 @@ test.describe('CAL-PILOT controlled correction workbench', () => {
             nextScheduledSyncAt: null,
             pendingCandidateCount: 1,
             conflictCount: 0,
-            expiresAt: '2026-11-28T04:51:37Z'
+            expiresAt: '2026-12-31T04:51:37Z'
           }
         });
         return;

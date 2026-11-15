@@ -189,7 +189,7 @@ Scheduler paused 與雙開關關閉。
 ## 8. 到期、續期與費用
 
 應用程式在核准的精確 UTC 時間 fail closed；Scheduler 與 Hosting channel 也須
-停止／到期。延長套用後的 kill switch 是 `2026-11-28T04:51:37Z`。
+停止／到期。延長套用後的 kill switch 是 `2026-12-31T04:51:37Z`（2026-11-14 延長，見 APPROVAL-RC-2026-11-14；原 2026-11-28T04:51:37Z 為歷史）。
 NT$30 的 50%／80%／100% 通知（約 NT$15／24／30）使用
 2026-08-30～2026-11-28 的單一 custom period，不按月重設；Cloud Billing API
 使用不含尾日的 `endDate`，所以 Terraform 寫入 `2026-11-29`。它是告警，不是硬上限。低流量可能接近
@@ -216,7 +216,7 @@ NT$30 的 50%／80%／100% 通知（約 NT$15／24／30）使用
 
 - Preview channel 一次最多延長 30 天。只在剩餘七天內執行
   `cal-pilot-renew-hosting.ps1`；下一期限固定為
-  `min(now + 30 days, 2026-11-28T04:51:37Z)`。
+  `min(now + 30 days, 2026-12-31T04:51:37Z)`。（2026-11-14 延長，見 APPROVAL-RC-2026-11-14；原 2026-11-28T04:51:37Z 為歷史）
 - 續期前後必須是同一 Hosting version；腳本只 PATCH `expireTime`，不得建立
   release、重建網站或改 Identity authorized domain。
 - 若續期失敗或過期，不改 live channel；讓 preview fail closed，依緊急停止流程
