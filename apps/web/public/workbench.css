@@ -274,7 +274,47 @@ html.synthetic-workbench-ready .cp-boot-status {
 }
 .compact-hero {
   grid-template-columns: minmax(0, 1.6fr) minmax(18rem, 0.6fr);
-  padding: clamp(1.4rem, 3vw, 2.4rem);
+  padding: var(--space-sm) var(--space-lg);
+}
+/* 2026-11-16：原 h1#workspace-title 改成 p（頁面 h1 只留 visually-hidden 那個），樣式照 h1 搬過來。 */
+.workspace-title {
+  font-family: var(--font-serif);
+  font-size: clamp(
+    var(--text-2xl),
+    calc(var(--text-2xl) * 0.5 + 2.25vw),
+    var(--text-3xl)
+  );
+  letter-spacing: var(--tracking-display);
+  line-height: var(--leading-display);
+  margin-bottom: var(--space-2xs);
+}
+/* R-2：收合鈕要一直看得出能點，給外框與方向箭頭（inline-flex 會吃掉原生三角形）。 */
+.hero-details > summary {
+  align-items: center;
+  border: 1px solid var(--on-inverse-muted);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  display: inline-flex;
+  gap: var(--space-2xs);
+  list-style: none;
+  min-height: 2.75rem;
+  padding: 0 var(--space-sm);
+}
+.hero-details > summary::-webkit-details-marker {
+  display: none;
+}
+.hero-details > summary::after {
+  content: '▾';
+}
+.hero-details[open] > summary::after {
+  content: '▴';
+}
+.hero-details > summary:focus-visible {
+  outline: 3px solid var(--on-inverse);
+  outline-offset: 3px;
+}
+.hero-details[open] > :not(summary) {
+  margin-top: var(--space-2xs);
 }
 /* 主管發布的公告帶，排在深色主視覺下方；原本沒有樣式，字直接貼著卡片底。 */
 .operations-announcement {
@@ -312,15 +352,12 @@ html.synthetic-workbench-ready .cp-boot-status {
     gap: var(--space-sm);
     padding: var(--space-md) var(--space-sm);
   }
-  .compact-hero .hero-copy h1 {
+  .compact-hero .workspace-title {
     font-size: var(--text-xl);
     margin-bottom: var(--space-2xs);
   }
-  .compact-hero .hero-copy > p:not(.eyebrow) {
+  .compact-hero .hero-details > p {
     margin-bottom: var(--space-2xs);
-  }
-  .compact-hero .safety-list {
-    margin-top: var(--space-2xs);
   }
   .compact-hero .environment-card {
     align-items: center;
@@ -330,7 +367,6 @@ html.synthetic-workbench-ready .cp-boot-status {
     grid-template-columns: minmax(0, 1fr) auto;
     padding-top: var(--space-sm);
   }
-  .compact-hero .environment-card > .eyebrow,
   .compact-hero .environment-card > p {
     grid-column: 1 / -1;
   }

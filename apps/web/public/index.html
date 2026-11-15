@@ -252,20 +252,23 @@
           aria-labelledby="workspace-title"
         >
           <div class="hero-copy">
-            <p class="eyebrow eyebrow-brand">BEAU ESSENCE · OPERATIONS</p>
-            <h1 id="workspace-title">預約營運工作臺</h1>
-            <p>
-              依照「今日待辦 → 預約與回診 → 營業時間 → 個管 →
-              系統治理」完成診所日常工作。
-            </p>
-            <ul class="safety-list" aria-label="測試安全界線">
-              <li>資料只保存在這台裝置的瀏覽器</li>
-              <li>無 Firebase 資料庫與外部日曆連線</li>
-              <li>公開預覽，網址持有人皆可存取</li>
-            </ul>
+            <!-- 2026-11-16：頁面唯一的 h1 是上方 visually-hidden 那個；這裡改成 p，避免讀屏聽到兩次標題。 -->
+            <p id="workspace-title" class="workspace-title">預約營運工作臺</p>
+            <!-- 2026-11-16：流程句與測試環境清單收進摺疊區，主視覺縮矮、摘要卡進首屏。 -->
+            <details class="hero-details">
+              <summary>工作說明與測試環境</summary>
+              <p>
+                依照「今日待辦 → 預約與回診 → 營業時間 → 個管 →
+                系統治理」完成診所日常工作。
+              </p>
+              <ul class="safety-list" aria-label="測試安全界線">
+                <li>資料只保存在這台裝置的瀏覽器</li>
+                <li>無 Firebase 資料庫與外部日曆連線</li>
+                <li>公開預覽，網址持有人皆可存取</li>
+              </ul>
+            </details>
           </div>
           <aside class="environment-card">
-            <p class="eyebrow">CURRENT SESSION</p>
             <h2 id="current-account-label">載入中</h2>
             <p id="current-account-boundary">這不是正式 Authentication。</p>
             <span id="schedule-version-chip" class="status-chip is-available"
@@ -290,7 +293,6 @@
         >
           <div class="section-heading">
             <div>
-              <p class="eyebrow">DAILY OVERVIEW</p>
               <h2 id="overview-heading">今日營運與待辦</h2>
             </div>
             <p class="section-description">
