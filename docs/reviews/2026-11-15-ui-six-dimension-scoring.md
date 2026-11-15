@@ -2,7 +2,10 @@
 
 - 評分者：Claude（Fable 5.2，獨立評審角色），依負責人提供的評分提示詞。
 - 受評版本：官網、預約頁、隱私權頁為 PR #393（`722f6d9f`）；工作台為 PR #435（`1fa6bf43`），並與
-  #393 比較。兩個 PR 都已合併；受評檔案在 `722f6d9f` 與 2026-11-15 的 main（`e725cad9`）之間沒有差異。
+  #393 比較。兩個 PR 都已合併。官網、預約頁、隱私權頁的受評檔案在 `722f6d9f` 與 2026-11-15 的 main
+  （`e725cad9`）之間沒有差異。工作台的 `index.html`、`workbench.css` 在 `1fa6bf43` 與 `e725cad9` 之間也
+  沒有差異；`admin-bootstrap.js` 之後有改（電話遮罩、表單提示、分頁文字），不影響本文扣分的首屏與
+  摘要卡畫面，但那些行為以 `e725cad9` 為準，未重新評分。
 - 材料：52 張整頁截圖（1440／390）、截圖索引、研究文件 07／10／13／16／29／35／36／43 號。材料包當時放在
   本機暫存資料夾，**沒有收進 repo**。
 - 計分：六項各自從 100 分往下扣，總分 = Σ（項目分數 × 權重 ÷ 100）。權重：視覺 20、易用性 25、動效 10、
@@ -220,14 +223,30 @@
 ## 修正進度
 
 第一批（2026-11-15，分支 `agent/ui-scoring-fixes-20261115`，只動官網、不碰負責人已決定的按鈕樣式）：
-O-M1、O-V4／O-U2／O-A1、O-R1、O-V8、O-R3，以及預約頁 B-U2（只換白話、意思不變）。本文件所在 commit
+O-M1、O-R1、O-V8、O-R3，以及預約頁 B-U2（只換白話、意思不變）。本文件所在 commit
 請用 `git log -- docs/reviews/2026-11-15-ui-six-dimension-scoring.md` 查。
+
+撤回：O-V4／O-U2／O-A1 曾把電話、地址改成底線文字，與負責人 2026-10-25「盡量不要文字連結」及
+2026-11-04 圓角連結鈕的決定衝突，已撤回；這三項維持扣分，改由 O-A2 的框色加深處理對比。
+
+第二批（2026-11-16，同一分支，負責人選項見[決定紀錄](../product/phase-1-decision-register.md)
+2026-11-15 條）：O-V1／O-U1 主要按鈕改淺綠底（負責人選「淺綠如何」，非實心深綠）；O-A2 框色加深到
+`--clinic-green`；O-V5 負責人選保留 ✦，不改。預約頁 B-V2（拿掉 STEP 小標；「BEAU ESSENCE · ONLINE
+BOOKING」有測試綁定，保留）、B-V3／B-R3、B-V4、B-A1、B-A2、B-U5。三個凍結檔依同條紀錄重算一次。
+
+工作台（PR #519，分支 `agent/staff-scoring-fixes-20261116`）：S-V1／S-U1／S-R1（說明收進可展開區）、
+S-V2、S-A1。**S-U2 是評分錯誤**：首頁「可預約時段」只算今天（T2-WB-02），今天 0 不代表沒地方約；
+照建議改成「設定營業時間」後 `calendar-pilot-correction.spec.ts:203` 失敗，已撤回，這 4 分不應扣。
+
+第二批驗證（`TEST-VERIFIED`，本機 Edge）：官網與預約頁相關 Playwright 135 passed；`check:docs`、
+`check:tokens`、`check:ui`、Prettier PASS。工作台：相關 8 個測試檔 214 passed、加收合鈕樣式後版面與主題
+測試 118 passed，`check:ui`、`check:tokens` PASS。webkit、行動裝置專案與 `check:perf` NOT_RUN，交給 CI。
 
 第一批驗證（`TEST-VERIFIED`，本機）：`check:docs`、`check:tokens`、`check:ui`、Prettier 皆 PASS；Playwright
 `clinic-motion`、`affordance`、`clinic-site` 三支加 `patient-booking` 回診狀態一項共 49 passed。限制：本機無
 Playwright 自帶瀏覽器，改用系統 Edge（`channel: 'msedge'`）；`node_modules` 借用鎖定檔不同的工作樹；
 `check:perf` NOT_RUN（需要完整 `pnpm build`，本次未新增資源）；webkit 與行動裝置專案 NOT_RUN，交給 CI。
 
-尚未處理：需負責人決定的 O-V1／O-U1、O-A2、O-V5；預約頁 B-V1／B-U4（`#patient-status` 是唯一的
-aria-live 播報點，測試綁住其顯示行為，需另行設計）與其他預約頁項目；隱私權頁（法律文字）；工作台各項；
-需要素材的 O-V2、O-V3。首頁「門診時間與交通」區的電話仍是方框樣式，與首屏、頁尾不一致，待下一批。
+尚未處理：預約頁 B-V1／B-U4（`#patient-status` 是唯一的 aria-live 播報點，測試綁住其顯示行為，需另行
+設計）、B-V5、B-U1、B-U3、B-R1、B-R2、B-A3、B-P1、B-P2；隱私權頁（法律文字）；工作台 S-V3～S-V5、
+S-U3、S-U4、S-A2、S-A3、S-P1；需要素材的 O-V2、O-V3。
