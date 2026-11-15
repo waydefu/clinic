@@ -2,7 +2,7 @@ import { isUtcIsoTimestamp } from '../apps/web/public/vendor/domain/timestamp.js
 
 export const CAL_PILOT_PROJECT_ID = 'beauessence-clinic-staging';
 export const CAL_PILOT_ORIGINAL_EXPIRY = '2026-09-29T04:51:37Z';
-export const CAL_PILOT_EXTENDED_EXPIRY = '2026-11-28T04:51:37Z';
+export const CAL_PILOT_EXTENDED_EXPIRY = '2026-12-31T04:51:37Z';
 export const CAL_PILOT_SOURCE_IDS = [
   'calendar_source_primary',
   'calendar_source_secondary'

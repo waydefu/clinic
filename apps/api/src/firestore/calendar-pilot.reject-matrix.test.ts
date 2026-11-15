@@ -114,7 +114,7 @@ const PARSED = {
 const CONFIGURATION = {
   activeSourceId: SOURCE_ID,
   version: 1,
-  expiresAt: '2026-11-28T04:51:37Z',
+  expiresAt: '2026-12-31T04:51:37Z',
   health: 'healthy',
   lastSuccessfulSyncAt: NOW,
   nextScheduledSyncAt: null,
