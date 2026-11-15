@@ -54,7 +54,7 @@ async function seed(overrides: Record<string, unknown> = {}): Promise<void> {
     .set({
       activeSourceId: 'calendar_source_primary',
       version: 1,
-      expiresAt: '2026-11-28T04:51:37Z',
+      expiresAt: '2026-12-31T04:51:37Z',
       health: 'degraded',
       inboundEnabled: false,
       outboundEnabled: false,

@@ -22,7 +22,7 @@ $PSNativeCommandUseErrorActionPreference = $true
 $projectId = 'beauessence-clinic-staging'
 $region = 'asia-east1'
 $channel = 'cal-pilot'
-$expectedExpiry = '2026-11-28T04:51:37Z'
+$expectedExpiry = '2026-12-31T04:51:37Z'
 $approvedSecrets = @(
   'cal-pilot-manager-allowlist',
   'cal-pilot-firebase-web-api-key',

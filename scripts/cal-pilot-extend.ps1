@@ -19,7 +19,7 @@ $projectId = 'beauessence-clinic-staging'
 $region = 'asia-east1'
 $channel = 'cal-pilot'
 $approvedCurrentExpiry = '2026-09-29T04:51:37Z'
-$approvedExtendedExpiry = '2026-11-28T04:51:37Z'
+$approvedExtendedExpiry = '2026-12-31T04:51:37Z'
 $approvedSecrets = @(
   'cal-pilot-manager-allowlist',
   'cal-pilot-firebase-web-api-key',

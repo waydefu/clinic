@@ -20,7 +20,7 @@ never allow Terraform to replace them. State must use a reviewed encrypted
 GCS backend before any apply; pass its bucket and a staging-only prefix to
 `terraform init -backend-config`, and enable uniform access, public-access
 prevention and object versioning on that bucket. The approved
-`2026-11-28T04:51:37Z` expiry remains an application kill switch even if
+`2026-12-31T04:51:37Z` expiry (extended 2026-11-14, see APPROVAL-RC-2026-11-14; the original `2026-11-28T04:51:37Z` is historical) remains an application kill switch even if
 cleanup is delayed.
 
 Pass the owner-approved billing account through the sensitive

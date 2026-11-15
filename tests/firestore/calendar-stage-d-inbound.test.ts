@@ -199,7 +199,7 @@ describe('Stage D Calendar inbound emulator', () => {
     await db.collection('calendar_pilot_configuration').doc('active').set({
       activeSourceId: SOURCE,
       version: 1,
-      expiresAt: '2026-11-28T04:51:37Z',
+      expiresAt: '2026-12-31T04:51:37Z',
       health: 'healthy',
       inboundEnabled: true,
       outboundEnabled: true

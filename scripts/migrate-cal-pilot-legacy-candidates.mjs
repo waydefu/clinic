@@ -5,7 +5,7 @@ import { getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
 const APPROVED_PROJECT = 'beauessence-clinic-staging';
-const APPROVED_EXPIRY = '2026-11-28T04:51:37Z';
+const APPROVED_EXPIRY = '2026-12-31T04:51:37Z';
 const MIGRATION_REASON = 'legacy_candidate_requires_resync';
 
 function assertMigrationNotExpired() {
