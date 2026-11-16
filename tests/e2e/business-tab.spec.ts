@@ -544,7 +544,7 @@ test.describe('商務與驗收工作區', () => {
             'Content-Disposition':
               'attachment; filename="export-2026-09-01-2026-09-30.csv"'
           },
-          body: 'opaque_id,created_at\nbooking_test_001,2026-09-01T00:00:00.000Z\n'
+          body: '\uFEFFopaque_id,created_at\nbooking_test_001,2026-09-01T00:00:00.000Z\n'
         });
       }
       if (path.endsWith('/revoke') && request.method() === 'POST') {
@@ -587,6 +587,8 @@ test.describe('商務與驗收工作區', () => {
     expect(download.suggestedFilename()).toBe(
       'export-2026-09-01-2026-09-30.csv'
     );
+    const saved = await readFile(await download.path());
+    expect([...saved.subarray(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
     await page.getByRole('button', { name: '查詢狀態' }).click();
     await expect(page.locator('#business-section')).toContainText(
       '剩餘 2 次下載'
