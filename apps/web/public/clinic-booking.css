@@ -340,9 +340,23 @@ html {
   }
 }
 
+/* 2026-11-16：資訊卡在手機不顯示，改在標題下補一行電話（純文字、不是連結），
+   卡住的人不必捲到頁尾。一行高，不會動到 mobile-layout.spec 守的首屏位置。 */
+.booking-hero-phone {
+  display: none;
+}
+
 @media (max-width: 48rem) {
   .booking-facts {
     display: none;
+  }
+
+  /* styles.css 手機版會藏 `.patient-hero > div > p:last-of-type`（0,2,2），這行剛好是最後一段，要更高特異度。 */
+  .patient-hero > div > p.booking-hero-phone {
+    color: var(--ink);
+    display: block;
+    font-size: var(--text-body);
+    margin: var(--space-2xs) 0 0;
   }
 }
 

@@ -247,6 +247,18 @@ S-V2、S-A1。**S-U2 是評分錯誤**：首頁「可預約時段」只算今天
 Playwright 自帶瀏覽器，改用系統 Edge（`channel: 'msedge'`）；`node_modules` 借用鎖定檔不同的工作樹；
 `check:perf` NOT_RUN（需要完整 `pnpm build`，本次未新增資源）；webkit 與行動裝置專案 NOT_RUN，交給 CI。
 
-尚未處理：預約頁 B-V1／B-U4（`#patient-status` 是唯一的 aria-live 播報點，測試綁住其顯示行為，需另行
-設計）、B-V5、B-U1、B-U3、B-R1、B-R2、B-A3、B-P1、B-P2；隱私權頁（法律文字）；工作台 S-V3～S-V5、
-S-U3、S-U4、S-A2、S-A3、S-P1；需要素材的 O-V2、O-V3。
+第三批（2026-11-16）：
+- 預約頁（#518）：B-U1 查證後發現選項目本來就自動換步，不缺按鈕，只加一行說明；B-R2 手機標題下加純文字
+  求助電話，附回歸測試（曾被 `styles.css` 手機版規則藏掉）；B-A3 查證為帶 `aria-pressed` 的按鈕，不改。
+  `clinic-booking.css` 依負責人「可以重算」再重算一次。
+- 工作台（#519）：S-V4 摘要數字放大加粗；S-V5「患者預約頁」去底線、44px；S-A3 文字符號圖示改內嵌 SVG；
+  S-U3 導覽分「每日」「設定與管理」兩組（未加數字徽章）；S-A2 量測後三種主題皆 ≥ 4.94:1，不改。
+- 驗證（本機 Edge）：預約頁相關 142 passed，修正電話顯示後 73 passed；工作台相關 230 passed（另 2 項長跑
+  逾時，單獨重跑通過）、導覽修正後 71 passed；凍結、`check:ui`、`check:tokens`、`check:docs`、Prettier PASS。
+
+不做（與決定或守門衝突）：B-R1 與 2026-10-25「手機版預約頁補回官網」衝突；B-V5 與 S-U4 的元素是
+`check:ui` 必備項；B-P2 需要放寬 CSP；B-U3 預選會直接跳過第一步，建議不改。
+
+尚未處理：B-V1／B-U4（`#patient-status` 是唯一 aria-live 播報點，且捲動時會蓋住第一步標題，需另行設計）、
+S-V3（登入提示與測試聲明，受 `check:ui` 約束）；效能 B-P1、S-P1（需在 CI 量 `check:perf`）；隱私權頁（法律
+文字）；需要素材的 O-V2、O-V3。

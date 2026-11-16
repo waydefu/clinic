@@ -42,6 +42,17 @@ test.describe('患者線上預約', () => {
     await expect(footer).not.toContainText('週四');
   });
 
+  // 2026-11-16：手機不放資訊卡，標題下要看得到求助電話；桌機有資訊卡就不重複。
+  // 曾被 styles.css 手機版「標題帶最後一段隱藏」規則蓋掉，這裡守住。
+  test('手機標題下看得到求助電話，桌機不重複', async ({ page }) => {
+    const phone = page.locator('.booking-hero-phone');
+    await expect(phone).toBeHidden();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(phone).toBeVisible();
+    await expect(phone).toHaveText('需要協助請來電 02-2577-1314');
+    await expect(phone.locator('a')).toHaveCount(0);
+  });
+
   test('初次載入停在頁首，三步驟依序採指定的全寬版面', async ({ page }) => {
     // The one-month booking horizon spans two month tabs in mid-month.
     // At month end the first month's slots can all be past; wall-clock time

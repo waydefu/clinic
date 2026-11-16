@@ -180,6 +180,9 @@
           <div class="patient-hero-inner">
             <p class="eyebrow eyebrow-brand">BEAU ESSENCE · ONLINE BOOKING</p>
             <h1 id="patient-title">線上門診預約</h1>
+            <!-- 2026-11-16：手機不顯示資訊卡，卡住的人要捲到頁尾才找得到電話；
+                 這行只在手機顯示，純文字不是連結（2026-10-20 決定）。 -->
+            <p class="booking-hero-phone">需要協助請來電 02-2577-1314</p>
             <!-- 診所資訊卡：門診時間、地址、電話與健保特約標章，放在標題下方。它在
                  標題帶（#patient-hero）裡，所以只在第一步出現——patient-app.js 在第二、
                  三步與結果頁會把整個標題帶設成 hidden（display:none），卡片跟著離開
@@ -312,6 +315,10 @@
                   role="group"
                   aria-labelledby="service-choice-heading"
                 ></div>
+                <!-- 2026-11-16：點選看診項目會自動進到下一步，先說明以免誤以為沒反應。 -->
+                <p class="field-hint booking-service-hint">
+                  選好看診項目後，會自動進到選擇時段。
+                </p>
                 <p class="field-hint booking-service-hint">
                   本診所為全民健康保險特約醫事服務機構，門診看診依健保規定辦理；自費項目由醫師於門診時說明。
                 </p>

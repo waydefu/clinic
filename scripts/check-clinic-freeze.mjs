@@ -70,6 +70,9 @@ import { fileURLToPath } from 'node:url';
  * border and keeping the ✦ bullets (register 2026-11-15 entry "官網六項評分修正").
  * That authorises one rebaseline of clinic-site.js, clinic-site.css and
  * clinic-booking.css. Every other file, asset and guard behaviour is unchanged.
+ * 2026-11-16: third batch (mobile-only help phone line on the booking page);
+ * the owner answered "可以重算" (same register entry). One more rebaseline of
+ * clinic-booking.css only.
  */
 export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic.html':
@@ -81,7 +84,7 @@ export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic-content.js':
     '64b434c15c942ac2f183a3b177c89e431d38d502c24727aefb3d836dba8006c4',
   'apps/web/public/clinic-booking.css':
-    'a0b1200c458ccde3269cb5cb647c3e3063852ca454e9428077aff7217044b264',
+    '38c41e2bedbfd834e19e0a6ce27caa3cdd02091e6047657c13531bd50d6adf71',
   'apps/web/clinic-assets.manifest.json':
     '56bce15f8632fd5309689d953e9a0a92a67e6f9c604120fd4ce32e0151ada633',
   'apps/web/public/clinic-assets/care-aftercare.webp':
