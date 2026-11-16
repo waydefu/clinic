@@ -194,7 +194,23 @@
           </div>
           <details class="topbar-tools" open>
             <summary aria-label="開啟工作臺設定">
-              <span aria-hidden="true">&#9881;</span><strong>工作臺設定</strong>
+              <!-- 2026-11-16 文字符號改 inline SVG：各字型長相不同（S-A3）。 --><svg
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <circle cx="12" cy="12" r="3" />
+                <path
+                  d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"
+                /></svg
+              ><strong>工作臺設定</strong>
             </summary>
             <div class="topbar-actions">
               <button id="logout" class="button button-secondary" type="button">
@@ -218,26 +234,71 @@
         aria-controls="workspace-navigation"
         hidden
       >
-        工作區導覽<span aria-hidden="true">☰</span>
+        工作區導覽<svg
+          viewBox="0 0 24 24"
+          width="20"
+          height="20"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
       </button>
       <nav
         id="workspace-navigation"
         class="workspace-nav"
         aria-label="管理工作臺導覽"
       >
-        <a href="#overview" data-workspace-nav>營運首頁</a
-        ><a href="#appointments-section" data-workspace-nav>預約與回診</a
-        ><a href="#schedule-section" data-workspace-nav data-admin-nav
-          >營業時間</a
-        ><a href="#case-section" data-workspace-nav>個管指派</a
-        ><a href="#accounts-section" data-workspace-nav data-admin-nav
-          >員工權限</a
-        ><a href="#communications-section" data-workspace-nav data-admin-nav
-          >患者端與系統</a
-        ><a href="#audit-section" data-workspace-nav data-admin-nav>稽核紀錄</a
-        ><a href="#business-section" data-workspace-nav data-admin-nav
-          >商務與驗收</a
-        >
+        <!-- 2026-11-16 分「每日／設定與管理」兩組（S-U3）：群組標籤只是文字，
+             連結的 href、data-* 不變，JS 與測試照舊選得到。設定群組掛
+             data-admin-nav：櫃台登入時整組移除，不留空標題。 -->
+        <div class="workspace-nav-group">
+          <p id="workspace-nav-daily" class="workspace-nav-label">每日</p>
+          <ul aria-labelledby="workspace-nav-daily">
+            <li><a href="#overview" data-workspace-nav>營運首頁</a></li>
+            <li>
+              <a href="#appointments-section" data-workspace-nav>預約與回診</a>
+            </li>
+            <li><a href="#case-section" data-workspace-nav>個管指派</a></li>
+          </ul>
+        </div>
+        <div class="workspace-nav-group" data-admin-nav>
+          <p id="workspace-nav-admin" class="workspace-nav-label">設定與管理</p>
+          <ul aria-labelledby="workspace-nav-admin">
+            <li>
+              <a href="#schedule-section" data-workspace-nav data-admin-nav
+                >營業時間</a
+              >
+            </li>
+            <li>
+              <a href="#accounts-section" data-workspace-nav data-admin-nav
+                >員工權限</a
+              >
+            </li>
+            <li>
+              <a
+                href="#communications-section"
+                data-workspace-nav
+                data-admin-nav
+                >患者端與系統</a
+              >
+            </li>
+            <li>
+              <a href="#audit-section" data-workspace-nav data-admin-nav
+                >稽核紀錄</a
+              >
+            </li>
+            <li>
+              <a href="#business-section" data-workspace-nav data-admin-nav
+                >商務與驗收</a
+              >
+            </li>
+          </ul>
+        </div>
       </nav>
       <main id="main-content" class="dashboard" tabindex="-1">
         <!-- 常駐頁面標題：hero 區（含可見 h1#workspace-title）在切換到各工作區
@@ -307,7 +368,19 @@
                 href="#appointments-section"
                 data-booking-shortcut
                 ><span class="summary-action-icon" aria-hidden="true"
-                  >&#8594;</span
+                  ><svg
+                    viewBox="0 0 24 24"
+                    width="12"
+                    height="12"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path d="M5 12h14M13 6l6 6-6 6" /></svg></span
                 >建立預約</a
               >
             </article>
@@ -315,7 +388,19 @@
               <span>待處理預約</span><strong id="confirmed-count">0</strong
               ><a class="summary-action" href="#appointments-section"
                 ><span class="summary-action-icon" aria-hidden="true"
-                  >&#10003;</span
+                  ><svg
+                    viewBox="0 0 24 24"
+                    width="12"
+                    height="12"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path d="M5 12.5l4.5 4.5L19 7.5" /></svg></span
                 >處理預約</a
               >
             </article>
@@ -323,7 +408,21 @@
               <span>已完成到診</span><strong id="completed-count">0</strong
               ><a class="summary-action" href="#case-section"
                 ><span class="summary-action-icon" aria-hidden="true"
-                  >&#9783;</span
+                  ><svg
+                    viewBox="0 0 24 24"
+                    width="12"
+                    height="12"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path
+                      d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"
+                    /></svg></span
                 >查看個管</a
               >
             </article>

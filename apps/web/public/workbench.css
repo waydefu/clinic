@@ -252,6 +252,63 @@ html.synthetic-workbench-ready .cp-boot-status {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+/* 2026-11-16 頂欄「患者預約頁」與登出鈕同為次要按鈕：去掉 a 的預設底線，高度 44px（S-V5）。 */
+.topbar-actions a.button {
+  min-height: var(--control-height-md);
+  text-decoration: none;
+}
+/* 2026-11-16 導覽分組（S-U3）：標籤是純文字、不可點；清單去掉項目符號。
+   寬螢幕與手機展開都直排；平板橫向捲動時兩組並排。 */
+.workspace-nav-group {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--space-3xs);
+}
+.workspace-nav-group ul {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3xs);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.workspace-nav-label {
+  color: var(--ink-muted);
+  flex: 0 0 auto;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-bold);
+  margin: 0;
+  padding: 0 var(--space-2xs);
+}
+.workspace-nav-group:not(:first-child) {
+  border-left: 1px solid var(--line);
+  margin-left: var(--space-2xs);
+  padding-left: var(--space-2xs);
+}
+@media (min-width: 64rem) {
+  .app-shell-wide > .workspace-nav .workspace-nav-group,
+  .app-shell-wide > .workspace-nav .workspace-nav-group ul {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .app-shell-wide > .workspace-nav .workspace-nav-group:not(:first-child) {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    margin-left: 0;
+    margin-top: var(--space-xs);
+    padding-left: 0;
+    padding-top: var(--space-xs);
+  }
+  .app-shell-wide > .workspace-nav .workspace-nav-label {
+    padding: 0 var(--space-xs);
+  }
+  /* 分組多包一層 li，連結要撐滿側欄寬，選中底色才會跟分組前一樣整條。 */
+  .app-shell-wide > .workspace-nav .workspace-nav-group li {
+    display: flex;
+    flex-direction: column;
+  }
+}
 .session-picker {
   align-items: center;
   color: var(--ink-muted);
@@ -406,6 +463,11 @@ html.synthetic-workbench-ready .cp-boot-status {
 }
 .summary-card a:hover {
   text-decoration: underline;
+}
+/* 2026-11-16 摘要數字是首頁最先要看的資訊，放大加粗（S-V4）。 */
+.summary-card strong {
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-bold);
 }
 /* 情境式指揮中心（階段 4）。
    左邊固定是「下一位」——櫃台整天問最多次的問題；右邊是依急迫性排序的待辦。
@@ -953,6 +1015,19 @@ details[open] > summary .workflow-summary-chevron {
   }
   .workspace-nav[data-collapsed='true'] {
     display: none;
+  }
+  .workspace-nav-group,
+  .workspace-nav-group ul {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .workspace-nav-group:not(:first-child) {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    margin-left: 0;
+    margin-top: var(--space-2xs);
+    padding-left: 0;
+    padding-top: var(--space-2xs);
   }
   .status-banner {
     position: static;
