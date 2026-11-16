@@ -224,6 +224,7 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-11-16 | [INGRESS 唯讀讀回與 RC-06 前提檢查](reviews/2026-11-16-ingress-and-rc06-readback.md) | 三個服務入口與 Terraform 一致；RC-06 因預約閘門過期、Hosting 無 /v1 轉送而未執行 |
 | 2026-11-16 | [RC-05 Cloud Run 流量讀回](reviews/2026-11-16-rc05-traffic-readback.md) | C1 三個服務 100% 跟隨最新 revision，唯讀、無變更 |
 | 2026-11-16 | [RC-07 日曆續期讀回](reviews/2026-11-16-calendar-gate2-readback.md) | C1 日曆設定續到 2026-12-16；cal-pilot 預覽頻道已到期，不重建 |
 | 2026-10-25 | [官網與預約頁綜合評分（v2 標準）](reviews/2026-10-25-public-site-audit-v2.md) | 受評 #302（`a0409c2` 預覽／`acb1d1d` 本機）：官網 64.5／100、預約頁 77／100，視覺 61.8／44.6；官網比 v1 低 4 分主要因標準變嚴（F 上限、H 檔案大小、B 實測）。最大缺口：官網醫療廣告用語、原始 HTML 無正文、節流 LCP 4.3～4.5 秒、官網焦點框對比 2.45:1 |
