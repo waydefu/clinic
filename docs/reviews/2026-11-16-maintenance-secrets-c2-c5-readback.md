@@ -62,3 +62,9 @@
 2. `c1-staff-front-desk-allowlist` v1 與 `c1-synthetic-calendar-id` v1 已被 v2 取代，但仍是 enabled。建議停用舊版本（要另外核准）。
 
 runsheet §7 要求的是「逐工具 admission-before-read canary」與上傳清單檢查，對象是本機工具（Hermes、Claude Code、Codex），不是雲端密鑰。這部分本次未做，仍是 NOT_RUN，需要負責人核准工具清單與 canary 路徑。
+
+## 後續：停用 3 個密鑰版本（2026-11-16，負責人同意）
+
+負責人同意後，Claude 在 2026-11-16 約 13:00 UTC 停用了下列版本（`gcloud secrets versions disable`，可用 `enable` 恢復，沒有刪除）：`c1-calendar-service-account-json` v1、`c1-staff-front-desk-allowlist` v1、`c1-synthetic-calendar-id` v1。
+
+停用前先確認過：api 用的是 front-desk-allowlist v2；outbox 與 calendar-sync 用的是 calendar-id v2；沒有任何服務引用 `c1-calendar-service-account-json`。停用後讀回：上述 3 個版本都是 `disabled`，v2 仍是 `enabled`；Hosting `/booking`、`/staff` 都是 200。`c1-calendar-service-account-json` 的內容沒有讀，現在已經沒有啟用中的版本。
