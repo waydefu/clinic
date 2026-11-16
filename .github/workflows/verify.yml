@@ -73,6 +73,10 @@ jobs:
 
       - run: pnpm verify
 
+      # verify 內的 build 會重新產生 vendor，check:sync 因此比不出舊檔；這裡比對已提交內容。
+      - name: 確認已提交的 domain vendor 檔與建置結果一致
+        run: git diff --exit-code -- apps/web/public/vendor/domain
+
       - name: Run credential-free Terraform mock/noop tests
         env:
           TF_PLUGIN_CACHE_DIR: ${{ runner.temp }}/terraform-plugin-cache
