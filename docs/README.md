@@ -80,6 +80,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [D-series approval packet template](templates/d-series-approval-packet-template.md) — standardised metadata, ceremony checklist, and register update procedure for every D-series approval
 - [Human blocker template](templates/human-blocker-template.md) — exact format for every HUMAN BLOCKER; copy verbatim, do not improvise
 - [Stage F exact-SHA authority packet template](templates/stage-f-exact-sha-authority-packet.md) — post-merge artifact bound to `origin/main`; not a self-invalidating docs commit; owner checkbox stays unchecked
+- [企業級綜合評分標準 v1（2026-11-16）](governance/enterprise-scorecard-standard-v1.md) — 整個專案的 12 面向 100 分差距評分標準：每項外部標準的版本與一手／二手確認程度、DORA 五項指標、等級與證據綁定、上限與 N/A／NOT_RUN 規則、雙軸輸出；第七節列出未解決項目，定稿前不得對其給分
 
 ## 3. Architecture and contracts
 
