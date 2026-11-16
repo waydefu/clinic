@@ -241,9 +241,9 @@ API 必填驗證在 `variables.tf:313–326`，worker 在 `variables.tf:344–35
 | --- | --- | --- | --- | --- |
 | INGRESS B-03 | 待填 | 待填 | NOT_RUN | 待填 |
 | NOTIFICATION B-08 | 待填 | 待填 | NOT_RUN | 待填 |
-| MAINTENANCE E3-07 | 待填 | 待填 | NOT_RUN | 待填 |
+| MAINTENANCE E3-07 | Claude／負責人 2026-11-16 同意唯讀讀回 | `b57d802e`／2026-11-16T12:40Z | NOT_RUN（只做唯讀讀回：worker 不讀控制文件，[讀回](../reviews/2026-11-16-maintenance-secrets-c2-c5-readback.md)） | 未變更 |
 | LEASE D-05、D-12 | 待填 | 待填 | NOT_RUN | 待填 |
-| SECRETS B-31、B-55 | 待填 | 待填 | NOT_RUN | 待填 |
+| SECRETS B-31、B-55 | Claude／負責人 2026-11-16 同意唯讀讀回 | `b57d802e`／2026-11-16T12:40Z | NOT_RUN（只讀雲端密鑰清單與權限；逐工具 canary 未做，[讀回](../reviews/2026-11-16-maintenance-secrets-c2-c5-readback.md)） | 未變更 |
 
 ## 9. 轉交診所：只確認正式文案，不重問已決政策
 
