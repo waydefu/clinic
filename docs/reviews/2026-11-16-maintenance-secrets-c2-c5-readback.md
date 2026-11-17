@@ -34,12 +34,12 @@
 | --- | --- |
 | 控制文件 | Firestore `platform_controls/maintenance` = `underMaintenance: true`（11/16 關窗時設定） |
 | 實測（11/16 窗口） | `false` 時 API 正常；`true` 時直連 run.app 的 `/v1/bookings`、`/v1/calendar-session/client-config` 回 503；Business Delivery 關閉時回 404（見[當天報告](2026-11-16-c1-window-rc06-c3-c4.md)） |
-| 誰讀控制文件 | 只有 API（`apps/api/src/platform/runtime/maintenance-gate.ts`、`maintenance.guard.ts`） |
-| worker | `internal-test-outbox` 不讀控制文件，靠 `INTERNAL_TEST_OUTBOX_PROCESSING_ENABLED=false` 與排程暫停；`internal-test-calendar-sync` 不讀控制文件，靠排程暫停 |
+| 誰讀控制文件 | API（`apps/api/src/platform/runtime/maintenance-gate.ts`、`maintenance.guard.ts`）與兩個 worker（見下列更正） |
+| worker | **2026-11-17 更正**：原寫「worker 不讀控制文件」有誤。`apps/worker/src/internal-test-outbox-main.ts:111` 與 `apps/worker/src/calendar-sync/calendar-pilot-main.ts:83` 都注入 `createFirestoreMaintenanceControl`；outbox 每次執行前 `assertAvailable()`（`internal-test-outbox-runtime.ts:83`），缺文件或讀取失敗即拒絕。這段程式（`dd12d8ff`，11/02）已包含在 11/16 部署的 `df63bb85` worker 映像。另有 `INTERNAL_TEST_OUTBOX_PROCESSING_ENABLED=false` 與排程暫停兩道關 |
 | 排程 | `internal-test-calendar-sync`、`internal-test-outbox-drain` 都 `PAUSED` |
 | 誰能寫 Firestore | 專案層 `roles/datastore.user`：api、calendar-sync、outbox 三個服務帳號；`roles/owner`：1 個人員帳號 |
 
-結論：**不能宣稱「全域停寫」**。[外部驗收 runsheet §5](../plans/2026-10-25-external-acceptance-runsheet.md) 要求全部 writer 都受同一個控制，但 worker 不讀控制文件，只靠環境變數與排程暫停。另外，三個服務帳號都有整個資料庫的寫入權，理論上都能改控制文件。runsheet 的逐 writer 探針、反例與排空測試需要另外的精確授權，本次未做，仍是 NOT_RUN。
+結論：**仍不能宣稱「全域停寫」**。依來源，API 與兩個 worker 都讀同一份控制文件（見上表更正），但 [外部驗收 runsheet §5](../plans/2026-10-25-external-acceptance-runsheet.md) 要求逐 writer 實測，worker 端還沒有雲端實測證據。另外，三個服務帳號都有整個資料庫的寫入權，理論上都能改控制文件。runsheet 的逐 writer 探針、反例與排空測試需要另外的精確授權，本次未做，仍是 NOT_RUN。
 
 ## SECRETS（B-31、B-55）
 
