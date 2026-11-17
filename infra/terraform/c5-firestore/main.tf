@@ -27,11 +27,23 @@ resource "google_firestore_database" "synthetic" {
 # PITR is the 7-day window on the database. This schedule is SHA-gated; default
 # SHA creates zero backups. Apply still needs a fresh exact-SHA packet.
 resource "google_firestore_backup_schedule" "daily" {
-  count      = local.apply_enabled ? 1 : 0
-  project    = var.project_id
-  database   = "(default)"
-  retention  = "2592000s"
+  count     = local.apply_enabled ? 1 : 0
+  project   = var.project_id
+  database  = "(default)"
+  retention = "2592000s"
   daily_recurrence {}
+  depends_on = [google_firestore_database.synthetic]
+}
+
+# BACKUP-B-2026-11-15: weekly backup, 14-week retention (Firestore maximum).
+resource "google_firestore_backup_schedule" "weekly" {
+  count     = local.apply_enabled ? 1 : 0
+  project   = var.project_id
+  database  = "(default)"
+  retention = "8467200s"
+  weekly_recurrence {
+    day = "SUNDAY"
+  }
   depends_on = [google_firestore_database.synthetic]
 }
 
