@@ -63,6 +63,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Stage 2 identity and cloud change plan (2026-07-28)](architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md) — plan-only translation of approved D-006/D-010 values into reviewable identity, MFA, session, revocation, delegation-code and isolated-staging slices
 - [第一階段 RC 交付計畫（2026-11-08）](plans/2026-11-08-phase1-rc-delivery-plan.md) — PLAN-ONLY／現行唯一計畫入口與進度台帳：11/30 目標為上線候選版（RC），含 CP-10 歸屬、待決期限、時程與 59 包總表；不是核准或證據。
 - [C2～C6 RC 部署申請草稿（2026-11-15）](plans/2026-11-15-c2-c6-rc-deployment-requests.md) — DRAFT／逐片申請，不是核准；每片部署前負責人逐片同意
+- [11/18 C1 窗口計畫：補齊 C2～C5 並做 C6（2026-11-18）](plans/2026-11-18-c2-c6-window-plan.md) — 計畫，未執行；核准只涵蓋列出的動作與上限
 - [2026-11-16 RC 雲端窗口執行單](runbooks/2026-11-16-rc-window-runsheet.md) — DRAFT／執行前清單：RC-05、RC-07、INGRESS、RC-06；不授權雲端操作
 - [第一階段 RC 細部包（2026-11-08）](plans/2026-11-08-phase1-rc-packets.md) — PLAN-ONLY：70 包（manifest 59＋RC-01～RC-11）逐包作法與 254 個 finding 對照。
 - [RC-11 治理分工與每週讀回](plans/2026-11-09-rc11-governance-review.md) — 待負責人審閱的角色分工提案與每週檢查清單；不授權部署或雲端操作。
@@ -225,7 +226,7 @@ Newest first. Each entry is dated evidence, not a plan.
 | Date | Review | Result |
 | --- | --- | --- |
 | 2026-11-17 | [C1 IAM 讀回、CI 帳號停用與 E4-14 判斷](reviews/2026-11-17-iam-readback.md) | CI 帳號 13 個角色與來源一致但過大（B-01），WIF 條件落後來源（B-02）且無 workflow 使用，經核准停用該帳號；E4-14 權威來源為 Identity Platform 停用／撤銷，逐請求檢查；B-01、B-02、NEW-10 與 E4-14 實測仍待辦 |
-| 2026-11-16 | [MAINTENANCE、SECRETS、C2、C5 唯讀讀回](reviews/2026-11-16-maintenance-secrets-c2-c5-readback.md) | C2、C5 plan 無差異，TOTP、PITR、每日備份、TTL 與 repo 一致；維護控制只有 API 讀，worker 靠旗標與排程暫停，不能宣稱全域停寫；疑似 SA JSON 密鑰版本與兩個舊版本已於當天停用（#526） |
+| 2026-11-16 | [MAINTENANCE、SECRETS、C2、C5 唯讀讀回](reviews/2026-11-16-maintenance-secrets-c2-c5-readback.md) | C2、C5 plan 無差異，TOTP、PITR、每日備份、TTL 與 repo 一致；API 與兩個 worker 都讀維護控制（11/17 更正原「只有 API 讀」），worker 端未實測，不能宣稱全域停寫；疑似 SA JSON 密鑰版本與兩個舊版本已於當天停用（#526） |
 | 2026-11-16 | [C1 員工端窗口：RC-06、C3 七天登入、C4 Business Delivery](reviews/2026-11-16-c1-window-rc06-c3-c4.md) | main `df63bb85` 部署；RC-06 改期／到診／完成／取消通過；session 7 天；Stage 2b 報表、CSV、封存復原通過；已關窗。發現：到診可提前、CSV 缺 BOM、vendor 副本過舊、API apply 後須重部署 Hosting |
 | 2026-11-16 | [INGRESS 唯讀讀回與 RC-06 前提檢查](reviews/2026-11-16-ingress-and-rc06-readback.md) | 三個服務入口與 Terraform 一致；RC-06 因預約閘門過期、Hosting 無 /v1 轉送而未執行 |
 | 2026-11-16 | [RC-05 Cloud Run 流量讀回](reviews/2026-11-16-rc05-traffic-readback.md) | C1 三個服務 100% 跟隨最新 revision，唯讀、無變更 |
