@@ -1,6 +1,6 @@
 # 2026-11-18 C1 窗口計畫：補齊 C2～C5 實測並做 C6 合成整合
 
-狀態：**計畫，尚未執行**。負責人 2026-11-17 指示「明天一次搞定到 C6」；本檔是開窗前要核准的範圍與上限。核准只涵蓋本檔列出的動作與次數，超出就停下回報。
+狀態：**已於 11/18 執行**，結果見[窗口報告](../reviews/2026-11-18-c1-window-c2-c6.md)。負責人 2026-11-17 指示「明天一次搞定到 C6」；本檔是開窗前要核准的範圍與上限。核准只涵蓋本檔列出的動作與次數，超出就停下回報。
 
 - 專案：只用 C1 `beauessence-clinic-stg-c1a01`，不碰 CAL-PILOT `beauessence-clinic-staging`。
 - 資料：只用合成資料與專用測試行事曆（密鑰 `c1-synthetic-calendar-id` v2 指向的那一個）；不碰真實病患、正式行事曆、正式 DNS。
@@ -47,7 +47,7 @@
 ## 3. 關窗
 
 1. 維護文件設回 `underMaintenance:true`。
-2. `c1-internal-test-run` 以 stage 2b tfvars plan → apply（`worker_processing_enabled=false`）；排程確認 `PAUSED`（若 2.2 有手動 resume，這裡由 Terraform 收回）。
+2. `c1-internal-test-run` 以 **stage1** tfvars plan → apply（內測預約閘門與 worker 處理開關都 `false`；11/18 更正：11/16 實際也用 stage1 關窗，不是 2b）；排程確認 `PAUSED`（若 2.2 有手動 resume，這裡由 Terraform 收回）。
 3. 讀回：兩個排程 `PAUSED`、worker env 為 `false`、直連 API 回 503、Hosting `/booking`、`/staff` 200、櫃台帳號 `disabled:false`、主管 7 天 session 仍有效且未撤銷。
 4. 測試行事曆上殘留的合成事件，若補償沒有清掉，由負責人手動刪除並記錄。
 5. 報告寫成 `docs/reviews/2026-11-18-c1-window-c2-c6.md`，同時更新 [C2～C6 申請](2026-11-15-c2-c6-rc-deployment-requests.md) 總表與 [RC 交付計畫](2026-11-08-phase1-rc-delivery-plan.md)。
