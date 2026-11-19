@@ -33,6 +33,11 @@ A gate decides what reaches `main`. Treat everything here as product code.
   approval ID, status, expiry, scope, rationale and release condition;
   `check:audit-exceptions` fails on a missing, incomplete or expired entry. Green
   means "registered and time-boxed", not "risk accepted".
+- `audit:prod` (`--prod --audit-level moderate`) stays strictly blocking.
+  `audit:all` (`scripts/audit-dev-fixable.mjs`) blocks all prod high/critical
+  advisories and any dev-only high/critical advisory with a published fix on npm;
+  dev-only advisories with no published fix yet print a prominent warning list
+  without blocking, while audit or registry failures fail closed.
 - Never dismiss a Dependabot alert to make a gate green.
 - Version pins in `pnpm-workspace.yaml` carry a comment explaining the advisory
   and the path. Remove a pin only when upstream actually carries the fix, and
