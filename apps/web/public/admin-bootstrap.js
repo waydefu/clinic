@@ -424,61 +424,60 @@ async function post(path, body = {}) {
   )
     throw new Error('目前合成帳號沒有執行此動作的權限。');
 
-  const result = await client.request(path, {
-    method: 'POST',
-    body: JSON.stringify(body)
-  });
-  if (Array.isArray(result?.appointments)) {
-    state = result;
-  } else if (path === '/schedule/publish') {
-    state = await client.request('/state');
-  } else {
-    applyContractWrite(path, body, result);
-    if (
-      isInternalTestBookingEnabled() &&
-      typeof result?.appointmentId === 'string' &&
-      occupancyWrite(path)
-    ) {
-      const { refreshPublishedOccupancy, applyDeleteContractWrite } =
+  let committed = false;
+  try {
+    if (isInternalTestBookingEnabled()) {
+      const { commitInternalTestBookingWrite } =
         await import('./modules/internal-test-booking-transport.js');
-      applyDeleteContractWrite(state, path, result);
-      state = await refreshPublishedOccupancy(
-        (nextPath) => client.request(nextPath),
-        state
-      );
-    } else if (
-      isInternalTestBookingEnabled() &&
-      typeof result?.appointmentId === 'string' &&
-      /^\/follow-ups\/[A-Za-z0-9_-]+$/.test(path)
-    ) {
-      const { applyFollowUpContractWrite } =
-        await import('./modules/internal-test-booking-transport.js');
-      applyFollowUpContractWrite(state, path, body, result);
+      state = await commitInternalTestBookingWrite({
+        path,
+        body,
+        state,
+        request: (nextPath, nextOptions) =>
+          client.request(nextPath, nextOptions),
+        applyContractWrite: (writePath, writeBody, writeResult) => {
+          applyContractWrite(writePath, writeBody, writeResult);
+          committed = true;
+        },
+        onCommitted: (nextState) => {
+          state = nextState;
+          committed = true;
+        }
+      });
+    } else {
+      const result = await client.request(path, {
+        method: 'POST',
+        body: JSON.stringify(body)
+      });
+      if (Array.isArray(result?.appointments)) {
+        state = result;
+      } else if (path === '/schedule/publish') {
+        state = await client.request('/state');
+      } else {
+        applyContractWrite(path, body, result);
+      }
+      committed = true;
+    }
+  } finally {
+    if (committed) {
+      const sessionChanged =
+        previousSession.authenticated !==
+          (state?.session?.authenticated === true) ||
+        previousSession.accountId !== state?.session?.account?.id ||
+        previousSession.role !== state?.session?.account?.role;
+      if (
+        path === '/workspace/login' ||
+        path === '/workspace/logout' ||
+        sessionChanged
+      )
+        clearBookingSuggestion();
+      if (!['/workspace/logout', '/reset'].includes(path)) {
+        enforceRoleDomBoundary();
+        render();
+      }
     }
   }
-  const sessionChanged =
-    previousSession.authenticated !==
-      (state?.session?.authenticated === true) ||
-    previousSession.accountId !== state?.session?.account?.id ||
-    previousSession.role !== state?.session?.account?.role;
-  if (
-    path === '/workspace/login' ||
-    path === '/workspace/logout' ||
-    sessionChanged
-  )
-    clearBookingSuggestion();
-  if (!['/workspace/logout', '/reset'].includes(path)) {
-    enforceRoleDomBoundary();
-    render();
-  }
   return state;
-}
-
-function occupancyWrite(path) {
-  return (
-    path === '/bookings' ||
-    /\/bookings\/.+\/(cancel|reschedule|no-show|delete)$/.test(path)
-  );
 }
 
 function releaseOverlaySlot(slot, appointmentId) {
