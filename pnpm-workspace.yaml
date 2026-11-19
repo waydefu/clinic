@@ -183,10 +183,12 @@ overrides:
 # （1.1.17／2.1.3／3.0.3／5.0.8）。條件既已成立，就把它修掉而不是續期——
 # **例外的正確結局是被移除，不是被延長**。目前的例外見檔尾 `auditConfig`。
 #
-# 閘門分兩層（2026-07-26 決定，`check:supply-chain` 依序跑兩個指令）：
+# 閘門分兩層（2026-07-26 決定，`check:supply-chain` 依序跑兩個指令；2026-11-19 修訂 dev-only 規則）：
 #
-#   audit:prod  `--prod --audit-level moderate`  出貨面，**moderate 就擋**
-#   audit:all   `--audit-level high`             含 dev 工具鏈，high 才擋
+#   audit:prod  `--prod --audit-level moderate`          出貨面，**moderate 就擋**
+#   audit:all   `node scripts/audit-dev-fixable.mjs`     含 dev 工具鏈，high/critical 才看：
+#               正式相依一律擋；dev-only 有已發布修補版才擋（上游未發布修補版印醒目警告不阻斷），
+#               registry 查詢或掃描異常一律 fail-closed 阻斷。
 #
 # 為什麼不是單一門檻：把全部拉到 moderate，會被 firebase-tools（CLI，不出貨）
 # 的傳遞相依長期壓在紅燈，最後一定演變成整條 audit 被關掉或被 ignore 洗到失效；

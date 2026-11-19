@@ -334,6 +334,8 @@ const requiredPaths = [
   'scripts/web-ui-rules.test.mjs',
   'scripts/check-audit-exceptions.mjs',
   'scripts/check-audit-exceptions.test.mjs',
+  'scripts/audit-dev-fixable.mjs',
+  'scripts/audit-dev-fixable.test.mjs',
   'scripts/generate-governance-state.mjs',
   'scripts/generate-governance-state.test.mjs',
   'scripts/generate-agent-skills.mjs',
