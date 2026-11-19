@@ -28,7 +28,7 @@
 | 合成首屏時間與版面位移 | 瀏覽器實測 | `tests/e2e/performance.spec.ts` | 部分：目前只映射 `/` 與 `/booking`；clinic timing 宣告會被略過 |
 | 已提交的密鑰 | 腳本 | `scripts/check-tracked-secrets.mjs` | 是 |
 | 相依漏洞（出貨面） | `pnpm audit --prod` | `audit:prod` | 是（**moderate 起**） |
-| 相依漏洞（含 dev 工具鏈） | `pnpm audit` | `audit:all` | 是（high／critical） |
+| 相依漏洞（含 dev 工具鏈） | `scripts/audit-dev-fixable.mjs` | `audit:all` | 是（正式相依 high／critical 一律擋；dev-only 有已發布修補版才擋，上游尚未發布修補版印出醒目警告不阻斷，掃描或查詢異常 fail-closed） |
 | 依賴方向、未接線清單、domain 規則單一來源 | 腳本 | `scripts/check-architecture.mjs` | 是 |
 | 分支保護含 `evidence` | 腳本（需 token） | `scripts/check-branch-protection.mjs` | 否——不在 `verify`，無 token 時回離開碼 2 |
 | SBOM 與授權政策 | CycloneDX 產生器 | `scripts/generate-sbom.mjs` | 是 |
@@ -324,7 +324,7 @@ CLI／MCP 載入、Pub/Sub＋OpenTelemetry propagator 與 Hono public API smoke 
 | 指令 | 範圍 | 門檻 |
 | --- | --- | --- |
 | `audit:prod` | `--prod`，只看會出貨的相依 | **moderate 就擋** |
-| `audit:all` | 全部，含 dev 工具鏈 | high／critical 才擋 |
+| `audit:all` | 全部，含 dev 工具鏈（`scripts/audit-dev-fixable.mjs`） | 正式相依 high／critical 一律擋；dev-only 有已發布修補版才擋，上游尚無已發布修補版時印出醒目警告不阻斷（掃描或 registry 查詢異常一律 fail-closed） |
 
 **為什麼分兩層**（2026-07-26 決定）：把全部拉到 moderate，會被 firebase-tools
 （CLI，不出貨）的傳遞相依長期壓在紅燈，最後一定演變成整條 audit 被關掉或被
