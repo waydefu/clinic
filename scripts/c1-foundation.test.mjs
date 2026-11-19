@@ -233,7 +233,7 @@ describe('C1 isolated foundation Terraform source', () => {
     expect(main).toContain('assertion.ref in [');
     expect(main).toContain('var.github_allowed_refs');
     expect(main).toContain(
-      'count              = local.apply_enabled && var.github_wif_binding_enabled ? 1 : 0'
+      'for_each           = local.apply_enabled ? (var.github_wif_binding_enabled ? toset(["enabled"]) : toset([])) : toset([])'
     );
     expect(main).toContain(
       'attribute.repository_id/${var.github_repository_id}'

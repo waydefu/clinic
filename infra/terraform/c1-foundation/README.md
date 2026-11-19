@@ -31,10 +31,10 @@ The WIF trust is pinned to the repository name, the immutable numeric
 numeric ids from GitHub and passes them in uncommitted tfvars. Because no
 GitHub Actions workflow uses WIF yet (W3-05 Q8=A),
 `github_wif_binding_enabled` defaults to `false`, keeping
-`google_service_account_iam_member.terraform_ci_wif` at `count = 0` until
-an approved CI workflow explicitly opts in. Source only; the live WIF
-provider and binding are not changed by this module until an authorized
-apply.
+`google_service_account_iam_member.terraform_ci_wif` empty (zero bindings)
+until an approved CI workflow explicitly opts in. Source only; the live
+WIF provider and binding are not changed by this module until an
+authorized apply.
 
 ## B-01 / B-02 / NEW-10: converged CI role map (source only, not applied)
 
@@ -88,7 +88,7 @@ this table must not infer billing authority for the CI identity.
 
 The credential-free C1 mock plan proves the default SHA creates zero project
 IAM members and zero WIF bindings, the default `github_wif_binding_enabled = false`
-keeps the WIF binding at `count = 0` even with a named SHA, and the named-SHA
+keeps the WIF binding at zero memberships even with a named SHA, and the named-SHA
 role inventory matches the seven-role manifest without `projectIamAdmin` or
 project-wide `storage.admin`. Source mutation tests bind the project, role
 expression and CI principal. They do not prove applied IAM state or that

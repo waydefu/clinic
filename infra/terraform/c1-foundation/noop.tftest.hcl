@@ -212,7 +212,7 @@ run "wif_binding_requires_explicit_opt_in" {
   }
 
   assert {
-    condition     = google_service_account_iam_member.terraform_ci_wif[0].role == "roles/iam.workloadIdentityUser"
+    condition     = google_service_account_iam_member.terraform_ci_wif["enabled"].role == "roles/iam.workloadIdentityUser"
     error_message = "C1 WIF binding must grant roles/iam.workloadIdentityUser only."
   }
 }
