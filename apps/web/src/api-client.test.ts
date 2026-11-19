@@ -4,7 +4,9 @@ import {
   ApiClientError,
   asApiClientError,
   createApiClient,
-  httpTransportError
+  httpTransportError,
+  INTERNAL_TEST_HTTP_TIMEOUT_MS,
+  resolveApiClient
 } from '../public/modules/api-client.js';
 import { runPendingAction } from '../public/modules/async-action.js';
 
@@ -215,6 +217,40 @@ describe('HTTP transport error mapping', () => {
 
     await expect(client.request('/slots')).resolves.toEqual({ ok: true });
     expect(transport).toHaveBeenCalledTimes(2);
+  });
+
+  it('uses INTERNAL_TEST_HTTP_TIMEOUT_MS on the C1 internal-test host', async () => {
+    expect(INTERNAL_TEST_HTTP_TIMEOUT_MS).toBe(30_000);
+    vi.stubGlobal('location', {
+      protocol: 'https:',
+      hostname: 'beauessence-clinic-stg-c1a01.web.app',
+      pathname: '/staff',
+      port: '',
+      search: ''
+    });
+    vi.stubGlobal('sessionStorage', {
+      getItem: () => null,
+      setItem: () => undefined,
+      removeItem: () => undefined
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ slots: [] })
+        })
+      )
+    );
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout');
+    try {
+      const client = await resolveApiClient();
+      await expect(client.request('/slots')).resolves.toEqual({ slots: [] });
+      expect(timeoutSpy).toHaveBeenCalledWith(INTERNAL_TEST_HTTP_TIMEOUT_MS);
+    } finally {
+      timeoutSpy.mockRestore();
+      vi.unstubAllGlobals();
+    }
   });
 });
 
