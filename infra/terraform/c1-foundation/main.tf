@@ -68,6 +68,7 @@ resource "google_iam_workload_identity_pool_provider" "github" {
     "attribute.repository_id"       = "assertion.repository_id"
     "attribute.repository_owner_id" = "assertion.repository_owner_id"
     "attribute.ref"                 = "assertion.ref"
+    "attribute.workflow_ref"        = "assertion.workflow_ref"
   }
   # B-02: the repository name alone can be re-registered after a rename or
   # transfer, so also pin the immutable numeric repository and owner ids and
@@ -84,7 +85,7 @@ resource "google_iam_workload_identity_pool_provider" "github" {
 }
 
 resource "google_service_account_iam_member" "terraform_ci_wif" {
-  count              = local.apply_enabled ? 1 : 0
+  count              = local.apply_enabled && var.github_wif_binding_enabled ? 1 : 0
   service_account_id = google_service_account.terraform_ci[0].name
   role               = "roles/iam.workloadIdentityUser"
   member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github[0].name}/attribute.repository_id/${var.github_repository_id}"
@@ -95,12 +96,10 @@ resource "google_project_iam_member" "terraform_ci" {
     "roles/serviceusage.serviceUsageAdmin",
     "roles/iam.serviceAccountAdmin",
     "roles/iam.workloadIdentityPoolAdmin",
-    "roles/resourcemanager.projectIamAdmin",
     "roles/secretmanager.admin",
     "roles/logging.admin",
     "roles/monitoring.admin",
-    "roles/pubsub.admin",
-    "roles/storage.admin"
+    "roles/pubsub.admin"
   ]) : toset([])
   project = var.project_id
   role    = each.value

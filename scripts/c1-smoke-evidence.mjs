@@ -11,12 +11,10 @@ export const C1_TERRAFORM_CI_ROLES = [
   'roles/serviceusage.serviceUsageAdmin',
   'roles/iam.serviceAccountAdmin',
   'roles/iam.workloadIdentityPoolAdmin',
-  'roles/resourcemanager.projectIamAdmin',
   'roles/secretmanager.admin',
   'roles/logging.admin',
   'roles/monitoring.admin',
-  'roles/pubsub.admin',
-  'roles/storage.admin'
+  'roles/pubsub.admin'
 ];
 
 export const C1_FORBIDDEN_SA_ROLES = [
