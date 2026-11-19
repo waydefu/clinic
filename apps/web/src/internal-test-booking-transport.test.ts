@@ -1607,11 +1607,22 @@ describe('commitInternalTestBookingWrite', () => {
     };
   }
 
+  function serviceUnavailableError(): Error {
+    return new ApiClientError('服務暫時無法使用，請稍後再試。', {
+      code: 'SERVICE_UNAVAILABLE',
+      retryable: true
+    });
+  }
+
+  function httpError(status: number): Error {
+    return httpTransportError({ status });
+  }
+
   function applyLocalWrite(
     state: ReturnType<typeof sampleState>,
     path: string,
-    body: Record<string, unknown>,
-    result: Record<string, unknown>
+    body: { targetSlotId?: string; slotId?: string },
+    result: { status?: string; startsAt?: string }
   ) {
     const cancel = /^\/bookings\/([^/]+)\/cancel$/.exec(path);
     if (cancel !== null) {
@@ -1619,7 +1630,7 @@ describe('commitInternalTestBookingWrite', () => {
         (item) => item.id === cancel[1]
       );
       if (appointment === undefined) return;
-      appointment.status = String(result.status ?? 'cancelled');
+      appointment.status = result.status ?? 'cancelled';
       const slot = state.slots.find((item) => item.id === appointment.slotId);
       if (slot !== undefined) delete slot.reservationId;
       return;
@@ -1632,7 +1643,7 @@ describe('commitInternalTestBookingWrite', () => {
         (item) => item.id === statusOnly[1]
       );
       if (appointment === undefined) return;
-      appointment.status = String(result.status);
+      appointment.status = result.status ?? appointment.status;
       if (statusOnly[2] === 'no-show') {
         const slot = state.slots.find((item) => item.id === appointment.slotId);
         if (slot !== undefined) delete slot.reservationId;
@@ -1645,14 +1656,15 @@ describe('commitInternalTestBookingWrite', () => {
         (item) => item.id === reschedule[1]
       );
       if (appointment === undefined) return;
-      const targetSlotId = String(body.targetSlotId ?? body.slotId);
+      const targetSlotId =
+        body.targetSlotId ?? body.slotId ?? appointment.slotId;
       const previous = state.slots.find(
         (item) => item.id === appointment.slotId
       );
       if (previous !== undefined) delete previous.reservationId;
       appointment.slotId = targetSlotId;
-      appointment.startsAt = String(result.startsAt);
-      appointment.status = String(result.status ?? 'confirmed');
+      appointment.startsAt = result.startsAt ?? appointment.startsAt;
+      appointment.status = result.status ?? 'confirmed';
       const next = state.slots.find((item) => item.id === targetSlotId);
       if (next !== undefined) next.reservationId = appointment.id;
     }
@@ -1666,12 +1678,7 @@ describe('commitInternalTestBookingWrite', () => {
         path === '/bookings/appointment_c1_001/cancel' &&
         options?.method === 'POST'
       ) {
-        return Promise.reject(
-          new ApiClientError('服務暫時無法使用，請稍後再試。', {
-            code: 'SERVICE_UNAVAILABLE',
-            retryable: true
-          })
-        );
+        return Promise.reject(serviceUnavailableError());
       }
       if (path === '/bookings/appointment_c1_001') {
         return Promise.resolve({
@@ -1728,10 +1735,7 @@ describe('commitInternalTestBookingWrite', () => {
     const state = sampleState();
     const onCommitted = vi.fn();
     const applyContractWrite = vi.fn();
-    const timeoutError = new ApiClientError('服務暫時無法使用，請稍後再試。', {
-      code: 'SERVICE_UNAVAILABLE',
-      retryable: true
-    });
+    const timeoutError = serviceUnavailableError();
     const request = vi.fn((path: string, options?: { method?: string }) => {
       if (
         path === '/bookings/appointment_c1_001/cancel' &&
@@ -1770,10 +1774,7 @@ describe('commitInternalTestBookingWrite', () => {
     const state = sampleState();
     const onCommitted = vi.fn();
     const applyContractWrite = vi.fn();
-    const originalError = new ApiClientError('服務暫時無法使用，請稍後再試。', {
-      code: 'SERVICE_UNAVAILABLE',
-      retryable: true
-    });
+    const originalError = serviceUnavailableError();
     const request = vi.fn((path: string, options?: { method?: string }) => {
       if (
         path === '/bookings/appointment_c1_001/cancel' &&
@@ -1803,7 +1804,7 @@ describe('commitInternalTestBookingWrite', () => {
 
   it('does not read back on non-retryable errors such as CONFLICT', async () => {
     const state = sampleState();
-    const conflictError = httpTransportError({ status: 409 });
+    const conflictError = httpError(409);
     const request = vi.fn(() => Promise.reject(conflictError));
 
     await expect(
@@ -1833,9 +1834,7 @@ describe('commitInternalTestBookingWrite', () => {
       }
       return Promise.reject(new Error(`Unexpected request: ${path}`));
     });
-    const refreshOccupancy = vi.fn(() =>
-      Promise.reject(httpTransportError({ status: 503 }))
-    );
+    const refreshOccupancy = vi.fn(() => Promise.reject(httpError(503)));
 
     const next = await commitInternalTestBookingWrite({
       path: '/bookings/appointment_c1_001/cancel',
@@ -1865,7 +1864,7 @@ describe('commitInternalTestBookingWrite', () => {
       const onCommitted = vi.fn();
       const request = vi.fn((path: string, options?: { method?: string }) => {
         if (options?.method === 'POST') {
-          return Promise.reject(httpTransportError({ status: 503 }));
+          return Promise.reject(httpError(503));
         }
         if (path === '/bookings/appointment_c1_001') {
           return Promise.resolve({
@@ -1897,7 +1896,7 @@ describe('commitInternalTestBookingWrite', () => {
     const rescheduleRequest = vi.fn(
       (path: string, options?: { method?: string }) => {
         if (options?.method === 'POST') {
-          return Promise.reject(httpTransportError({ status: 503 }));
+          return Promise.reject(httpError(503));
         }
         if (path === '/bookings/appointment_c1_001') {
           return Promise.resolve({
@@ -1947,7 +1946,7 @@ describe('commitInternalTestBookingWrite', () => {
     expect(onRescheduled).toHaveBeenCalledTimes(1);
 
     const unchangedState = sampleState();
-    const timeoutError = httpTransportError({ status: 503 });
+    const timeoutError = httpError(503);
     await expect(
       commitInternalTestBookingWrite({
         path: '/bookings/appointment_c1_001/reschedule',
