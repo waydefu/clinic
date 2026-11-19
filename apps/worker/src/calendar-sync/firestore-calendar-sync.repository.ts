@@ -156,9 +156,9 @@ export class FirestoreCalendarSyncRepository
     const configuration = await this.configuration();
     return {
       activeSourceId: configuration.activeSourceId,
-      ...(configuration.previousSourceId === undefined
-        ? {}
-        : { previousSourceId: configuration.previousSourceId }),
+      ...(typeof configuration.previousSourceId === 'string'
+        ? { previousSourceId: configuration.previousSourceId }
+        : {}),
       version: configuration.version,
       expiresAt: configuration.expiresAt
     };
@@ -173,9 +173,9 @@ export class FirestoreCalendarSyncRepository
     ]);
     return {
       activeSourceId: configuration.activeSourceId,
-      ...(configuration.previousSourceId === undefined
-        ? {}
-        : { previousSourceId: configuration.previousSourceId }),
+      ...(typeof configuration.previousSourceId === 'string'
+        ? { previousSourceId: configuration.previousSourceId }
+        : {}),
       sourceVersion: configuration.version,
       version: configuration.version,
       expiresAt: configuration.expiresAt,

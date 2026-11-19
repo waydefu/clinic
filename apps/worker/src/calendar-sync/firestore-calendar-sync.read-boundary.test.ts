@@ -191,6 +191,63 @@ describe('CAL-PILOT worker stored read boundary', () => {
     }
   );
 
+  it('normalizes initial bootstrap configuration with previousSourceId: null', async () => {
+    const bootstrappedConfiguration = {
+      activeSourceId: 'c1_synthetic_calendar',
+      previousSourceId: null,
+      version: 1,
+      expiresAt: '2030-01-03T00:00:00Z',
+      health: 'idle',
+      lastSuccessfulSyncAt: null,
+      nextScheduledSyncAt: null,
+      inboundEnabled: true,
+      outboundEnabled: true,
+      workerLeaseOwner: null,
+      workerLeaseExpiresAt: null,
+      synthetic: true
+    };
+    const getPatients = vi.fn().mockResolvedValue({ docs: [] });
+    const select = vi.fn(() => ({ get: getPatients }));
+    const where = vi.fn(() => ({ select, get: getPatients }));
+    const writes = vi.fn();
+    const db = {
+      collection: (name: string) =>
+        name === 'calendar_pilot_patients'
+          ? { where }
+          : {
+              doc: () => ({
+                get: () =>
+                  Promise.resolve({
+                    exists: true,
+                    data: () => bootstrappedConfiguration
+                  })
+              })
+            },
+      runTransaction: writes
+    } as unknown as Firestore;
+    const repo = new FirestoreCalendarSyncRepository(db, 'synthetic'.repeat(8));
+
+    const sourceConfiguration = await repo.loadSourceConfiguration();
+    expect(sourceConfiguration).toEqual({
+      activeSourceId: 'c1_synthetic_calendar',
+      version: 1,
+      expiresAt: '2030-01-03T00:00:00Z'
+    });
+    expect(sourceConfiguration).not.toHaveProperty('previousSourceId');
+
+    const fullConfiguration = await repo.loadConfiguration();
+    expect(fullConfiguration).toEqual({
+      activeSourceId: 'c1_synthetic_calendar',
+      sourceVersion: 1,
+      version: 1,
+      expiresAt: '2030-01-03T00:00:00Z',
+      pseudonymKey: 'synthetic'.repeat(8),
+      knownPatientCodes: new Set()
+    });
+    expect(fullConfiguration).not.toHaveProperty('previousSourceId');
+    expect(writes).not.toHaveBeenCalled();
+  });
+
   it('accepts the same completed preflight as the API', async () => {
     await expect(
       repository(preflight).repository.findPreflight('synthetic_preflight')
