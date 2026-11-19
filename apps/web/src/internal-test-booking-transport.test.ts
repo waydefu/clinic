@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  ApiClientError,
   httpTransportError,
   isInternalTestBookingEnabled
 } from '../public/modules/api-client.js';
@@ -16,6 +17,7 @@ import {
   applyDeleteContractWrite,
   applyFollowUpContractWrite,
   clearInternalTestReturnSession,
+  commitInternalTestBookingWrite,
   createInternalTestBookingTransport,
   isStageFM11Enabled,
   mapInternalTestBookingRequest,
@@ -1573,5 +1575,396 @@ describe('staff list follows the continuation cursor', () => {
     expect(html).toContain('已載入的資料沒有符合條件的預約');
     expect(html).toContain('尚有資料未載入');
     expect(html).not.toContain('<strong>沒有符合條件的預約</strong>');
+  });
+});
+
+describe('commitInternalTestBookingWrite', () => {
+  function sampleState() {
+    return {
+      version: 8,
+      appointments: [
+        {
+          id: 'appointment_c1_001',
+          slotId: 'slot_20300102_1200',
+          startsAt: '2030-01-02T04:00:00.000Z',
+          status: 'confirmed',
+          updatedAt: '2030-01-01T00:00:00.000Z'
+        }
+      ],
+      slots: [
+        {
+          id: 'slot_20300102_1200',
+          kind: 'initial',
+          startsAt: '2030-01-02T04:00:00.000Z',
+          reservationId: 'appointment_c1_001'
+        },
+        {
+          id: 'slot_20300102_1230',
+          kind: 'initial',
+          startsAt: '2030-01-02T04:30:00.000Z'
+        }
+      ]
+    };
+  }
+
+  function applyLocalWrite(
+    state: ReturnType<typeof sampleState>,
+    path: string,
+    body: Record<string, unknown>,
+    result: Record<string, unknown>
+  ) {
+    const cancel = /^\/bookings\/([^/]+)\/cancel$/.exec(path);
+    if (cancel !== null) {
+      const appointment = state.appointments.find(
+        (item) => item.id === cancel[1]
+      );
+      if (appointment === undefined) return;
+      appointment.status = String(result.status ?? 'cancelled');
+      const slot = state.slots.find((item) => item.id === appointment.slotId);
+      if (slot !== undefined) delete slot.reservationId;
+      return;
+    }
+    const statusOnly = /^\/bookings\/([^/]+)\/(arrive|complete|no-show)$/.exec(
+      path
+    );
+    if (statusOnly !== null) {
+      const appointment = state.appointments.find(
+        (item) => item.id === statusOnly[1]
+      );
+      if (appointment === undefined) return;
+      appointment.status = String(result.status);
+      if (statusOnly[2] === 'no-show') {
+        const slot = state.slots.find((item) => item.id === appointment.slotId);
+        if (slot !== undefined) delete slot.reservationId;
+      }
+      return;
+    }
+    const reschedule = /^\/bookings\/([^/]+)\/reschedule$/.exec(path);
+    if (reschedule !== null) {
+      const appointment = state.appointments.find(
+        (item) => item.id === reschedule[1]
+      );
+      if (appointment === undefined) return;
+      const targetSlotId = String(body.targetSlotId ?? body.slotId);
+      const previous = state.slots.find(
+        (item) => item.id === appointment.slotId
+      );
+      if (previous !== undefined) delete previous.reservationId;
+      appointment.slotId = targetSlotId;
+      appointment.startsAt = String(result.startsAt);
+      appointment.status = String(result.status ?? 'confirmed');
+      const next = state.slots.find((item) => item.id === targetSlotId);
+      if (next !== undefined) next.reservationId = appointment.id;
+    }
+  }
+
+  it('converges a timed-out cancel when GET /bookings/:id shows cancelled', async () => {
+    const state = sampleState();
+    const onCommitted = vi.fn();
+    const request = vi.fn((path: string, options?: { method?: string }) => {
+      if (
+        path === '/bookings/appointment_c1_001/cancel' &&
+        options?.method === 'POST'
+      ) {
+        return Promise.reject(
+          new ApiClientError('服務暫時無法使用，請稍後再試。', {
+            code: 'SERVICE_UNAVAILABLE',
+            retryable: true
+          })
+        );
+      }
+      if (path === '/bookings/appointment_c1_001') {
+        return Promise.resolve({
+          appointmentId: 'appointment_c1_001',
+          status: 'cancelled',
+          startsAt: '2030-01-02T04:00:00.000Z',
+          endsAt: '2030-01-02T04:30:00.000Z',
+          slotId: 'slot_20300102_1200'
+        });
+      }
+      if (path === '/slots') {
+        return Promise.resolve({
+          slots: [
+            {
+              slotId: 'slot_20300102_1200',
+              kind: 'initial',
+              startsAt: '2030-01-02T04:00:00.000Z',
+              available: true
+            },
+            {
+              slotId: 'slot_20300102_1230',
+              kind: 'initial',
+              startsAt: '2030-01-02T04:30:00.000Z',
+              available: true
+            }
+          ]
+        });
+      }
+      return Promise.reject(new Error(`Unexpected request: ${path}`));
+    });
+
+    const next = await commitInternalTestBookingWrite({
+      path: '/bookings/appointment_c1_001/cancel',
+      body: {},
+      state,
+      request,
+      applyContractWrite: (path, body, result) =>
+        applyLocalWrite(state, path, body, result),
+      onCommitted
+    });
+
+    expect(next.appointments[0].status).toBe('cancelled');
+    expect(next.slots[0]).not.toHaveProperty('reservationId');
+    expect(onCommitted).toHaveBeenCalledTimes(1);
+    expect(onCommitted).toHaveBeenCalledWith(next);
+    expect(request.mock.calls.map(([path]) => path)).toEqual([
+      '/bookings/appointment_c1_001/cancel',
+      '/bookings/appointment_c1_001',
+      '/slots'
+    ]);
+  });
+
+  it('rethrows SERVICE_UNAVAILABLE when read-back still shows confirmed', async () => {
+    const state = sampleState();
+    const onCommitted = vi.fn();
+    const applyContractWrite = vi.fn();
+    const timeoutError = new ApiClientError('服務暫時無法使用，請稍後再試。', {
+      code: 'SERVICE_UNAVAILABLE',
+      retryable: true
+    });
+    const request = vi.fn((path: string, options?: { method?: string }) => {
+      if (
+        path === '/bookings/appointment_c1_001/cancel' &&
+        options?.method === 'POST'
+      ) {
+        return Promise.reject(timeoutError);
+      }
+      if (path === '/bookings/appointment_c1_001') {
+        return Promise.resolve({
+          appointmentId: 'appointment_c1_001',
+          status: 'confirmed',
+          startsAt: '2030-01-02T04:00:00.000Z',
+          endsAt: '2030-01-02T04:30:00.000Z',
+          slotId: 'slot_20300102_1200'
+        });
+      }
+      return Promise.reject(new Error(`Unexpected request: ${path}`));
+    });
+
+    await expect(
+      commitInternalTestBookingWrite({
+        path: '/bookings/appointment_c1_001/cancel',
+        body: {},
+        state,
+        request,
+        applyContractWrite,
+        onCommitted
+      })
+    ).rejects.toBe(timeoutError);
+    expect(state.appointments[0].status).toBe('confirmed');
+    expect(applyContractWrite).not.toHaveBeenCalled();
+    expect(onCommitted).not.toHaveBeenCalled();
+  });
+
+  it('rethrows the original SERVICE_UNAVAILABLE error when read-back fails', async () => {
+    const state = sampleState();
+    const onCommitted = vi.fn();
+    const applyContractWrite = vi.fn();
+    const originalError = new ApiClientError('服務暫時無法使用，請稍後再試。', {
+      code: 'SERVICE_UNAVAILABLE',
+      retryable: true
+    });
+    const request = vi.fn((path: string, options?: { method?: string }) => {
+      if (
+        path === '/bookings/appointment_c1_001/cancel' &&
+        options?.method === 'POST'
+      ) {
+        return Promise.reject(originalError);
+      }
+      if (path === '/bookings/appointment_c1_001') {
+        return Promise.reject(new Error('read-back failed'));
+      }
+      return Promise.reject(new Error(`Unexpected request: ${path}`));
+    });
+
+    await expect(
+      commitInternalTestBookingWrite({
+        path: '/bookings/appointment_c1_001/cancel',
+        body: {},
+        state,
+        request,
+        applyContractWrite,
+        onCommitted
+      })
+    ).rejects.toBe(originalError);
+    expect(applyContractWrite).not.toHaveBeenCalled();
+    expect(onCommitted).not.toHaveBeenCalled();
+  });
+
+  it('does not read back on non-retryable errors such as CONFLICT', async () => {
+    const state = sampleState();
+    const conflictError = httpTransportError({ status: 409 });
+    const request = vi.fn(() => Promise.reject(conflictError));
+
+    await expect(
+      commitInternalTestBookingWrite({
+        path: '/bookings/appointment_c1_001/cancel',
+        body: {},
+        state,
+        request,
+        applyContractWrite: vi.fn()
+      })
+    ).rejects.toBe(conflictError);
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it('still applies local state and runs render hook when occupancy refresh throws', async () => {
+    const state = sampleState();
+    const onCommitted = vi.fn();
+    const request = vi.fn((path: string, options?: { method?: string }) => {
+      if (
+        path === '/bookings/appointment_c1_001/cancel' &&
+        options?.method === 'POST'
+      ) {
+        return Promise.resolve({
+          appointmentId: 'appointment_c1_001',
+          status: 'cancelled'
+        });
+      }
+      return Promise.reject(new Error(`Unexpected request: ${path}`));
+    });
+    const refreshOccupancy = vi.fn(() =>
+      Promise.reject(httpTransportError({ status: 503 }))
+    );
+
+    const next = await commitInternalTestBookingWrite({
+      path: '/bookings/appointment_c1_001/cancel',
+      body: {},
+      state,
+      request,
+      applyContractWrite: (path, body, result) =>
+        applyLocalWrite(state, path, body, result),
+      refreshOccupancy,
+      onCommitted
+    });
+
+    expect(next.appointments[0].status).toBe('cancelled');
+    expect(next.slots).toEqual([]);
+    expect(refreshOccupancy).toHaveBeenCalledTimes(1);
+    expect(onCommitted).toHaveBeenCalledTimes(1);
+    expect(onCommitted).toHaveBeenCalledWith(next);
+  });
+
+  it('converges arrive, complete, no-show and reschedule transitions on read-back', async () => {
+    for (const [action, expectedStatus] of [
+      ['arrive', 'arrived'],
+      ['complete', 'completed'],
+      ['no-show', 'no_show']
+    ] as const) {
+      const state = sampleState();
+      const onCommitted = vi.fn();
+      const request = vi.fn((path: string, options?: { method?: string }) => {
+        if (options?.method === 'POST') {
+          return Promise.reject(httpTransportError({ status: 503 }));
+        }
+        if (path === '/bookings/appointment_c1_001') {
+          return Promise.resolve({
+            appointmentId: 'appointment_c1_001',
+            status: expectedStatus,
+            startsAt: '2030-01-02T04:00:00.000Z',
+            endsAt: '2030-01-02T04:30:00.000Z'
+          });
+        }
+        if (path === '/slots') return Promise.resolve({ slots: [] });
+        return Promise.reject(new Error(`Unexpected request: ${path}`));
+      });
+
+      const next = await commitInternalTestBookingWrite({
+        path: `/bookings/appointment_c1_001/${action}`,
+        body: {},
+        state,
+        request,
+        applyContractWrite: (path, body, result) =>
+          applyLocalWrite(state, path, body, result),
+        onCommitted
+      });
+      expect(next.appointments[0].status).toBe(expectedStatus);
+      expect(onCommitted).toHaveBeenCalledTimes(1);
+    }
+
+    const rescheduleState = sampleState();
+    const onRescheduled = vi.fn();
+    const rescheduleRequest = vi.fn(
+      (path: string, options?: { method?: string }) => {
+        if (options?.method === 'POST') {
+          return Promise.reject(httpTransportError({ status: 503 }));
+        }
+        if (path === '/bookings/appointment_c1_001') {
+          return Promise.resolve({
+            appointmentId: 'appointment_c1_001',
+            status: 'confirmed',
+            slotId: 'slot_20300102_1230',
+            startsAt: '2030-01-02T04:30:00.000Z',
+            endsAt: '2030-01-02T05:00:00.000Z'
+          });
+        }
+        if (path === '/slots') {
+          return Promise.resolve({
+            slots: [
+              {
+                slotId: 'slot_20300102_1200',
+                kind: 'initial',
+                startsAt: '2030-01-02T04:00:00.000Z',
+                available: true
+              },
+              {
+                slotId: 'slot_20300102_1230',
+                kind: 'initial',
+                startsAt: '2030-01-02T04:30:00.000Z',
+                available: false
+              }
+            ]
+          });
+        }
+        return Promise.reject(new Error(`Unexpected request: ${path}`));
+      }
+    );
+
+    const rescheduled = await commitInternalTestBookingWrite({
+      path: '/bookings/appointment_c1_001/reschedule',
+      body: { slotId: 'slot_20300102_1230' },
+      state: rescheduleState,
+      request: rescheduleRequest,
+      applyContractWrite: (path, body, result) =>
+        applyLocalWrite(rescheduleState, path, body, result),
+      onCommitted: onRescheduled
+    });
+    expect(rescheduled.appointments[0]).toMatchObject({
+      status: 'confirmed',
+      slotId: 'slot_20300102_1230',
+      startsAt: '2030-01-02T04:30:00.000Z'
+    });
+    expect(onRescheduled).toHaveBeenCalledTimes(1);
+
+    const unchangedState = sampleState();
+    const timeoutError = httpTransportError({ status: 503 });
+    await expect(
+      commitInternalTestBookingWrite({
+        path: '/bookings/appointment_c1_001/reschedule',
+        body: { slotId: 'slot_20300102_1230' },
+        state: unchangedState,
+        request: (path, options) => {
+          if (options?.method === 'POST') return Promise.reject(timeoutError);
+          return Promise.resolve({
+            appointmentId: 'appointment_c1_001',
+            status: 'confirmed',
+            slotId: 'slot_20300102_1200',
+            startsAt: '2030-01-02T04:00:00.000Z',
+            endsAt: '2030-01-02T04:30:00.000Z'
+          });
+        },
+        applyContractWrite: vi.fn()
+      })
+    ).rejects.toBe(timeoutError);
   });
 });

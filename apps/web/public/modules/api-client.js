@@ -9,6 +9,10 @@ const DEFAULT_SYNTHETIC_LATENCY_MS = 300;
 // 時，UI 已經有逾時語意。0 代表停用（測試以假 transport 注入時不需要計時器）。
 const DEFAULT_TIMEOUT_MS = 10_000;
 
+// Cloud Run 縮容到 0 的冷啟動約需 10–15 秒，加上交易處理可能超過 10 秒。
+// 這是真實 `/v1` HTTP client 的連線逾時上限，避免伺服器已提交但瀏覽器提前中止。
+export const INTERNAL_TEST_HTTP_TIMEOUT_MS = 30_000;
+
 // 可安全重試的 HTTP 狀態：短暫的伺服器／網路狀況。4xx 客戶端錯誤（408/425/429
 // 除外）不可自動重試——請求本身要先改。429/503 在真實 transport 會帶 Retry-After。
 const RETRYABLE_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
@@ -322,7 +326,7 @@ export async function resolveApiClient() {
       local: stagingRequest,
       toError: httpTransportError
     }),
-    { timeoutMs: DEFAULT_TIMEOUT_MS }
+    { timeoutMs: INTERNAL_TEST_HTTP_TIMEOUT_MS }
   );
   return Object.freeze({
     ...client,
