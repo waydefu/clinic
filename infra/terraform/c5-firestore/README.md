@@ -2,7 +2,10 @@
 
 **Not C5 authority.** Default SHA creates zero resources. Location
 `asia-east1`, PITR enabled, delete protection on, SHA-gated same-location
-daily backup with 30-day retention. Synthetic data only.
+daily backup with 30-day retention, plus a weekly (Sunday) backup kept 14 weeks
+(BACKUP-B-2026-11-15). The monthly out-of-project export (2 years) is not
+implemented yet; it needs an external storage location decided first.
+Synthetic data only.
 Not C1. Residual database-scope IAM risk is accepted for synthetic
 staging in C0-ENG-ACCEPT; runtime SA still must be dedicated and clients
 remain deny-by-default. Copy `terraform.tfvars.example` locally; apply

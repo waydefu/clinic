@@ -20,7 +20,8 @@ const FORBIDDEN_ROLES = new Set([
   'roles/iam.serviceAccountKeyAdmin',
   'roles/iam.serviceAccountTokenCreator',
   'roles/resourcemanager.organizationAdmin',
-  'roles/resourcemanager.folderAdmin'
+  'roles/resourcemanager.folderAdmin',
+  'roles/resourcemanager.projectIamAdmin'
 ]);
 const PUBLIC_PRINCIPALS = new Set(['allUsers', 'allAuthenticatedUsers']);
 const ADMIN_ROLE = /^roles\/[A-Za-z.]*(\.admin|Admin)$/;
@@ -31,12 +32,10 @@ const ACCEPTED_ADMIN_ROLES = new Set([
   'c1-foundation/roles/serviceusage.serviceUsageAdmin',
   'c1-foundation/roles/iam.serviceAccountAdmin',
   'c1-foundation/roles/iam.workloadIdentityPoolAdmin',
-  'c1-foundation/roles/resourcemanager.projectIamAdmin', // B-01
   'c1-foundation/roles/secretmanager.admin',
   'c1-foundation/roles/logging.admin',
   'c1-foundation/roles/monitoring.admin',
   'c1-foundation/roles/pubsub.admin',
-  'c1-foundation/roles/storage.admin', // B-01 / NEW-10
   'c1-internal-test-run/roles/run.admin',
   'c1-internal-test-run/roles/artifactregistry.admin',
   'c1-internal-test-run/roles/cloudscheduler.admin',
@@ -44,7 +43,6 @@ const ACCEPTED_ADMIN_ROLES = new Set([
 ]);
 // Project-wide Storage grants (admin ones are also in the set above).
 const ACCEPTED_PROJECT_STORAGE = new Set([
-  'c1-foundation/roles/storage.admin',
   'cal-pilot/roles/storage.objectViewer' // NEW-10
 ]);
 // `<module>/<type>.<name>`
@@ -205,6 +203,24 @@ resource "google_cloud_run_v2_service_iam_member" "${name}" {
       )
     ).toEqual([
       'c1-internal-test-run/google_cloud_run_v2_service_iam_member.worker_scheduler_invoke: public principal'
+    ]);
+  });
+
+  it('rejects projectIamAdmin and c1-foundation project-wide storage.admin regressions (B-01 / NEW-10)', () => {
+    const regressed = `
+resource "google_project_iam_member" "terraform_ci" {
+  for_each = toset([
+    "roles/resourcemanager.projectIamAdmin",
+    "roles/storage.admin"
+  ])
+  role   = each.value
+  member = "serviceAccount:x@y.iam.gserviceaccount.com"
+}
+`;
+    expect(scanTerraformModule('c1-foundation', regressed)).toEqual([
+      'c1-foundation/google_project_iam_member.terraform_ci: forbidden role roles/resourcemanager.projectIamAdmin',
+      'c1-foundation/google_project_iam_member.terraform_ci: unaccepted admin role roles/storage.admin',
+      'c1-foundation/google_project_iam_member.terraform_ci: unaccepted project-wide storage role roles/storage.admin'
     ]);
   });
 });

@@ -522,7 +522,8 @@ export class FirestoreCalendarPilotRepository implements CalendarPilotRepository
         throw new ConflictError();
       if (hasCalendarPilotWorkerLease(configuration)) throw new ConflictError();
       const sourceId = requestedSourceId ?? configuration.previousSourceId;
-      if (sourceId === undefined) throw new ConflictError();
+      if (sourceId === undefined || sourceId === null)
+        throw new ConflictError();
       const [source, preflight] = await Promise.all([
         transaction.get(this.db.collection(COLLECTIONS.sources).doc(sourceId)),
         transaction.get(

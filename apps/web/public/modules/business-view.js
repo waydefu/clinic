@@ -878,7 +878,15 @@ export function initializeBusinessView({
         if (!isViewActive() || controller.signal.aborted || !isCurrentSession())
           return;
         const objectUrl = URL.createObjectURL(
-          new Blob([result.content], { type: 'text/csv' })
+          // response.text() strips the server's UTF-8 BOM; restore it for Excel.
+          new Blob(
+            [
+              result.content.startsWith('\uFEFF')
+                ? result.content
+                : `\uFEFF${result.content}`
+            ],
+            { type: 'text/csv;charset=utf-8' }
+          )
         );
         const anchor = element('a');
         anchor.href = objectUrl;

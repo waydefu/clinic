@@ -97,7 +97,7 @@ function safeCellText(value) {
     // Excel and spreadsheet viewers may execute cells beginning with these
     // characters. Prefixing an apostrophe keeps the value visibly intact while
     // making the exported cell a literal. Leading whitespace is covered too.
-    return /^[\t ]*[=+\-@]/.test(text) ? `'${text}` : text;
+    return /^\s*[=+\-@]/.test(text) ? `'${text}` : text;
 }
 function csvCell(value) {
     const text = safeCellText(value);

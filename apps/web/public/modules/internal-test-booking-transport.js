@@ -355,6 +355,170 @@ export function applyDeleteContractWrite(state, path, result) {
   return state;
 }
 
+const RECOVERABLE_BOOKING_TRANSITION =
+  /^\/bookings\/([A-Za-z0-9_-]+)\/(cancel|arrive|complete|no-show|reschedule)$/;
+
+function isOccupancyWritePath(path) {
+  return (
+    path === '/bookings' ||
+    /\/bookings\/.+\/(cancel|reschedule|no-show|delete)$/.test(path)
+  );
+}
+
+function isRetryableServiceUnavailable(error) {
+  return (
+    error !== null &&
+    typeof error === 'object' &&
+    error.name === 'ApiClientError' &&
+    error.code === 'SERVICE_UNAVAILABLE' &&
+    error.retryable === true
+  );
+}
+
+function matchesRecoveredBookingTransition(
+  action,
+  body,
+  latest,
+  previousAppointment
+) {
+  if (latest === null || typeof latest !== 'object') return false;
+  switch (action) {
+    case 'cancel':
+      return latest.status === 'cancelled';
+    case 'arrive':
+      return latest.status === 'arrived';
+    case 'complete':
+      return latest.status === 'completed';
+    case 'no-show':
+      return latest.status === 'no_show';
+    case 'reschedule': {
+      if (latest.status !== 'confirmed') return false;
+      const targetSlotId =
+        typeof body?.targetSlotId === 'string'
+          ? body.targetSlotId
+          : body?.slotId;
+      if (
+        typeof targetSlotId === 'string' &&
+        typeof latest.slotId === 'string'
+      ) {
+        return latest.slotId === targetSlotId;
+      }
+      return (
+        typeof latest.startsAt === 'string' &&
+        typeof previousAppointment?.startsAt === 'string' &&
+        latest.startsAt !== previousAppointment.startsAt
+      );
+    }
+    default:
+      return false;
+  }
+}
+
+async function recoverBookingTransitionAfterUnavailable({
+  path,
+  body,
+  state,
+  request,
+  error
+}) {
+  if (!isRetryableServiceUnavailable(error)) return undefined;
+  const match = RECOVERABLE_BOOKING_TRANSITION.exec(path);
+  if (match === null) return undefined;
+  const [, appointmentId, action] = match;
+  const previousAppointment = Array.isArray(state?.appointments)
+    ? state.appointments.find((item) => item.id === appointmentId)
+    : undefined;
+  try {
+    const latest = await request(`/bookings/${appointmentId}`);
+    if (
+      latest?.appointmentId === appointmentId &&
+      matchesRecoveredBookingTransition(
+        action,
+        body,
+        latest,
+        previousAppointment
+      )
+    ) {
+      return latest;
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
+}
+
+/**
+ * Executes a staff write against `/v1` with two resilience boundaries:
+ * 1. If a known booking transition fails with a retryable SERVICE_UNAVAILABLE
+ *    (such as a cold-start timeout after the server committed), read back
+ *    `GET /bookings/:id` once and converge if the target state is persisted.
+ * 2. Once the primary write is applied locally, secondary occupancy refresh
+ *    failures degrade without losing the applied booking state or skipping
+ *    the caller's render hook.
+ */
+export async function commitInternalTestBookingWrite({
+  path,
+  body = {},
+  state,
+  request,
+  applyContractWrite,
+  refreshOccupancy = refreshPublishedOccupancy,
+  onCommitted
+}) {
+  let result;
+  try {
+    result = await request(path, {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+  } catch (error) {
+    const recovered = await recoverBookingTransitionAfterUnavailable({
+      path,
+      body,
+      state,
+      request,
+      error
+    });
+    if (recovered === undefined) throw error;
+    result = recovered;
+  }
+
+  if (Array.isArray(result?.appointments)) {
+    onCommitted?.(result);
+    return result;
+  }
+  if (path === '/schedule/publish') {
+    const refreshed = await request('/state');
+    onCommitted?.(refreshed);
+    return refreshed;
+  }
+
+  let nextState = state;
+  let applied = false;
+  try {
+    applyContractWrite?.(path, body, result);
+    applied = true;
+    if (typeof result?.appointmentId === 'string') {
+      if (isOccupancyWritePath(path)) {
+        applyDeleteContractWrite(nextState, path, result);
+        try {
+          nextState = await refreshOccupancy(
+            (nextPath) => request(nextPath),
+            nextState
+          );
+        } catch {
+          nextState = { ...nextState, slots: [] };
+        }
+      } else if (/^\/follow-ups\/[A-Za-z0-9_-]+$/.test(path)) {
+        applyFollowUpContractWrite(nextState, path, body, result);
+      }
+    }
+    return nextState;
+  } finally {
+    if (applied) onCommitted?.(nextState);
+  }
+}
+
 async function requestV1(
   fetchImpl,
   mapped,

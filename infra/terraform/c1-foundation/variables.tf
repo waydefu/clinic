@@ -116,6 +116,12 @@ variable "github_allowed_refs" {
   }
 }
 
+variable "github_wif_binding_enabled" {
+  type        = bool
+  description = "Whether to bind GitHub WIF identities to c1-terraform-ci. Default false (zero bindings via empty for_each) under W3-05 Q8=A because no workflow uses WIF yet; enable only when an approved CI workflow explicitly requires it."
+  default     = false
+}
+
 variable "budget_amount_twd" {
   type        = number
   description = "Alerting budget in TWD; not a hard spending cap and never auto-detaches billing."

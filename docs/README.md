@@ -63,6 +63,8 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Stage 2 identity and cloud change plan (2026-07-28)](architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md) — plan-only translation of approved D-006/D-010 values into reviewable identity, MFA, session, revocation, delegation-code and isolated-staging slices
 - [第一階段 RC 交付計畫（2026-11-08）](plans/2026-11-08-phase1-rc-delivery-plan.md) — PLAN-ONLY／現行唯一計畫入口與進度台帳：11/30 目標為上線候選版（RC），含 CP-10 歸屬、待決期限、時程與 59 包總表；不是核准或證據。
 - [C2～C6 RC 部署申請草稿（2026-11-15）](plans/2026-11-15-c2-c6-rc-deployment-requests.md) — DRAFT／逐片申請，不是核准；每片部署前負責人逐片同意
+- [11/18 C1 窗口計畫：補齊 C2～C5 並做 C6（2026-11-18）](plans/2026-11-18-c2-c6-window-plan.md) — 已於 11/18 執行，見[窗口報告](reviews/2026-11-18-c1-window-c2-c6.md)
+- [11/21 C1 窗口計畫：重建映像、C6 同步與衝突重測、#532～#535 驗證與 Gate 2 規劃（2026-11-21）](plans/2026-11-21-c1-window-plan.md) — PLAN-ONLY／待負責人核准：11/21 晚上開窗計畫（含映像重建、`c1-internal-test-run`／`c1-foundation`／C5 備份 plan 清單與 Gate 2 50 次正常收斂規劃）；不授權任何雲端操作
 - [2026-11-16 RC 雲端窗口執行單](runbooks/2026-11-16-rc-window-runsheet.md) — DRAFT／執行前清單：RC-05、RC-07、INGRESS、RC-06；不授權雲端操作
 - [第一階段 RC 細部包（2026-11-08）](plans/2026-11-08-phase1-rc-packets.md) — PLAN-ONLY：70 包（manifest 59＋RC-01～RC-11）逐包作法與 254 個 finding 對照。
 - [RC-11 治理分工與每週讀回](plans/2026-11-09-rc11-governance-review.md) — 待負責人審閱的角色分工提案與每週檢查清單；不授權部署或雲端操作。
@@ -80,6 +82,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [D-series approval packet template](templates/d-series-approval-packet-template.md) — standardised metadata, ceremony checklist, and register update procedure for every D-series approval
 - [Human blocker template](templates/human-blocker-template.md) — exact format for every HUMAN BLOCKER; copy verbatim, do not improvise
 - [Stage F exact-SHA authority packet template](templates/stage-f-exact-sha-authority-packet.md) — post-merge artifact bound to `origin/main`; not a self-invalidating docs commit; owner checkbox stays unchecked
+- [企業級綜合評分標準 v1（2026-11-16）](governance/enterprise-scorecard-standard-v1.md) — 整個專案的 12 面向 100 分差距評分標準：每項外部標準的版本與一手／二手確認程度、DORA 五項指標、等級與證據綁定、上限與 N/A／NOT_RUN 規則、雙軸輸出；第七節列出未解決項目，定稿前不得對其給分
 
 ## 3. Architecture and contracts
 
@@ -224,6 +227,10 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-11-17 | [C1 IAM 讀回、CI 帳號停用與 E4-14 判斷](reviews/2026-11-17-iam-readback.md) | CI 帳號 13 個角色與來源一致但過大（B-01），WIF 條件落後來源（B-02）且無 workflow 使用，經核准停用該帳號；E4-14 權威來源為 Identity Platform 停用／撤銷，逐請求檢查；B-01、B-02、NEW-10 與 E4-14 實測仍待辦 |
+| 2026-11-18 | [C1 窗口：C2～C5 補測與 C6 合成整合](reviews/2026-11-18-c1-window-c2-c6.md) | C2 停權、C3 登出、C4 櫃台角色、C5 稽核筆數通過；C6 投影與補償通過（行事曆事件已移除），calendar-sync 服務回 500 無日誌，同步收斂與衝突未證明；關窗讀回全部回到 stage1 |
+| 2026-11-19 | [Gemini 長跑紀錄：CI 解鎖、calendar-sync、取消畫面、權限收斂](reviews/2026-11-19-gemini-long-run-record.md) | 合併 #530～#535：CI 開發依賴稽核改成「有修補版才擋」；calendar-sync 加防崩潰與日誌但根因待開窗重現；修好 `previousSourceId: null` 必現 503；取消後誤報是冷啟動逾時，已修；B-01／B-02／NEW-10 原始碼收斂（未 apply）；下次開窗要重建映像並認出 IAM plan 差異 |
+| 2026-11-16 | [MAINTENANCE、SECRETS、C2、C5 唯讀讀回](reviews/2026-11-16-maintenance-secrets-c2-c5-readback.md) | C2、C5 plan 無差異，TOTP、PITR、每日備份、TTL 與 repo 一致；API 與兩個 worker 都讀維護控制（11/17 更正原「只有 API 讀」），worker 端未實測，不能宣稱全域停寫；疑似 SA JSON 密鑰版本與兩個舊版本已於當天停用（#526） |
 | 2026-11-16 | [C1 員工端窗口：RC-06、C3 七天登入、C4 Business Delivery](reviews/2026-11-16-c1-window-rc06-c3-c4.md) | main `df63bb85` 部署；RC-06 改期／到診／完成／取消通過；session 7 天；Stage 2b 報表、CSV、封存復原通過；已關窗。發現：到診可提前、CSV 缺 BOM、vendor 副本過舊、API apply 後須重部署 Hosting |
 | 2026-11-16 | [INGRESS 唯讀讀回與 RC-06 前提檢查](reviews/2026-11-16-ingress-and-rc06-readback.md) | 三個服務入口與 Terraform 一致；RC-06 因預約閘門過期、Hosting 無 /v1 轉送而未執行 |
 | 2026-11-16 | [RC-05 Cloud Run 流量讀回](reviews/2026-11-16-rc05-traffic-readback.md) | C1 三個服務 100% 跟隨最新 revision，唯讀、無變更 |

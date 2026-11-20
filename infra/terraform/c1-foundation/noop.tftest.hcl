@@ -32,6 +32,11 @@ run "default_sha_is_noop" {
   }
 
   assert {
+    condition     = length(google_service_account_iam_member.terraform_ci_wif) == 0
+    error_message = "C1 must create zero WIF bindings when SHA is not_granted."
+  }
+
+  assert {
     condition     = length(google_secret_manager_secret.reserved) == 0
     error_message = "C1 must create zero secrets when SHA is not_granted."
   }
@@ -175,6 +180,41 @@ run "wif_trust_is_pinned_to_numeric_ids_and_approved_refs" {
     error_message = "C1 WIF trust must pin repository name, numeric repository id, numeric owner id and the approved ref."
   }
 
+  assert {
+    condition = (
+      google_iam_workload_identity_pool_provider.github[0].attribute_mapping["attribute.workflow_ref"] ==
+      "assertion.workflow_ref"
+    )
+    error_message = "C1 WIF provider must map attribute.workflow_ref to assertion.workflow_ref."
+  }
+
+  assert {
+    condition     = length(google_service_account_iam_member.terraform_ci_wif) == 0
+    error_message = "C1 WIF binding must default to count = 0 when github_wif_binding_enabled is false."
+  }
+}
+
+run "wif_binding_requires_explicit_opt_in" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha  = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                 = "beauessence-clinic-stg-smoke1"
+    billing_account_id         = "000000-000000-000000"
+    github_repository_id       = "123456789"
+    github_repository_owner_id = "987654321"
+    github_wif_binding_enabled = true
+  }
+
+  assert {
+    condition     = length(google_service_account_iam_member.terraform_ci_wif) == 1
+    error_message = "C1 WIF binding must create one membership when github_wif_binding_enabled is explicitly true."
+  }
+
+  assert {
+    condition     = google_service_account_iam_member.terraform_ci_wif["enabled"].role == "roles/iam.workloadIdentityUser"
+    error_message = "C1 WIF binding must grant roles/iam.workloadIdentityUser only."
+  }
 }
 
 run "named_sha_without_repository_id_is_rejected" {
@@ -242,18 +282,17 @@ run "ci_principal_has_no_basic_or_data_or_key_roles" {
     github_repository_owner_id = "987654321"
   }
 
-  # Pin today's inventory, not its necessity or least-privilege approval (B-01).
+  # Pin today's converged inventory after removing projectIamAdmin and
+  # project-wide storage.admin (B-01 / NEW-10).
   assert {
     condition = toset(keys(google_project_iam_member.terraform_ci)) == toset([
       "roles/serviceusage.serviceUsageAdmin",
       "roles/iam.serviceAccountAdmin",
       "roles/iam.workloadIdentityPoolAdmin",
-      "roles/resourcemanager.projectIamAdmin",
       "roles/secretmanager.admin",
       "roles/logging.admin",
       "roles/monitoring.admin",
-      "roles/pubsub.admin",
-      "roles/storage.admin"
+      "roles/pubsub.admin"
     ])
     error_message = "C1 project IAM grants must exactly match the current source inventory, with no additional or missing roles."
   }
@@ -266,8 +305,7 @@ run "ci_principal_has_no_basic_or_data_or_key_roles" {
     error_message = "Every C1 CI grant must use its manifest role and the isolated project."
   }
 
-  # B-41: negative baseline. Today's broad admin roles are tracked by B-01 and
-  # are not approved here; these must never appear.
+  # B-01 / B-41 / NEW-10: negative baseline. These roles must never appear.
   assert {
     condition = length(setintersection(
       toset(keys(google_project_iam_member.terraform_ci)),
@@ -276,12 +314,14 @@ run "ci_principal_has_no_basic_or_data_or_key_roles" {
         "roles/editor",
         "roles/viewer",
         "roles/datastore.user",
+        "roles/resourcemanager.projectIamAdmin",
+        "roles/storage.admin",
         "roles/iam.securityAdmin",
         "roles/iam.serviceAccountKeyAdmin",
         "roles/iam.serviceAccountTokenCreator"
       ])
     )) == 0
-    error_message = "C1 Terraform CI must not hold basic, Firestore data or service-account key/token roles."
+    error_message = "C1 Terraform CI must not hold basic, Firestore data, projectIamAdmin, project-wide storage.admin or service-account key/token roles."
   }
 }
 

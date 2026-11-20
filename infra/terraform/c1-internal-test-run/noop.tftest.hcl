@@ -74,6 +74,16 @@ run "default_sha_is_noop" {
     condition     = length(local.worker_secret_env_when_mounted) == 0
     error_message = "C1 internal-test must mount zero worker secrets when SHA is not_granted."
   }
+
+  assert {
+    condition     = length(google_project_iam_member.terraform_ci_stage_f) == 0
+    error_message = "C1 internal-test must create zero Stage F CI project IAM grants when SHA is not_granted."
+  }
+
+  assert {
+    condition     = length(google_service_account_iam_member.terraform_ci_act_as_runtime) == 0
+    error_message = "C1 internal-test must create zero per-SA serviceAccountUser grants when SHA is not_granted."
+  }
 }
 
 run "calendar_sync_prerequisites_without_sha_are_noop" {
@@ -207,6 +217,42 @@ run "named_sha_with_digest_plans_isolated_run" {
   assert {
     condition     = length(google_project_iam_member.api_firebaseauth_session_runtime) == 1
     error_message = "C1 API must receive exactly one Firebase Auth session custom-role binding when SHA-gated apply is on."
+  }
+
+  assert {
+    condition = toset(keys(google_project_iam_member.terraform_ci_stage_f)) == toset([
+      "roles/run.admin",
+      "roles/artifactregistry.admin",
+      "roles/cloudscheduler.admin"
+    ])
+    error_message = "Stage F CI project IAM must contain only run.admin, artifactregistry.admin and cloudscheduler.admin."
+  }
+
+  assert {
+    condition = !contains(
+      keys(google_project_iam_member.terraform_ci_stage_f),
+      "roles/iam.serviceAccountUser"
+    )
+    error_message = "Stage F CI must not hold project-wide roles/iam.serviceAccountUser."
+  }
+
+  assert {
+    condition = toset(keys(google_service_account_iam_member.terraform_ci_act_as_runtime)) == toset([
+      "api",
+      "worker",
+      "scheduler",
+      "builder"
+    ])
+    error_message = "Without calendar_sync prerequisites, CI serviceAccountUser must bind only to api, worker, scheduler and builder."
+  }
+
+  assert {
+    condition = alltrue([
+      for _, binding in google_service_account_iam_member.terraform_ci_act_as_runtime :
+      binding.role == "roles/iam.serviceAccountUser" &&
+      binding.member == "serviceAccount:c1-terraform-ci@${var.project_id}.iam.gserviceaccount.com"
+    ])
+    error_message = "Every per-SA CI act-as binding must grant roles/iam.serviceAccountUser to c1-terraform-ci."
   }
 }
 
@@ -419,6 +465,17 @@ run "calendar_sync_is_opt_in_keyless_and_paused" {
     condition     = length(google_secret_manager_secret_iam_member.calendar_sync_calendar_id) == 1
     error_message = "The inbound worker must get only its synthetic Calendar ID binding."
   }
+
+  assert {
+    condition = toset(keys(google_service_account_iam_member.terraform_ci_act_as_runtime)) == toset([
+      "api",
+      "worker",
+      "scheduler",
+      "builder",
+      "calendar_sync"
+    ])
+    error_message = "With calendar_sync enabled, CI serviceAccountUser must bind to the five runtime service accounts only."
+  }
 }
 
 run "calendar_sync_prerequisites_do_not_start_runtime" {
@@ -460,6 +517,17 @@ run "calendar_sync_prerequisites_do_not_start_runtime" {
   assert {
     condition     = length(google_cloud_scheduler_job.calendar_sync) == 0
     error_message = "First stage must not create the inbound Scheduler job."
+  }
+
+  assert {
+    condition = toset(keys(google_service_account_iam_member.terraform_ci_act_as_runtime)) == toset([
+      "api",
+      "worker",
+      "scheduler",
+      "builder",
+      "calendar_sync"
+    ])
+    error_message = "With calendar_sync prerequisites active, CI serviceAccountUser must bind to all five runtime service accounts."
   }
 }
 
