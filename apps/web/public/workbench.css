@@ -1731,95 +1731,6 @@ details[open] > summary .workflow-summary-chevron {
     max-height: min(1122px, 60vh);
     overflow-y: auto;
   }
-
-  /* 日期表頭在捲動時保持可見。
-
-     這條在 `overflow-y: hidden` 之下是**沒有效果**的：sticky 黏的是最近的捲動
-     容器，而那時 .week-view 垂直方向根本不捲。上面開放垂直捲動之後它才生效。
-     表頭與網格在同一個容器裡，所以橫向捲動時兩者自動同步，不需要 JS 對齊。 */
-  .wv-head {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    background: var(--surface);
-  }
-}
-/* flex 而非 grid：欄位事件是絕對定位、不計入內容高度，grid 的 auto row 會把
-   整列撐不起來（塌成 0）；flex 項目則會確實套用明確的 height。 */
-.wv-head {
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  min-width: 44rem;
-}
-.wv-head-time {
-  flex: 0 0 3.4rem;
-}
-.wv-head-cell {
-  color: var(--ink-muted);
-  flex: 1 1 0;
-  font-size: var(--text-body);
-  font-weight: var(--weight-bold);
-  min-width: 5.5rem;
-  padding: var(--space-2xs) var(--space-3xs);
-  text-align: center;
-}
-.wv-head-cell span {
-  display: block;
-  font-size: var(--text-body);
-}
-.wv-head-cell.wv-closed {
-  /* Was --line-strong (#c3d3ca), which measured 1.49:1 on the near-white
-     header — the weekday and date were effectively invisible. "Closed" is
-     already signalled by the diagonal-striped column below (.wv-col.wv-closed),
-     so the header text uses the readable muted ink and clears WCAG AA. */
-  color: var(--ink-muted);
-}
-.wv-head-cell.wv-today b {
-  background: var(--forest);
-  border-radius: var(--radius-pill);
-  color: var(--on-accent);
-  display: inline-block;
-  margin-top: var(--space-4xs);
-  min-width: 1.5rem;
-  padding: var(--space-4xs) var(--space-3xs);
-}
-.wv-grid {
-  display: flex;
-  min-width: 44rem;
-}
-.wv-axis {
-  border-right: 1px solid var(--line);
-  flex: 0 0 3.4rem;
-  position: relative;
-}
-.wv-hour {
-  color: var(--ink-muted);
-  font-size: var(--text-body);
-  padding-right: var(--space-2xs);
-  position: absolute;
-  right: 0;
-  transform: translateY(-0.5em);
-}
-.wv-col {
-  border-right: 1px solid var(--line);
-  flex: 1 1 0;
-  min-width: 5.5rem;
-  position: relative;
-}
-.wv-col:last-child {
-  border-right: 0;
-}
-/* 休診日現在預設**不出現**在週檢視裡（見 week-view.js 的 visibleDays），所以這個
-   網底只會落在「排班說休診、但那天其實有預約」的例外欄位上——保留它是為了讓那種
-   不一致一眼看得出來。網底刻意比先前淡：它是註記，不是主角。 */
-.wv-col.wv-closed {
-  background: repeating-linear-gradient(
-    45deg,
-    transparent,
-    transparent 9px,
-    var(--surface-soft) 9px,
-    var(--surface-soft) 12px
-  );
 }
 .wv-empty {
   color: var(--ink-muted);
@@ -1827,24 +1738,6 @@ details[open] > summary .workflow-summary-chevron {
   margin: 0;
   padding: var(--space-md);
   text-align: center;
-}
-.wv-closed-label {
-  color: var(--ink-muted);
-  font-size: var(--text-body);
-  font-weight: var(--weight-bold);
-  left: 50%;
-  position: absolute;
-  top: 1.4rem;
-  transform: translateX(-50%);
-}
-.wv-line {
-  border-top: 1px solid var(--line);
-  left: 0;
-  position: absolute;
-  right: 0;
-}
-.wv-line-hour {
-  border-top-color: var(--line-strong);
 }
 .wv-event {
   border-left: 3px solid;
@@ -2267,36 +2160,10 @@ details[open] > summary .workflow-summary-chevron {
   padding: var(--space-2xs) var(--space-xs);
 }
 
-/* 週曆依實際時間衝突動態分軌，並保留可讀的事件、時間軸與圖例尺寸。 */
+/* 週曆依實際時間衝突動態分軌，並保留可讀的事件與圖例尺寸。 */
 .week-view {
   background: var(--surface);
   box-shadow: none;
-}
-.wv-head,
-.wv-grid {
-  min-width: 52rem;
-}
-.wv-head-time,
-.wv-axis {
-  flex-basis: 4rem;
-}
-.wv-head-cell {
-  background: var(--surface-soft);
-  font-size: var(--text-body);
-  min-width: 6.85rem;
-  padding: var(--space-xs) var(--space-2xs);
-}
-.wv-head-cell span {
-  font-size: var(--text-body);
-  letter-spacing: var(--tracking-wide);
-}
-.wv-col {
-  min-width: 6.85rem;
-}
-.wv-hour {
-  font-size: var(--text-body);
-  font-weight: var(--weight-bold);
-  padding-right: var(--space-2xs);
 }
 .wv-event {
   align-items: flex-start;
