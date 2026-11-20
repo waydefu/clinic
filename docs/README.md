@@ -63,6 +63,8 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [Stage 2 identity and cloud change plan (2026-07-28)](architecture/stage-2-identity-and-cloud-change-plan-2026-07-28.md) — plan-only translation of approved D-006/D-010 values into reviewable identity, MFA, session, revocation, delegation-code and isolated-staging slices
 - [第一階段 RC 交付計畫（2026-11-08）](plans/2026-11-08-phase1-rc-delivery-plan.md) — PLAN-ONLY／現行唯一計畫入口與進度台帳：11/30 目標為上線候選版（RC），含 CP-10 歸屬、待決期限、時程與 59 包總表；不是核准或證據。
 - [C2～C6 RC 部署申請草稿（2026-11-15）](plans/2026-11-15-c2-c6-rc-deployment-requests.md) — DRAFT／逐片申請，不是核准；每片部署前負責人逐片同意
+- [11/18 C1 窗口計畫：補齊 C2～C5 並做 C6（2026-11-18）](plans/2026-11-18-c2-c6-window-plan.md) — 已於 11/18 執行，見[窗口報告](reviews/2026-11-18-c1-window-c2-c6.md)
+- [11/21 C1 窗口計畫：重建映像、C6 同步與衝突重測、#532～#535 驗證與 Gate 2 規劃（2026-11-21）](plans/2026-11-21-c1-window-plan.md) — PLAN-ONLY／待負責人核准：11/21 晚上開窗計畫（含映像重建、`c1-internal-test-run`／`c1-foundation`／C5 備份 plan 清單與 Gate 2 50 次正常收斂規劃）；不授權任何雲端操作
 - [2026-11-16 RC 雲端窗口執行單](runbooks/2026-11-16-rc-window-runsheet.md) — DRAFT／執行前清單：RC-05、RC-07、INGRESS、RC-06；不授權雲端操作
 - [第一階段 RC 細部包（2026-11-08）](plans/2026-11-08-phase1-rc-packets.md) — PLAN-ONLY：70 包（manifest 59＋RC-01～RC-11）逐包作法與 254 個 finding 對照。
 - [RC-11 治理分工與每週讀回](plans/2026-11-09-rc11-governance-review.md) — 待負責人審閱的角色分工提案與每週檢查清單；不授權部署或雲端操作。
@@ -224,6 +226,15 @@ Newest first. Each entry is dated evidence, not a plan.
 
 | Date | Review | Result |
 | --- | --- | --- |
+| 2026-11-17 | [C1 IAM 讀回、CI 帳號停用與 E4-14 判斷](reviews/2026-11-17-iam-readback.md) | CI 帳號 13 個角色與來源一致但過大（B-01），WIF 條件落後來源（B-02）且無 workflow 使用，經核准停用該帳號；E4-14 權威來源為 Identity Platform 停用／撤銷，逐請求檢查；B-01、B-02、NEW-10 與 E4-14 實測仍待辦 |
+| 2026-11-18 | [C1 窗口：C2～C5 補測與 C6 合成整合](reviews/2026-11-18-c1-window-c2-c6.md) | C2 停權、C3 登出、C4 櫃台角色、C5 稽核筆數通過；C6 投影與補償通過（行事曆事件已移除），calendar-sync 服務回 500 無日誌，同步收斂與衝突未證明；關窗讀回全部回到 stage1 |
+| 2026-11-19 | [Gemini 長跑紀錄：CI 解鎖、calendar-sync、取消畫面、權限收斂](reviews/2026-11-19-gemini-long-run-record.md) | 合併 #530～#535：CI 開發依賴稽核改成「有修補版才擋」；calendar-sync 加防崩潰與日誌但根因待開窗重現；修好 `previousSourceId: null` 必現 503；取消後誤報是冷啟動逾時，已修；B-01／B-02／NEW-10 原始碼收斂（未 apply）；下次開窗要重建映像並認出 IAM plan 差異 |
+| 2026-11-16 | [MAINTENANCE、SECRETS、C2、C5 唯讀讀回](reviews/2026-11-16-maintenance-secrets-c2-c5-readback.md) | C2、C5 plan 無差異，TOTP、PITR、每日備份、TTL 與 repo 一致；API 與兩個 worker 都讀維護控制（11/17 更正原「只有 API 讀」），worker 端未實測，不能宣稱全域停寫；疑似 SA JSON 密鑰版本與兩個舊版本已於當天停用（#526） |
+| 2026-11-16 | [C1 員工端窗口：RC-06、C3 七天登入、C4 Business Delivery](reviews/2026-11-16-c1-window-rc06-c3-c4.md) | main `df63bb85` 部署；RC-06 改期／到診／完成／取消通過；session 7 天；Stage 2b 報表、CSV、封存復原通過；已關窗。發現：到診可提前、CSV 缺 BOM、vendor 副本過舊、API apply 後須重部署 Hosting |
+| 2026-11-16 | [INGRESS 唯讀讀回與 RC-06 前提檢查](reviews/2026-11-16-ingress-and-rc06-readback.md) | 三個服務入口與 Terraform 一致；RC-06 因預約閘門過期、Hosting 無 /v1 轉送而未執行 |
+| 2026-11-16 | [RC-05 Cloud Run 流量讀回](reviews/2026-11-16-rc05-traffic-readback.md) | C1 三個服務 100% 跟隨最新 revision，唯讀、無變更 |
+| 2026-11-16 | [RC-07 日曆續期讀回](reviews/2026-11-16-calendar-gate2-readback.md) | C1 日曆設定續到 2026-12-16；cal-pilot 預覽頻道已到期，不重建 |
+| 2026-11-07 | [C1 三次雲端窗口（補登）](reviews/2026-11-07-c1-staff-windows-backfill.md) | 11/16 補登：維護閘門未接線（#447）、流量卡舊 revision、員工登入成功但改期 409；附窗口標準程序 |
 | 2026-10-25 | [官網與預約頁綜合評分（v2 標準）](reviews/2026-10-25-public-site-audit-v2.md) | 受評 #302（`a0409c2` 預覽／`acb1d1d` 本機）：官網 64.5／100、預約頁 77／100，視覺 61.8／44.6；官網比 v1 低 4 分主要因標準變嚴（F 上限、H 檔案大小、B 實測）。最大缺口：官網醫療廣告用語、原始 HTML 無正文、節流 LCP 4.3～4.5 秒、官網焦點框對比 2.45:1 |
 | 2026-10-25 | [官網改進候選（#302）synthetic-review 預覽部署](reviews/2026-10-25-clinic-learnings-synthetic-preview-deployment.md) | PR #302 head `36f182c`（CI 12/12）部署至 `synthetic-review`，30 天至 2026-11-24 15:35（Asia/Taipei），取代上午的 main `aee87f5`；靜態-only、未碰 live／CAL-PILOT。`/clinic`、`/clinic/doctors` 等內頁 200 無轉址且 JS 前即有各自標題與 og；不存在路徑仍顯示 404 畫面；卡片到內頁轉場經 `pageswap` 確認；面板內 lazy 圖片不載入屬測試環境限制；同日依序追加 `b681e59`、`a0409c2`、`85b8312`（評分後的焦點框、canonical／og:image、預約頁回官網與備註提醒），現行為 `85b8312`，到期 2026-11-24 22:06 |
 | 2026-10-25 | [官網與預約頁 synthetic-review 預覽部署](reviews/2026-10-25-clinic-booking-synthetic-preview-deployment.md) | Exact `aee87f5` 已部署至 `beauessence-clinic-staging` 的 `synthetic-review`，30 天，至 2026-11-24 13:21（Asia/Taipei）；靜態-only、未碰 live／CAL-PILOT。`/clinic`、`/booking` 實機開啟正常，`/v1/health` 404；`verify:preview` 298/451，失敗為雜湊資產 CSP 與工作臺文案的既有腳本假設，已如實記錄 |

@@ -223,12 +223,28 @@ resource "google_project_iam_member" "terraform_ci_stage_f" {
   for_each = local.apply_enabled ? toset([
     "roles/run.admin",
     "roles/artifactregistry.admin",
-    "roles/cloudscheduler.admin",
-    "roles/iam.serviceAccountUser"
+    "roles/cloudscheduler.admin"
   ]) : toset([])
   project = var.project_id
   role    = each.value
   member  = "serviceAccount:c1-terraform-ci@${var.project_id}.iam.gserviceaccount.com"
+}
+
+resource "google_service_account_iam_member" "terraform_ci_act_as_runtime" {
+  for_each = local.apply_enabled ? merge(
+    {
+      api       = google_service_account.api[0].name
+      worker    = google_service_account.worker[0].name
+      scheduler = google_service_account.scheduler[0].name
+      builder   = google_service_account.builder[0].name
+    },
+    local.calendar_sync_prerequisites_active ? {
+      calendar_sync = google_service_account.calendar_sync["enabled"].name
+    } : {}
+  ) : {}
+  service_account_id = each.value
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:c1-terraform-ci@${var.project_id}.iam.gserviceaccount.com"
 }
 
 resource "google_secret_manager_secret" "runtime" {

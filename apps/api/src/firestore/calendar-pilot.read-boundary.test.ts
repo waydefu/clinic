@@ -2,6 +2,7 @@ import { CalendarAvailabilityResponseSchema } from '@beauessence/contracts';
 import type { Firestore } from 'firebase-admin/firestore';
 import { describe, expect, it, vi } from 'vitest';
 
+import { ConflictError } from '../platform/errors/api-error.js';
 import { FirestoreCalendarPilotRepository } from './calendar-pilot.repository.js';
 
 function store(
@@ -381,6 +382,59 @@ describe('CAL-PILOT API stored read boundary', () => {
     expect(result.lastSuccessfulSyncAt).toBeNull();
     expect(result.nextScheduledSyncAt).toBeNull();
     expect(runTransaction).not.toHaveBeenCalled();
+  });
+
+  it('accepts configuration with previousSourceId: null on read and rejects rollback with ConflictError', async () => {
+    const initialConfiguration = {
+      ...configuration,
+      previousSourceId: null
+    };
+    const { repository, runTransaction } = store(
+      initialConfiguration,
+      [{ displayName: 'Synthetic source' }],
+      [configuration.activeSourceId]
+    );
+    const status = await repository.getStatus('2030-01-02T00:00:00Z');
+    expect(status.health).toBe('healthy');
+    const sources = await repository.listSources();
+    expect(sources).toMatchObject([
+      {
+        sourceId: configuration.activeSourceId,
+        active: true,
+        previous: false
+      }
+    ]);
+    expect(runTransaction).not.toHaveBeenCalled();
+
+    const get = vi.fn((ref: { readonly collection: string }) =>
+      Promise.resolve(
+        ref.collection === 'calendar_pilot_configuration'
+          ? { exists: true, data: () => initialConfiguration }
+          : { exists: false, data: () => undefined }
+      )
+    );
+    const transaction = { get };
+    const rollbackDb = {
+      collection: (collection: string) => ({
+        doc: (id: string) => ({ collection, id })
+      }),
+      runTransaction: <T>(body: (tx: typeof transaction) => Promise<T>) =>
+        body(transaction)
+    } as unknown as Firestore;
+    const rollbackRepository = new FirestoreCalendarPilotRepository(rollbackDb);
+
+    await expect(
+      rollbackRepository.rollbackSource({
+        actorId: 'synthetic_actor',
+        idempotencyKey: 'synthetic_rollback_null_prev',
+        expectedVersion: 1,
+        preflightId: 'synthetic_preflight',
+        occurredAt: '2030-01-02T00:00:00Z'
+      })
+    ).rejects.toBeInstanceOf(ConflictError);
+    expect(get).not.toHaveBeenCalledWith(
+      expect.objectContaining({ collection: 'calendar_pilot_sources' })
+    );
   });
 
   it('validates the existing preflight wire shape on read', async () => {

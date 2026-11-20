@@ -16,6 +16,7 @@ import {
   CalendarPilotConfigurationRecordSchema,
   CalendarPilotMirrorRecordSchema,
   CalendarPilotMirrorReviewRecordSchema,
+  CalendarPilotSourceConfigurationSchema,
   CalendarPilotSourceRecordSchema,
   CalendarPilotSourceSummaryRecordSchema,
   parseCalendarPilotRecord
@@ -194,6 +195,55 @@ it('keeps omitted sync clocks distinct from malformed clocks', () => {
       lastSuccessfulSyncAt: 'Jul 25 2026 Z'
     })
   ).toThrow('Unreadable CAL-PILOT record.');
+});
+
+describe.each([
+  {
+    name: 'source configuration',
+    schema: CalendarPilotSourceConfigurationSchema,
+    base: {
+      activeSourceId: configuration.activeSourceId,
+      version: configuration.version,
+      expiresAt: configuration.expiresAt
+    }
+  },
+  {
+    name: 'configuration record',
+    schema: CalendarPilotConfigurationRecordSchema,
+    base: configuration
+  }
+])('$name previousSourceId boundary', ({ schema, base }) => {
+  it('accepts null, undefined, and a valid opaque identifier', () => {
+    const withNull = { ...base, previousSourceId: null };
+    const withUndefined = { ...base, previousSourceId: undefined };
+    const withIdentifier = {
+      ...base,
+      previousSourceId: 'synthetic_previous_source'
+    };
+
+    expect(parseCalendarPilotRecord<unknown>(schema, base)).toEqual(base);
+    expect(parseCalendarPilotRecord<unknown>(schema, withNull)).toEqual(
+      withNull
+    );
+    expect(parseCalendarPilotRecord<unknown>(schema, withUndefined)).toEqual(
+      withUndefined
+    );
+    expect(parseCalendarPilotRecord<unknown>(schema, withIdentifier)).toEqual(
+      withIdentifier
+    );
+  });
+
+  it.each(['', 123])(
+    'rejects malformed previousSourceId %j',
+    (previousSourceId) => {
+      expect(() =>
+        parseCalendarPilotRecord<unknown>(schema, {
+          ...base,
+          previousSourceId
+        })
+      ).toThrow('Unreadable CAL-PILOT record.');
+    }
+  );
 });
 
 it('validates consumed mirror fields without requiring worker metadata', () => {
