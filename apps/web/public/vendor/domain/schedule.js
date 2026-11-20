@@ -62,7 +62,11 @@ export function isValidLocalDate(value) {
     return (month >= 1 && month <= 12 && day >= 1 && day <= daysInMonth[month - 1]);
 }
 /** 尚未結束、仍佔著時段的預約狀態。 */
-const OPEN_APPOINTMENT_STATUSES = ['confirmed', 'cancellation_requested', 'arrived'];
+const OPEN_APPOINTMENT_STATUSES = [
+    'confirmed',
+    'cancellation_requested',
+    'arrived'
+];
 // A defensive array check that returns a plain boolean. `Array.isArray` is a
 // `x is any[]` type guard, so using it on an already-typed `readonly T[]`
 // narrows the element type to `any` and poisons everything downstream. These

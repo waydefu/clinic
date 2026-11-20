@@ -26,7 +26,7 @@ export const CalendarPilotSourceConfigurationSchema = z
   .object({
     ...unversioned,
     activeSourceId: OpaqueIdentifierSchema,
-    previousSourceId: OpaqueIdentifierSchema.optional(),
+    previousSourceId: OpaqueIdentifierSchema.nullable().optional(),
     version: generation,
     expiresAt: UtcIsoTimestampSchema
   })

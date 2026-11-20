@@ -27,6 +27,11 @@ run "default_sha_is_noop" {
   }
 
   assert {
+    condition     = length(google_firestore_backup_schedule.weekly) == 0
+    error_message = "C5 must create zero weekly backup schedules when SHA is not_granted."
+  }
+
+  assert {
     condition     = length(google_firestore_field.export_chunk_ttl) == 0
     error_message = "C5 must create zero TTL policies when SHA is not_granted."
   }
@@ -99,6 +104,26 @@ run "named_sha_enables_native_firestore" {
   assert {
     condition     = google_firestore_backup_schedule.daily[0].database == "(default)"
     error_message = "C5 daily backup must target the default database."
+  }
+
+  assert {
+    condition     = length(google_firestore_backup_schedule.weekly) == 1
+    error_message = "C5 must create the weekly backup schedule when SHA-gated apply is on."
+  }
+
+  assert {
+    condition     = google_firestore_backup_schedule.weekly[0].retention == "8467200s"
+    error_message = "C5 weekly backup retention must be 14 weeks (8467200s)."
+  }
+
+  assert {
+    condition     = google_firestore_backup_schedule.weekly[0].database == "(default)"
+    error_message = "C5 weekly backup must target the default database."
+  }
+
+  assert {
+    condition     = one(google_firestore_backup_schedule.weekly[0].weekly_recurrence).day == "SUNDAY"
+    error_message = "C5 weekly backup must run on SUNDAY."
   }
 
   assert {
