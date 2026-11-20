@@ -389,6 +389,32 @@ describe('C1 internal-test Cloud Run Terraform source', () => {
     expect(packet).toContain('tracked-source archive');
     expect(packet).not.toContain('--expires 7d');
   });
+
+  it('scopes CI serviceAccountUser to explicit runtime service accounts instead of project-wide (B-01)', () => {
+    const projectGrantBlock = main.match(
+      /resource "google_project_iam_member" "terraform_ci_stage_f" \{[\s\S]*?\n\}/
+    )?.[0];
+    expect(projectGrantBlock).toBeDefined();
+    expect(projectGrantBlock).not.toContain('roles/iam.serviceAccountUser');
+    expect(projectGrantBlock).toContain('roles/run.admin');
+    expect(projectGrantBlock).toContain('roles/artifactregistry.admin');
+    expect(projectGrantBlock).toContain('roles/cloudscheduler.admin');
+
+    const perSaGrantBlock = main.match(
+      /resource "google_service_account_iam_member" "terraform_ci_act_as_runtime" \{[\s\S]*?\n\}/
+    )?.[0];
+    expect(perSaGrantBlock).toBeDefined();
+    expect(perSaGrantBlock).toContain('roles/iam.serviceAccountUser');
+    expect(perSaGrantBlock).toContain('google_service_account.api[0].name');
+    expect(perSaGrantBlock).toContain('google_service_account.worker[0].name');
+    expect(perSaGrantBlock).toContain(
+      'google_service_account.scheduler[0].name'
+    );
+    expect(perSaGrantBlock).toContain('google_service_account.builder[0].name');
+    expect(perSaGrantBlock).toContain(
+      'google_service_account.calendar_sync["enabled"].name'
+    );
+  });
 });
 
 const revisionValidator =

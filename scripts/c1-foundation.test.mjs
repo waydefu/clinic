@@ -77,6 +77,8 @@ describe('C1 isolated foundation Terraform source', () => {
     expect(main).not.toMatch(/roles\/owner/);
     expect(main).not.toMatch(/roles\/editor/);
     expect(main).not.toMatch(/roles\/datastore\.user/);
+    expect(main).not.toContain('roles/resourcemanager.projectIamAdmin');
+    expect(main).not.toContain('roles/storage.admin');
     for (const role of C1_TERRAFORM_CI_ROLES) {
       expect(main).toContain(`"${role}"`);
     }
@@ -90,11 +92,11 @@ describe('C1 isolated foundation Terraform source', () => {
     [
       'an additional role',
       main.replace(
-        '"roles/storage.admin"',
-        '"roles/storage.admin", "roles/compute.admin"'
+        '"roles/pubsub.admin"',
+        '"roles/pubsub.admin", "roles/compute.admin"'
       )
     ],
-    ['a missing role', main.replace('"roles/storage.admin"', '')],
+    ['a missing role', main.replace('"roles/pubsub.admin"', '')],
     [
       'an unconditional grant',
       main.replace(
@@ -220,6 +222,9 @@ describe('C1 isolated foundation Terraform source', () => {
 
   it('pins the WIF trust to immutable numeric ids and approved refs, required before apply (B-02)', () => {
     expect(main).toContain(
+      '"attribute.workflow_ref"        = "assertion.workflow_ref"'
+    );
+    expect(main).toContain(
       "assertion.repository_id == '${var.github_repository_id}'"
     );
     expect(main).toContain(
@@ -228,6 +233,9 @@ describe('C1 isolated foundation Terraform source', () => {
     expect(main).toContain('assertion.ref in [');
     expect(main).toContain('var.github_allowed_refs');
     expect(main).toContain(
+      'for_each           = local.apply_enabled ? (var.github_wif_binding_enabled ? toset(["enabled"]) : toset([])) : toset([])'
+    );
+    expect(main).toContain(
       'attribute.repository_id/${var.github_repository_id}'
     );
     expect(main).not.toContain('attribute.repository/${var.github_repository}');
@@ -235,6 +243,9 @@ describe('C1 isolated foundation Terraform source', () => {
       const block = variables.slice(variables.indexOf(`variable "${id}"`));
       expect(block).toContain('default     = "not_granted"');
     }
+    expect(variables).toMatch(
+      /variable "github_wif_binding_enabled" \{[\s\S]*?type\s*=\s*bool[\s\S]*?default\s*=\s*false/
+    );
     expect(variables).toContain('refs/heads/main');
     // An exact ref list: a wildcard or quote would widen or break the CEL condition.
     expect(variables).toContain('^refs/(heads|tags)/[A-Za-z0-9._/-]+$');
