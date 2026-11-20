@@ -204,7 +204,7 @@ html.synthetic-workbench-ready .cp-boot-status {
   flex-basis: 100%;
 }
 /* 三步驟說明：把「草稿→比較→發布」的關係寫在畫面上，而不是讓人自己推。 */
-.schedule-steps {
+#schedule-section > ol {
   display: grid;
   gap: var(--space-xs);
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -212,20 +212,20 @@ html.synthetic-workbench-ready .cp-boot-status {
   margin: 0 0 var(--space-sm);
   padding: 0;
 }
-.schedule-steps li {
+#schedule-section > ol li {
   border-left: 0.28rem solid var(--line-strong);
   display: grid;
   gap: var(--space-4xs);
   padding-left: var(--space-xs);
 }
-.schedule-steps strong {
+#schedule-section > ol strong {
   font-size: var(--text-body);
 }
-.schedule-steps span {
+#schedule-section > ol span {
   color: var(--ink-muted);
   font-size: var(--text-micro);
 }
-.schedule-state {
+#schedule-section > p {
   margin: 0 0 var(--space-sm);
 }
 /* 草稿面板用虛線框與「尚未生效」的語氣和已發布區分——兩欄長得一樣的話，
@@ -235,20 +235,20 @@ html.synthetic-workbench-ready .cp-boot-status {
   border-radius: var(--radius-md);
   padding: var(--space-xs);
 }
-.schedule-comparison h4 {
+#schedule-section > h3 + div h4 {
   align-items: baseline;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2xs);
   margin: 0 0 var(--space-2xs);
 }
-.schedule-panel-note {
+#schedule-section h4 span {
   color: var(--ink-muted);
   font-size: var(--text-micro);
   font-weight: var(--weight-regular);
 }
 @media (max-width: 48rem) {
-  .schedule-steps {
+  #schedule-section > ol {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -257,15 +257,36 @@ html.synthetic-workbench-ready .cp-boot-status {
   min-height: var(--control-height-md);
   text-decoration: none;
 }
+/* 2026-11-20 內嵌 SVG 共用線稿樣式移進 CSS，讓 /index.html 維持在 10 KiB 預算內。 */
+.nav-bell > svg,
+.topbar-tools > summary > svg,
+.workspace-nav-toggle > svg,
+.summary-action-icon > svg {
+  fill: none;
+  height: 20px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+  width: 20px;
+}
+.workspace-nav-toggle > svg {
+  stroke-width: 2;
+}
+.summary-action-icon > svg {
+  height: 12px;
+  stroke-width: 3;
+  width: 12px;
+}
 /* 2026-11-16 導覽分組（S-U3）：標籤是純文字、不可點；清單去掉項目符號。
    寬螢幕與手機展開都直排；平板橫向捲動時兩組並排。 */
-.workspace-nav-group {
+.workspace-nav > div {
   align-items: center;
   display: flex;
   flex: 0 0 auto;
   gap: var(--space-3xs);
 }
-.workspace-nav-group ul {
+.workspace-nav > div ul {
   align-items: center;
   display: flex;
   gap: var(--space-3xs);
@@ -273,7 +294,7 @@ html.synthetic-workbench-ready .cp-boot-status {
   margin: 0;
   padding: 0;
 }
-.workspace-nav-label {
+.workspace-nav > div > p {
   color: var(--ink-muted);
   flex: 0 0 auto;
   font-size: var(--text-micro);
@@ -281,18 +302,18 @@ html.synthetic-workbench-ready .cp-boot-status {
   margin: 0;
   padding: 0 var(--space-2xs);
 }
-.workspace-nav-group:not(:first-child) {
+.workspace-nav > div:not(:first-child) {
   border-left: 1px solid var(--line);
   margin-left: var(--space-2xs);
   padding-left: var(--space-2xs);
 }
 @media (min-width: 64rem) {
-  .app-shell-wide > .workspace-nav .workspace-nav-group,
-  .app-shell-wide > .workspace-nav .workspace-nav-group ul {
+  .app-shell-wide > .workspace-nav > div,
+  .app-shell-wide > .workspace-nav > div ul {
     align-items: stretch;
     flex-direction: column;
   }
-  .app-shell-wide > .workspace-nav .workspace-nav-group:not(:first-child) {
+  .app-shell-wide > .workspace-nav > div:not(:first-child) {
     border-left: 0;
     border-top: 1px solid var(--line);
     margin-left: 0;
@@ -300,11 +321,11 @@ html.synthetic-workbench-ready .cp-boot-status {
     padding-left: 0;
     padding-top: var(--space-xs);
   }
-  .app-shell-wide > .workspace-nav .workspace-nav-label {
+  .app-shell-wide > .workspace-nav > div > p {
     padding: 0 var(--space-xs);
   }
   /* 分組多包一層 li，連結要撐滿側欄寬，選中底色才會跟分組前一樣整條。 */
-  .app-shell-wide > .workspace-nav .workspace-nav-group li {
+  .app-shell-wide > .workspace-nav > div li {
     display: flex;
     flex-direction: column;
   }
@@ -334,7 +355,7 @@ html.synthetic-workbench-ready .cp-boot-status {
   padding: var(--space-sm) var(--space-lg);
 }
 /* 2026-11-16：原 h1#workspace-title 改成 p（頁面 h1 只留 visually-hidden 那個），樣式照 h1 搬過來。 */
-.workspace-title {
+#workspace-title {
   font-family: var(--font-serif);
   font-size: clamp(
     var(--text-2xl),
@@ -346,7 +367,7 @@ html.synthetic-workbench-ready .cp-boot-status {
   margin-bottom: var(--space-2xs);
 }
 /* R-2：收合鈕要一直看得出能點，給外框與方向箭頭（inline-flex 會吃掉原生三角形）。 */
-.hero-details > summary {
+.compact-hero details > summary {
   align-items: center;
   border: 1px solid var(--on-inverse-muted);
   border-radius: var(--radius-pill);
@@ -357,20 +378,20 @@ html.synthetic-workbench-ready .cp-boot-status {
   min-height: 2.75rem;
   padding: 0 var(--space-sm);
 }
-.hero-details > summary::-webkit-details-marker {
+.compact-hero details > summary::-webkit-details-marker {
   display: none;
 }
-.hero-details > summary::after {
+.compact-hero details > summary::after {
   content: '▾';
 }
-.hero-details[open] > summary::after {
+.compact-hero details[open] > summary::after {
   content: '▴';
 }
-.hero-details > summary:focus-visible {
+.compact-hero details > summary:focus-visible {
   outline: 3px solid var(--on-inverse);
   outline-offset: 3px;
 }
-.hero-details[open] > :not(summary) {
+.compact-hero details[open] > :not(summary) {
   margin-top: var(--space-2xs);
 }
 /* 主管發布的公告帶，排在深色主視覺下方；原本沒有樣式，字直接貼著卡片底。 */
@@ -409,11 +430,11 @@ html.synthetic-workbench-ready .cp-boot-status {
     gap: var(--space-sm);
     padding: var(--space-md) var(--space-sm);
   }
-  .compact-hero .workspace-title {
+  .compact-hero #workspace-title {
     font-size: var(--text-xl);
     margin-bottom: var(--space-2xs);
   }
-  .compact-hero .hero-details > p {
+  .compact-hero details > p {
     margin-bottom: var(--space-2xs);
   }
   .compact-hero .environment-card {
@@ -517,10 +538,10 @@ html.synthetic-workbench-ready .cp-boot-status {
   font-size: var(--text-body);
   margin: 0;
 }
-.task-column {
+.command-grid > div {
   min-width: 0;
 }
-.task-grid {
+#task-list {
   display: grid;
   gap: var(--space-xs);
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -573,7 +594,7 @@ html.synthetic-workbench-ready .cp-boot-status {
   padding: var(--space-sm);
 }
 /* 全清時上方的件數句與卡片內那句重複；只對視覺隱藏，它仍是 aria-live 公告件數的地方。 */
-.task-column:has(.tasks-clear) > .result-summary {
+.command-grid > div:has(.tasks-clear) > .result-summary {
   clip-path: inset(50%);
   height: 1px;
   overflow: hidden;
@@ -591,7 +612,7 @@ html.synthetic-workbench-ready .cp-boot-status {
   }
 }
 @media (max-width: 48rem) {
-  .task-grid {
+  #task-list {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -656,7 +677,7 @@ html.synthetic-workbench-ready .cp-boot-status {
   margin-block: var(--space-xs);
   padding: var(--space-2xs) var(--space-xs);
 }
-.batch-select-all {
+.batch-bar > label {
   align-items: center;
   display: flex;
   font-size: var(--text-body);
@@ -730,7 +751,7 @@ html.synthetic-workbench-ready .cp-boot-status {
   justify-content: center;
   margin-block: var(--space-sm) var(--space-md);
 }
-.pagination-status {
+#appointment-page-status {
   color: var(--ink-muted);
   font-size: var(--text-body);
   font-weight: var(--weight-bold);
@@ -808,7 +829,7 @@ details[open] > summary .workflow-summary-chevron {
   outline: 3px solid var(--focus-ring);
   outline-offset: -3px;
 }
-.workflow-disclosure-body {
+#booking-workflow > div {
   border-top: 1px solid var(--line);
   padding: 0 var(--space-sm) var(--space-md);
 }
@@ -833,13 +854,13 @@ details[open] > summary .workflow-summary-chevron {
 .schedule-toolbar .status-chip {
   margin-right: auto;
 }
-.schedule-comparison {
+#schedule-section > h3 + div {
   display: grid;
   gap: var(--space-sm);
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: var(--space-sm);
 }
-.schedule-comparison > article {
+#schedule-section > h3 + div > article {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
@@ -915,10 +936,10 @@ details[open] > summary .workflow-summary-chevron {
   display: none !important;
 }
 @media (max-width: 64rem) {
-  .task-grid {
+  #task-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .schedule-comparison {
+  #schedule-section > h3 + div {
     grid-template-columns: 1fr;
   }
   .decision-card {
@@ -1016,12 +1037,12 @@ details[open] > summary .workflow-summary-chevron {
   .workspace-nav[data-collapsed='true'] {
     display: none;
   }
-  .workspace-nav-group,
-  .workspace-nav-group ul {
+  .workspace-nav > div,
+  .workspace-nav > div ul {
     align-items: stretch;
     flex-direction: column;
   }
-  .workspace-nav-group:not(:first-child) {
+  .workspace-nav > div:not(:first-child) {
     border-left: 0;
     border-top: 1px solid var(--line);
     margin-left: 0;
@@ -1042,7 +1063,7 @@ details[open] > summary .workflow-summary-chevron {
   .compact-hero {
     grid-template-columns: 1fr;
   }
-  .task-grid {
+  #task-list {
     grid-template-columns: 1fr;
   }
   /* 手機上三個篩選各佔一整列會吃掉整個畫面：改 2 欄格線，
@@ -1177,7 +1198,7 @@ details[open] > summary .workflow-summary-chevron {
   #appointment-page-prev {
     grid-area: previous;
   }
-  .appointment-pagination .pagination-status {
+  #appointment-page-status {
     grid-area: status;
     min-inline-size: 0;
   }
@@ -1656,7 +1677,7 @@ details[open] > summary .workflow-summary-chevron {
 .week-view-heading h3 {
   margin: 0;
 }
-.week-view-toolbar {
+.week-view-heading > div {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
@@ -2524,14 +2545,14 @@ details[open] > summary .workflow-summary-chevron {
   width: min(24rem, calc(100vw - 2 * var(--space-sm)));
   z-index: 20;
 }
-.notification-heading-row {
+#notification-popover > div {
   align-items: center;
   display: flex;
   gap: var(--space-xs);
   justify-content: space-between;
   margin-bottom: var(--space-xs);
 }
-.notification-heading-row h2,
+#notification-popover > div h2,
 .notification-popover > p {
   margin-bottom: 0;
 }
@@ -2540,7 +2561,7 @@ details[open] > summary .workflow-summary-chevron {
   font-size: var(--text-body);
   margin-bottom: var(--space-xs);
 }
-.notification-popover .bell-list {
+#notification-list {
   display: grid;
   gap: var(--space-xs);
   list-style: none;
@@ -2575,26 +2596,26 @@ details[open] > summary .workflow-summary-chevron {
   text-decoration: none;
   width: fit-content;
 }
-.advanced-settings {
+#communications-section > details {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   margin-top: var(--space-lg);
 }
-.advanced-settings > summary {
+#communications-section > details > summary {
   cursor: pointer;
   font-weight: var(--weight-bold);
   min-height: 2.75rem;
   padding: var(--space-sm);
 }
-.danger-zone {
+#communications-section > details > div {
   border-top: 1px solid var(--danger-line);
   padding: var(--space-sm);
 }
-.danger-zone h3 {
+#communications-section > details > div h3 {
   color: var(--danger);
 }
-.danger-zone p,
+#communications-section > details > div p,
 .read-only-field,
 .field-hint {
   color: var(--ink-muted);

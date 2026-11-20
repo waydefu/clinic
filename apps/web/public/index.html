@@ -70,7 +70,6 @@
             ><span>帳號</span
             ><input
               id="login-account"
-              type="text"
               name="login-account"
               autocomplete="username"
               autocapitalize="none"
@@ -145,19 +144,7 @@
               <!-- 線稿鈴鐺，不用 emoji：🔔 是彩色字符，顏色由字型決定（多數平台
                    是黃色），既不隨主題變，也和介面的墨綠色系打架。inline SVG 用
                    currentColor，三個主題都跟著文字色走。 -->
-              <svg
-                class="nav-bell-icon"
-                viewBox="0 0 24 24"
-                width="20"
-                height="20"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.7"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-                focusable="false"
-              >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                 <path d="M13.7 21a2 2 0 0 1-3.4 0" />
               </svg>
@@ -170,19 +157,14 @@
               aria-labelledby="notification-heading"
               hidden
             >
-              <div class="notification-heading-row">
+              <div>
                 <h2 id="notification-heading">通知</h2>
-                <button
-                  id="notification-close"
-                  class="icon-button"
-                  type="button"
-                  aria-label="關閉通知"
-                >
+                <button id="notification-close" type="button" aria-label="關閉通知">
                   ×
                 </button>
               </div>
               <p id="notification-summary">目前沒有待確認的取消請求。</p>
-              <ul id="notification-list" class="bell-list"></ul>
+              <ul id="notification-list"></ul>
               <a
                 id="notification-goto"
                 class="button button-primary"
@@ -196,19 +178,11 @@
             <summary aria-label="開啟工作臺設定">
               <!-- 2026-11-16 文字符號改 inline SVG：各字型長相不同（S-A3）。 --><svg
                 viewBox="0 0 24 24"
-                width="20"
-                height="20"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.7"
-                stroke-linecap="round"
-                stroke-linejoin="round"
                 aria-hidden="true"
-                focusable="false"
               >
                 <circle cx="12" cy="12" r="3" />
                 <path
-                  d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"
+                  d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"
                 /></svg
               ><strong>工作臺設定</strong>
             </summary>
@@ -234,17 +208,7 @@
         aria-controls="workspace-navigation"
         hidden
       >
-        工作區導覽<svg
-          viewBox="0 0 24 24"
-          width="20"
-          height="20"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          aria-hidden="true"
-          focusable="false"
-        >
+        工作區導覽<svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M4 6h16M4 12h16M4 18h16" />
         </svg>
       </button>
@@ -256,8 +220,8 @@
         <!-- 2026-11-16 分「每日／設定與管理」兩組（S-U3）：群組標籤只是文字，
              連結的 href、data-* 不變，JS 與測試照舊選得到。設定群組掛
              data-admin-nav：櫃台登入時整組移除，不留空標題。 -->
-        <div class="workspace-nav-group">
-          <p id="workspace-nav-daily" class="workspace-nav-label">每日</p>
+        <div>
+          <p id="workspace-nav-daily">每日</p>
           <ul aria-labelledby="workspace-nav-daily">
             <li><a href="#overview" data-workspace-nav>營運首頁</a></li>
             <li>
@@ -266,8 +230,8 @@
             <li><a href="#case-section" data-workspace-nav>個管指派</a></li>
           </ul>
         </div>
-        <div class="workspace-nav-group" data-admin-nav>
-          <p id="workspace-nav-admin" class="workspace-nav-label">設定與管理</p>
+        <div data-admin-nav>
+          <p id="workspace-nav-admin">設定與管理</p>
           <ul aria-labelledby="workspace-nav-admin">
             <li>
               <a href="#schedule-section" data-workspace-nav data-admin-nav
@@ -314,15 +278,15 @@
         >
           <div class="hero-copy">
             <!-- 2026-11-16：頁面唯一的 h1 是上方 visually-hidden 那個；這裡改成 p，避免讀屏聽到兩次標題。 -->
-            <p id="workspace-title" class="workspace-title">預約營運工作臺</p>
+            <p id="workspace-title">預約營運工作臺</p>
             <!-- 2026-11-16：流程句與測試環境清單收進摺疊區，主視覺縮矮、摘要卡進首屏。 -->
-            <details class="hero-details">
+            <details>
               <summary>工作說明與測試環境</summary>
               <p>
                 依照「今日待辦 → 預約與回診 → 營業時間 → 個管 →
                 系統治理」完成診所日常工作。
               </p>
-              <ul class="safety-list" aria-label="測試安全界線">
+              <ul aria-label="測試安全界線">
                 <li>資料只保存在這台裝置的瀏覽器</li>
                 <li>無 Firebase 資料庫與外部日曆連線</li>
                 <li>公開預覽，網址持有人皆可存取</li>
@@ -368,18 +332,7 @@
                 href="#appointments-section"
                 data-booking-shortcut
                 ><span class="summary-action-icon" aria-hidden="true"
-                  ><svg
-                    viewBox="0 0 24 24"
-                    width="12"
-                    height="12"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="3"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                    focusable="false"
-                  >
+                  ><svg viewBox="0 0 24 24">
                     <path d="M5 12h14M13 6l6 6-6 6" /></svg></span
                 >建立預約</a
               >
@@ -388,19 +341,8 @@
               <span>待處理預約</span><strong id="confirmed-count">0</strong
               ><a class="summary-action" href="#appointments-section"
                 ><span class="summary-action-icon" aria-hidden="true"
-                  ><svg
-                    viewBox="0 0 24 24"
-                    width="12"
-                    height="12"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="3"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                    focusable="false"
-                  >
-                    <path d="M5 12.5l4.5 4.5L19 7.5" /></svg></span
+                  ><svg viewBox="0 0 24 24">
+                    <path d="M5 12l5 5L19 7" /></svg></span
                 >處理預約</a
               >
             </article>
@@ -408,20 +350,9 @@
               <span>已完成到診</span><strong id="completed-count">0</strong
               ><a class="summary-action" href="#case-section"
                 ><span class="summary-action-icon" aria-hidden="true"
-                  ><svg
-                    viewBox="0 0 24 24"
-                    width="12"
-                    height="12"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="3"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                    focusable="false"
-                  >
+                  ><svg viewBox="0 0 24 24">
                     <path
-                      d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"
+                      d="M9 6h11M9 12h11M9 18h11M5 6h0M5 12h0M5 18h0"
                     /></svg></span
                 >查看個管</a
               >
@@ -440,11 +371,11 @@
             >
               <h3 id="next-up-heading" class="visually-hidden">下一位</h3>
             </aside>
-            <div class="task-column">
+            <div>
               <p id="task-summary" class="result-summary" aria-live="polite">
                 目前沒有待辦事項
               </p>
-              <div id="task-list" class="task-grid"></div>
+              <div id="task-list"></div>
             </div>
           </div>
         </section>
@@ -474,7 +405,7 @@
               >
               <span class="workflow-summary-chevron" aria-hidden="true">⌄</span>
             </summary>
-            <div class="workflow-disclosure-body">
+            <div>
               <h3 class="subsection-title">預約資料</h3>
               <div id="booking-suggestion" class="booking-suggestion" hidden>
                 <p id="booking-suggestion-label" role="status"></p>
@@ -493,7 +424,6 @@
                     <label
                       >姓名<input
                         id="booking-name"
-                        type="text"
                         maxlength="30"
                         autocomplete="off"
                         required /></label
@@ -553,7 +483,6 @@
                 <label
                   >自填備註<input
                     id="booking-note"
-                    type="text"
                     maxlength="120"
                     autocomplete="off"
                 /></label>
@@ -598,13 +527,8 @@
             </summary>
             <div class="subsection-title week-view-heading">
               <h3>本週預約</h3>
-              <div class="week-view-toolbar">
-                <button
-                  id="week-prev"
-                  class="icon-button"
-                  type="button"
-                  aria-label="上一週"
-                >
+              <div>
+                <button id="week-prev" type="button" aria-label="上一週">
                   ‹
                 </button>
                 <button
@@ -614,12 +538,7 @@
                 >
                   本週
                 </button>
-                <button
-                  id="week-next"
-                  class="icon-button"
-                  type="button"
-                  aria-label="下一週"
-                >
+                <button id="week-next" type="button" aria-label="下一週">
                   ›
                 </button>
                 <span id="week-range" class="week-range"></span>
@@ -732,7 +651,7 @@
             aria-label="批次操作"
             hidden
           >
-            <label class="batch-select-all"
+            <label
               ><input
                 id="appointment-select-all"
                 type="checkbox"
@@ -786,9 +705,7 @@
             >
               上一頁
             </button>
-            <span id="appointment-page-status" class="pagination-status"
-              >第 1 頁，共 1 頁</span
-            >
+            <span id="appointment-page-status">第 1 頁，共 1 頁</span>
             <button
               id="appointment-page-next"
               class="button button-secondary"
@@ -838,7 +755,7 @@
                發布」區看差異、按發布。發布鍵刻意**不放在最上面**：把動作和它影響
                的東西分開放，使用者按下去之前看不到會發生什麼（Drupal 的草稿／
                發布 UX 討論記錄過同一個問題）。 -->
-          <ol class="schedule-steps">
+          <ol>
             <li>
               <strong>① 編輯草稿</strong
               ><span>改動只進草稿，患者看到的仍是已發布版本。</span>
@@ -852,7 +769,7 @@
               ><span>發布後才會改變患者可預約的時段。</span>
             </li>
           </ol>
-          <p class="schedule-state">
+          <p>
             <span id="schedule-draft-status" class="status-chip"
               >沒有未發布變更</span
             >
@@ -947,12 +864,10 @@
               <label
                 >初診不開放<input
                   id="blocked-initial"
-                  type="text"
                   autocomplete="off" /></label
               ><label
                 >回診不開放<input
                   id="blocked-follow-up"
-                  type="text"
                   autocomplete="off"
               /></label>
               <button class="button button-secondary" type="submit">
@@ -962,17 +877,13 @@
             </form>
           </div>
           <h3 class="subsection-title">③ 比較並發布</h3>
-          <div class="schedule-comparison">
+          <div>
             <article>
-              <h4>
-                已發布<span class="schedule-panel-note">患者現在看到的</span>
-              </h4>
+              <h4>已發布<span>患者現在看到的</span></h4>
               <div id="published-schedule"></div>
             </article>
             <article class="schedule-draft-panel">
-              <h4>
-                目前草稿<span class="schedule-panel-note">發布後才會生效</span>
-              </h4>
+              <h4>目前草稿<span>發布後才會生效</span></h4>
               <div id="draft-schedule"></div>
             </article>
           </div>
@@ -1039,7 +950,6 @@
               <label
                 >帳號標籤<input
                   id="account-label"
-                  type="text"
                   maxlength="24"
                   required /></label
               ><label
@@ -1076,7 +986,6 @@
               <label
                 >授權碼名稱<input
                   id="delegation-label"
-                  type="text"
                   maxlength="30"
                   required
               /></label>
@@ -1133,7 +1042,6 @@
               ><label
                 >標題<input
                   id="announcement-title"
-                  type="text"
                   maxlength="40"
                   required /></label
               ><label
@@ -1158,7 +1066,6 @@
               ><label
                 >標題<input
                   id="maintenance-title"
-                  type="text"
                   maxlength="40"
                   required /></label
               ><label
@@ -1212,9 +1119,9 @@
             0 筆發布紀錄
           </p>
           <div id="release-list" class="release-list"></div>
-          <details class="advanced-settings">
+          <details>
             <summary>測試資料／進階設定</summary>
-            <div class="danger-zone">
+            <div>
               <h3>危險區域</h3>
               <p>
                 只用於合成測試。清除後，這個瀏覽器內的預約、患者、營業時間草稿與操作紀錄都會重設。
