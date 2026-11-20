@@ -630,11 +630,12 @@ test.describe('患者預約頁在最窄的常見螢幕', () => {
   });
 });
 
+// 2026-11-16：導覽分成「每日」「設定與管理」兩組，個管指派移進每日組，Tab 順序跟著 DOM。
 const WORKSPACE_DESTINATIONS = [
   'overview',
   'appointments-section',
-  'schedule-section',
   'case-section',
+  'schedule-section',
   'accounts-section',
   'communications-section',
   'audit-section',

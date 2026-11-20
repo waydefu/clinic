@@ -204,7 +204,7 @@ html.synthetic-workbench-ready .cp-boot-status {
   flex-basis: 100%;
 }
 /* 三步驟說明：把「草稿→比較→發布」的關係寫在畫面上，而不是讓人自己推。 */
-.schedule-steps {
+#schedule-section > ol {
   display: grid;
   gap: var(--space-xs);
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -212,20 +212,20 @@ html.synthetic-workbench-ready .cp-boot-status {
   margin: 0 0 var(--space-sm);
   padding: 0;
 }
-.schedule-steps li {
+#schedule-section > ol li {
   border-left: 0.28rem solid var(--line-strong);
   display: grid;
   gap: var(--space-4xs);
   padding-left: var(--space-xs);
 }
-.schedule-steps strong {
+#schedule-section > ol strong {
   font-size: var(--text-body);
 }
-.schedule-steps span {
+#schedule-section > ol span {
   color: var(--ink-muted);
   font-size: var(--text-micro);
 }
-.schedule-state {
+#schedule-section > p {
   margin: 0 0 var(--space-sm);
 }
 /* 草稿面板用虛線框與「尚未生效」的語氣和已發布區分——兩欄長得一樣的話，
@@ -235,21 +235,99 @@ html.synthetic-workbench-ready .cp-boot-status {
   border-radius: var(--radius-md);
   padding: var(--space-xs);
 }
-.schedule-comparison h4 {
+#schedule-section > h3 + div h4 {
   align-items: baseline;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2xs);
   margin: 0 0 var(--space-2xs);
 }
-.schedule-panel-note {
+#schedule-section h4 span {
   color: var(--ink-muted);
   font-size: var(--text-micro);
   font-weight: var(--weight-regular);
 }
 @media (max-width: 48rem) {
-  .schedule-steps {
+  #schedule-section > ol {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* 2026-11-16 頂欄「患者預約頁」與登出鈕同為次要按鈕：去掉 a 的預設底線，高度 44px（S-V5）。 */
+.topbar-actions a.button {
+  min-height: var(--control-height-md);
+  text-decoration: none;
+}
+/* 2026-11-20 內嵌 SVG 共用線稿樣式移進 CSS，讓 /index.html 維持在 10 KiB 預算內。 */
+.nav-bell > svg,
+.topbar-tools > summary > svg,
+.workspace-nav-toggle > svg,
+.summary-action-icon > svg {
+  fill: none;
+  height: 20px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+  width: 20px;
+}
+.workspace-nav-toggle > svg {
+  stroke-width: 2;
+}
+.summary-action-icon > svg {
+  height: 12px;
+  stroke-width: 3;
+  width: 12px;
+}
+/* 2026-11-16 導覽分組（S-U3）：標籤是純文字、不可點；清單去掉項目符號。
+   寬螢幕與手機展開都直排；平板橫向捲動時兩組並排。 */
+.workspace-nav > div {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--space-3xs);
+}
+.workspace-nav > div ul {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3xs);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.workspace-nav > div > p {
+  color: var(--ink-muted);
+  flex: 0 0 auto;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-bold);
+  margin: 0;
+  padding: 0 var(--space-2xs);
+}
+.workspace-nav > div:not(:first-child) {
+  border-left: 1px solid var(--line);
+  margin-left: var(--space-2xs);
+  padding-left: var(--space-2xs);
+}
+@media (min-width: 64rem) {
+  .app-shell-wide > .workspace-nav > div,
+  .app-shell-wide > .workspace-nav > div ul {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .app-shell-wide > .workspace-nav > div:not(:first-child) {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    margin-left: 0;
+    margin-top: var(--space-xs);
+    padding-left: 0;
+    padding-top: var(--space-xs);
+  }
+  .app-shell-wide > .workspace-nav > div > p {
+    padding: 0 var(--space-xs);
+  }
+  /* 分組多包一層 li，連結要撐滿側欄寬，選中底色才會跟分組前一樣整條。 */
+  .app-shell-wide > .workspace-nav > div li {
+    display: flex;
+    flex-direction: column;
   }
 }
 .session-picker {
@@ -274,7 +352,47 @@ html.synthetic-workbench-ready .cp-boot-status {
 }
 .compact-hero {
   grid-template-columns: minmax(0, 1.6fr) minmax(18rem, 0.6fr);
-  padding: clamp(1.4rem, 3vw, 2.4rem);
+  padding: var(--space-sm) var(--space-lg);
+}
+/* 2026-11-16：原 h1#workspace-title 改成 p（頁面 h1 只留 visually-hidden 那個），樣式照 h1 搬過來。 */
+#workspace-title {
+  font-family: var(--font-serif);
+  font-size: clamp(
+    var(--text-2xl),
+    calc(var(--text-2xl) * 0.5 + 2.25vw),
+    var(--text-3xl)
+  );
+  letter-spacing: var(--tracking-display);
+  line-height: var(--leading-display);
+  margin-bottom: var(--space-2xs);
+}
+/* R-2：收合鈕要一直看得出能點，給外框與方向箭頭（inline-flex 會吃掉原生三角形）。 */
+.compact-hero details > summary {
+  align-items: center;
+  border: 1px solid var(--on-inverse-muted);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  display: inline-flex;
+  gap: var(--space-2xs);
+  list-style: none;
+  min-height: 2.75rem;
+  padding: 0 var(--space-sm);
+}
+.compact-hero details > summary::-webkit-details-marker {
+  display: none;
+}
+.compact-hero details > summary::after {
+  content: '▾';
+}
+.compact-hero details[open] > summary::after {
+  content: '▴';
+}
+.compact-hero details > summary:focus-visible {
+  outline: 3px solid var(--on-inverse);
+  outline-offset: 3px;
+}
+.compact-hero details[open] > :not(summary) {
+  margin-top: var(--space-2xs);
 }
 /* 主管發布的公告帶，排在深色主視覺下方；原本沒有樣式，字直接貼著卡片底。 */
 .operations-announcement {
@@ -312,15 +430,12 @@ html.synthetic-workbench-ready .cp-boot-status {
     gap: var(--space-sm);
     padding: var(--space-md) var(--space-sm);
   }
-  .compact-hero .hero-copy h1 {
+  .compact-hero #workspace-title {
     font-size: var(--text-xl);
     margin-bottom: var(--space-2xs);
   }
-  .compact-hero .hero-copy > p:not(.eyebrow) {
+  .compact-hero details > p {
     margin-bottom: var(--space-2xs);
-  }
-  .compact-hero .safety-list {
-    margin-top: var(--space-2xs);
   }
   .compact-hero .environment-card {
     align-items: center;
@@ -330,7 +445,6 @@ html.synthetic-workbench-ready .cp-boot-status {
     grid-template-columns: minmax(0, 1fr) auto;
     padding-top: var(--space-sm);
   }
-  .compact-hero .environment-card > .eyebrow,
   .compact-hero .environment-card > p {
     grid-column: 1 / -1;
   }
@@ -370,6 +484,11 @@ html.synthetic-workbench-ready .cp-boot-status {
 }
 .summary-card a:hover {
   text-decoration: underline;
+}
+/* 2026-11-16 摘要數字是首頁最先要看的資訊，放大加粗（S-V4）。 */
+.summary-card strong {
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-bold);
 }
 /* 情境式指揮中心（階段 4）。
    左邊固定是「下一位」——櫃台整天問最多次的問題；右邊是依急迫性排序的待辦。
@@ -419,10 +538,10 @@ html.synthetic-workbench-ready .cp-boot-status {
   font-size: var(--text-body);
   margin: 0;
 }
-.task-column {
+.command-grid > div {
   min-width: 0;
 }
-.task-grid {
+#task-list {
   display: grid;
   gap: var(--space-xs);
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -475,7 +594,7 @@ html.synthetic-workbench-ready .cp-boot-status {
   padding: var(--space-sm);
 }
 /* 全清時上方的件數句與卡片內那句重複；只對視覺隱藏，它仍是 aria-live 公告件數的地方。 */
-.task-column:has(.tasks-clear) > .result-summary {
+.command-grid > div:has(.tasks-clear) > .result-summary {
   clip-path: inset(50%);
   height: 1px;
   overflow: hidden;
@@ -493,7 +612,7 @@ html.synthetic-workbench-ready .cp-boot-status {
   }
 }
 @media (max-width: 48rem) {
-  .task-grid {
+  #task-list {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -558,7 +677,7 @@ html.synthetic-workbench-ready .cp-boot-status {
   margin-block: var(--space-xs);
   padding: var(--space-2xs) var(--space-xs);
 }
-.batch-select-all {
+.batch-bar > label {
   align-items: center;
   display: flex;
   font-size: var(--text-body);
@@ -632,7 +751,7 @@ html.synthetic-workbench-ready .cp-boot-status {
   justify-content: center;
   margin-block: var(--space-sm) var(--space-md);
 }
-.pagination-status {
+#appointment-page-status {
   color: var(--ink-muted);
   font-size: var(--text-body);
   font-weight: var(--weight-bold);
@@ -710,7 +829,7 @@ details[open] > summary .workflow-summary-chevron {
   outline: 3px solid var(--focus-ring);
   outline-offset: -3px;
 }
-.workflow-disclosure-body {
+#booking-workflow > div {
   border-top: 1px solid var(--line);
   padding: 0 var(--space-sm) var(--space-md);
 }
@@ -735,13 +854,13 @@ details[open] > summary .workflow-summary-chevron {
 .schedule-toolbar .status-chip {
   margin-right: auto;
 }
-.schedule-comparison {
+#schedule-section > h3 + div {
   display: grid;
   gap: var(--space-sm);
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: var(--space-sm);
 }
-.schedule-comparison > article {
+#schedule-section > h3 + div > article {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
@@ -817,10 +936,10 @@ details[open] > summary .workflow-summary-chevron {
   display: none !important;
 }
 @media (max-width: 64rem) {
-  .task-grid {
+  #task-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .schedule-comparison {
+  #schedule-section > h3 + div {
     grid-template-columns: 1fr;
   }
   .decision-card {
@@ -918,6 +1037,19 @@ details[open] > summary .workflow-summary-chevron {
   .workspace-nav[data-collapsed='true'] {
     display: none;
   }
+  .workspace-nav > div,
+  .workspace-nav > div ul {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .workspace-nav > div:not(:first-child) {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    margin-left: 0;
+    margin-top: var(--space-2xs);
+    padding-left: 0;
+    padding-top: var(--space-2xs);
+  }
   .status-banner {
     position: static;
   }
@@ -931,7 +1063,7 @@ details[open] > summary .workflow-summary-chevron {
   .compact-hero {
     grid-template-columns: 1fr;
   }
-  .task-grid {
+  #task-list {
     grid-template-columns: 1fr;
   }
   /* 手機上三個篩選各佔一整列會吃掉整個畫面：改 2 欄格線，
@@ -1066,7 +1198,7 @@ details[open] > summary .workflow-summary-chevron {
   #appointment-page-prev {
     grid-area: previous;
   }
-  .appointment-pagination .pagination-status {
+  #appointment-page-status {
     grid-area: status;
     min-inline-size: 0;
   }
@@ -1545,7 +1677,7 @@ details[open] > summary .workflow-summary-chevron {
 .week-view-heading h3 {
   margin: 0;
 }
-.week-view-toolbar {
+.week-view-heading > div {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
@@ -1599,95 +1731,6 @@ details[open] > summary .workflow-summary-chevron {
     max-height: min(1122px, 60vh);
     overflow-y: auto;
   }
-
-  /* 日期表頭在捲動時保持可見。
-
-     這條在 `overflow-y: hidden` 之下是**沒有效果**的：sticky 黏的是最近的捲動
-     容器，而那時 .week-view 垂直方向根本不捲。上面開放垂直捲動之後它才生效。
-     表頭與網格在同一個容器裡，所以橫向捲動時兩者自動同步，不需要 JS 對齊。 */
-  .wv-head {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    background: var(--surface);
-  }
-}
-/* flex 而非 grid：欄位事件是絕對定位、不計入內容高度，grid 的 auto row 會把
-   整列撐不起來（塌成 0）；flex 項目則會確實套用明確的 height。 */
-.wv-head {
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  min-width: 44rem;
-}
-.wv-head-time {
-  flex: 0 0 3.4rem;
-}
-.wv-head-cell {
-  color: var(--ink-muted);
-  flex: 1 1 0;
-  font-size: var(--text-body);
-  font-weight: var(--weight-bold);
-  min-width: 5.5rem;
-  padding: var(--space-2xs) var(--space-3xs);
-  text-align: center;
-}
-.wv-head-cell span {
-  display: block;
-  font-size: var(--text-body);
-}
-.wv-head-cell.wv-closed {
-  /* Was --line-strong (#c3d3ca), which measured 1.49:1 on the near-white
-     header — the weekday and date were effectively invisible. "Closed" is
-     already signalled by the diagonal-striped column below (.wv-col.wv-closed),
-     so the header text uses the readable muted ink and clears WCAG AA. */
-  color: var(--ink-muted);
-}
-.wv-head-cell.wv-today b {
-  background: var(--forest);
-  border-radius: var(--radius-pill);
-  color: var(--on-accent);
-  display: inline-block;
-  margin-top: var(--space-4xs);
-  min-width: 1.5rem;
-  padding: var(--space-4xs) var(--space-3xs);
-}
-.wv-grid {
-  display: flex;
-  min-width: 44rem;
-}
-.wv-axis {
-  border-right: 1px solid var(--line);
-  flex: 0 0 3.4rem;
-  position: relative;
-}
-.wv-hour {
-  color: var(--ink-muted);
-  font-size: var(--text-body);
-  padding-right: var(--space-2xs);
-  position: absolute;
-  right: 0;
-  transform: translateY(-0.5em);
-}
-.wv-col {
-  border-right: 1px solid var(--line);
-  flex: 1 1 0;
-  min-width: 5.5rem;
-  position: relative;
-}
-.wv-col:last-child {
-  border-right: 0;
-}
-/* 休診日現在預設**不出現**在週檢視裡（見 week-view.js 的 visibleDays），所以這個
-   網底只會落在「排班說休診、但那天其實有預約」的例外欄位上——保留它是為了讓那種
-   不一致一眼看得出來。網底刻意比先前淡：它是註記，不是主角。 */
-.wv-col.wv-closed {
-  background: repeating-linear-gradient(
-    45deg,
-    transparent,
-    transparent 9px,
-    var(--surface-soft) 9px,
-    var(--surface-soft) 12px
-  );
 }
 .wv-empty {
   color: var(--ink-muted);
@@ -1695,24 +1738,6 @@ details[open] > summary .workflow-summary-chevron {
   margin: 0;
   padding: var(--space-md);
   text-align: center;
-}
-.wv-closed-label {
-  color: var(--ink-muted);
-  font-size: var(--text-body);
-  font-weight: var(--weight-bold);
-  left: 50%;
-  position: absolute;
-  top: 1.4rem;
-  transform: translateX(-50%);
-}
-.wv-line {
-  border-top: 1px solid var(--line);
-  left: 0;
-  position: absolute;
-  right: 0;
-}
-.wv-line-hour {
-  border-top-color: var(--line-strong);
 }
 .wv-event {
   border-left: 3px solid;
@@ -2135,36 +2160,10 @@ details[open] > summary .workflow-summary-chevron {
   padding: var(--space-2xs) var(--space-xs);
 }
 
-/* 週曆依實際時間衝突動態分軌，並保留可讀的事件、時間軸與圖例尺寸。 */
+/* 週曆依實際時間衝突動態分軌，並保留可讀的事件與圖例尺寸。 */
 .week-view {
   background: var(--surface);
   box-shadow: none;
-}
-.wv-head,
-.wv-grid {
-  min-width: 52rem;
-}
-.wv-head-time,
-.wv-axis {
-  flex-basis: 4rem;
-}
-.wv-head-cell {
-  background: var(--surface-soft);
-  font-size: var(--text-body);
-  min-width: 6.85rem;
-  padding: var(--space-xs) var(--space-2xs);
-}
-.wv-head-cell span {
-  font-size: var(--text-body);
-  letter-spacing: var(--tracking-wide);
-}
-.wv-col {
-  min-width: 6.85rem;
-}
-.wv-hour {
-  font-size: var(--text-body);
-  font-weight: var(--weight-bold);
-  padding-right: var(--space-2xs);
 }
 .wv-event {
   align-items: flex-start;
@@ -2413,14 +2412,14 @@ details[open] > summary .workflow-summary-chevron {
   width: min(24rem, calc(100vw - 2 * var(--space-sm)));
   z-index: 20;
 }
-.notification-heading-row {
+#notification-popover > div {
   align-items: center;
   display: flex;
   gap: var(--space-xs);
   justify-content: space-between;
   margin-bottom: var(--space-xs);
 }
-.notification-heading-row h2,
+#notification-popover > div h2,
 .notification-popover > p {
   margin-bottom: 0;
 }
@@ -2429,7 +2428,7 @@ details[open] > summary .workflow-summary-chevron {
   font-size: var(--text-body);
   margin-bottom: var(--space-xs);
 }
-.notification-popover .bell-list {
+#notification-list {
   display: grid;
   gap: var(--space-xs);
   list-style: none;
@@ -2464,26 +2463,26 @@ details[open] > summary .workflow-summary-chevron {
   text-decoration: none;
   width: fit-content;
 }
-.advanced-settings {
+#communications-section > details {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   margin-top: var(--space-lg);
 }
-.advanced-settings > summary {
+#communications-section > details > summary {
   cursor: pointer;
   font-weight: var(--weight-bold);
   min-height: 2.75rem;
   padding: var(--space-sm);
 }
-.danger-zone {
+#communications-section > details > div {
   border-top: 1px solid var(--danger-line);
   padding: var(--space-sm);
 }
-.danger-zone h3 {
+#communications-section > details > div h3 {
   color: var(--danger);
 }
-.danger-zone p,
+#communications-section > details > div p,
 .read-only-field,
 .field-hint {
   color: var(--ink-muted);
