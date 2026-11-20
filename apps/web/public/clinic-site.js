@@ -1571,6 +1571,12 @@ function observeReveals(root) {
     target.style.setProperty('--clinic-stagger', String(index % 4));
     observer.observe(target);
   }
+
+  // 2026-11-15：整頁截圖與部分瀏覽器不會觸發 observer，區塊會一直空白；逾時一律顯示。
+  window.setTimeout(() => {
+    for (const target of targets) target.classList.add('is-revealed');
+    observer.disconnect();
+  }, 2500);
 }
 
 /**

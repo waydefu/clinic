@@ -448,13 +448,14 @@ a {
     transform var(--clinic-duration-effect-swift) var(--clinic-ease-out);
 }
 
-/* 按鈕一律淺綠框白底（2026-11-04 負責人：「按鈕都改成淺綠色框白底」）。 */
+/* 按鈕一律綠框白底（2026-11-04 負責人：「按鈕都改成淺綠色框白底」；2026-11-15 框線加深
+   成 --clinic-green，淺綠框對白底只有約 1.9:1，達不到 3:1）。 */
 .clinic-header__booking,
 .clinic-button--primary,
 .clinic-button--outline {
   color: var(--clinic-forest);
   background: var(--clinic-white);
-  border-color: var(--clinic-sage-300);
+  border-color: var(--clinic-green);
 }
 
 .clinic-header__booking:hover,
@@ -469,12 +470,15 @@ a {
    inset 陰影畫，不加 border 寬度：按鈕 overflow 隱藏，2px border 會在 200% 字級時切到字。 */
 .clinic-header__booking,
 .clinic-button--primary {
+  /* 2026-11-15 負責人要主要按鈕淺綠底，懸停再深一階。 */
+  background: var(--clinic-sage-200);
   border-color: var(--clinic-green);
   box-shadow: inset 0 0 0 1px var(--clinic-green);
 }
 
 .clinic-header__booking:hover,
 .clinic-button--primary:hover {
+  background: var(--clinic-sage-300);
   border-color: var(--clinic-forest);
   box-shadow: inset 0 0 0 1px var(--clinic-forest);
 }
@@ -877,6 +881,13 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   );
   clip-path: polygon(30% 0, 70% 0, 70% 55%, 100% 55%, 50% 100%, 0 55%, 30% 55%);
   content: '';
+}
+
+/* 2026-11-15：手機上五張卡折成兩欄，箭頭會被誤讀成先後順序，成因是並列的，不畫。 */
+@media (max-width: 48rem) {
+  .clinic-causes__item::after {
+    display: none;
+  }
 }
 
 .clinic-causes__card {
@@ -1304,7 +1315,9 @@ body:not(:has(.clinic-noscript)) #clinic-main {
 .clinic-service-hero__copy
   > p:not(.clinic-eyebrow, .clinic-service-hero__subtitle) {
   margin: 0 0 1.5rem;
-  color: var(--clinic-muted);
+  /* 2026-11-15：導言原本比下方卡片內文更小更灰，層級顛倒。 */
+  color: var(--clinic-ink);
+  font-size: var(--clinic-text-prose);
 }
 
 .clinic-service-hero__image {
@@ -2434,6 +2447,15 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   }
 }
 
+/* 2026-11-15：列印與存成 PDF 不會捲動，進場前的隱藏狀態會讓內容印成空白。 */
+@media print {
+  .clinic-motion [data-reveal],
+  .clinic-motion [data-reveal] img {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* ==========================================================================
    Homepage 2026-08 hybrid direction
    Task-first hero + symptom guide + assessment process. The visual frame owns
@@ -2451,7 +2473,7 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   padding: 1rem;
   color: var(--clinic-forest-deep);
   background: var(--clinic-white);
-  border: 1px solid var(--clinic-sage-300);
+  border: 1px solid var(--clinic-green);
   border-radius: var(--clinic-radius-lg);
   font-weight: var(--clinic-weight-bold);
   text-align: left;
@@ -3238,7 +3260,7 @@ body:not(:has(.clinic-noscript)) #clinic-main {
   }
 }
 
-/* 手機：品牌牆在上、以標誌為中心的方形裁切，標題與資訊卡依序排在下面；
+/* 手機：品牌牆在上、以標誌為中心的 16:10 裁切（2026-11-15 由方形壓扁，標題與預約鈕上移），標題與資訊卡依序排在下面；
    門診時間與交通改成資訊卡在上、地圖在下。 */
 @media (max-width: 48rem) {
   .clinic-arrival {
@@ -3262,7 +3284,7 @@ body:not(:has(.clinic-noscript)) #clinic-main {
     height: auto;
     min-height: 0;
     max-height: none;
-    aspect-ratio: 1 / 1;
+    aspect-ratio: 16 / 10;
     border-radius: var(--clinic-radius-lg);
   }
 
@@ -3541,9 +3563,9 @@ body:not(:has(.clinic-noscript)) #clinic-main {
 .clinic-footer a,
 .clinic-text-link {
   padding: 0.25rem 0.75rem;
-  /* 2026-11-04 起和按鈕一樣是淺綠框白底。 */
+  /* 2026-11-04 起和按鈕一樣白底；2026-11-15 框線加深成 --clinic-green 達 3:1。 */
   background-color: var(--clinic-white);
-  border: 1px solid var(--clinic-sage-300);
+  border: 1px solid var(--clinic-green);
   /* 地址在窄欄會折成兩行，全圓角折行後兩端變形，所以用中等圓角。 */
   border-radius: var(--clinic-radius-md);
   text-decoration: none;

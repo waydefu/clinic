@@ -63,18 +63,28 @@ import { fileURLToPath } from 'node:url';
  * treatment body reuses soft-green-bg and the home FAQ gets a gradient.
  * 2026-11-04: the owner said "按鈕都改成淺綠色框白底" (register 2026-11-04 button
  * entry): buttons and pill links become white with a sage-300 border.
+ *
+ * 2026-11-15/16: the owner asked to fix the six-dimension UI scoring findings
+ * ("寫入md並立即開始修") and to rebaseline once after the second batch ("要不下批
+ * 一起改完再重算"), choosing a light-green primary button, a --clinic-green
+ * border and keeping the ✦ bullets (register 2026-11-15 entry "官網六項評分修正").
+ * That authorises one rebaseline of clinic-site.js, clinic-site.css and
+ * clinic-booking.css. Every other file, asset and guard behaviour is unchanged.
+ * 2026-11-16: third batch (mobile-only help phone line on the booking page);
+ * the owner answered "可以重算" (same register entry). One more rebaseline of
+ * clinic-booking.css only.
  */
 export const CLINIC_FREEZE_BASELINE = {
   'apps/web/public/clinic.html':
     '3b5c0de6caab960f2bdbc883fcfe5a38452bf08c5572be1202fbd647274583e8',
   'apps/web/public/clinic-site.js':
-    '47c72142a9f01815df8d228ae28963c72b6c899260ff748eb07e961ca8aa717b',
+    '57e3998e79217e7b5fe16554b0fd2e191e14cd56efd06cc3334de04fd26292c9',
   'apps/web/public/clinic-site.css':
-    'e3fec3f6c03e8e99af23afadcdbcafe33a0ffc6f68b08c6ecd76b5da5b0d677e',
+    '9ba7851c5a549cb8d4f6355dbbd1dfd5bde6113c3db8b9fa3e8068cdbd62a38a',
   'apps/web/public/clinic-content.js':
     '64b434c15c942ac2f183a3b177c89e431d38d502c24727aefb3d836dba8006c4',
   'apps/web/public/clinic-booking.css':
-    '722e4068a9fb28177b3c2b73240bfe272d435c405bbdbc2a93e74dabc4ae810d',
+    '38c41e2bedbfd834e19e0a6ce27caa3cdd02091e6047657c13531bd50d6adf71',
   'apps/web/clinic-assets.manifest.json':
     '56bce15f8632fd5309689d953e9a0a92a67e6f9c604120fd4ce32e0151ada633',
   'apps/web/public/clinic-assets/care-aftercare.webp':
