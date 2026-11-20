@@ -64,6 +64,7 @@ Formal answers are recorded by the clinic, not inferred by implementers.
 - [第一階段 RC 交付計畫（2026-11-08）](plans/2026-11-08-phase1-rc-delivery-plan.md) — PLAN-ONLY／現行唯一計畫入口與進度台帳：11/30 目標為上線候選版（RC），含 CP-10 歸屬、待決期限、時程與 59 包總表；不是核准或證據。
 - [C2～C6 RC 部署申請草稿（2026-11-15）](plans/2026-11-15-c2-c6-rc-deployment-requests.md) — DRAFT／逐片申請，不是核准；每片部署前負責人逐片同意
 - [11/18 C1 窗口計畫：補齊 C2～C5 並做 C6（2026-11-18）](plans/2026-11-18-c2-c6-window-plan.md) — 已於 11/18 執行，見[窗口報告](reviews/2026-11-18-c1-window-c2-c6.md)
+- [11/21 C1 窗口計畫：重建映像、C6 同步與衝突重測、#532～#535 驗證與 Gate 2 規劃（2026-11-21）](plans/2026-11-21-c1-window-plan.md) — PLAN-ONLY／待負責人核准：11/21 晚上開窗計畫（含映像重建、`c1-internal-test-run`／`c1-foundation`／C5 備份 plan 清單與 Gate 2 50 次正常收斂規劃）；不授權任何雲端操作
 - [2026-11-16 RC 雲端窗口執行單](runbooks/2026-11-16-rc-window-runsheet.md) — DRAFT／執行前清單：RC-05、RC-07、INGRESS、RC-06；不授權雲端操作
 - [第一階段 RC 細部包（2026-11-08）](plans/2026-11-08-phase1-rc-packets.md) — PLAN-ONLY：70 包（manifest 59＋RC-01～RC-11）逐包作法與 254 個 finding 對照。
 - [RC-11 治理分工與每週讀回](plans/2026-11-09-rc11-governance-review.md) — 待負責人審閱的角色分工提案與每週檢查清單；不授權部署或雲端操作。
