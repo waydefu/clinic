@@ -1056,7 +1056,7 @@ export function renderCaseAssignments(state) {
       const actionCell = canEdit
         ? `<button class="button button-primary" type="submit" form="${escapeHtml(formId)}">${assignment ? '改派個管師' : '指派個管師'}</button>`
         : '<span class="field-hint">改派限主管</span>';
-      return `<tr role="row" class="case-row" data-case-row="${escapeHtml(appointment.id)}"><td role="cell" data-label="狀態"><span class="status-chip ${assignment ? 'is-available' : 'is-reserved'}">${assignment ? '已指派' : '待指派'}</span></td><td role="cell" data-label="患者"><strong>${escapeHtml(who)}</strong><span class="code detail-line">${escapeHtml([`預約 · 末 4 碼 ${idTail(appointment.id)}`, BOOKING_KIND_LABELS[appointment.bookingKind], appointment.itemLabel].filter(Boolean).join(' · '))}</span></td><td role="cell" data-label="個管師">${managerCell}</td><td role="cell" data-label="操作">${actionCell}</td></tr>`;
+      return `<tr role="row" class="case-row" data-case-row="${escapeHtml(appointment.id)}"><td role="cell" data-label="狀態"><span class="status-chip ${assignment ? 'is-available' : 'is-reserved'}">${assignment ? '已指派' : '待指派'}</span></td><td role="cell" data-label="患者"><strong>${escapeHtml(who)}</strong><span class="code detail-line">預約 · 末 4 碼 ${escapeHtml(idTail(appointment.id))}</span></td><td role="cell" data-label="個管師">${managerCell}</td><td role="cell" data-label="操作">${actionCell}</td></tr>`;
     })
     .join('');
   const columns = ['狀態', '患者', '個管師', '操作']
