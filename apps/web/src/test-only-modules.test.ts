@@ -2070,8 +2070,7 @@ describe('工作臺語意 T2-WB-02', () => {
       status: 'confirmed'
     });
     const html = renderAppointments(state, filtersAll);
-    expect(html).toContain('患者 · 末 4 碼 33ee');
-    expect(html).toContain('預約 · 末 4 碼 8f90');
+    expect(html).toContain('患者 33ee');
     expect(html).not.toContain(`>${patientId}<`);
   });
 

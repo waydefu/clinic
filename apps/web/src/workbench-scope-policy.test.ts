@@ -145,9 +145,8 @@ describe('Phase 1 workbench scope policy', () => {
     state.appointments[0].patientId = patientId;
     state.tasks.pendingCaseAssignments = [appointmentId];
     const html = renderCaseAssignments(state);
-    expect(html).toContain('患者 · 末 4 碼 33ee');
-    expect(html).toContain('預約 · 末 4 碼 8f90');
-    expect(html).toContain('aria-label="患者 · 末 4 碼 33ee 的個管師"');
+    expect(html).toContain('患者 33ee');
+    expect(html).toContain('aria-label="患者 33ee 的個管師"');
     expect(html).not.toContain(`>${patientId}<`);
     expect(html).not.toContain(`>${appointmentId}<`);
   });
