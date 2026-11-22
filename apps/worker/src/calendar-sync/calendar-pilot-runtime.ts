@@ -509,7 +509,7 @@ export class CalendarPilotRuntime {
       transaction: Transaction,
       now: string,
       currentJob?: Record<string, unknown>
-    ) => void | Promise<void>
+    ) => unknown
   ): Promise<(dispatch?: boolean) => void> {
     return this.db.runTransaction(async (transaction) => {
       const configuration = await transaction.get(
