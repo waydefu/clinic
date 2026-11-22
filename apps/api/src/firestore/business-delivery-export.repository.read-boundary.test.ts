@@ -70,8 +70,10 @@ function boundary(record: unknown) {
   const collection = {
     doc: vi.fn(() => reference),
     where: vi.fn().mockReturnThis(),
-    orderBy: vi.fn().mockReturnThis()
+    orderBy: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis()
   };
+  const limit = collection.limit;
   const db = {
     collection: vi.fn(() => collection),
     runTransaction: vi.fn(
@@ -82,6 +84,7 @@ function boundary(record: unknown) {
   return {
     repository: new FirestoreBusinessExportRepository(db),
     chunks,
+    limit,
     transaction
   };
 }
@@ -144,3 +147,19 @@ describe.each(OPERATIONS)(
     );
   }
 );
+
+describe('export create read bound (A09)', () => {
+  it('reads at most the cap plus one appointment and refuses an oversized range', async () => {
+    const { repository, transaction, limit } = boundary(JOB);
+    transaction.get
+      .mockResolvedValueOnce({ exists: false })
+      .mockResolvedValueOnce({
+        docs: Array.from({ length: 5001 }, () => ({ data: () => ({}) }))
+      });
+    await expect(repository.create(COMMAND)).rejects.toMatchObject({
+      code: 'INVALID_VALUE'
+    });
+    expect(limit).toHaveBeenCalledWith(5001);
+    expect(transaction.create).not.toHaveBeenCalled();
+  });
+});
