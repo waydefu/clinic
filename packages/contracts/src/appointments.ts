@@ -30,6 +30,12 @@ export const AppointmentStatusSchema = z.enum([
  * BOOKING-MINIMIZATION-2026-09-22 removed the year; whether the day exists is
  * the domain's `patientIdentityIssues`, not this shape check.
  */
+/** Same shape the domain validator accepts: digits and + - ( ) space, at least 8 digits. */
+export const PhoneSchema = z
+  .string()
+  .regex(/^[0-9+\-() ]{8,20}$/)
+  .refine((value) => value.replace(/\D/g, '').length >= 8);
+
 export const MonthDaySchema = z.string().regex(/^--\d{2}-\d{2}$/);
 
 /** 本國／外國；BOOKING-MINIMIZATION-2026-09-22 只允許這兩個值。 */
@@ -43,7 +49,7 @@ export const NationalitySchema = z.enum(['domestic', 'foreign']);
 export const PatientIntakeSchema = z
   .object({
     name: z.string().min(1).max(30),
-    phone: z.string().min(8).max(20),
+    phone: PhoneSchema,
     birthDate: MonthDaySchema,
     nationality: NationalitySchema,
     privacyConsent: z.literal(true)
@@ -139,7 +145,7 @@ export const ListAppointmentsResponseSchema = z
 
 export const ReturnLookupRequestSchema = z
   .object({
-    phone: z.string().min(8).max(20),
+    phone: PhoneSchema,
     birthDate: MonthDaySchema
   })
   .strict();
