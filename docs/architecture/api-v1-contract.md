@@ -70,6 +70,39 @@ the CSV download uses `text/csv` and `Cache-Control: no-store`. This inventory
 does not claim that every other mounted controller has been individually
 catalogued.
 
+## CAL-PILOT routed inventory
+
+`CalendarPilotModule` (mounted by `AppModule`) registers
+`CalendarPilotSessionController` and `CalendarPilotController`. This list is the
+exact decorator inventory at the time of writing; guards, roles and the
+synthetic-only scope are defined in the controllers and the Decision Register,
+and mounting a route is not production or deployment authority.
+
+- `GET /v1/calendar-session/client-config`
+- `GET /v1/calendar-session/me`
+- `POST /v1/calendar-session`
+- `DELETE /v1/calendar-session`
+- `GET /v1/calendar/status`
+- `GET /v1/calendar/sources`
+- `POST /v1/calendar/sources/:sourceId/preflight`
+- `POST /v1/calendar/sources/:sourceId/activate`
+- `GET /v1/calendar/sources/preflights/:preflightId`
+- `POST /v1/calendar/sources/rollback`
+- `GET /v1/calendar/candidates`
+- `POST /v1/calendar/candidates/:candidateId/accept`
+- `POST /v1/calendar/candidates/:candidateId/reject`
+- `POST /v1/calendar/candidates/:candidateId/resolve`
+- `POST /v1/calendar/candidates/:candidateId/correct`
+- `GET /v1/calendar/availability`
+- `POST /v1/calendar/synthetic-appointments`
+- `GET /v1/calendar/synthetic-appointments`
+- `GET /v1/calendar/synthetic-patients`
+- `POST /v1/calendar/synthetic-appointments/:appointmentId/reschedule`
+- `POST /v1/calendar/synthetic-appointments/:appointmentId/cancel`
+
+`CalendarWatchController` (`POST /v1/calendar-watch`) exists in source but is not
+in any module's `controllers` list, so it is not routed.
+
 ## Reserved booking contracts
 
 The following schemas exist in `@beauessence/contracts` but are **not exposed
