@@ -161,7 +161,7 @@ CALENDAR_PILOT_TRIAL_PROJECT_ID=beauessence-clinic-stg-c1a01 CALENDAR_PILOT_TRIA
 node scripts/calendar-pilot-observation-check.mjs <新檔路徑>
 ```
 
-`scripts/calendar-pilot-live-ports.mjs` 是現成的 live ports：Firestore 走 firebase-admin（ADC），Calendar 以原生 fetch 打 Calendar REST v3，access token 取自 `gcloud auth application-default print-access-token` 子行程（開窗前須以含 Calendar scope 的 ADC 登入，且不讀任何金鑰檔）；每個 trial 由 `triggerScan` 依序執行 `gcloud scheduler jobs resume`、`run`（等 10 秒）、`pause` `internal-test-calendar-sync`（固定 `--project beauessence-clinic-stg-c1a01 --location asia-east1`，run 失敗也會 pause）。每次外部呼叫前都重驗專案與合成日曆。本機不實跑，只在核准的窗口使用。
+`scripts/calendar-pilot-live-ports.mjs` 是現成的 live ports：Firestore 走 firebase-admin（ADC），Calendar 以原生 fetch 打 Calendar REST v3，Calendar 讀取以 worker 服務帳號身分、只讀 scope 的短效 token（`gcloud auth print-access-token --impersonate-service-account=$CALENDAR_PILOT_CALENDAR_READER_SA --scopes=…/calendar.readonly` 子行程；負責人需對該服務帳號有 Service Account Token Creator；不下載金鑰）；每個 trial 由 `triggerScan` 依序執行 `gcloud scheduler jobs resume`、`run`（等 10 秒）、`pause` `internal-test-calendar-sync`（固定 `--project beauessence-clinic-stg-c1a01 --location asia-east1`，run 失敗也會 pause）。每次外部呼叫前都重驗專案與合成日曆。本機不實跑，只在核准的窗口使用。
 
 每窗 checklist：
 
