@@ -83,10 +83,15 @@ function patient(state, id) {
   return state.patients.find((item) => item.id === id);
 }
 
-// C1 伺服器清單不帶病患資料（ADR-0007），找不到紀錄時只留 ID 末 4 碼，不印整串雜湊。
+// 清單只顯示遮罩後的身分證字號，避免在櫃台螢幕上完整外露。
+// C1 伺服器清單不帶病患資料（ADR-0007），找不到紀錄時不印 32 位雜湊，只留末
+// 4 碼讓櫃台能分辨不同人；完整 ID 仍在 data-* 屬性裡供功能使用。
+function idTail(id) {
+  return String(id ?? '').slice(-4);
+}
 function patientLabel(state, id) {
   const record = patient(state, id);
-  return record === undefined ? `患者 ${(id ?? '').slice(-4)}` : record.name;
+  return record === undefined ? `患者 · 末 4 碼 ${idTail(id)}` : record.name;
 }
 function patientDetail(state, appointment) {
   const record = patient(state, appointment.patientId);
@@ -99,7 +104,10 @@ function patientDetail(state, appointment) {
     appointment.identityReviewRequired === true ? '待櫃台確認' : undefined;
   // API 不帶舊病患資料；只顯示注意旗標，不讓工作臺自動取用封存身分。
   if (record === undefined)
-    return [shownNationality, identityReview].filter(Boolean).join(' · ');
+    return (
+      [shownNationality, identityReview].filter(Boolean).join(' · ') ||
+      `預約 · 末 4 碼 ${escapeHtml(idTail(appointment.id))}`
+    );
   // 新預約的生日只有月日（`--05-20`，BOOKING-MINIMIZATION-2026-09-22）。直接印
   // 出來櫃台會看到兩個減號，像是資料壞掉；換成「5/20」。舊紀錄可能帶年份。
   const birth = birthDateHasYear(record.birthDate)
@@ -1048,7 +1056,7 @@ export function renderCaseAssignments(state) {
       const actionCell = canEdit
         ? `<button class="button button-primary" type="submit" form="${escapeHtml(formId)}">${assignment ? '改派個管師' : '指派個管師'}</button>`
         : '<span class="field-hint">改派限主管</span>';
-      return `<tr role="row" class="case-row" data-case-row="${escapeHtml(appointment.id)}"><td role="cell" data-label="狀態"><span class="status-chip ${assignment ? 'is-available' : 'is-reserved'}">${assignment ? '已指派' : '待指派'}</span></td><td role="cell" data-label="患者"><strong>${escapeHtml(who)}</strong></td><td role="cell" data-label="個管師">${managerCell}</td><td role="cell" data-label="操作">${actionCell}</td></tr>`;
+      return `<tr role="row" class="case-row" data-case-row="${escapeHtml(appointment.id)}"><td role="cell" data-label="狀態"><span class="status-chip ${assignment ? 'is-available' : 'is-reserved'}">${assignment ? '已指派' : '待指派'}</span></td><td role="cell" data-label="患者"><strong>${escapeHtml(who)}</strong><span class="code detail-line">${escapeHtml([`預約 · 末 4 碼 ${idTail(appointment.id)}`, BOOKING_KIND_LABELS[appointment.bookingKind], appointment.itemLabel].filter(Boolean).join(' · '))}</span></td><td role="cell" data-label="個管師">${managerCell}</td><td role="cell" data-label="操作">${actionCell}</td></tr>`;
     })
     .join('');
   const columns = ['狀態', '患者', '個管師', '操作']
