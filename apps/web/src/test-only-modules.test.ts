@@ -2056,6 +2056,24 @@ describe('工作臺語意 T2-WB-02', () => {
     expect(row('appointment_c1_nat_2')).not.toContain('0900000000');
   });
 
+  it('沒有病患紀錄時患者欄只顯示末 4 碼，不印整串雜湊', () => {
+    const state: any = initialState();
+    const patientId = 'e4f891aa00bb11cc22dd33ee44ff33ee';
+    state.appointments.push({
+      id: 'a1b2c3d4e5f60718293a4b5c6d7e8f90',
+      patientId,
+      slotId: 'slot_c1_hash',
+      startsAt: '2030-01-02T04:00:00.000Z',
+      bookingKind: 'initial',
+      itemIds: ['service_snoring'],
+      itemLabel: '止鼾',
+      status: 'confirmed'
+    });
+    const html = renderAppointments(state, filtersAll);
+    expect(html).toContain('患者 33ee');
+    expect(html).not.toContain(`>${patientId}<`);
+  });
+
   it('回診待安排列不顯示來源 ID', () => {
     const state: any = initialState();
     state.patients.push({
