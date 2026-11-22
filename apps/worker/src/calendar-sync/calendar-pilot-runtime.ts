@@ -815,11 +815,12 @@ export class CalendarPilotRuntime {
     identifier: string
   ): Promise<void> {
     const subjectHash = createHash('sha256').update(identifier).digest('hex');
-    const reference = this.db.collection('calendar_pilot_audit_events').doc(
-      `conflict_${createHash('sha256')
-        .update(`${sourceId} ${String(generation)} ${subjectHash}`)
-        .digest('hex')}`
-    );
+    const key = createHash('sha256')
+      .update([sourceId, String(generation), subjectHash].join('|'))
+      .digest('hex');
+    const reference = this.db
+      .collection('calendar_pilot_audit_events')
+      .doc('conflict_' + key);
     if ((await reference.get()).exists) return;
     await this.withLease(lease, (transaction, occurredAt) => {
       transaction.create(reference, {
