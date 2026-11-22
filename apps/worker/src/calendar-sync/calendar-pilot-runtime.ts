@@ -509,7 +509,7 @@ export class CalendarPilotRuntime {
       transaction: Transaction,
       now: string,
       currentJob?: Record<string, unknown>
-    ) => void
+    ) => void | Promise<void>
   ): Promise<(dispatch?: boolean) => void> {
     return this.db.runTransaction(async (transaction) => {
       const configuration = await transaction.get(
@@ -537,7 +537,7 @@ export class CalendarPilotRuntime {
         lease,
         jobData
       );
-      write?.(transaction, now, jobData);
+      await write?.(transaction, now, jobData);
       return (dispatch = false) => {
         assertCalendarPilotWorkerLease(configurationData, lease, jobData);
         if (dispatch) {
@@ -821,8 +821,9 @@ export class CalendarPilotRuntime {
     const reference = this.db
       .collection('calendar_pilot_audit_events')
       .doc('conflict_' + key);
-    if ((await reference.get()).exists) return;
-    await this.withLease(lease, (transaction, occurredAt) => {
+    // Read and create in one transaction (no writes happen before the read).
+    await this.withLease(lease, async (transaction, occurredAt) => {
+      if ((await transaction.get(reference)).exists) return;
       transaction.create(reference, {
         action: 'calendar_reconciliation_conflict',
         sourceId,
