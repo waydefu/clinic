@@ -42,6 +42,7 @@ const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 // ports: readScanMarker() -> string | undefined   (config lastSuccessfulSyncAt)
 //        readExpected(linkId) -> { id, linkId, status, title, startsAt, endsAt } | undefined
 //        listEvents(calendarId, linkId) -> every page's events, same field names
+//        triggerScan?()  optional; starts one scan round (operator-approved)
 //        mutate?(linkId, trial)  optional; each call counts as one window write
 export function createConvergenceDriver({
   env,
@@ -82,6 +83,7 @@ export function createConvergenceDriver({
       marker = await call(() => ports.readScanMarker());
       started = true;
     }
+    await call(() => ports.triggerScan?.());
     for (let waited = 0; waited <= waitMs; waited += pollMs) {
       const next = await call(() => ports.readScanMarker());
       if (typeof next === 'string' && next !== marker) {
