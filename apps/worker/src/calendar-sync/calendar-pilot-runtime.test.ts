@@ -871,11 +871,11 @@ describe('calendar pilot lease health restore', () => {
     return { configuration, runtime };
   }
 
-  it('puts health back after a lease that finishes without a sync commit', async () => {
+  it('puts health back after a reconciliation lease, which has no sync commit', async () => {
     const { configuration, runtime } = liveConfiguration('healthy');
     await runtime['acquire']('owner_1', '2026-11-22T00:00:00.000Z');
     expect(configuration['health']).toBe('syncing');
-    await runtime['release']('owner_1');
+    await runtime['release']('owner_1', true);
     expect(configuration['workerLeaseOwner']).toBeNull();
     expect(configuration['health']).toBe('healthy');
   });
@@ -884,7 +884,7 @@ describe('calendar pilot lease health restore', () => {
     const { configuration, runtime } = liveConfiguration('healthy');
     await runtime['acquire']('owner_1', '2026-11-22T00:00:00.000Z');
     configuration['health'] = 'degraded';
-    await runtime['release']('owner_1');
+    await runtime['release']('owner_1', true);
     expect(configuration['health']).toBe('degraded');
   });
 });

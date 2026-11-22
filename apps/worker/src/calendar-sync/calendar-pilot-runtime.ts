@@ -797,7 +797,7 @@ export class CalendarPilotRuntime {
     });
   }
 
-  private async release(owner: string): Promise<void> {
+  private async release(owner: string, restoreHealth = false): Promise<void> {
     const ref = this.db
       .collection('calendar_pilot_configuration')
       .doc('active');
@@ -809,7 +809,10 @@ export class CalendarPilotRuntime {
         document.data()
       );
       if (configuration.workerLeaseOwner !== owner) return;
-      const restore = this.healthBeforeLease.get(owner);
+      const restore = restoreHealth
+        ? this.healthBeforeLease.get(owner)
+        : undefined;
+      this.healthBeforeLease.delete(owner);
       transaction.update(ref, {
         workerLeaseOwner: null,
         workerLeaseExpiresAt: null,
@@ -1222,7 +1225,7 @@ export class CalendarPilotRuntime {
           };
         }
       } finally {
-        if (lease.dispatch.pending === 0) await this.release(owner);
+        if (lease.dispatch.pending === 0) await this.release(owner, true);
       }
     });
   }
