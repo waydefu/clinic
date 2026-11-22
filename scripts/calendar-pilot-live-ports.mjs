@@ -31,7 +31,9 @@ const SAFE_ARG = /^[A-Za-z0-9@._:\/=,-]+$/u;
 // cmd.exe instead, so every argument must be plain characters (no cmd metacharacters).
 export function gcloudCommand(args, platform = process.platform) {
   if (platform !== 'win32') return { file: 'gcloud', argv: args };
-  if (!args.every((arg) => SAFE_ARG.test(arg))) throw new Error('Unsafe gcloud argument.');
+  if (!args.every((arg) => SAFE_ARG.test(arg))) {
+    throw new Error('Unsafe gcloud argument.');
+  }
   return {
     file: process.env.ComSpec ?? 'cmd.exe',
     argv: ['/d', '/s', '/c', 'gcloud', ...args]

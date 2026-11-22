@@ -254,11 +254,18 @@ describe('gcloudCommand', () => {
     const { file, argv } = gcloudCommand(['auth', 'list'], 'win32');
     expect(file.toLowerCase()).toContain('cmd');
     expect(argv).toEqual(['/d', '/s', '/c', 'gcloud', 'auth', 'list']);
-    expect(gcloudCommand(['auth'], 'linux')).toEqual({ file: 'gcloud', argv: ['auth'] });
+    expect(gcloudCommand(['auth'], 'linux')).toEqual({
+      file: 'gcloud',
+      argv: ['auth']
+    });
   });
 
   it('rejects arguments with cmd metacharacters or spaces on win32', () => {
-    expect(() => gcloudCommand(['a&calc'], 'win32')).toThrow('Unsafe gcloud argument.');
-    expect(() => gcloudCommand(['a b'], 'win32')).toThrow('Unsafe gcloud argument.');
+    expect(() => gcloudCommand(['a&calc'], 'win32')).toThrow(
+      'Unsafe gcloud argument.'
+    );
+    expect(() => gcloudCommand(['a b'], 'win32')).toThrow(
+      'Unsafe gcloud argument.'
+    );
   });
 });
