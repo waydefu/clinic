@@ -100,6 +100,7 @@ leftover `admin` 讀取時對齊 `normaliseRole`）。`/index.html` gzip total �
 | `update_appointment_notes` | ✔ | ✔ | △ 自己個案 | △ 自己相關 | |
 | `decide_follow_up` | ✔ | ✔ | △ 自己個案 | ✔ | |
 | `publish_schedule` | ✔ | | | | |
+| `read_schedule_grid` | ✔ | ✔ | | | ✔ |
 | `read_appointment` | ✔ | ✔ | △ 自己個案 | △ 自己相關 | △ 自己 |
 
 ※ 委派刪除是**另一條路徑**，不是把權限搬進 `front_desk`。櫃檯憑管理者自訂的授權碼
@@ -204,7 +205,7 @@ accountable owner 依 D-014 必須是具醫事人員身分者。這一條與「�
 | --- | --- | --- | --- |
 | 1 | UI 顯示 | 瀏覽器 `permissions.js`，2 角色 | 收斂為 5 角色；只負責「不顯示」，不作為安全邊界 |
 | 2 | Router guard | 工作臺 hash 路由，無 guard | 每個工作區宣告所需 permission；直連 URL 亦擋 |
-| 3 | API／Cloud Functions | `rbac.ts` 候選表，**未接線** | 接線於 C4 slice；`evaluateAccess` 為唯一入口 |
+| 3 | API／Cloud Functions | `evaluateAccess` 已由 `InternalTestBookingModule`（隔離測試組裝）與 business-delivery 服務呼叫；公開 production 的全域接線**未完成** | 接線於 C4 slice；`evaluateAccess` 為唯一入口 |
 | 4 | Firestore Rules | 全域 `allow read, write: if false` | 維持預設拒絕；ADR-0003 不變更 |
 | 5 | 查詢結果欄位過濾 | 無 | 依 §4.3 於序列化層實作 |
 | 6 | 稽核紀錄 | audit v2 已實作 | 每次拒絕也要寫稽核，不只記錄成功 |
