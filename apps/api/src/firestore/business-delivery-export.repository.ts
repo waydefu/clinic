@@ -29,6 +29,8 @@ export const EXPORT_COLLECTIONS = {
 } as const;
 
 const MAX_CHUNKS = 20;
+// The range is read inside one transaction, so the read itself must be bounded.
+const MAX_EXPORT_APPOINTMENTS = 5000;
 const HOUR_MS = 3_600_000;
 
 interface StoredExportJob {
@@ -162,7 +164,8 @@ export class FirestoreBusinessExportRepository {
       .collection(COLLECTIONS.appointments)
       .where('startsAt', '>=', command.startAt)
       .where('startsAt', '<', command.endAt)
-      .orderBy('startsAt');
+      .orderBy('startsAt')
+      .limit(MAX_EXPORT_APPOINTMENTS + 1);
 
     return this.db.runTransaction(async (transaction) => {
       const existing = await transaction.get(jobRef);
@@ -173,6 +176,11 @@ export class FirestoreBusinessExportRepository {
       }
 
       const appointments = await transaction.get(appointmentsQuery);
+      if (appointments.docs.length > MAX_EXPORT_APPOINTMENTS)
+        throw new DomainError(
+          'INVALID_VALUE',
+          'the export is too large; choose a shorter date range.'
+        );
       const unflaggedAppointments = appointments.docs.filter(
         (document) => document.data()['patientArchived'] !== true
       );

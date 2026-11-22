@@ -125,6 +125,20 @@ describe('v1 API contracts', () => {
     ).toBe(false);
   });
 
+  it('rejects a phone the domain would refuse, before the service sees it', () => {
+    for (const phone of ['abcdefghij', '(((())))----', '0912 000 00x'])
+      expect(
+        ReturnLookupRequestSchema.safeParse({ phone, birthDate: '--01-15' })
+          .success
+      ).toBe(false);
+    expect(
+      ReturnLookupRequestSchema.safeParse({
+        phone: '+886 912-000-001',
+        birthDate: '--01-15'
+      }).success
+    ).toBe(true);
+  });
+
   it('return lookup takes phone and --MM-DD only', () => {
     expect(
       ReturnLookupRequestSchema.safeParse({
