@@ -14,7 +14,7 @@ import {
 const env = {
   CALENDAR_PILOT_TRIAL_PROJECT_ID: REQUIRED_PROJECT_ID,
   CALENDAR_PILOT_TRIAL_CALENDAR_ID:
-    'synthetic-trials-1@group.calendar.google.com'
+    '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef@group.calendar.google.com'
 };
 const fields = (linkId) => ({
   id: `calpilot${linkId}`,
@@ -31,6 +31,9 @@ function fakePorts(overrides = {}) {
   const calls = { mutate: 0, calendarIds: [] };
   return {
     calls,
+    assertAuthorisedCalendar: () => {
+      calls.authorised = (calls.authorised ?? 0) + 1;
+    },
     readScanMarker: () => `m${Math.floor(tick++ / 2)}`,
     readExpected: (linkId) => fields(linkId),
     listEvents: (calendarId, linkId) => {
@@ -48,7 +51,12 @@ const make = (ports, extra = {}, e = env) =>
     wait: () => Promise.resolve(),
     ...extra
   });
-const item = (links = ['synthetic_a', 'synthetic_b']) => ({
+const item = (
+  links = [
+    'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+  ]
+) => ({
   trial: 1,
   scenario: 'x',
   links
@@ -83,7 +91,10 @@ describe('calendar pilot convergence driver', () => {
     const driver = make(ports);
     const plan = planTrials({
       trials: 50,
-      linkIds: ['synthetic_a', 'synthetic_b']
+      linkIds: [
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+      ]
     });
     const observations = [];
     for (const trial of plan)
@@ -102,10 +113,22 @@ describe('calendar pilot convergence driver', () => {
     );
   });
 
-  it('refuses non-synthetic link ids and bad environments', async () => {
+  it('refuses non-appointment link ids, unverified calendars and bad environments', async () => {
     await expect(make(fakePorts()).runTrial(item(['real_1']))).rejects.toThrow(
-      'non-synthetic'
+      'appointment id'
     );
+    await expect(
+      make(fakePorts({ assertAuthorisedCalendar: undefined })).runTrial(item())
+    ).rejects.toThrow('verify the calendar');
+    await expect(
+      make(
+        fakePorts({
+          assertAuthorisedCalendar: () => {
+            throw new Error('Calendar id differs');
+          }
+        })
+      ).runTrial(item())
+    ).rejects.toThrow('differs');
     expect(() =>
       make(fakePorts(), {}, { ...env, CALENDAR_PILOT_TRIAL_PROJECT_ID: 'x' })
     ).toThrow();
@@ -121,10 +144,15 @@ describe('calendar pilot convergence driver', () => {
       }
     ],
     ['missing expectation', { readExpected: () => undefined }],
-    ['foreign expectation', { readExpected: () => fields('synthetic_other') }]
+    [
+      'foreign expectation',
+      { readExpected: () => fields('cccccccccccccccccccccccccccccccc') }
+    ]
   ])('stops on %s', async (_name, override) => {
     await expect(
-      make(fakePorts(override)).runTrial(item(['synthetic_a']))
+      make(fakePorts(override)).runTrial(
+        item(['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'])
+      )
     ).rejects.toThrow('Stop');
   });
 
@@ -161,15 +189,15 @@ describe('calendar pilot convergence driver', () => {
       }
     });
     await expect(
-      make(flaky).runTrial(item(['synthetic_a']))
+      make(flaky).runTrial(item(['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa']))
     ).resolves.toHaveLength(1);
     const down = fakePorts({
       readExpected: () => {
         throw Object.assign(new Error('x'), { status: 500 });
       }
     });
-    await expect(make(down).runTrial(item(['synthetic_a']))).rejects.toThrow(
-      '5xx'
-    );
+    await expect(
+      make(down).runTrial(item(['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa']))
+    ).rejects.toThrow('5xx');
   });
 });

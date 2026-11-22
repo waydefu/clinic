@@ -2,7 +2,11 @@ import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 
 import { formatSyntheticAppointmentTitle } from '../apps/web/public/vendor/domain/calendar-sync.js';
-import { REQUIRED_PROJECT_ID } from './calendar-pilot-fault-trials.mjs';
+import {
+  APPOINTMENT_ID,
+  GOOGLE_CALENDAR_ID,
+  REQUIRED_PROJECT_ID
+} from './calendar-pilot-fault-trials.mjs';
 
 // Operator-only live ports for calendar-pilot-convergence-driver.mjs
 // (CALENDAR_PILOT_DRIVER_PORTS=<this file>). Not run by CI; tests use fakes.
@@ -10,9 +14,12 @@ import { REQUIRED_PROJECT_ID } from './calendar-pilot-fault-trials.mjs';
 const SCHEDULER_JOB = 'internal-test-calendar-sync';
 const LOCATION = 'asia-east1';
 const API_BASE = 'https://www.googleapis.com/calendar/v3';
-const SYNTHETIC_CALENDAR =
-  /^synthetic[a-z0-9_-]{3,64}@group\.calendar\.google\.com$/u;
-const LINK = /^synthetic_[a-z0-9_]{1,64}$/u;
+// The worker's GOOGLE_CALENDAR_ID is Secret Manager c1-synthetic-calendar-id, pinned to v2
+// (docs/plans/2026-11-21-c1-window-plan.md); the calendar id is not stored in Firestore.
+const CALENDAR_SECRET = 'c1-synthetic-calendar-id';
+const CALENDAR_SECRET_VERSION = '2';
+// packages/contracts SyntheticPatientCodeSchema: the only patient codes in C1.
+const SYNTHETIC_PATIENT_CODE = /^A(?:0[1-9]|[12][0-9]|30)$/u;
 export const RUN_WINDOW_MS = 10_000; // job is paused again well inside 15 s
 
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
@@ -48,10 +55,28 @@ export async function createPorts({
   const assertScope = () => {
     if (projectId !== REQUIRED_PROJECT_ID)
       throw new Error('Project is not the authorised synthetic project.');
-    if (!SYNTHETIC_CALENDAR.test(calendarId))
-      throw new Error('A dedicated synthetic calendar id is required.');
+    if (!GOOGLE_CALENDAR_ID.test(calendarId))
+      throw new Error('A Google group calendar id is required.');
   };
   assertScope();
+  let calendarVerified = false;
+  const assertAuthorisedCalendar = async () => {
+    assertScope();
+    if (calendarVerified) return;
+    const configured = await run([
+      'secrets',
+      'versions',
+      'access',
+      CALENDAR_SECRET_VERSION,
+      '--secret',
+      CALENDAR_SECRET,
+      '--project',
+      REQUIRED_PROJECT_ID
+    ]);
+    if (configured !== calendarId)
+      throw new Error('Calendar id differs from the C1 synthetic calendar.');
+    calendarVerified = true;
+  };
   let db = firestore;
   const getDb = async () => {
     if (db === undefined) {
@@ -85,6 +110,8 @@ export async function createPorts({
   };
 
   return {
+    assertAuthorisedCalendar,
+
     async readScanMarker() {
       assertScope();
       const snapshot = await (
@@ -99,7 +126,8 @@ export async function createPorts({
 
     async readExpected(linkId) {
       assertScope();
-      if (!LINK.test(linkId)) throw new Error('Non-synthetic link id.');
+      if (!APPOINTMENT_ID.test(linkId))
+        throw new Error('Link id is not an appointment id.');
       const snapshot = await (
         await getDb()
       )
@@ -108,6 +136,8 @@ export async function createPorts({
         .get();
       const data = snapshot.data();
       if (!snapshot.exists || data?.appointmentId !== linkId) return undefined;
+      if (!SYNTHETIC_PATIENT_CODE.test(data.patientCode))
+        throw new Error('Appointment is not marked synthetic.');
       return {
         id: eventIdFor(linkId),
         linkId,
@@ -123,10 +153,11 @@ export async function createPorts({
     },
 
     async listEvents(requestedCalendar, linkId) {
-      assertScope();
+      await assertAuthorisedCalendar();
       if (requestedCalendar !== calendarId)
         throw new Error('Calendar id differs from the authorised one.');
-      if (!LINK.test(linkId)) throw new Error('Non-synthetic link id.');
+      if (!APPOINTMENT_ID.test(linkId))
+        throw new Error('Link id is not an appointment id.');
       const events = [];
       let pageToken;
       do {

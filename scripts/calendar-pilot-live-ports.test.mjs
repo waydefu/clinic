@@ -3,9 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { REQUIRED_PROJECT_ID } from './calendar-pilot-fault-trials.mjs';
 import { createPorts } from './calendar-pilot-live-ports.mjs';
 
-const calendarId = 'synthetic-trials-1@group.calendar.google.com';
+const calendarId =
+  '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef@group.calendar.google.com';
 const appointment = {
-  appointmentId: 'synthetic_a',
+  appointmentId: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
   status: 'confirmed',
   patientCode: 'A01',
   bookingKind: 'initial',
@@ -26,6 +27,7 @@ const fakeFirestore = (docs) => ({
     })
   })
 });
+let secretValue = calendarId;
 const make = (extra = {}) => {
   const commands = [];
   const urls = [];
@@ -35,7 +37,7 @@ const make = (extra = {}) => {
     wait: () => Promise.resolve(),
     run: (argv) => {
       commands.push(argv);
-      return Promise.resolve('tok');
+      return Promise.resolve(argv[0] === 'secrets' ? secretValue : 'tok');
     },
     fetchImpl: (url) => {
       urls.push(url);
@@ -62,7 +64,8 @@ const make = (extra = {}) => {
       });
     },
     firestore: fakeFirestore({
-      'calendar_pilot_appointments/synthetic_a': appointment,
+      'calendar_pilot_appointments/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa':
+        appointment,
       'calendar_pilot_configuration/active': {
         lastSuccessfulSyncAt: '2026-11-22T10:00:00.000Z'
       }
@@ -73,39 +76,46 @@ const make = (extra = {}) => {
 };
 
 describe('calendar pilot live ports', () => {
-  it('refuses another project or a non-synthetic calendar', async () => {
+  it('refuses another project or a malformed calendar id', async () => {
     await expect(
       createPorts({ calendarId, projectId: 'beauessence-clinic-staging' })
     ).rejects.toThrow('authorised');
     await expect(
       createPorts({ calendarId: 'primary', projectId: REQUIRED_PROJECT_ID })
-    ).rejects.toThrow('synthetic');
+    ).rejects.toThrow('group calendar');
   });
 
   it('reads the scan marker and the expected event from Firestore', async () => {
     const { ports } = make();
     const live = await ports;
     expect(await live.readScanMarker()).toBe('2026-11-22T10:00:00.000Z');
-    const expected = await live.readExpected('synthetic_a');
+    const expected = await live.readExpected(
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+    );
     expect(expected).toMatchObject({
-      linkId: 'synthetic_a',
+      linkId: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       status: 'confirmed',
       startsAt: '2026-11-23T01:00:00.000Z',
       endsAt: '2026-11-23T01:30:00.000Z'
     });
     expect(expected.id).toMatch(/^calpilot[a-f0-9]{40}$/u);
-    expect(await live.readExpected('synthetic_missing')).toBeUndefined();
+    expect(
+      await live.readExpected('dddddddddddddddddddddddddddddddd')
+    ).toBeUndefined();
     await expect(live.readExpected('real_1')).rejects.toThrow();
   });
 
   it('lists every Calendar page with UTC times and only for the env calendar', async () => {
     const { ports, urls, commands } = make();
     const live = await ports;
-    const events = await live.listEvents(calendarId, 'synthetic_a');
+    const events = await live.listEvents(
+      calendarId,
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+    );
     expect(events).toEqual([
       {
         id: 'e1',
-        linkId: 'synthetic_a',
+        linkId: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
         status: 'confirmed',
         title: 's',
         startsAt: '2026-11-23T01:00:00.000Z',
@@ -113,13 +123,55 @@ describe('calendar pilot live ports', () => {
       }
     ]);
     expect(urls).toHaveLength(2);
-    expect(urls[0]).toContain('beauessenceLinkId%3Dsynthetic_a');
+    expect(urls[0]).toContain(
+      'beauessenceLinkId%3Daaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+    );
     expect(commands).toEqual([
+      [
+        'secrets',
+        'versions',
+        'access',
+        '2',
+        '--secret',
+        'c1-synthetic-calendar-id',
+        '--project',
+        REQUIRED_PROJECT_ID
+      ],
       ['auth', 'application-default', 'print-access-token']
     ]);
     await expect(
-      live.listEvents('other@group.calendar.google.com', 'synthetic_a')
+      live.listEvents(
+        'other@group.calendar.google.com',
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+      )
     ).rejects.toThrow();
+  });
+
+  it('refuses a calendar that is not the C1 secret calendar', async () => {
+    secretValue = 'other@group.calendar.google.com';
+    try {
+      const live = await make().ports;
+      await expect(live.assertAuthorisedCalendar()).rejects.toThrow('differs');
+      await expect(
+        live.listEvents(calendarId, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
+      ).rejects.toThrow('differs');
+    } finally {
+      secretValue = calendarId;
+    }
+  });
+
+  it('refuses an appointment without a synthetic patient code', async () => {
+    const id = 'f'.repeat(32);
+    const live = await make({
+      firestore: fakeFirestore({
+        [`calendar_pilot_appointments/${id}`]: {
+          ...appointment,
+          appointmentId: id,
+          patientCode: 'REAL-001'
+        }
+      })
+    }).ports;
+    await expect(live.readExpected(id)).rejects.toThrow('synthetic');
   });
 
   it('triggers one scan as resume, run, pause and always pauses again', async () => {

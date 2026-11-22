@@ -1,6 +1,10 @@
 import { pathToFileURL } from 'node:url';
 
-import { REQUIRED_PROJECT_ID } from './calendar-pilot-fault-trials.mjs';
+import {
+  APPOINTMENT_ID,
+  GOOGLE_CALENDAR_ID,
+  REQUIRED_PROJECT_ID
+} from './calendar-pilot-fault-trials.mjs';
 
 // Operator-only "normal convergence" driver for calendar-pilot-fault-trials.mjs
 // (`--driver <this file>`). It injects no faults and creates no Calendar or Firestore
@@ -8,12 +12,8 @@ import { REQUIRED_PROJECT_ID } from './calendar-pilot-fault-trials.mjs';
 // Not run by CI; the tests use fake ports.
 export const MAX_WINDOW_WRITES = 50;
 export const MAX_CONSECUTIVE_5XX = 3;
-const SYNTHETIC_LINK = /^synthetic_[a-z0-9_]{1,64}$/u;
-// Same dedicated-calendar rule as calendar-pilot-fault-trials.mjs.
-const SYNTHETIC_CALENDAR =
-  /^synthetic[a-z0-9_-]{3,64}@group\.calendar\.google\.com$/u;
-
-// Throws on anything outside the authorised synthetic project, calendar and write cap.
+// Throws on anything outside the authorised project, calendar format and write cap.
+// The ports must additionally prove the calendar is the C1 synthetic one.
 export function readDriverGuard(env) {
   if (
     env.CALENDAR_PILOT_TRIAL_PROJECT_ID !== REQUIRED_PROJECT_ID ||
@@ -22,8 +22,8 @@ export function readDriverGuard(env) {
   )
     throw new Error('Project is not the authorised synthetic project.');
   const calendarId = env.CALENDAR_PILOT_TRIAL_CALENDAR_ID;
-  if (typeof calendarId !== 'string' || !SYNTHETIC_CALENDAR.test(calendarId))
-    throw new Error('A dedicated synthetic calendar id is required.');
+  if (typeof calendarId !== 'string' || !GOOGLE_CALENDAR_ID.test(calendarId))
+    throw new Error('A Google group calendar id is required.');
   const raw = env.CALENDAR_PILOT_DRIVER_MAX_WRITES;
   const maxWrites = raw === undefined ? MAX_WINDOW_WRITES : Number(raw);
   if (
@@ -99,8 +99,11 @@ export function createConvergenceDriver({
     async runTrial(item) {
       if (!Array.isArray(item.links) || item.links.length === 0)
         throw new Error('Stop: no synthetic links.');
-      if (item.links.some((id) => !SYNTHETIC_LINK.test(id)))
-        throw new Error('Stop: non-synthetic link id.');
+      if (item.links.some((id) => !APPOINTMENT_ID.test(id)))
+        throw new Error('Stop: link id is not an appointment id.');
+      if (typeof ports.assertAuthorisedCalendar !== 'function')
+        throw new Error('Stop: ports cannot verify the calendar.');
+      await call(() => ports.assertAuthorisedCalendar());
       if (ports.mutate !== undefined) {
         for (const linkId of item.links) {
           if (writes >= maxWrites)
