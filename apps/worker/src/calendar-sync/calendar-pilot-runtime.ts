@@ -733,6 +733,8 @@ export class CalendarPilotRuntime {
     );
   }
 
+  private readonly healthBeforeLease = new Map<string, string>();
+
   private async acquire(
     owner: string,
     now: string
@@ -783,11 +785,15 @@ export class CalendarPilotRuntime {
         ).toISOString(),
         health: 'syncing'
       });
+      // Remember what to put back; a prior 'syncing' (a failed earlier run) stays as it is.
+      const previous = configuration['health'];
+      if (typeof previous === 'string' && previous !== 'syncing')
+        this.healthBeforeLease.set(owner, previous);
       return version;
     });
   }
 
-  private async release(owner: string): Promise<void> {
+  private async release(owner: string, restoreHealth = false): Promise<void> {
     const ref = this.db
       .collection('calendar_pilot_configuration')
       .doc('active');
@@ -799,9 +805,17 @@ export class CalendarPilotRuntime {
         document.data()
       );
       if (configuration.workerLeaseOwner !== owner) return;
+      const restore = restoreHealth
+        ? this.healthBeforeLease.get(owner)
+        : undefined;
+      this.healthBeforeLease.delete(owner);
       transaction.update(ref, {
         workerLeaseOwner: null,
-        workerLeaseExpiresAt: null
+        workerLeaseExpiresAt: null,
+        // Only undo our own 'syncing'; a sync commit or failure already set the real value.
+        ...(restore !== undefined && configuration['health'] === 'syncing'
+          ? { health: restore }
+          : {})
       });
     });
   }
@@ -1207,7 +1221,7 @@ export class CalendarPilotRuntime {
           };
         }
       } finally {
-        if (lease.dispatch.pending === 0) await this.release(owner);
+        if (lease.dispatch.pending === 0) await this.release(owner, true);
       }
     });
   }
