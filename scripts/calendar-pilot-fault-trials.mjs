@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -27,6 +27,8 @@ export function parseTrialArguments(argv, env) {
     else if (arg === '--links') options.linkIds = (argv[++i] ?? '').split(',');
     else if (arg === '--driver') options.driver = argv[++i];
     else if (arg === '--out') options.out = argv[++i];
+    else if (arg === '--resume') options.resume = argv[++i];
+    else if (arg === '--limit') options.limit = Number(argv[++i]);
     else throw new Error('Unknown argument.');
   }
   if (!Number.isSafeInteger(options.trials) || options.trials < 50)
@@ -38,8 +40,15 @@ export function parseTrialArguments(argv, env) {
   )
     throw new Error('Provide unique synthetic_ link ids with --links.');
   if (!options.execute) {
-    if (options.driver !== undefined || options.out !== undefined)
-      throw new Error('--driver and --out require the execute flag.');
+    if (
+      options.driver !== undefined ||
+      options.out !== undefined ||
+      options.resume !== undefined ||
+      options.limit !== undefined
+    )
+      throw new Error(
+        '--driver, --out, --resume and --limit require the execute flag.'
+      );
     return options;
   }
   const calendarId = env.CALENDAR_PILOT_TRIAL_CALENDAR_ID;
@@ -54,8 +63,18 @@ export function parseTrialArguments(argv, env) {
     throw new Error('A dedicated synthetic calendar id is required.');
   if (!env.CALENDAR_PILOT_TRIAL_AUTHORIZATION)
     throw new Error('An authorisation reference is required.');
-  if (!options.driver || !options.out)
-    throw new Error('--driver and --out are required to execute.');
+  if (
+    !options.driver ||
+    (options.out === undefined) === (options.resume === undefined)
+  )
+    throw new Error(
+      '--driver and exactly one of --out or --resume are required to execute.'
+    );
+  if (
+    options.limit !== undefined &&
+    (!Number.isSafeInteger(options.limit) || options.limit < 1)
+  )
+    throw new Error('--limit must be a positive integer.');
   return options;
 }
 
@@ -94,23 +113,66 @@ export function planTrials(options) {
   }));
 }
 
+// Writes the whole observation list to a temp file, then renames it over the target,
+// so a stop at any point leaves the last complete list on disk.
+function saveAtomically(path, observations) {
+  const temporary = `${path}.tmp`;
+  writeFileSync(
+    temporary,
+    `${JSON.stringify(observations)}
+`
+  );
+  renameSync(temporary, path);
+}
+
+// Loads a previous partial result; it must be trials 1..k over exactly these links.
+export function loadResumeObservations(path, linkIds) {
+  const previous = JSON.parse(readFileSync(path, 'utf8'));
+  if (
+    !Array.isArray(previous) ||
+    previous.some(
+      (item, index) =>
+        item?.trial !== index + 1 ||
+        !Array.isArray(item.links) ||
+        item.links.length !== linkIds.length ||
+        item.links.some((link) => !linkIds.includes(link?.id))
+    )
+  )
+    throw new Error('Resume file is not a consecutive result for these links.');
+  return previous;
+}
+
+// Runs the remaining trials (at most options.limit), saving after each completed one.
+// The observation checker still demands 50 in total; nothing here lowers that bar.
+export async function executeTrials(options, runTrial) {
+  const target = options.resume ?? options.out;
+  let observations = [];
+  if (options.resume !== undefined)
+    observations = loadResumeObservations(options.resume, options.linkIds);
+  else if (existsSync(target)) throw new Error('Output file already exists.');
+  const remaining = planTrials(options).slice(observations.length);
+  for (const item of remaining.slice(0, options.limit ?? remaining.length)) {
+    const links = await runTrial(item);
+    observations = [
+      ...observations,
+      { trial: item.trial, links: links.map(sanitizeLink) }
+    ];
+    saveAtomically(target, observations);
+  }
+  return observations;
+}
+
 async function main() {
   const options = parseTrialArguments(process.argv.slice(2), process.env);
   const plan = planTrials(options);
   if (!options.execute) {
-    process.stdout.write(`${JSON.stringify({ dryRun: true, plan })}\n`);
+    process.stdout.write(`${JSON.stringify({ dryRun: true, plan })}
+`);
     return;
   }
   // The driver is the operator's separately authorised Calendar/Firestore access.
   const driver = await import(pathToFileURL(resolve(options.driver)).href);
-  const observations = [];
-  for (const item of plan) {
-    const links = await driver.runTrial(item);
-    observations.push({ trial: item.trial, links: links.map(sanitizeLink) });
-  }
-  writeFileSync(options.out, `${JSON.stringify(observations)}\n`, {
-    flag: 'wx'
-  });
+  await executeTrials(options, (item) => driver.runTrial(item));
 }
 
 if (
