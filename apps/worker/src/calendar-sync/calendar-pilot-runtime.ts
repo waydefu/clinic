@@ -785,14 +785,10 @@ export class CalendarPilotRuntime {
         ).toISOString(),
         health: 'syncing'
       });
-      // Remember what to put back if this lease ends without writing its own health.
+      // Remember what to put back; a prior 'syncing' (a failed earlier run) stays as it is.
       const previous = configuration['health'];
-      this.healthBeforeLease.set(
-        owner,
-        typeof previous === 'string' && previous !== 'syncing'
-          ? previous
-          : 'healthy'
-      );
+      if (typeof previous === 'string' && previous !== 'syncing')
+        this.healthBeforeLease.set(owner, previous);
       return version;
     });
   }

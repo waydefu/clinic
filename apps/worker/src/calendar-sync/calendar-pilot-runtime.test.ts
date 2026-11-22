@@ -880,6 +880,13 @@ describe('calendar pilot lease health restore', () => {
     expect(configuration['health']).toBe('healthy');
   });
 
+  it('does not launder a syncing left by an earlier failed run', async () => {
+    const { configuration, runtime } = liveConfiguration('syncing');
+    await runtime['acquire']('owner_1', '2026-11-22T00:00:00.000Z');
+    await runtime['release']('owner_1', true);
+    expect(configuration['health']).toBe('syncing');
+  });
+
   it('keeps a health value the lease holder wrote itself', async () => {
     const { configuration, runtime } = liveConfiguration('healthy');
     await runtime['acquire']('owner_1', '2026-11-22T00:00:00.000Z');
