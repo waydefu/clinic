@@ -132,7 +132,7 @@ describe('calendar pilot live ports', () => {
       'beauessenceLinkId%3Daaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
     );
     expect(commands).toEqual([
-      ['auth, 'application-default', 'print-access-token']
+      ['auth', 'application-default', 'print-access-token']
     ]);
     await expect(
       live.listEvents(
