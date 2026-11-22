@@ -806,6 +806,31 @@ export class CalendarPilotRuntime {
     });
   }
 
+  // One audit record per source, generation and subject: a conflict that persists must
+  // not add a new record on every scan (the deterministic id also makes create idempotent).
+  private async recordConflictAudit(
+    lease: PilotLeaseContext,
+    sourceId: string,
+    generation: number,
+    identifier: string
+  ): Promise<void> {
+    const subjectHash = createHash('sha256').update(identifier).digest('hex');
+    const reference = this.db.collection('calendar_pilot_audit_events').doc(
+      `conflict_${createHash('sha256')
+        .update(`${sourceId} ${String(generation)} ${subjectHash}`)
+        .digest('hex')}`
+    );
+    if ((await reference.get()).exists) return;
+    await this.withLease(lease, (transaction, occurredAt) => {
+      transaction.create(reference, {
+        action: 'calendar_reconciliation_conflict',
+        sourceId,
+        subjectHash,
+        occurredAt
+      });
+    });
+  }
+
   private async completeJob(
     document: DocumentSnapshot,
     lease: PilotLeaseContext,
@@ -1118,24 +1143,8 @@ export class CalendarPilotRuntime {
         const reader = this.reader(sourceId, lease);
         const writer = this.writer(sourceId, lease);
         const deadline = monotonic + 15_000;
-        const audit = async (identifier: string): Promise<void> => {
-          const subjectHash = createHash('sha256')
-            .update(identifier)
-            .digest('hex');
-          await this.withLease(lease, (transaction, occurredAt) => {
-            transaction.create(
-              this.db
-                .collection('calendar_pilot_audit_events')
-                .doc(randomUUID()),
-              {
-                action: 'calendar_reconciliation_conflict',
-                sourceId,
-                subjectHash,
-                occurredAt
-              }
-            );
-          });
-        };
+        const audit = (identifier: string): Promise<void> =>
+          this.recordConflictAudit(lease, sourceId, generation, identifier);
         const reconciler = new FirestoreCalendarPilotReconciliationAdapter({
           db: this.db,
           lease,
