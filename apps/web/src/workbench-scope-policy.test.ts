@@ -135,6 +135,23 @@ describe('Phase 1 workbench scope policy', () => {
     expect(html).toContain('合成個管師 A');
   });
 
+  // C1 伺服器清單不帶病患紀錄：患者欄不能印 32 位雜湊，只留末 4 碼。
+  it('shows a readable tail instead of a raw hash when the patient record is absent', () => {
+    const state = completedState();
+    const patientId = 'e4f891aa00bb11cc22dd33ee44ff5566'.slice(0, 28) + '33ee';
+    const appointmentId = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
+    state.patients = [];
+    state.appointments[0].id = appointmentId;
+    state.appointments[0].patientId = patientId;
+    state.tasks.pendingCaseAssignments = [appointmentId];
+    const html = renderCaseAssignments(state);
+    expect(html).toContain('患者 · 末 4 碼 33ee');
+    expect(html).toContain('預約 · 末 4 碼 8f90');
+    expect(html).toContain('aria-label="患者 · 末 4 碼 33ee 的個管師"');
+    expect(html).not.toContain(`>${patientId}<`);
+    expect(html).not.toContain(`>${appointmentId}<`);
+  });
+
   it('restores Case projections while Payroll renderer remains frozen', () => {
     const state = completedState();
     expect(renderCaseAssignments(state)).toContain('data-case-row');
