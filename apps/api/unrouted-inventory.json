@@ -15,7 +15,8 @@
         "create_appointment",
         "read_appointment",
         "reschedule_appointment",
-        "publish_schedule"
+        "publish_schedule",
+        "read_schedule_grid"
       ],
       "approvedPolicyDependencies": ["D-006"],
       "remainingBlockers": [

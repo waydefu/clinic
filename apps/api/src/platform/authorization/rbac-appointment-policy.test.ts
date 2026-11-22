@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AuthenticationContext } from '../../auth/authentication-context.js';
-import { createRbacAppointmentPolicy } from './rbac-appointment-policy.js';
+import {
+  createRbacAppointmentPolicy,
+  createScheduleAuthorizationPolicy
+} from './rbac-appointment-policy.js';
 import {
   AuthorizationDeniedError,
   mapErrorToApiResponse
@@ -203,5 +206,22 @@ describe('createRbacAppointmentPolicy', () => {
     );
 
     expect(resolveRole).toHaveBeenCalledWith(authentication);
+  });
+});
+
+describe('createScheduleAuthorizationPolicy grid read', () => {
+  it('uses its own permission, not create_appointment (A04)', async () => {
+    for (const role of ['patient', 'front_desk', 'manager'] as const)
+      await expect(
+        createScheduleAuthorizationPolicy(() => role).assertCanReadGrid(
+          context()
+        )
+      ).resolves.toBeUndefined();
+    for (const role of ['consultant', 'physician', 'auditor'] as const)
+      await expect(
+        createScheduleAuthorizationPolicy(() => role).assertCanReadGrid(
+          context()
+        )
+      ).rejects.toBeInstanceOf(AuthorizationDeniedError);
   });
 });
