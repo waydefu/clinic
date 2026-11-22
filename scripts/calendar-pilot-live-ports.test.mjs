@@ -27,7 +27,7 @@ const fakeFirestore = (docs) => ({
     })
   })
 });
-let secretValue = calendarId;
+let calendarSummary = 'CAL-PILOT synthetic';
 const make = (extra = {}) => {
   const commands = [];
   const urls = [];
@@ -37,9 +37,14 @@ const make = (extra = {}) => {
     wait: () => Promise.resolve(),
     run: (argv) => {
       commands.push(argv);
-      return Promise.resolve(argv[0] === 'secrets' ? secretValue : 'tok');
+      return Promise.resolve('tok');
     },
     fetchImpl: (url) => {
+      if (!url.includes('/events'))
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ summary: calendarSummary })
+        });
       urls.push(url);
       const first = !url.includes('pageToken');
       return Promise.resolve({
@@ -127,17 +132,7 @@ describe('calendar pilot live ports', () => {
       'beauessenceLinkId%3Daaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
     );
     expect(commands).toEqual([
-      [
-        'secrets',
-        'versions',
-        'access',
-        '2',
-        '--secret',
-        'c1-synthetic-calendar-id',
-        '--project',
-        REQUIRED_PROJECT_ID
-      ],
-      ['auth', 'application-default', 'print-access-token']
+      ['auth, 'application-default', 'print-access-token']
     ]);
     await expect(
       live.listEvents(
@@ -147,17 +142,21 @@ describe('calendar pilot live ports', () => {
     ).rejects.toThrow();
   });
 
-  it('refuses a calendar that is not the C1 secret calendar', async () => {
-    secretValue = 'other@group.calendar.google.com';
+  it('refuses a calendar whose name is not CAL-PILOT, accepts one that is', async () => {
+    calendarSummary = 'Clinic main';
     try {
       const live = await make().ports;
-      await expect(live.assertAuthorisedCalendar()).rejects.toThrow('differs');
+      await expect(live.assertAuthorisedCalendar()).rejects.toThrow(
+        'CAL-PILOT'
+      );
       await expect(
         live.listEvents(calendarId, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
-      ).rejects.toThrow('differs');
+      ).rejects.toThrow('CAL-PILOT');
     } finally {
-      secretValue = calendarId;
+      calendarSummary = 'CAL-PILOT synthetic';
     }
+    const ok = await make().ports;
+    await expect(ok.assertAuthorisedCalendar()).resolves.toBeUndefined();
   });
 
   it('refuses an appointment without a synthetic patient code', async () => {

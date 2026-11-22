@@ -14,10 +14,10 @@ import {
 const SCHEDULER_JOB = 'internal-test-calendar-sync';
 const LOCATION = 'asia-east1';
 const API_BASE = 'https://www.googleapis.com/calendar/v3';
-// The worker's GOOGLE_CALENDAR_ID is Secret Manager c1-synthetic-calendar-id, pinned to v2
-// (docs/plans/2026-11-21-c1-window-plan.md); the calendar id is not stored in Firestore.
-const CALENDAR_SECRET = 'c1-synthetic-calendar-id';
-const CALENDAR_SECRET_VERSION = '2';
+// No secret is read: event ids derive from the linkId (calpilot+sha256) and only the worker
+// writes to the real destination, so a wrong calendar can only fail to converge, never pass.
+// The summary check below keeps the driver from reading a real clinic calendar.
+const CALENDAR_PREFIX = 'CAL-PILOT';
 // packages/contracts SyntheticPatientCodeSchema: the only patient codes in C1.
 const SYNTHETIC_PATIENT_CODE = /^A(?:0[1-9]|[12][0-9]|30)$/u;
 export const RUN_WINDOW_MS = 10_000; // job is paused again well inside 15 s
@@ -63,18 +63,20 @@ export async function createPorts({
   const assertAuthorisedCalendar = async () => {
     assertScope();
     if (calendarVerified) return;
-    const configured = await run([
-      'secrets',
-      'versions',
-      'access',
-      CALENDAR_SECRET_VERSION,
-      '--secret',
-      CALENDAR_SECRET,
-      '--project',
-      REQUIRED_PROJECT_ID
-    ]);
-    if (configured !== calendarId)
-      throw new Error('Calendar id differs from the C1 synthetic calendar.');
+    const response = await fetchImpl(
+      `${API_BASE}/calendars/${encodeURIComponent(calendarId)}`,
+      {
+        headers: { Authorization: `Bearer ${await accessToken()}` },
+        signal: AbortSignal.timeout(30_000)
+      }
+    );
+    if (!response.ok)
+      throw Object.assign(new Error('Calendar metadata failed.'), {
+        status: response.status
+      });
+    const { summary } = await response.json();
+    if (typeof summary !== 'string' || !summary.startsWith(CALENDAR_PREFIX))
+      throw new Error('Calendar is not the CAL-PILOT synthetic destination.');
     calendarVerified = true;
   };
   let db = firestore;

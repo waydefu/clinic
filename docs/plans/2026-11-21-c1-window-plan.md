@@ -121,7 +121,7 @@
 
 ### 「合成」如何被保證，以及準備 links
 
-「合成」不靠名稱前綴（Google 建立的日曆 ID 是隨機字串，預約 ID 是雜湊），而靠四層：(1) 專案固定為 `beauessence-clinic-stg-c1a01`；(2) 日曆 ID 必須與 worker 使用的 `c1-synthetic-calendar-id` v2 完全相同（live ports 以 gcloud 讀取比對，不符即停）；(3) link 必須是 `calendar_pilot_appointments` 內實際存在的文件，且 `patientCode` 為合成代碼 `A01`～`A30`（`SyntheticPatientCodeSchema`）；(4) 該集合只有 `POST /v1/calendar/synthetic-appointments` 能建立。
+「合成」不靠名稱前綴（Google 建立的日曆 ID 是隨機字串，預約 ID 是雜湊），而靠四層：(1) 專案固定為 `beauessence-clinic-stg-c1a01`；(2) 日曆名稱必須以 `CAL-PILOT` 開頭（live ports 唯讀查日曆基本資料；event id 由 linkId 推導、只有 worker 會寫入真正目的地，填錯日曆只會無法收斂而不會誤判通過）；(3) link 必須是 `calendar_pilot_appointments` 內實際存在的文件，且 `patientCode` 為合成代碼 `A01`～`A30`（`SyntheticPatientCodeSchema`）；(4) 該集合只有 `POST /v1/calendar/synthetic-appointments` 能建立。
 
 準備 links（開窗前，負責人在場登入）：
 1. 以既有 CAL-PILOT 頁面（`calendar-pilot-entry.js`）或 API `POST /v1/calendar/synthetic-appointments`（需 session／CSRF，帶 `patientCode`、`bookingKind`、`serviceId`、`startsAt`、冪等鍵）建立 2 筆以上合成預約；回應中的 `appointmentId` 即 link ID。
@@ -154,7 +154,7 @@
 
 ### 實跑指令與每窗 checklist（正常收斂 driver）
 
-driver：`scripts/calendar-pilot-convergence-driver.mjs`，只做正常收斂、不含八種故障注入，自身不建立任何 Calendar／Firestore 連線；外部存取全由操作者另備的 ports 模組提供（匯出 `createPorts({ calendarId, projectId })`，回傳 `readScanMarker()`、`readExpected(linkId)`、`listEvents(calendarId, linkId)`，可選 `mutate(linkId, trial)`）。driver 拒絕執行的條件：專案不是 `beauessence-clinic-stg-c1a01`（`CALENDAR_PILOT_TRIAL_PROJECT_ID`，若有設 `GOOGLE_CLOUD_PROJECT` 也須相同）、日曆 ID 不符 Google 日曆格式 `…@group.calendar.google.com`（只讀環境變數 `CALENDAR_PILOT_TRIAL_CALENDAR_ID`），或 ports 的 `assertAuthorisedCalendar()` 發現它與 C1 worker 使用的密鑰 `c1-synthetic-calendar-id` v2 內容不同、linkId 不是 32 位小寫十六進位預約 ID（`calendar-pilot.repository.ts` 的 `hash(...).slice(0, 32)`）、`readExpected` 發現該文件不在 `calendar_pilot_appointments` 或其 `patientCode` 不是合成病患代碼 `A01`～`A30`、`CALENDAR_PILOT_DRIVER_MAX_WRITES` 不在 1～50（預設 50）。遇下列即丟錯停止（`fault-trials` 只在全部完成後才寫輸出檔）：該 link 不是恰好一筆事件或與 Firestore 期望不符、等不到新一輪完整掃描（`lastSuccessfulSyncAt` 沒前進）、連續 3 次 5xx、寫入達上限。
+driver：`scripts/calendar-pilot-convergence-driver.mjs`，只做正常收斂、不含八種故障注入，自身不建立任何 Calendar／Firestore 連線；外部存取全由操作者另備的 ports 模組提供（匯出 `createPorts({ calendarId, projectId })`，回傳 `readScanMarker()`、`readExpected(linkId)`、`listEvents(calendarId, linkId)`，可選 `mutate(linkId, trial)`）。driver 拒絕執行的條件：專案不是 `beauessence-clinic-stg-c1a01`（`CALENDAR_PILOT_TRIAL_PROJECT_ID`，若有設 `GOOGLE_CLOUD_PROJECT` 也須相同）、日曆 ID 不符 Google 日曆格式 `…@group.calendar.google.com`（只讀環境變數 `CALENDAR_PILOT_TRIAL_CALENDAR_ID`），或 ports 的 `assertAuthorisedCalendar()` 以唯讀 Calendar API `calendars.get` 發現該日曆名稱不是以 `CAL-PILOT` 開頭（不讀密鑰、不輸出日曆 ID 或名稱）、linkId 不是 32 位小寫十六進位預約 ID（`calendar-pilot.repository.ts` 的 `hash(...).slice(0, 32)`）、`readExpected` 發現該文件不在 `calendar_pilot_appointments` 或其 `patientCode` 不是合成病患代碼 `A01`～`A30`、`CALENDAR_PILOT_DRIVER_MAX_WRITES` 不在 1～50（預設 50）。遇下列即丟錯停止（`fault-trials` 只在全部完成後才寫輸出檔）：該 link 不是恰好一筆事件或與 Firestore 期望不符、等不到新一輪完整掃描（`lastSuccessfulSyncAt` 沒前進）、連續 3 次 5xx、寫入達上限。
 
 ```text
 CALENDAR_PILOT_TRIAL_PROJECT_ID=beauessence-clinic-stg-c1a01 CALENDAR_PILOT_TRIAL_CALENDAR_ID=<專用合成日曆 ID，不入版控> CALENDAR_PILOT_TRIAL_AUTHORIZATION=<授權引用編號> CALENDAR_PILOT_DRIVER_PORTS=scripts/calendar-pilot-live-ports.mjs CALENDAR_PILOT_DRIVER_MAX_WRITES=50 node scripts/calendar-pilot-fault-trials.mjs --links <32位十六進位預約ID>,<…> --trials 50 --limit <本窗 trial 數> --execute-synthetic-trials --driver scripts/calendar-pilot-convergence-driver.mjs --out <新檔路徑>（後續窗口把 --out 換成 --resume <同一檔案>）
