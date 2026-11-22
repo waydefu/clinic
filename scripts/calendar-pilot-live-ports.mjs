@@ -25,11 +25,28 @@ export const RUN_WINDOW_MS = 10_000; // job is paused again well inside 15 s
 
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 
+const SAFE_ARG = /^[A-Za-z0-9@._:/=,-]+$/u;
+
+// Windows ships gcloud as gcloud.cmd, which Node cannot spawn with shell:false; go through
+// cmd.exe instead, so every argument must be plain characters (no cmd metacharacters).
+export function gcloudCommand(args, platform = process.platform) {
+  if (platform !== 'win32') return { file: 'gcloud', argv: args };
+  if (!args.every((arg) => SAFE_ARG.test(arg))) {
+    throw new Error('Unsafe gcloud argument.');
+  }
+  return {
+    file: process.env.ComSpec ?? 'cmd.exe',
+    argv: ['/d', '/s', '/c', 'gcloud', ...args]
+  };
+}
+
 function gcloud(args) {
   return new Promise((resolve, reject) => {
-    const child = spawn('gcloud', args, {
+    const { file, argv } = gcloudCommand(args);
+    const child = spawn(file, argv, {
       stdio: ['ignore', 'pipe', 'ignore'],
-      shell: false
+      shell: false,
+      windowsVerbatimArguments: false
     });
     let out = '';
     child.stdout.on('data', (chunk) => (out += chunk));
