@@ -69,7 +69,9 @@ export function createConvergenceDriver({
           throw error;
         consecutive5xx += 1;
         if (consecutive5xx >= MAX_CONSECUTIVE_5XX)
-          throw new Error('Stop: three consecutive 5xx responses.');
+          throw new Error('Stop: three consecutive 5xx responses.', {
+            cause: error
+          });
         await wait(pollMs);
       }
     }
