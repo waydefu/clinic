@@ -733,6 +733,8 @@ export class CalendarPilotRuntime {
     );
   }
 
+  private readonly healthBeforeLease = new Map<string, string>();
+
   private async acquire(
     owner: string,
     now: string
@@ -783,6 +785,14 @@ export class CalendarPilotRuntime {
         ).toISOString(),
         health: 'syncing'
       });
+      // Remember what to put back if this lease ends without writing its own health.
+      const previous = configuration['health'];
+      this.healthBeforeLease.set(
+        owner,
+        typeof previous === 'string' && previous !== 'syncing'
+          ? previous
+          : 'healthy'
+      );
       return version;
     });
   }
@@ -799,9 +809,14 @@ export class CalendarPilotRuntime {
         document.data()
       );
       if (configuration.workerLeaseOwner !== owner) return;
+      const restore = this.healthBeforeLease.get(owner);
       transaction.update(ref, {
         workerLeaseOwner: null,
-        workerLeaseExpiresAt: null
+        workerLeaseExpiresAt: null,
+        // Only undo our own 'syncing'; a sync commit or failure already set the real value.
+        ...(restore !== undefined && configuration['health'] === 'syncing'
+          ? { health: restore }
+          : {})
       });
     });
   }

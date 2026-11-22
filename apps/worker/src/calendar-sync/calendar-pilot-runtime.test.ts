@@ -836,3 +836,55 @@ describe('calendar projection restore', () => {
     });
   });
 });
+
+describe('calendar pilot lease health restore', () => {
+  function liveConfiguration(health: string) {
+    const configuration: Record<string, unknown> = {
+      activeSourceId: C1_SYNTHETIC_CALENDAR_SOURCE_ID,
+      version: 0,
+      expiresAt: '2099-01-01T00:00:00.000Z',
+      inboundEnabled: true,
+      outboundEnabled: true,
+      workerLeaseOwner: null,
+      workerLeaseExpiresAt: null,
+      health
+    };
+    const ref = {};
+    const transaction = {
+      get: () =>
+        Promise.resolve({ exists: true, data: () => ({ ...configuration }) }),
+      update: (_ref: unknown, fields: Record<string, unknown>) =>
+        Object.assign(configuration, fields)
+    };
+    const db = {
+      collection: () => ({ doc: () => ref }),
+      runTransaction: (callback: (value: never) => unknown) =>
+        Promise.resolve(callback(transaction as never))
+    } as unknown as Firestore;
+    const runtime = new CalendarPilotRuntime(db, {
+      CALENDAR_PILOT_RUNTIME_MODE: 'C1_SYNTHETIC_ADC',
+      GOOGLE_CLOUD_PROJECT: 'beauessence-clinic-stg-c1a01',
+      CALENDAR_PILOT_PSEUDONYM_KEY: 'p'.repeat(32),
+      GOOGLE_CALENDAR_AUTH: 'CLOUD_ADC',
+      GOOGLE_CALENDAR_ID: 'synthetic-calendar-id'
+    });
+    return { configuration, runtime };
+  }
+
+  it('puts health back after a lease that finishes without a sync commit', async () => {
+    const { configuration, runtime } = liveConfiguration('healthy');
+    await runtime['acquire']('owner_1', '2026-11-22T00:00:00.000Z');
+    expect(configuration['health']).toBe('syncing');
+    await runtime['release']('owner_1');
+    expect(configuration['workerLeaseOwner']).toBeNull();
+    expect(configuration['health']).toBe('healthy');
+  });
+
+  it('keeps a health value the lease holder wrote itself', async () => {
+    const { configuration, runtime } = liveConfiguration('healthy');
+    await runtime['acquire']('owner_1', '2026-11-22T00:00:00.000Z');
+    configuration['health'] = 'degraded';
+    await runtime['release']('owner_1');
+    expect(configuration['health']).toBe('degraded');
+  });
+});
