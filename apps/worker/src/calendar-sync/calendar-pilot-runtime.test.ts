@@ -836,3 +836,128 @@ describe('calendar projection restore', () => {
     });
   });
 });
+
+describe('calendar pilot reconciliation conflict audit', () => {
+  it('records a persisting conflict once, not on every reconciliation', async () => {
+    const owner = 'synthetic_worker';
+    const configuration = {
+      activeSourceId: C1_SYNTHETIC_CALENDAR_SOURCE_ID,
+      version: 0,
+      expiresAt: '2028-03-02T00:00:00Z',
+      inboundEnabled: true,
+      outboundEnabled: true,
+      workerLeaseOwner: owner,
+      workerLeaseExpiresAt: '2028-03-01T00:00:00Z'
+    };
+    const audits = new Map<string, unknown>();
+    const reference = (collection: string, id: string) => ({
+      collection,
+      id,
+      get: () =>
+        Promise.resolve(
+          collection === 'calendar_pilot_configuration'
+            ? { exists: true, data: () => configuration }
+            : { exists: audits.has(id), data: () => audits.get(id) }
+        )
+    });
+    const transaction = {
+      get: (ref: { get: () => Promise<unknown> }) => ref.get(),
+      create: (ref: { id: string }, data: unknown) => {
+        if (audits.has(ref.id)) throw new Error('ALREADY_EXISTS');
+        audits.set(ref.id, data);
+      }
+    };
+    const db = {
+      collection: (name: string) => ({
+        doc: (id: string) => reference(name, id)
+      }),
+      runTransaction: (callback: (value: never) => unknown) =>
+        Promise.resolve(callback(transaction as never))
+    } as unknown as Firestore;
+    const runtime = new CalendarPilotRuntime(
+      db,
+      {
+        CALENDAR_PILOT_RUNTIME_MODE: 'C1_SYNTHETIC_ADC',
+        GOOGLE_CLOUD_PROJECT: 'beauessence-clinic-stg-c1a01',
+        CALENDAR_PILOT_PSEUDONYM_KEY: 'p'.repeat(32),
+        GOOGLE_CALENDAR_AUTH: 'CLOUD_ADC',
+        GOOGLE_CALENDAR_ID: 'synthetic-calendar-id'
+      },
+      undefined,
+      undefined,
+      () => 1_000
+    );
+    const lease = {
+      owner,
+      generation: 0,
+      now: () => '2028-02-29T00:00:00Z',
+      dispatch: { pending: 0 },
+      timing: { wall: Date.parse('2028-02-29T00:00:00Z'), monotonic: 1_000 }
+    };
+    const record = (id: string) =>
+      runtime['recordConflictAudit'](lease, 'source_a', 0, id);
+    await record('mirror_1');
+    await record('mirror_1');
+    await record('mirror_2');
+    expect(audits.size).toBe(2);
+  });
+});
+
+describe('calendar pilot lease health restore', () => {
+  function liveConfiguration(health: string) {
+    const configuration: Record<string, unknown> = {
+      activeSourceId: C1_SYNTHETIC_CALENDAR_SOURCE_ID,
+      version: 0,
+      expiresAt: '2099-01-01T00:00:00.000Z',
+      inboundEnabled: true,
+      outboundEnabled: true,
+      workerLeaseOwner: null,
+      workerLeaseExpiresAt: null,
+      health
+    };
+    const ref = {};
+    const transaction = {
+      get: () =>
+        Promise.resolve({ exists: true, data: () => ({ ...configuration }) }),
+      update: (_ref: unknown, fields: Record<string, unknown>) =>
+        Object.assign(configuration, fields)
+    };
+    const db = {
+      collection: () => ({ doc: () => ref }),
+      runTransaction: (callback: (value: never) => unknown) =>
+        Promise.resolve(callback(transaction as never))
+    } as unknown as Firestore;
+    const runtime = new CalendarPilotRuntime(db, {
+      CALENDAR_PILOT_RUNTIME_MODE: 'C1_SYNTHETIC_ADC',
+      GOOGLE_CLOUD_PROJECT: 'beauessence-clinic-stg-c1a01',
+      CALENDAR_PILOT_PSEUDONYM_KEY: 'p'.repeat(32),
+      GOOGLE_CALENDAR_AUTH: 'CLOUD_ADC',
+      GOOGLE_CALENDAR_ID: 'synthetic-calendar-id'
+    });
+    return { configuration, runtime };
+  }
+
+  it('puts health back after a reconciliation lease, which has no sync commit', async () => {
+    const { configuration, runtime } = liveConfiguration('healthy');
+    await runtime['acquire']('owner_1', '2026-11-22T00:00:00.000Z');
+    expect(configuration['health']).toBe('syncing');
+    await runtime['release']('owner_1', true);
+    expect(configuration['workerLeaseOwner']).toBeNull();
+    expect(configuration['health']).toBe('healthy');
+  });
+
+  it('does not launder a syncing left by an earlier failed run', async () => {
+    const { configuration, runtime } = liveConfiguration('syncing');
+    await runtime['acquire']('owner_1', '2026-11-22T00:00:00.000Z');
+    await runtime['release']('owner_1', true);
+    expect(configuration['health']).toBe('syncing');
+  });
+
+  it('keeps a health value the lease holder wrote itself', async () => {
+    const { configuration, runtime } = liveConfiguration('healthy');
+    await runtime['acquire']('owner_1', '2026-11-22T00:00:00.000Z');
+    configuration['health'] = 'degraded';
+    await runtime['release']('owner_1', true);
+    expect(configuration['health']).toBe('degraded');
+  });
+});

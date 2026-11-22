@@ -148,7 +148,7 @@
 driver：`scripts/calendar-pilot-convergence-driver.mjs`，只做正常收斂、不含八種故障注入，自身不建立任何 Calendar／Firestore 連線；外部存取全由操作者另備的 ports 模組提供（匯出 `createPorts({ calendarId, projectId })`，回傳 `readScanMarker()`、`readExpected(linkId)`、`listEvents(calendarId, linkId)`，可選 `mutate(linkId, trial)`）。driver 拒絕執行的條件：專案不是 `beauessence-clinic-stg-c1a01`（`CALENDAR_PILOT_TRIAL_PROJECT_ID`，若有設 `GOOGLE_CLOUD_PROJECT` 也須相同）、日曆 ID 不是 `synthetic…@group.calendar.google.com`（只讀環境變數 `CALENDAR_PILOT_TRIAL_CALENDAR_ID`）、linkId 非 `synthetic_` 開頭、`CALENDAR_PILOT_DRIVER_MAX_WRITES` 不在 1～50（預設 50）。遇下列即丟錯停止（`fault-trials` 只在全部完成後才寫輸出檔）：該 link 不是恰好一筆事件或與 Firestore 期望不符、等不到新一輪完整掃描（`lastSuccessfulSyncAt` 沒前進）、連續 3 次 5xx、寫入達上限。
 
 ```text
-CALENDAR_PILOT_TRIAL_PROJECT_ID=beauessence-clinic-stg-c1a01 CALENDAR_PILOT_TRIAL_CALENDAR_ID=<專用合成日曆 ID，不入版控> CALENDAR_PILOT_TRIAL_AUTHORIZATION=<授權引用編號> CALENDAR_PILOT_DRIVER_PORTS=<ports 模組路徑> CALENDAR_PILOT_DRIVER_MAX_WRITES=50 node scripts/calendar-pilot-fault-trials.mjs --links synthetic_a,synthetic_b --trials 50 --execute-synthetic-trials --driver scripts/calendar-pilot-convergence-driver.mjs --out <新檔路徑>
+CALENDAR_PILOT_TRIAL_PROJECT_ID=beauessence-clinic-stg-c1a01 CALENDAR_PILOT_TRIAL_CALENDAR_ID=<專用合成日曆 ID，不入版控> CALENDAR_PILOT_TRIAL_AUTHORIZATION=<授權引用編號> CALENDAR_PILOT_DRIVER_PORTS=<ports 模組路徑> CALENDAR_PILOT_DRIVER_MAX_WRITES=50 node scripts/calendar-pilot-fault-trials.mjs --links synthetic_a,synthetic_b --trials 50 --limit <本窗 trial 數> --execute-synthetic-trials --driver scripts/calendar-pilot-convergence-driver.mjs --out <新檔路徑>（後續窗口把 --out 換成 --resume <同一檔案>）
 node scripts/calendar-pilot-observation-check.mjs <新檔路徑>
 ```
 
@@ -157,7 +157,7 @@ node scripts/calendar-pilot-observation-check.mjs <新檔路徑>
 1. 負責人已核准本窗（exact SHA、授權引用、時窗、寫入上限），先不加執行旗標跑一次 dry-run 核對計畫。
 2. 核對環境變數三項（專案、日曆、授權）與 `CALENDAR_PILOT_DRIVER_MAX_WRITES` ≤ 50；兩個排程維持 `PAUSED`，每個 trial 的完整掃描由負責人核准的手動觸發產生。
 3. 每個 trial 觀察 `lastSuccessfulSyncAt` 前進後才取樣；任何停止條件成立即停，保留唯讀證據，走第 7 節關窗。
-4. 目前 `fault-trials` 一次至少 50 個 trial 且只在結束時寫檔，所以單次執行須在同一窗內跑完 50 個 trial；若要照上述 20～25 次分窗，須先調整 `fault-trials`（支援續跑或分段輸出），否則分窗的中途停止不會留下輸出。
+4. 分窗累積：`fault-trials` 每完成一個 trial 就原子寫入輸出檔（先寫 `.tmp` 再 rename），中途停止不丟已完成筆數。第一窗用 `--out <新檔路徑> --limit <本窗 trial 數>`，之後每窗改用 `--resume <同一檔案> --limit <本窗 trial 數>` 續跑（`--trials` 仍填總數 50，`--links` 須與前窗相同；`--out` 與 `--resume` 擇一）。總數不足 50 時 `observation-check` 照舊判不通過。
 5. 結束後跑 `calendar-pilot-observation-check.mjs`，要求 exit 0 且 `allConverged: true`；摘要入庫，不放原始事件、email、URL 或憑證。
 
 ## 5. C5 每週備份 Terraform（PR #528）處理方案

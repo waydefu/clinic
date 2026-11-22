@@ -509,7 +509,7 @@ export class CalendarPilotRuntime {
       transaction: Transaction,
       now: string,
       currentJob?: Record<string, unknown>
-    ) => void
+    ) => unknown
   ): Promise<(dispatch?: boolean) => void> {
     return this.db.runTransaction(async (transaction) => {
       const configuration = await transaction.get(
@@ -537,7 +537,7 @@ export class CalendarPilotRuntime {
         lease,
         jobData
       );
-      write?.(transaction, now, jobData);
+      await write?.(transaction, now, jobData);
       return (dispatch = false) => {
         assertCalendarPilotWorkerLease(configurationData, lease, jobData);
         if (dispatch) {
@@ -733,6 +733,8 @@ export class CalendarPilotRuntime {
     );
   }
 
+  private readonly healthBeforeLease = new Map<string, string>();
+
   private async acquire(
     owner: string,
     now: string
@@ -783,11 +785,15 @@ export class CalendarPilotRuntime {
         ).toISOString(),
         health: 'syncing'
       });
+      // Remember what to put back; a prior 'syncing' (a failed earlier run) stays as it is.
+      const previous = configuration['health'];
+      if (typeof previous === 'string' && previous !== 'syncing')
+        this.healthBeforeLease.set(owner, previous);
       return version;
     });
   }
 
-  private async release(owner: string): Promise<void> {
+  private async release(owner: string, restoreHealth = false): Promise<void> {
     const ref = this.db
       .collection('calendar_pilot_configuration')
       .doc('active');
@@ -799,9 +805,44 @@ export class CalendarPilotRuntime {
         document.data()
       );
       if (configuration.workerLeaseOwner !== owner) return;
+      const restore = restoreHealth
+        ? this.healthBeforeLease.get(owner)
+        : undefined;
+      this.healthBeforeLease.delete(owner);
       transaction.update(ref, {
         workerLeaseOwner: null,
-        workerLeaseExpiresAt: null
+        workerLeaseExpiresAt: null,
+        // Only undo our own 'syncing'; a sync commit or failure already set the real value.
+        ...(restore !== undefined && configuration['health'] === 'syncing'
+          ? { health: restore }
+          : {})
+      });
+    });
+  }
+
+  // One audit record per source, generation and subject: a conflict that persists must
+  // not add a new record on every scan (the deterministic id also makes create idempotent).
+  private async recordConflictAudit(
+    lease: PilotLeaseContext,
+    sourceId: string,
+    generation: number,
+    identifier: string
+  ): Promise<void> {
+    const subjectHash = createHash('sha256').update(identifier).digest('hex');
+    const key = createHash('sha256')
+      .update([sourceId, String(generation), subjectHash].join('|'))
+      .digest('hex');
+    const reference = this.db
+      .collection('calendar_pilot_audit_events')
+      .doc('conflict_' + key);
+    // Read and create in one transaction (no writes happen before the read).
+    await this.withLease(lease, async (transaction, occurredAt) => {
+      if ((await transaction.get(reference)).exists) return;
+      transaction.create(reference, {
+        action: 'calendar_reconciliation_conflict',
+        sourceId,
+        subjectHash,
+        occurredAt
       });
     });
   }
@@ -1118,24 +1159,8 @@ export class CalendarPilotRuntime {
         const reader = this.reader(sourceId, lease);
         const writer = this.writer(sourceId, lease);
         const deadline = monotonic + 15_000;
-        const audit = async (identifier: string): Promise<void> => {
-          const subjectHash = createHash('sha256')
-            .update(identifier)
-            .digest('hex');
-          await this.withLease(lease, (transaction, occurredAt) => {
-            transaction.create(
-              this.db
-                .collection('calendar_pilot_audit_events')
-                .doc(randomUUID()),
-              {
-                action: 'calendar_reconciliation_conflict',
-                sourceId,
-                subjectHash,
-                occurredAt
-              }
-            );
-          });
-        };
+        const audit = (identifier: string): Promise<void> =>
+          this.recordConflictAudit(lease, sourceId, generation, identifier);
         const reconciler = new FirestoreCalendarPilotReconciliationAdapter({
           db: this.db,
           lease,
@@ -1207,7 +1232,7 @@ export class CalendarPilotRuntime {
           };
         }
       } finally {
-        if (lease.dispatch.pending === 0) await this.release(owner);
+        if (lease.dispatch.pending === 0) await this.release(owner, true);
       }
     });
   }
