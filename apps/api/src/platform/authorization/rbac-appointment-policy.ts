@@ -165,7 +165,7 @@ export function createScheduleAuthorizationPolicy(
         evaluateAccess(context, {
           role: resolveRole(context),
           accountActive: true,
-          permission: 'create_appointment',
+          permission: 'read_schedule_grid',
           scope: { kind: 'any' }
         });
         resolve();

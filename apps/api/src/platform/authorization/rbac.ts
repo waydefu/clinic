@@ -56,6 +56,7 @@ export type Permission =
   | 'update_appointment_notes'
   | 'decide_follow_up'
   | 'publish_schedule'
+  | 'read_schedule_grid'
   | 'assign_case_manager'
   | 'close_payroll_period'
   | 'record_payroll_adjustment'
@@ -85,12 +86,14 @@ export const CANDIDATE_ROLE_PERMISSIONS: Record<
 > = {
   patient: [
     'create_appointment',
+    'read_schedule_grid',
     'read_appointment',
     'request_cancellation',
     'reschedule_appointment'
   ],
   front_desk: [
     'create_appointment',
+    'read_schedule_grid',
     'read_appointment',
     'request_cancellation',
     'confirm_cancellation',
@@ -107,6 +110,7 @@ export const CANDIDATE_ROLE_PERMISSIONS: Record<
   physician: [],
   manager: [
     'create_appointment',
+    'read_schedule_grid',
     'read_appointment',
     'request_cancellation',
     'confirm_cancellation',
@@ -128,6 +132,7 @@ export const CANDIDATE_ROLE_PERMISSIONS: Record<
   ],
   system_admin: [
     'create_appointment',
+    'read_schedule_grid',
     'read_appointment',
     'request_cancellation',
     'confirm_cancellation',
