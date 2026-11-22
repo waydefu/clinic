@@ -10,7 +10,8 @@ import {
 
 // Operator-only live ports for calendar-pilot-convergence-driver.mjs
 // (CALENDAR_PILOT_DRIVER_PORTS=<this file>). Not run by CI; tests use fakes.
-// Credentials: ADC through `gcloud` child processes only; no key file is read.
+// Credentials: Firestore/scheduler use ADC through `gcloud`; Calendar uses an impersonated
+// read-only token (CALENDAR_PILOT_CALENDAR_READER_SA). No key file is read.
 const SCHEDULER_JOB = 'internal-test-calendar-sync';
 const LOCATION = 'asia-east1';
 const API_BASE = 'https://www.googleapis.com/calendar/v3';
@@ -39,6 +40,8 @@ function gcloud(args) {
   });
 }
 
+const READER_SA =
+  /^[a-z][a-z0-9-]{4,28}[a-z0-9]@beauessence-clinic-stg-c1a01\.iam\.gserviceaccount\.com$/u;
 const utc = (value) => new Date(value).toISOString();
 // Same derivation as apps/worker calendar-pilot-event-id.ts.
 const eventIdFor = (linkId) =>
@@ -47,6 +50,7 @@ const eventIdFor = (linkId) =>
 export async function createPorts({
   calendarId,
   projectId,
+  calendarReaderServiceAccount = process.env.CALENDAR_PILOT_CALENDAR_READER_SA,
   run = gcloud,
   fetchImpl = fetch,
   firestore,
@@ -57,6 +61,10 @@ export async function createPorts({
       throw new Error('Project is not the authorised synthetic project.');
     if (!GOOGLE_CALENDAR_ID.test(calendarId))
       throw new Error('A Google group calendar id is required.');
+    if (!READER_SA.test(calendarReaderServiceAccount ?? ''))
+      throw new Error(
+        'CALENDAR_PILOT_CALENDAR_READER_SA must be a service account of the synthetic project.'
+      );
   };
   assertScope();
   let calendarVerified = false;
@@ -105,7 +113,13 @@ export async function createPorts({
   let tokenAt = 0;
   const accessToken = async () => {
     if (token === undefined || Date.now() - tokenAt > 30 * 60_000) {
-      token = await run(['auth', 'application-default', 'print-access-token']);
+      // Calendar only: short-lived read-only token via impersonation; no key file.
+      token = await run([
+        'auth',
+        'print-access-token',
+        `--impersonate-service-account=${calendarReaderServiceAccount}`,
+        '--scopes=https://www.googleapis.com/auth/calendar.readonly'
+      ]);
       tokenAt = Date.now();
     }
     return token;

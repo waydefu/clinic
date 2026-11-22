@@ -27,6 +27,7 @@ const fakeFirestore = (docs) => ({
     })
   })
 });
+const readerSa = `reader-sa@${REQUIRED_PROJECT_ID}.iam.gserviceaccount.com`;
 let calendarSummary = 'CAL-PILOT synthetic';
 const make = (extra = {}) => {
   const commands = [];
@@ -34,6 +35,7 @@ const make = (extra = {}) => {
   const ports = createPorts({
     calendarId,
     projectId: REQUIRED_PROJECT_ID,
+    calendarReaderServiceAccount: readerSa,
     wait: () => Promise.resolve(),
     run: (argv) => {
       commands.push(argv);
@@ -83,11 +85,48 @@ const make = (extra = {}) => {
 describe('calendar pilot live ports', () => {
   it('refuses another project or a malformed calendar id', async () => {
     await expect(
-      createPorts({ calendarId, projectId: 'beauessence-clinic-staging' })
+      createPorts({
+        calendarId,
+        projectId: 'beauessence-clinic-staging',
+        calendarReaderServiceAccount: readerSa
+      })
     ).rejects.toThrow('authorised');
     await expect(
-      createPorts({ calendarId: 'primary', projectId: REQUIRED_PROJECT_ID })
+      createPorts({
+        calendarId: 'primary',
+        projectId: REQUIRED_PROJECT_ID,
+        calendarReaderServiceAccount: readerSa
+      })
     ).rejects.toThrow('group calendar');
+  });
+
+  it('requires a synthetic-project reader service account', async () => {
+    for (const bad of [
+      undefined,
+      '',
+      'reader-sa@other-project.iam.gserviceaccount.com',
+      `reader-sa@${REQUIRED_PROJECT_ID}.iam.gserviceaccount.com.evil.com`
+    ])
+      await expect(
+        createPorts({
+          calendarId,
+          projectId: REQUIRED_PROJECT_ID,
+          calendarReaderServiceAccount: bad
+        })
+      ).rejects.toThrow('CALENDAR_PILOT_CALENDAR_READER_SA');
+  });
+
+  it('gets the Calendar token by impersonation with the read-only scope', async () => {
+    const { ports, commands } = make();
+    await (await ports).assertAuthorisedCalendar();
+    expect(commands).toEqual([
+      [
+        'auth',
+        'print-access-token',
+        `--impersonate-service-account=${readerSa}`,
+        '--scopes=https://www.googleapis.com/auth/calendar.readonly'
+      ]
+    ]);
   });
 
   it('reads the scan marker and the expected event from Firestore', async () => {
@@ -132,7 +171,12 @@ describe('calendar pilot live ports', () => {
       'beauessenceLinkId%3Daaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
     );
     expect(commands).toEqual([
-      ['auth', 'application-default', 'print-access-token']
+      [
+        'auth',
+        'print-access-token',
+        `--impersonate-service-account=${readerSa}`,
+        '--scopes=https://www.googleapis.com/auth/calendar.readonly'
+      ]
     ]);
     await expect(
       live.listEvents(
