@@ -31,7 +31,7 @@ export function checkCalendarPilotObservations(input) {
         link === null ||
         Array.isArray(link) ||
         typeof link.id !== 'string' ||
-        !/^synthetic_[a-z0-9_]{1,64}$/u.test(link.id) ||
+        !/^[0-9a-f]{32}$/u.test(link.id) ||
         linkIds.has(link.id)
       )
         throw new Error('Invalid or duplicate synthetic link.');

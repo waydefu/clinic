@@ -7,11 +7,14 @@ import {
   sanitizeLink
 } from './calendar-pilot-fault-trials.mjs';
 
-const links = ['--links', 'synthetic_a,synthetic_b'];
+const links = [
+  '--links',
+  'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+];
 const env = {
   CALENDAR_PILOT_TRIAL_PROJECT_ID: REQUIRED_PROJECT_ID,
   CALENDAR_PILOT_TRIAL_CALENDAR_ID:
-    'synthetic-trials-1@group.calendar.google.com',
+    '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef@group.calendar.google.com',
   CALENDAR_PILOT_TRIAL_AUTHORIZATION: 'ref'
 };
 const execute = [
@@ -58,14 +61,14 @@ const plan = planTrials(parseTrialArguments(links, {}));
 assert.equal(plan.length, 50);
 const fields = {
   id: 'e',
-  linkId: 'synthetic_a',
+  linkId: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
   status: 'confirmed',
   title: 't',
   startsAt: 's',
   endsAt: 'n'
 };
 const sanitized = sanitizeLink({
-  id: 'synthetic_a',
+  id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
   outcome: 'converged',
   eventCount: 1,
   expected: fields,
@@ -78,7 +81,10 @@ assert.deepEqual(Object.keys(sanitized).sort(), [
   'observedDigest',
   'outcome'
 ]);
-const blocked = sanitizeLink({ id: 'synthetic_b', outcome: 'blocked' });
+const blocked = sanitizeLink({
+  id: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+  outcome: 'blocked'
+});
 assert.equal(
   checkCalendarPilotObservations(
     plan.map((item) => ({ trial: item.trial, links: [sanitized, blocked] }))

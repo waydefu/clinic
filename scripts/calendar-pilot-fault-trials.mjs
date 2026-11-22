@@ -5,6 +5,12 @@ import { pathToFileURL } from 'node:url';
 
 // Operator-only. Not run by CI or any repo script. Defaults to a dry run that touches nothing.
 export const REQUIRED_PROJECT_ID = 'beauessence-clinic-stg-c1a01';
+// Format checks only. "Synthetic" is guaranteed by the isolated project, the live ports'
+// calendar-secret match and the synthetic patient-code check, not by a name prefix.
+export const GOOGLE_CALENDAR_ID =
+  /^[a-z0-9_.-]{3,128}@group\.calendar\.google\.com$/u;
+// calendar-pilot.repository.ts: sha256 hex sliced to 32 characters.
+export const APPOINTMENT_ID = /^[0-9a-f]{32}$/u;
 export const SCENARIOS = [
   'lease_lost_during_dispatch',
   'precondition_failed_412',
@@ -36,9 +42,11 @@ export function parseTrialArguments(argv, env) {
   if (
     options.linkIds.length === 0 ||
     new Set(options.linkIds).size !== options.linkIds.length ||
-    options.linkIds.some((id) => !/^synthetic_[a-z0-9_]{1,64}$/u.test(id))
+    options.linkIds.some((id) => !APPOINTMENT_ID.test(id))
   )
-    throw new Error('Provide unique synthetic_ link ids with --links.');
+    throw new Error(
+      'Provide unique appointment ids (32 lowercase hex) with --links.'
+    );
   if (!options.execute) {
     if (
       options.driver !== undefined ||
@@ -54,13 +62,8 @@ export function parseTrialArguments(argv, env) {
   const calendarId = env.CALENDAR_PILOT_TRIAL_CALENDAR_ID;
   if (env.CALENDAR_PILOT_TRIAL_PROJECT_ID !== REQUIRED_PROJECT_ID)
     throw new Error('Project id is not the authorised synthetic project.');
-  if (
-    typeof calendarId !== 'string' ||
-    !/^synthetic[a-z0-9_-]{3,64}@group\.calendar\.google\.com$/u.test(
-      calendarId
-    )
-  )
-    throw new Error('A dedicated synthetic calendar id is required.');
+  if (typeof calendarId !== 'string' || !GOOGLE_CALENDAR_ID.test(calendarId))
+    throw new Error('A Google group calendar id is required.');
   if (!env.CALENDAR_PILOT_TRIAL_AUTHORIZATION)
     throw new Error('An authorisation reference is required.');
   if (

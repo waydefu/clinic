@@ -13,7 +13,7 @@ import {
 const env = {
   CALENDAR_PILOT_TRIAL_PROJECT_ID: REQUIRED_PROJECT_ID,
   CALENDAR_PILOT_TRIAL_CALENDAR_ID:
-    'synthetic-trials-1@group.calendar.google.com',
+    '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef@group.calendar.google.com',
   CALENDAR_PILOT_TRIAL_AUTHORIZATION: 'ref'
 };
 const fields = (id) => ({
@@ -39,7 +39,7 @@ const args = (...extra) =>
   parseTrialArguments(
     [
       '--links',
-      'synthetic_a,synthetic_b',
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
       '--execute-synthetic-trials',
       '--driver',
       'd.mjs',
@@ -84,7 +84,7 @@ describe('fault trials resume', () => {
     const other = parseTrialArguments(
       [
         '--links',
-        'synthetic_x,synthetic_y',
+        '11111111111111111111111111111111,22222222222222222222222222222222',
         '--execute-synthetic-trials',
         '--driver',
         'd.mjs',

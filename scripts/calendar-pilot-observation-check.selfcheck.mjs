@@ -6,7 +6,7 @@ const observations = Array.from({ length: 50 }, (_, index) => ({
   trial: index + 1,
   links: [
     {
-      id: 'synthetic_link',
+      id: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
       outcome: 'converged',
       eventCount: 1,
       expectedDigest: hash,
@@ -28,7 +28,9 @@ assert.throws(() =>
   checkCalendarPilotObservations([
     {
       ...observations[0],
-      links: [{ ...observations[0].links[0], id: 'synthetic_other' }]
+      links: [
+        { ...observations[0].links[0], id: 'cccccccccccccccccccccccccccccccc' }
+      ]
     },
     ...observations.slice(1)
   ])
@@ -55,7 +57,7 @@ assert.equal(
   checkCalendarPilotObservations([
     {
       ...observations[0],
-      links: [{ id: 'synthetic_link', outcome: 'blocked' }]
+      links: [{ id: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', outcome: 'blocked' }]
     },
     ...observations.slice(1)
   ]).allConverged,
@@ -65,7 +67,7 @@ assert.equal(
   checkCalendarPilotObservations([
     {
       ...observations[0],
-      links: [{ id: 'synthetic_link', outcome: 'conflict' }]
+      links: [{ id: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', outcome: 'conflict' }]
     },
     ...observations.slice(1)
   ]).allConverged,

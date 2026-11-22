@@ -2,7 +2,11 @@ import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 
 import { formatSyntheticAppointmentTitle } from '../apps/web/public/vendor/domain/calendar-sync.js';
-import { REQUIRED_PROJECT_ID } from './calendar-pilot-fault-trials.mjs';
+import {
+  APPOINTMENT_ID,
+  GOOGLE_CALENDAR_ID,
+  REQUIRED_PROJECT_ID
+} from './calendar-pilot-fault-trials.mjs';
 
 // Operator-only live ports for calendar-pilot-convergence-driver.mjs
 // (CALENDAR_PILOT_DRIVER_PORTS=<this file>). Not run by CI; tests use fakes.
@@ -10,9 +14,12 @@ import { REQUIRED_PROJECT_ID } from './calendar-pilot-fault-trials.mjs';
 const SCHEDULER_JOB = 'internal-test-calendar-sync';
 const LOCATION = 'asia-east1';
 const API_BASE = 'https://www.googleapis.com/calendar/v3';
-const SYNTHETIC_CALENDAR =
-  /^synthetic[a-z0-9_-]{3,64}@group\.calendar\.google\.com$/u;
-const LINK = /^synthetic_[a-z0-9_]{1,64}$/u;
+// No secret is read: event ids derive from the linkId (calpilot+sha256) and only the worker
+// writes to the real destination, so a wrong calendar can only fail to converge, never pass.
+// The summary check below keeps the driver from reading a real clinic calendar.
+const CALENDAR_PREFIX = 'CAL-PILOT';
+// packages/contracts SyntheticPatientCodeSchema: the only patient codes in C1.
+const SYNTHETIC_PATIENT_CODE = /^A(?:0[1-9]|[12][0-9]|30)$/u;
 export const RUN_WINDOW_MS = 10_000; // job is paused again well inside 15 s
 
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
@@ -48,10 +55,30 @@ export async function createPorts({
   const assertScope = () => {
     if (projectId !== REQUIRED_PROJECT_ID)
       throw new Error('Project is not the authorised synthetic project.');
-    if (!SYNTHETIC_CALENDAR.test(calendarId))
-      throw new Error('A dedicated synthetic calendar id is required.');
+    if (!GOOGLE_CALENDAR_ID.test(calendarId))
+      throw new Error('A Google group calendar id is required.');
   };
   assertScope();
+  let calendarVerified = false;
+  const assertAuthorisedCalendar = async () => {
+    assertScope();
+    if (calendarVerified) return;
+    const response = await fetchImpl(
+      `${API_BASE}/calendars/${encodeURIComponent(calendarId)}`,
+      {
+        headers: { Authorization: `Bearer ${await accessToken()}` },
+        signal: AbortSignal.timeout(30_000)
+      }
+    );
+    if (!response.ok)
+      throw Object.assign(new Error('Calendar metadata failed.'), {
+        status: response.status
+      });
+    const { summary } = await response.json();
+    if (typeof summary !== 'string' || !summary.startsWith(CALENDAR_PREFIX))
+      throw new Error('Calendar is not the CAL-PILOT synthetic destination.');
+    calendarVerified = true;
+  };
   let db = firestore;
   const getDb = async () => {
     if (db === undefined) {
@@ -85,6 +112,8 @@ export async function createPorts({
   };
 
   return {
+    assertAuthorisedCalendar,
+
     async readScanMarker() {
       assertScope();
       const snapshot = await (
@@ -99,7 +128,8 @@ export async function createPorts({
 
     async readExpected(linkId) {
       assertScope();
-      if (!LINK.test(linkId)) throw new Error('Non-synthetic link id.');
+      if (!APPOINTMENT_ID.test(linkId))
+        throw new Error('Link id is not an appointment id.');
       const snapshot = await (
         await getDb()
       )
@@ -108,6 +138,8 @@ export async function createPorts({
         .get();
       const data = snapshot.data();
       if (!snapshot.exists || data?.appointmentId !== linkId) return undefined;
+      if (!SYNTHETIC_PATIENT_CODE.test(data.patientCode))
+        throw new Error('Appointment is not marked synthetic.');
       return {
         id: eventIdFor(linkId),
         linkId,
@@ -123,10 +155,11 @@ export async function createPorts({
     },
 
     async listEvents(requestedCalendar, linkId) {
-      assertScope();
+      await assertAuthorisedCalendar();
       if (requestedCalendar !== calendarId)
         throw new Error('Calendar id differs from the authorised one.');
-      if (!LINK.test(linkId)) throw new Error('Non-synthetic link id.');
+      if (!APPOINTMENT_ID.test(linkId))
+        throw new Error('Link id is not an appointment id.');
       const events = [];
       let pageToken;
       do {

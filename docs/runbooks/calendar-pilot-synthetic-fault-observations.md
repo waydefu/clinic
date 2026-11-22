@@ -31,7 +31,7 @@ GOOGLE_CLOUD_PROJECT=beauessence-clinic-stg-c1a01 C1_CALENDAR_SYNC_BOOTSTRAP_CON
 
 ## 離線觀察值檢查器
 
-`scripts/calendar-pilot-observation-check.mjs` **只檢查操作者整理好的去識別合成 JSON**，不執行 Calendar、Firestore、worker 或故障注入；請勿把原始資料、事件內容、email、URL 或憑證放進檔案或版本庫。輸入為至少 50 個 observation 的陣列，每個 observation 有唯一正整數 `trial` 和非空 `links`；各輪 linkId 集合相同且 ID 為 `synthetic_` 開頭。每個 link 提供 `id` 與 `outcome`；`converged` 另提供 `eventCount: 1`、`expectedDigest`、`observedDigest`（小寫 SHA-256）。`blocked`／`conflict` 另由操作紀錄解釋原因。
+`scripts/calendar-pilot-observation-check.mjs` **只檢查操作者整理好的去識別合成 JSON**，不執行 Calendar、Firestore、worker 或故障注入；請勿把原始資料、事件內容、email、URL 或憑證放進檔案或版本庫。輸入為至少 50 個 observation 的陣列，每個 observation 有唯一正整數 `trial` 和非空 `links`；各輪 linkId 集合相同且 ID 為 32 位小寫十六進位（C1 CAL-PILOT 預約 ID）。每個 link 提供 `id` 與 `outcome`；`converged` 另提供 `eventCount: 1`、`expectedDigest`、`observedDigest`（小寫 SHA-256）。`blocked`／`conflict` 另由操作紀錄解釋原因。
 
 ```text
 node scripts/calendar-pilot-observation-check.mjs <sanitized-json-path>
@@ -44,9 +44,9 @@ node scripts/calendar-pilot-observation-check.mjs <sanitized-json-path>
 `scripts/calendar-pilot-fault-trials.mjs` 是供**另行獲准的操作者**使用的試驗執行器；本儲存庫與 CI 不執行它，也不含任何 Calendar 或 Firestore 存取程式。預設為 dry-run，只印出 50 次以上的試驗計畫（八種故障輪流），不碰任何外部系統：
 
 ```text
-node scripts/calendar-pilot-fault-trials.mjs --links synthetic_a,synthetic_b [--trials 50]
+node scripts/calendar-pilot-fault-trials.mjs --links <32位十六進位預約ID>,<…> [--trials 50]
 ```
 
-實際執行須同時具備旗標 `--execute-synthetic-trials`、`--driver <path>`（操作者自備、經授權的 ESM 模組，匯出 `runTrial({ trial, scenario, links })`，回傳每個 link 的 `{ id, outcome, eventCount, expected, observed }`）、`--out <新檔路徑>`（已存在則拒寫），以及環境變數 `CALENDAR_PILOT_TRIAL_PROJECT_ID=beauessence-clinic-stg-c1a01`、`CALENDAR_PILOT_TRIAL_CALENDAR_ID`（須為 `synthetic…@group.calendar.google.com` 的專用合成日曆，`primary` 或一般信箱一律拒絕）、`CALENDAR_PILOT_TRIAL_AUTHORIZATION`（授權引用編號）。缺任一項即拒絕。腳本只把 expected／observed 欄位依上節規則算成 SHA-256 後寫出，不保存原始事件；輸出可直接交給 `calendar-pilot-observation-check.mjs`。
+實際執行須同時具備旗標 `--execute-synthetic-trials`、`--driver <path>`（操作者自備、經授權的 ESM 模組，匯出 `runTrial({ trial, scenario, links })`，回傳每個 link 的 `{ id, outcome, eventCount, expected, observed }`）、`--out <新檔路徑>`（已存在則拒寫），以及環境變數 `CALENDAR_PILOT_TRIAL_PROJECT_ID=beauessence-clinic-stg-c1a01`、`CALENDAR_PILOT_TRIAL_CALENDAR_ID`（須符合 Google 日曆 ID 格式 `…@group.calendar.google.com`，`primary` 或一般信箱一律拒絕；live ports 另以唯讀 `calendars.get` 確認日曆名稱以 `CAL-PILOT` 開頭（不讀密鑰），且每個 link 的 `patientCode` 為合成代碼 `A01`～`A30`——「合成」由專案隔離、設定比對與合成標記保證，而非名稱前綴）、`CALENDAR_PILOT_TRIAL_AUTHORIZATION`（授權引用編號）。缺任一項即拒絕。腳本只把 expected／observed 欄位依上節規則算成 SHA-256 後寫出，不保存原始事件；輸出可直接交給 `calendar-pilot-observation-check.mjs`。
 
 參數防護自檢（離線、不連外）：`node scripts/calendar-pilot-fault-trials.selfcheck.mjs`；與 `calendar-pilot-observation-check.selfcheck.mjs` 一樣，目前須手動執行，未接入 package.json 或 CI。真實 50 次以上試驗**尚未執行**。
