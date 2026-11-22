@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { REQUIRED_PROJECT_ID } from './calendar-pilot-fault-trials.mjs';
-import { createPorts } from './calendar-pilot-live-ports.mjs';
+import { createPorts, gcloudCommand } from './calendar-pilot-live-ports.mjs';
 
 const calendarId =
   '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef@group.calendar.google.com';
@@ -246,5 +246,19 @@ describe('calendar pilot live ports', () => {
     });
     await expect((await failing.ports).triggerScan()).rejects.toThrow();
     expect(verbs).toEqual(['resume', 'run', 'pause']);
+  });
+});
+
+describe('gcloudCommand', () => {
+  it('goes through cmd.exe on win32', () => {
+    const { file, argv } = gcloudCommand(['auth', 'list'], 'win32');
+    expect(file.toLowerCase()).toContain('cmd');
+    expect(argv).toEqual(['/d', '/s', '/c', 'gcloud', 'auth', 'list']);
+    expect(gcloudCommand(['auth'], 'linux')).toEqual({ file: 'gcloud', argv: ['auth'] });
+  });
+
+  it('rejects arguments with cmd metacharacters or spaces on win32', () => {
+    expect(() => gcloudCommand(['a&calc'], 'win32')).toThrow('Unsafe gcloud argument.');
+    expect(() => gcloudCommand(['a b'], 'win32')).toThrow('Unsafe gcloud argument.');
   });
 });
