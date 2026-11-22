@@ -10,7 +10,8 @@ import {
 
 // Operator-only live ports for calendar-pilot-convergence-driver.mjs
 // (CALENDAR_PILOT_DRIVER_PORTS=<this file>). Not run by CI; tests use fakes.
-// Credentials: ADC through `gcloud` child processes only; no key file is read.
+// Credentials: Firestore/scheduler use ADC through `gcloud`; Calendar uses an impersonated
+// read-only token (CALENDAR_PILOT_CALENDAR_READER_SA). No key file is read.
 const SCHEDULER_JOB = 'internal-test-calendar-sync';
 const LOCATION = 'asia-east1';
 const API_BASE = 'https://www.googleapis.com/calendar/v3';
@@ -24,11 +25,28 @@ export const RUN_WINDOW_MS = 10_000; // job is paused again well inside 15 s
 
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 
+const SAFE_ARG = /^[A-Za-z0-9@._:/=,-]+$/u;
+
+// Windows ships gcloud as gcloud.cmd, which Node cannot spawn with shell:false; go through
+// cmd.exe instead, so every argument must be plain characters (no cmd metacharacters).
+export function gcloudCommand(args, platform = process.platform) {
+  if (platform !== 'win32') return { file: 'gcloud', argv: args };
+  if (!args.every((arg) => SAFE_ARG.test(arg))) {
+    throw new Error('Unsafe gcloud argument.');
+  }
+  return {
+    file: process.env.ComSpec ?? 'cmd.exe',
+    argv: ['/d', '/s', '/c', 'gcloud', ...args]
+  };
+}
+
 function gcloud(args) {
   return new Promise((resolve, reject) => {
-    const child = spawn('gcloud', args, {
+    const { file, argv } = gcloudCommand(args);
+    const child = spawn(file, argv, {
       stdio: ['ignore', 'pipe', 'ignore'],
-      shell: false
+      shell: false,
+      windowsVerbatimArguments: false
     });
     let out = '';
     child.stdout.on('data', (chunk) => (out += chunk));
@@ -39,6 +57,8 @@ function gcloud(args) {
   });
 }
 
+const READER_SA =
+  /^[a-z][a-z0-9-]{4,28}[a-z0-9]@beauessence-clinic-stg-c1a01\.iam\.gserviceaccount\.com$/u;
 const utc = (value) => new Date(value).toISOString();
 // Same derivation as apps/worker calendar-pilot-event-id.ts.
 const eventIdFor = (linkId) =>
@@ -47,6 +67,7 @@ const eventIdFor = (linkId) =>
 export async function createPorts({
   calendarId,
   projectId,
+  calendarReaderServiceAccount = process.env.CALENDAR_PILOT_CALENDAR_READER_SA,
   run = gcloud,
   fetchImpl = fetch,
   firestore,
@@ -57,6 +78,10 @@ export async function createPorts({
       throw new Error('Project is not the authorised synthetic project.');
     if (!GOOGLE_CALENDAR_ID.test(calendarId))
       throw new Error('A Google group calendar id is required.');
+    if (!READER_SA.test(calendarReaderServiceAccount ?? ''))
+      throw new Error(
+        'CALENDAR_PILOT_CALENDAR_READER_SA must be a service account of the synthetic project.'
+      );
   };
   assertScope();
   let calendarVerified = false;
@@ -105,7 +130,13 @@ export async function createPorts({
   let tokenAt = 0;
   const accessToken = async () => {
     if (token === undefined || Date.now() - tokenAt > 30 * 60_000) {
-      token = await run(['auth', 'application-default', 'print-access-token']);
+      // Calendar only: short-lived read-only token via impersonation; no key file.
+      token = await run([
+        'auth',
+        'print-access-token',
+        `--impersonate-service-account=${calendarReaderServiceAccount}`,
+        '--scopes=https://www.googleapis.com/auth/calendar.readonly'
+      ]);
       tokenAt = Date.now();
     }
     return token;
