@@ -442,7 +442,7 @@ describe('CAL-PILOT R5 superseded session on re-login (new tab)', () => {
     const db = dbFor(() => Promise.resolve(undefined));
     const service = serviceFor({ auth: auth.auth, db: db.db });
 
-    await service.revokeSupersededSession(COOKIE, UID, 'f'.repeat(64), NOW);
+    await service.supersedePreviousSession(COOKIE, UID, 'f'.repeat(64), NOW);
 
     expect(db.calls).toEqual([{ revokedAt: NOW }]);
     expect(auth.calls.revoke).toEqual([]);
@@ -454,11 +454,11 @@ describe('CAL-PILOT R5 superseded session on re-login (new tab)', () => {
     await serviceFor({
       auth: other.auth,
       db: otherDb.db
-    }).revokeSupersededSession(COOKIE, UID, 'f'.repeat(64), NOW);
+    }).supersedePreviousSession(COOKIE, UID, 'f'.repeat(64), NOW);
     const bad = authFor({ verifyError: new Error('expired') });
     const badDb = dbFor(() => Promise.resolve(undefined));
     await expect(
-      serviceFor({ auth: bad.auth, db: badDb.db }).revokeSupersededSession(
+      serviceFor({ auth: bad.auth, db: badDb.db }).supersedePreviousSession(
         COOKIE,
         UID,
         'f'.repeat(64),

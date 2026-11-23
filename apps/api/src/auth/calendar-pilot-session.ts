@@ -439,7 +439,7 @@ export class CalendarPilotSessionService {
       throw error;
     }
     if (previousCookieValue !== undefined)
-      await this.revokeSupersededSession(
+      await this.supersedePreviousSession(
         previousCookieValue,
         decoded.uid,
         sessionId,
@@ -467,7 +467,7 @@ export class CalendarPilotSessionService {
    * only: revoking Firebase refresh tokens would kill the session just issued.
    * Best effort; a failure here must never fail the login.
    */
-  public async revokeSupersededSession(
+  public async supersedePreviousSession(
     previousCookieValue: string,
     actorId: string,
     newSessionId: string,
