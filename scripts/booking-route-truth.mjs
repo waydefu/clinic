@@ -20,16 +20,22 @@ import {
  * - AppModule must not list those production controllers in its own decorator.
  */
 
-export const INTERNAL_TEST_CONTROLLERS = [
+export const INTERNAL_TEST_CONTROLLERS = Object.freeze([
   'AppointmentController',
   'ScheduleController',
   'ReturnLookupController'
-];
+]);
 
-export const DEFERRED_CONTROLLERS = [
+export const DEFERRED_CONTROLLERS = Object.freeze([
   'BookPilotController',
   'CalendarWatchController'
-];
+]);
+
+const APPOINTMENT_CONTROLLER = INTERNAL_TEST_CONTROLLERS[0];
+const SCHEDULE_CONTROLLER = INTERNAL_TEST_CONTROLLERS[1];
+const RETURN_LOOKUP_CONTROLLER = INTERNAL_TEST_CONTROLLERS[2];
+const BOOK_PILOT_CONTROLLER = DEFERRED_CONTROLLERS[0];
+const CALENDAR_WATCH_CONTROLLER = DEFERRED_CONTROLLERS[1];
 
 function appModuleSurface(appModuleSource) {
   const decorator = nestModuleDecoratorSurface(appModuleSource);
@@ -49,36 +55,38 @@ export function classifyBookingRouting(sources, entryPath = APP_MODULE_PATH) {
   );
   const appSource = sources.get(entryPath) ?? '';
   const app = appModuleSurface(appSource);
-  const appointmentDirect = app.controllers.includes('AppointmentController');
-  const scheduleDirect = app.controllers.includes('ScheduleController');
+  const direct = new Set(app.controllers);
+  const appointmentDirect = direct.has(APPOINTMENT_CONTROLLER);
+  const scheduleDirect = direct.has(SCHEDULE_CONTROLLER);
+  const returnLookupDirect = direct.has(RETURN_LOOKUP_CONTROLLER);
   const bookPilotDirect =
-    app.controllers.includes('BookPilotController') ||
+    direct.has(BOOK_PILOT_CONTROLLER) ||
     app.importedModules.includes('BookPilotModule');
-  const watchDirect = app.controllers.includes('CalendarWatchController');
+  const watchDirect = direct.has(CALENDAR_WATCH_CONTROLLER);
 
   return {
     routedControllers: [...routedControllers].sort(),
     visitedModules: [...visitedModules].sort(),
-    appointmentControllerRouted: routedControllers.has('AppointmentController'),
-    scheduleControllerRouted: routedControllers.has('ScheduleController'),
+    appointmentControllerRouted: routedControllers.has(APPOINTMENT_CONTROLLER),
+    scheduleControllerRouted: routedControllers.has(SCHEDULE_CONTROLLER),
     returnLookupControllerRouted: routedControllers.has(
-      'ReturnLookupController'
+      RETURN_LOOKUP_CONTROLLER
     ),
-    bookPilotControllerRouted: routedControllers.has('BookPilotController'),
+    bookPilotControllerRouted: routedControllers.has(BOOK_PILOT_CONTROLLER),
     calendarWatchControllerRouted: routedControllers.has(
-      'CalendarWatchController'
+      CALENDAR_WATCH_CONTROLLER
     ),
     appointmentControllerDirectOnAppModule: appointmentDirect,
     scheduleControllerDirectOnAppModule: scheduleDirect,
+    returnLookupControllerDirectOnAppModule: returnLookupDirect,
     bookPilotDirectOnAppModule: bookPilotDirect,
     calendarWatchDirectOnAppModule: watchDirect,
     internalTestAppointmentRouted:
-      routedControllers.has('AppointmentController') && !appointmentDirect,
+      routedControllers.has(APPOINTMENT_CONTROLLER) && !appointmentDirect,
     internalTestScheduleRouted:
-      routedControllers.has('ScheduleController') && !scheduleDirect,
-    internalTestReturnLookupRouted: routedControllers.has(
-      'ReturnLookupController'
-    )
+      routedControllers.has(SCHEDULE_CONTROLLER) && !scheduleDirect,
+    internalTestReturnLookupRouted:
+      routedControllers.has(RETURN_LOOKUP_CONTROLLER) && !returnLookupDirect
   };
 }
 
@@ -88,8 +96,8 @@ export function classifyLiveBookingRouting(repoRoot) {
 
 /**
  * Deferred formal booking and Calendar watch must stay off the production
- * compose. Direct AppModule mounts of AppointmentController are also forbidden:
- * the only authorised path is InternalTestBookingModule.
+ * compose. Direct AppModule mounts of internal-test controllers are also
+ * forbidden: the only authorised path is InternalTestBookingModule.
  */
 export function deferredBookingRoutingBlockers(truth) {
   const blockers = [];
@@ -100,16 +108,21 @@ export function deferredBookingRoutingBlockers(truth) {
     truth.calendarWatchControllerRouted ||
     truth.calendarWatchDirectOnAppModule
   ) {
-    blockers.push('CalendarWatchController must stay UNROUTED.');
+    blockers.push(`${CALENDAR_WATCH_CONTROLLER} must stay UNROUTED.`);
   }
   if (truth.appointmentControllerDirectOnAppModule) {
     blockers.push(
-      'AppointmentController must not be mounted directly on AppModule.'
+      `${APPOINTMENT_CONTROLLER} must not be mounted directly on AppModule.`
     );
   }
   if (truth.scheduleControllerDirectOnAppModule) {
     blockers.push(
-      'ScheduleController must not be mounted directly on AppModule.'
+      `${SCHEDULE_CONTROLLER} must not be mounted directly on AppModule.`
+    );
+  }
+  if (truth.returnLookupControllerDirectOnAppModule) {
+    blockers.push(
+      `${RETURN_LOOKUP_CONTROLLER} must not be mounted directly on AppModule.`
     );
   }
   return blockers;

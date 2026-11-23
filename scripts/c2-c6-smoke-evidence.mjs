@@ -5,7 +5,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   bookingAndWatchRemainUnrouted,
   classifyBookingRouting,
-  classifyLiveBookingRouting
+  classifyLiveBookingRouting,
+  deferredBookingRoutingBlockers
 } from './booking-route-truth.mjs';
 import { regionFromC1FoundationLogging } from './collect-c1-smoke.mjs';
 import {
@@ -162,8 +163,13 @@ export function assembleC6SmokeEvidence(snapshot, routingInput) {
   assertIsolatedSliceProjectId(snapshot.projectId, 'C6');
   const hasRouting = routingInput !== undefined && routingInput !== null;
   const truth = hasRouting ? routingTruthFromInput(routingInput) : undefined;
+  const blockers = truth ? deferredBookingRoutingBlockers(truth) : undefined;
   const bookPilotUnrouted = truth
-    ? !truth.bookPilotControllerRouted && !truth.bookPilotDirectOnAppModule
+    ? !truth.bookPilotControllerRouted &&
+      !truth.bookPilotDirectOnAppModule &&
+      !truth.appointmentControllerDirectOnAppModule &&
+      !truth.scheduleControllerDirectOnAppModule &&
+      !truth.returnLookupControllerDirectOnAppModule
     : undefined;
   const watchUnrouted = truth
     ? !truth.calendarWatchControllerRouted &&
@@ -177,9 +183,11 @@ export function assembleC6SmokeEvidence(snapshot, routingInput) {
     enabledApis: enabledApisFromSnapshot(snapshot),
     bookingUnrouted: bookPilotUnrouted,
     watchUnrouted,
+    ...(blockers !== undefined ? { routingBlockers: blockers } : {}),
     ...(includeInternalTest
       ? {
-          internalTestAppointmentRouted: truth.internalTestAppointmentRouted
+          internalTestAppointmentRouted: truth.internalTestAppointmentRouted,
+          internalTestScheduleRouted: truth.internalTestScheduleRouted
         }
       : {})
   };
@@ -255,6 +263,22 @@ export function evaluateC6Smoke(evidence) {
     issues.push(
       'C6 internal-test AppointmentController must remain reachable via InternalTestBookingModule.'
     );
+  }
+  if (
+    evidence.internalTestScheduleRouted !== undefined &&
+    evidence.internalTestScheduleRouted !== true
+  ) {
+    issues.push(
+      'C6 internal-test ScheduleController must remain reachable via InternalTestBookingModule.'
+    );
+  }
+  if (
+    Array.isArray(evidence.routingBlockers) &&
+    evidence.routingBlockers.length > 0
+  ) {
+    for (const blocker of evidence.routingBlockers) {
+      issues.push(`C6 routing blocker: ${blocker}`);
+    }
   }
   return { ok: issues.length === 0, issues };
 }

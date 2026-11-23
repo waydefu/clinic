@@ -8,6 +8,8 @@ import {
   loadApiModuleSources
 } from './nest-module-reachability.mjs';
 import {
+  DEFERRED_CONTROLLERS,
+  INTERNAL_TEST_CONTROLLERS,
   bookingAndWatchRemainUnrouted,
   classifyBookingRouting,
   classifyLiveBookingRouting,
@@ -151,5 +153,26 @@ describe('booking route truth', () => {
     expect(
       bookingAndWatchRemainUnrouted('controllers: [BookPilotController]')
     ).toBe(false);
+  });
+
+  it('rejects every direct AppModule internal-test controller mount', () => {
+    expect(INTERNAL_TEST_CONTROLLERS.length).toBeGreaterThan(0);
+    expect(DEFERRED_CONTROLLERS.length).toBeGreaterThan(0);
+    const overlap = INTERNAL_TEST_CONTROLLERS.filter((name) =>
+      DEFERRED_CONTROLLERS.includes(name)
+    );
+    expect(overlap).toEqual([]);
+    for (const controller of INTERNAL_TEST_CONTROLLERS) {
+      expect(
+        bookingAndWatchRemainUnrouted(`controllers: [${controller}]`),
+        controller
+      ).toBe(false);
+    }
+    for (const controller of DEFERRED_CONTROLLERS) {
+      expect(
+        bookingAndWatchRemainUnrouted(`controllers: [${controller}]`),
+        controller
+      ).toBe(false);
+    }
   });
 });

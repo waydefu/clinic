@@ -15,7 +15,15 @@ import {
   evaluateC5Smoke,
   evaluateC6Smoke
 } from './c2-c6-smoke-evidence.mjs';
-import { classifyLiveBookingRouting } from './booking-route-truth.mjs';
+import {
+  classifyBookingRouting,
+  classifyLiveBookingRouting,
+  deferredBookingRoutingBlockers
+} from './booking-route-truth.mjs';
+import {
+  APP_MODULE_PATH,
+  loadApiModuleSources
+} from './nest-module-reachability.mjs';
 
 const isolated = 'beauessence-clinic-stg-smoke1';
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -314,5 +322,88 @@ describe('C2–C6 smoke evaluators (no gcloud in this sandbox)', () => {
     expect(
       bookingAndWatchRemainUnrouted('controllers: [BookPilotController]')
     ).toBe(false);
+  });
+
+  it('keeps C6, blockers and helper aligned across Nest graphs (E1-17)', () => {
+    const baseSnapshot = {
+      projectId: isolated,
+      services: [{ config: { name: 'calendar-json.googleapis.com' } }],
+      loggingBuckets: c1FoundationBuckets()
+    };
+    const graphs = [
+      [
+        'direct AppointmentController',
+        new Map([
+          [
+            APP_MODULE_PATH,
+            `import { AppointmentController } from './appointment.controller.js';
+             @Module({ controllers: [AppointmentController] })
+             export class AppModule {}`
+          ]
+        ]),
+        false
+      ],
+      [
+        'direct ScheduleController',
+        new Map([
+          [
+            APP_MODULE_PATH,
+            `import { ScheduleController } from './schedule.controller.js';
+             @Module({ controllers: [ScheduleController] })
+             export class AppModule {}`
+          ]
+        ]),
+        false
+      ],
+      [
+        'transitive BookPilotController',
+        new Map([
+          [
+            APP_MODULE_PATH,
+            `import { FeatureModule } from './feature.module.js';
+             @Module({ imports: [FeatureModule] })
+             export class AppModule {}`
+          ],
+          [
+            'apps/api/src/feature.module.ts',
+            `import { BookPilotController } from './book-pilot.controller.js';
+             @Module({ controllers: [BookPilotController] })
+             export class FeatureModule {}`
+          ]
+        ]),
+        false
+      ],
+      [
+        'transitive CalendarWatchController',
+        new Map([
+          [
+            APP_MODULE_PATH,
+            `import { FeatureModule } from './feature.module.js';
+             @Module({ imports: [FeatureModule] })
+             export class AppModule {}`
+          ],
+          [
+            'apps/api/src/feature.module.ts',
+            `import { CalendarWatchController } from './calendar-watch.controller.js';
+             @Module({ controllers: [CalendarWatchController] })
+             export class FeatureModule {}`
+          ]
+        ]),
+        false
+      ],
+      ['live InternalTestBookingModule', loadApiModuleSources(root), true]
+    ];
+
+    for (const [label, sources, expected] of graphs) {
+      const truth = classifyBookingRouting(sources);
+      const blockerOk = deferredBookingRoutingBlockers(truth).length === 0;
+      const helperOk = bookingAndWatchRemainUnrouted(sources);
+      const c6Ok = evaluateC6Smoke(
+        assembleC6SmokeEvidence(baseSnapshot, sources)
+      ).ok;
+      expect(blockerOk, label).toBe(expected);
+      expect(helperOk, label).toBe(expected);
+      expect(c6Ok, label).toBe(expected);
+    }
   });
 });
