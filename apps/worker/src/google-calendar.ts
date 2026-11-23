@@ -270,11 +270,7 @@ function calendarResponseEventStatus(raw: string): CalendarEventStatus {
   } catch {
     return { present: false };
   }
-  if (
-    typeof parsed !== 'object' ||
-    parsed === null ||
-    Array.isArray(parsed)
-  ) {
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
     return { present: false };
   }
   const record = parsed as Record<string, unknown>;
