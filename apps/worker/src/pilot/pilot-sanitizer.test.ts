@@ -36,8 +36,25 @@ const sourceEvent = (
 });
 
 describe('sanitizeSourceEvent — 允許通過的內容', () => {
-  it('只輸出 pilotId、displayLabel 與 startsAt 三個欄位', () => {
+  it('只輸出 pilotId、displayLabel、startsAt 與 endsAt 欄位', () => {
     const result = sanitizeSourceEvent(sourceEvent(), WINDOW);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(Object.keys(result.event).sort()).toEqual([
+      'displayLabel',
+      'endsAt',
+      'pilotId',
+      'startsAt'
+    ]);
+    expect(result.event.endsAt).toBe('2030-01-10T03:00:00.000Z');
+  });
+
+  it('來源缺少結束時間時省略 endsAt 欄位', () => {
+    const result = sanitizeSourceEvent(
+      sourceEvent({ end: undefined }),
+      WINDOW
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;

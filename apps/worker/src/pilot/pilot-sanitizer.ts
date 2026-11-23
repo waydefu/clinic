@@ -40,6 +40,8 @@ export interface PilotEvent {
   readonly displayLabel: string;
   /** RFC3339，已正規化。 */
   readonly startsAt: string;
+  /** 依預約資料正規化的 UTC ISO 結束時間（若來源提供且晚於 startsAt）。 */
+  readonly endsAt?: string;
 }
 
 /**
@@ -154,12 +156,14 @@ export function sanitizeSourceEvent(
 
   // 跨日事件在單日欄的週檢視裡無法正確表達，同樣擋下而不是硬塞。
   const endsAtRaw = source.end?.dateTime;
+  let endsAt: string | undefined;
   if (isNonEmptyString(endsAtRaw)) {
     const endMs = parseRfc3339Timestamp(endsAtRaw);
     if (Number.isNaN(endMs)) return { ok: false, reason: 'malformed_time' };
     if (endMs < startMs) return { ok: false, reason: 'malformed_time' };
     if (taipeiDayKey(endMs) !== taipeiDayKey(startMs))
       return { ok: false, reason: 'multi_day_unsupported' };
+    if (endMs > startMs) endsAt = new Date(endMs).toISOString();
   }
 
   if (startMs < options.windowStart.getTime()) {
@@ -176,7 +180,8 @@ export function sanitizeSourceEvent(
       pilotId,
       displayLabel: displayLabelFor(pilotId),
       // 一律輸出正規化的 UTC ISO；顯示端才轉台北時間（既有的 taipei-time.js）。
-      startsAt: new Date(startMs).toISOString()
+      startsAt: new Date(startMs).toISOString(),
+      ...(endsAt === undefined ? {} : { endsAt })
     }
   };
 }

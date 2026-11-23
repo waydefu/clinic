@@ -266,6 +266,129 @@ describe('TestCalendarWriter', () => {
     ).rejects.toThrow('Existing test event could not be verified.');
     expect(calls.map((call) => call.method)).toEqual(['POST', 'GET']);
   });
+
+  it('uses booking endsAt instead of fixed 30 minutes (D-31)', async () => {
+    const { impl, calls } = fakeFetch([{ status: 200, body: '{}' }]);
+    const writer = new TestCalendarWriter({
+      calendarId: 'test@group.calendar.google.com',
+      getAccessToken: token,
+      batchId: 'batch_0001',
+      fetchImpl: impl
+    });
+
+    await writer.insert({
+      pilotId: 'abcdef0123456789abcdef0123456789',
+      displayLabel: '患者 A17',
+      startsAt: '2030-01-10T02:00:00.000Z',
+      endsAt: '2030-01-10T03:30:00.000Z'
+    });
+
+    const body = JSON.parse(calls[0]?.body ?? '{}');
+    expect(body.end).toEqual({
+      dateTime: '2030-01-10T03:30:00.000Z',
+      timeZone: 'Asia/Taipei'
+    });
+  });
+
+  it('defaults duration to 30 minutes when endsAt is omitted', async () => {
+    const { impl, calls } = fakeFetch([{ status: 200, body: '{}' }]);
+    const writer = new TestCalendarWriter({
+      calendarId: 'test@group.calendar.google.com',
+      getAccessToken: token,
+      batchId: 'batch_0001',
+      fetchImpl: impl
+    });
+
+    await writer.insert({
+      pilotId: 'abcdef0123456789abcdef0123456789',
+      displayLabel: '患者 A17',
+      startsAt: '2030-01-10T02:00:00.000Z'
+    });
+
+    const body = JSON.parse(calls[0]?.body ?? '{}');
+    expect(body.end.dateTime).toBe('2030-01-10T02:30:00.000Z');
+  });
+
+  it('verifies custom duration on 409 and refuses 30m drift', async () => {
+    const okFetch = fakeFetch([
+      { status: 409, body: '{}' },
+      {
+        status: 200,
+        body: JSON.stringify({
+          id: 'calpilotabcdef0123456789abcdef0123456789',
+          status: 'confirmed',
+          summary: '患者 A17',
+          description: 'CAL-PILOT batch batch_0001',
+          start: { dateTime: '2030-01-10T02:00:00.000Z' },
+          end: { dateTime: '2030-01-10T03:00:00.000Z' }
+        })
+      }
+    ]);
+    const okWriter = new TestCalendarWriter({
+      calendarId: 'test@group.calendar.google.com',
+      getAccessToken: token,
+      batchId: 'batch_0001',
+      fetchImpl: okFetch.impl
+    });
+    await expect(
+      okWriter.insert({
+        pilotId: 'abcdef0123456789abcdef0123456789',
+        displayLabel: '患者 A17',
+        startsAt: '2030-01-10T02:00:00.000Z',
+        endsAt: '2030-01-10T03:00:00.000Z'
+      })
+    ).resolves.toBeUndefined();
+
+    const driftFetch = fakeFetch([
+      { status: 409, body: '{}' },
+      {
+        status: 200,
+        body: JSON.stringify({
+          id: 'calpilotabcdef0123456789abcdef0123456789',
+          status: 'confirmed',
+          summary: '患者 A17',
+          description: 'CAL-PILOT batch batch_0001',
+          start: { dateTime: '2030-01-10T02:00:00.000Z' },
+          end: { dateTime: '2030-01-10T02:30:00.000Z' }
+        })
+      }
+    ]);
+    const driftWriter = new TestCalendarWriter({
+      calendarId: 'test@group.calendar.google.com',
+      getAccessToken: token,
+      batchId: 'batch_0001',
+      fetchImpl: driftFetch.impl
+    });
+    await expect(
+      driftWriter.insert({
+        pilotId: 'abcdef0123456789abcdef0123456789',
+        displayLabel: '患者 A17',
+        startsAt: '2030-01-10T02:00:00.000Z',
+        endsAt: '2030-01-10T03:00:00.000Z'
+      })
+    ).rejects.toThrow('Existing test event could not be verified.');
+  });
+
+  it('rejects invalid or reversed endsAt without calling fetch', async () => {
+    const { impl, calls } = fakeFetch([]);
+    const writer = new TestCalendarWriter({
+      calendarId: 'test@group.calendar.google.com',
+      getAccessToken: token,
+      batchId: 'batch_0001',
+      fetchImpl: impl
+    });
+    for (const endsAt of ['not-a-date', '2030-01-10T02:00:00.000Z']) {
+      await expect(
+        writer.insert({
+          pilotId: 'abcdef0123456789abcdef0123456789',
+          displayLabel: '患者 A17',
+          startsAt: '2030-01-10T02:00:00.000Z',
+          endsAt
+        })
+      ).rejects.toThrow('Synthetic event end time is invalid.');
+    }
+    expect(calls).toHaveLength(0);
+  });
 });
 
 describe('scope 常數', () => {
