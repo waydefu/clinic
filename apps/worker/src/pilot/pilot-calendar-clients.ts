@@ -22,6 +22,15 @@ import { type PilotEvent, type SourceEventShape } from './pilot-sanitizer.js';
  */
 
 const API_BASE = 'https://www.googleapis.com/calendar/v3';
+const DEFAULT_EVENT_DURATION_MS = 30 * 60_000;
+
+function resolveEventEnd(startMs: number, rawEndsAt: string): string {
+  const endMs = Date.parse(rawEndsAt);
+  if (!Number.isFinite(endMs) || endMs <= startMs) {
+    throw new PilotCalendarError('Synthetic event end time is invalid.');
+  }
+  return new Date(endMs).toISOString();
+}
 
 /** 來源唯讀 scope。比 `calendar.readonly` 窄：不含日曆清單、設定與 ACL。 */
 export const SOURCE_READONLY_SCOPE =
@@ -152,10 +161,15 @@ export class TestCalendarWriter {
    * 的依據：清理只要刪掉帶這個 ID 的事件即可，不需要保留任何來源資訊。
    */
   public async insert(event: PilotEvent): Promise<void> {
+    const startMs = Date.parse(event.startsAt);
+    if (!Number.isFinite(startMs)) {
+      throw new PilotCalendarError('Synthetic event start time is invalid.');
+    }
+    const endsAt =
+      event.endsAt !== undefined
+        ? resolveEventEnd(startMs, event.endsAt)
+        : new Date(startMs + DEFAULT_EVENT_DURATION_MS).toISOString();
     const token = await this.getAccessToken();
-    const endsAt = new Date(
-      Date.parse(event.startsAt) + 30 * 60_000
-    ).toISOString();
 
     const eventId = `calpilot${event.pilotId}`;
     const response = await this.fetchImpl(
