@@ -44,6 +44,8 @@ import type {
   TransitionResult
 } from './appointment.repository-port.js';
 import { encodeListCursor } from './list-cursor.js';
+import { createRbacAppointmentPolicy } from '../platform/authorization/rbac-appointment-policy.js';
+import type { CandidateRole } from '../platform/authorization/rbac.js';
 import {
   assertFollowUpBookable,
   InMemoryPatientDirectory
@@ -2307,5 +2309,74 @@ describe('AppointmentApplicationService list continuation', () => {
       expect.anything(),
       resumeAfter
     );
+  });
+});
+
+// STAFF-LIST-PATIENT-DISPLAY-2026-11-23: the staff clinic list carries the
+// patient's full name and phone; the permission check is the real RBAC policy.
+describe('staff clinic list patient display', () => {
+  const SYNTHETIC = {
+    appointmentId: 'appointment_display_001',
+    patientId: 'patient_display_001',
+    slotId: 'slot_001',
+    bookingKind: 'initial' as const,
+    status: 'confirmed' as const,
+    startsAt: '2026-07-25T04:00:00.000Z'
+  };
+
+  function serviceFor(role: CandidateRole) {
+    const patients = new InMemoryPatientDirectory();
+    patients.patients.set('patient_display_001', {
+      name: '測試甲',
+      phoneDigits: '0900000001',
+      birthMonthDay: '--05-20'
+    });
+    patients.appointments.push(SYNTHETIC);
+    const service = new AppointmentApplicationService(
+      {} as AppointmentRepositoryPort,
+      createRbacAppointmentPolicy(() => role),
+      { next: () => 'id' },
+      { nowUtc: () => '2026-07-23T14:30:00.000Z' },
+      { next: () => 'corr' },
+      patients
+    );
+    return service;
+  }
+
+  it.each(['front_desk', 'manager', 'system_admin'] as const)(
+    'gives %s the name and phone, never the birth date',
+    async (role) => {
+      const listed = await serviceFor(role).list('clinic', {
+        actorId: 'actor_001',
+        actorRole: 'opaque'
+      });
+      expect(listed.appointments[0]?.patient).toEqual({
+        name: '測試甲',
+        phone: '0900000001'
+      });
+      expect(JSON.stringify(listed)).not.toContain('--05-20');
+    }
+  );
+
+  it.each(['patient', 'physician', 'consultant', 'auditor'] as const)(
+    'refuses the clinic list to %s',
+    async (role) => {
+      await expect(
+        serviceFor(role).list('clinic', {
+          actorId: 'actor_001',
+          actorRole: 'opaque'
+        })
+      ).rejects.toBeDefined();
+    }
+  );
+
+  it("never puts the patient block on a patient's own list", async () => {
+    const mine = await serviceFor('patient').list('mine', {
+      actorId: 'patient_display_001',
+      actorRole: 'opaque',
+      verifiedPatientId: 'patient_display_001'
+    });
+    expect(mine.appointments).toHaveLength(1);
+    expect(mine.appointments[0]).not.toHaveProperty('patient');
   });
 });

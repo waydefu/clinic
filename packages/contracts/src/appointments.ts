@@ -114,6 +114,17 @@ export const GetAppointmentResponseSchema = z
     intakeNationality: NationalitySchema.optional(),
     /** Staff clinic list only, like `intakeNationality`. */
     patientNote: z.string().max(120).optional(),
+    /**
+     * Staff clinic list only (STAFF-LIST-PATIENT-DISPLAY-2026-11-23): the
+     * patient's full name and phone digits for the counter. No birth date.
+     */
+    patient: z
+      .object({
+        name: z.string().min(1).max(30).optional(),
+        phone: z.string().max(20).optional()
+      })
+      .strict()
+      .optional(),
     /** Staff-only attention flag; private archive candidate IDs stay server-side. */
     identityReviewRequired: z.literal(true).optional()
   })

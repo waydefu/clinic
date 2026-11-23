@@ -1896,7 +1896,7 @@ describe('工作臺批次的新行為', () => {
   it.each([
     ['nationalId', 'A123456789', 'A*******89'],
     ['passportNumber', 'P12345678', 'P******78']
-  ])('清單與下一位遮罩電話，清單遮罩 %s', (field, document, masked) => {
+  ])('清單與下一位顯示完整手機，清單遮罩 %s', (field, document, masked) => {
     const state = initialState();
     const appointment = bookOne(state, ['service_snoring']);
     state.patients.at(-1)[field] = document;
@@ -1909,8 +1909,9 @@ describe('工作臺批次的新行為', () => {
     expect(list).toContain(masked);
     expect(list).not.toContain(document);
     for (const html of [list, next]) {
-      expect(html).toContain('*******678');
-      expect(html).not.toContain('0912345678');
+      // STAFF-LIST-PATIENT-DISPLAY-2026-11-23：手機完整顯示，證件仍遮罩。
+      expect(html).toContain('0912345678');
+      expect(html).not.toContain('*******678');
     }
   });
 
@@ -2052,8 +2053,34 @@ describe('工作臺語意 T2-WB-02', () => {
       );
     expect(row('appointment_c1_nat_1')).toContain('國籍：外國');
     expect(row('appointment_c1_nat_2')).toContain('國籍：本國');
-    expect(row('appointment_c1_nat_2')).toContain('*******000');
-    expect(row('appointment_c1_nat_2')).not.toContain('0900000000');
+    // STAFF-LIST-PATIENT-DISPLAY-2026-11-23: staff lists show the full phone.
+    expect(row('appointment_c1_nat_2')).toContain('0900000000');
+    expect(row('appointment_c1_nat_2')).toContain('工作臺患者');
+  });
+
+  it('C1 清單帶回全名與手機（沒有生日）時直接顯示全名與完整手機', () => {
+    const state: any = initialState();
+    state.patients.push({
+      id: 'patient_c1_srv',
+      name: '測試甲',
+      phone: '0900000001'
+    });
+    state.appointments.push({
+      id: 'appointment_c1_srv',
+      patientId: 'patient_c1_srv',
+      slotId: 'slot_c1_srv',
+      startsAt: '2030-01-02T04:00:00.000Z',
+      bookingKind: 'initial',
+      itemIds: ['service_snoring'],
+      itemLabel: '止鼾',
+      status: 'confirmed',
+      intakeNationality: 'domestic'
+    });
+    const html = renderAppointments(state, filtersAll);
+    expect(html).toContain('測試甲');
+    expect(html).toContain('0900000001');
+    expect(html).toContain('國籍：本國');
+    expect(html).not.toContain('末 4 碼');
   });
 
   it('沒有病患紀錄時患者欄只顯示末 4 碼，不印整串雜湊', () => {

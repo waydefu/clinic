@@ -1143,7 +1143,8 @@ describe('createInternalTestBookingTransport', () => {
 
     function stateWithListedNotes(
       notes: Array<string | undefined>,
-      identityReviewValues: unknown[] = []
+      identityReviewValues: unknown[] = [],
+      patientBlocks: unknown[] = []
     ) {
       const local = vi.fn(() => Promise.resolve({ version: 8, slots: [] }));
       const fetchImpl = vi.fn((url) => {
@@ -1178,6 +1179,9 @@ describe('createInternalTestBookingTransport', () => {
                   slotId: `slot_20300102_120${index}`,
                   patientId: `patient_opaque_00${index + 1}`,
                   ...(patientNote === undefined ? {} : { patientNote }),
+                  ...(patientBlocks[index] === undefined
+                    ? {}
+                    : { patient: patientBlocks[index] }),
                   ...(identityReviewValues[index] === undefined
                     ? {}
                     : { identityReviewRequired: identityReviewValues[index] }),
@@ -1214,6 +1218,17 @@ describe('createInternalTestBookingTransport', () => {
       expect(state.appointments[0].patientNote).toBe(SYNTHETIC_NOTE);
       expect(state.appointments[1]).not.toHaveProperty('patientNote');
       expect(state.appointments[2]).not.toHaveProperty('patientNote');
+    });
+
+    it('turns the listed patient block into state.patients entries', async () => {
+      const state: any = await stateWithListedNotes(
+        [undefined, undefined],
+        [],
+        [{ name: '測試甲', phone: '0900000001' }, undefined]
+      );
+      expect(state.patients).toEqual([
+        { id: 'patient_opaque_001', name: '測試甲', phone: '0900000001' }
+      ]);
     });
 
     it('renders the listed note as inert text in the staff list', async () => {

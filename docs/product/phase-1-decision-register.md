@@ -1,5 +1,16 @@
 # Phase 1 Decision Register
 
+## STAFF-LIST-PATIENT-DISPLAY-2026-11-23：員工清單顯示全名與完整手機
+
+決策人：負責人（2026-11-23）。只適用 C1 合成環境與合成資料，不授權真實資料、部署或雲端變更。
+
+- 員工後台的預約相關清單（櫃台處理清單、NEXT UP）顯示患者**全名＋完整手機**，與診所現行日曆習慣一致。
+- 只有已登入且具 `read_appointment` 權限的員工角色（front_desk、manager、system_admin）取得；
+  patient、physician、consultant、auditor、service_account 與未知角色被伺服器拒絕，
+  病患自己的清單（`scope=mine`）也不帶。權限在伺服器端檢查，不靠前端隱藏。
+- 只帶 `name` 與電話數字；生日、國籍以外的欄位不帶。國籍仍以預約上的 `intakeNationality` 為準。
+- 找不到患者資料時，維持「患者 · 末 4 碼」的退路。列印用的初診基本資料與通知列的手機遮罩不在此決定範圍，維持原樣。
+
 ## 2026-11-15 官網六項評分修正（第一、二批）
 
 負責人（工程師）看過[六項評分紀錄](../reviews/2026-11-15-ui-six-dimension-scoring.md)後指示：

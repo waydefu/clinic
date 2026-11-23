@@ -512,9 +512,21 @@ export class AppointmentApplicationService {
             after
           );
     const records = fetched.records.slice(0, limit);
+    // Staff clinic list only (STAFF-LIST-PATIENT-DISPLAY-2026-11-23): the
+    // assertCanQuery(read_appointment, any) above already refused every
+    // non-staff role, and the patient's own list never reaches this branch.
+    const contacts =
+      scope === 'clinic'
+        ? await this.patients.readContacts(
+            records.map((record) => record.patientId)
+          )
+        : undefined;
     const response = {
       appointments: records.flatMap((record) =>
-        this.toListItem(record, scope === 'mine')
+        this.toListItem(record, scope === 'mine').map((item) => {
+          const contact = contacts?.get(record.patientId);
+          return contact === undefined ? item : { ...item, patient: contact };
+        })
       )
     };
     const last = records.at(-1);
