@@ -11,11 +11,7 @@ import {
   WEEKDAY_LABELS,
   ACTIVE_BOOKING_STATUSES
 } from './constants.js';
-import {
-  birthDateHasYear,
-  maskIdentityDocument,
-  maskPatientPhone
-} from './patient-registry.js';
+import { birthDateHasYear, maskIdentityDocument } from './patient-registry.js';
 import { renderTagOptions } from './tag-picker.js';
 import { isUpcomingSlot } from './schedule-engine.js';
 import { taipeiDate, taipeiIso, taipeiTodayDate } from './taipei-time.js';
@@ -990,7 +986,7 @@ export function renderIntakeSheet(state, appointmentId) {
           appointment.intakeNationality ?? record.nationality
         ] ?? `${blankLine('xs')} 本國 ／ ${blankLine('xs')} 外國`
       )}
-      ${cell('手機', record.phone ? escapeHtml(maskPatientPhone(record.phone)) : blankLine())}
+      ${cell('手機', record.phone ? escapeHtml(record.phone) : blankLine())}
       ${cell('市話', blankLine())}
       ${cell('婚姻', `${blankLine('xs')} 已婚 ／ ${blankLine('xs')} 單身`)}
       ${cell('住址', blankLine('full'), 3)}

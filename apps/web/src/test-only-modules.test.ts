@@ -1925,8 +1925,7 @@ describe('工作臺批次的新行為', () => {
       const appointment = bookOne(state, ['service_snoring']);
       const html = sheetFor(state, appointment.id);
       expect(html).toContain('測試患者甲');
-      expect(html).toContain('*******678');
-      expect(html).not.toContain('0912345678');
+      expect(html).toContain('0912345678');
       // 住址、職業、聯絡人等刻意不線上收集：留白給櫃台或患者手寫，
       // 不印「未填」——紙上要看得出「這裡等著被寫」。
       expect(html).toContain('住址');
@@ -1975,16 +1974,15 @@ describe('工作臺批次的新行為', () => {
       expect(html).not.toContain('P12345678');
     });
 
-    it('短電話與短證件在螢幕全部遮住，僅身分證列印完整', () => {
+    it('短證件在螢幕全部遮住、僅身分證列印完整；手機顯示完整', () => {
       const state = initialState();
       const appointment = bookOne(state, ['service_snoring']);
       const record = state.patients.at(-1);
       record.phone = '123';
       record.nationalId = 'AB12';
       const html = sheetFor(state, appointment.id);
-      expect(html).not.toContain('123');
+      expect(html).toContain('<span class="intake-value">123</span>');
       expect(html).toContain('<span class="intake-print-only">AB12</span>');
-      expect(html).toContain('<span class="intake-value">***</span>');
       expect(html).toContain('<span class="intake-screen-only">****</span>');
     });
 
