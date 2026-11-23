@@ -1946,7 +1946,8 @@ describe('工作臺批次的新行為', () => {
       expect(html).toContain('測試患者甲');
       expect(html).toContain('0912345678');
       expect(html).toContain(' 年 05 月 20 日');
-      expect(html.match(/MR-123/g)).toHaveLength(2);
+      expect(html.match(/病歷號碼/g)).toHaveLength(2);
+      expect(html).not.toContain('MR-123');
       expect(html.match(/測試患者甲/g)).toHaveLength(2);
       expect(html).not.toContain('未填');
     });

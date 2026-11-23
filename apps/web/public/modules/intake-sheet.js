@@ -6,7 +6,7 @@ import { isWorkbenchCapabilityEnabled } from './workbench-scope-policy.js';
  * 初診紙本表單的雙面列印版（W7，業主 2026-11-23 要求「印完整雙面、盡量一模一樣」）。
  *
  * 正面＝◎初診基本資料；背面＝門診紀錄表。只把**已經有的**資料（姓名、生日、完整手機、
- * 身分證、病歷號碼、初診日期、管理師）排進格子，其餘一律空白方框或底線，讓患者到診時
+ * 身分證、初診日期、管理師）排進格子，其餘一律空白方框或底線，讓患者到診時
  * 手寫。**系統不儲存任何勾選內容。**
  *
  * 這個模組與 intake-print.css 都只在按下「列印初診基本資料」時才動態載入，所以不佔
@@ -62,7 +62,7 @@ function frontPage(state, appointment, record) {
     <header class="intake-top">
       <strong class="intake-title">◎初診基本資料</strong>
       <img class="intake-logo" src="/clinic-assets/clinic-logo.webp" alt="" />
-      <span>病歷號碼：<span class="intake-value">${escapeHtml(record.medicalRecordNumber ?? '')}</span></span>
+      <span>病歷號碼：<span class="intake-value"></span></span>
       <span>初診日期：<span class="intake-value">${escapeHtml(formatFullDate(appointment.startsAt))}</span></span>
       ${managerText(state, appointment)}
     </header>
@@ -141,7 +141,7 @@ function backPage(record) {
     <header class="intake-top intake-back-top">
       <img class="intake-logo" src="/clinic-assets/clinic-logo.webp" alt="" />
       <strong class="intake-title">門診紀錄表</strong>
-      <span class="intake-mrn">●病歷號碼：<span class="intake-value">${escapeHtml(record.medicalRecordNumber ?? '')}</span></span>
+      <span class="intake-mrn">●病歷號碼：<span class="intake-value"></span></span>
     </header>
     <table class="intake-box intake-back-id">
       <tr>${th('姓　　名')}${td(escapeHtml(record.name ?? ''))}${th('生　日')}${td(birthText(record))}${th('性　別')}${td(boxes('男', '女'))}</tr>
