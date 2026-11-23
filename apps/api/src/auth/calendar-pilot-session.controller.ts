@@ -87,13 +87,22 @@ export class CalendarPilotSessionController {
   public async create(
     @Body() body: unknown,
     @Res({ passthrough: true }) reply: HeaderReply,
-    @Req() request: AuthenticatableRequest
+    @Req() request: AuthenticatableRequest,
+    @Headers('cookie') cookieHeader?: string
   ) {
     await this.rateLimiter.assertUnauthenticatedIp(deriveClientIp(request));
+    // A malformed cookie must not block login; it is simply not superseded.
+    let previousCookie: string | undefined;
+    try {
+      previousCookie = readCalendarPilotSessionCookie(cookieHeader);
+    } catch {
+      previousCookie = undefined;
+    }
     const session = await this.sessions.create(
       SessionRequestSchema.parse(body).idToken,
       undefined,
-      (actorId) => this.rateLimiter.assertIdentifiedWrite(actorId)
+      (actorId) => this.rateLimiter.assertIdentifiedWrite(actorId),
+      previousCookie
     );
     reply.header(
       'Set-Cookie',

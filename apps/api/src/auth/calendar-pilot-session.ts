@@ -265,7 +265,8 @@ export class CalendarPilotSessionService {
   public async create(
     idToken: string,
     now = new Date().toISOString(),
-    beforeIssue?: (actorId: string) => Promise<void>
+    beforeIssue?: (actorId: string) => Promise<void>,
+    previousCookieValue?: string
   ): Promise<CreatedCalendarPilotSession> {
     const correlationId = randomUUID();
     const decoded = await this.auth
@@ -437,6 +438,13 @@ export class CalendarPilotSessionService {
       });
       throw error;
     }
+    if (previousCookieValue !== undefined)
+      await this.supersedePreviousSession(
+        previousCookieValue,
+        decoded.uid,
+        sessionId,
+        now
+      );
     this.emitGate({
       correlationId,
       operation: CALENDAR_SESSION_GATE_OPERATION.create,
@@ -450,6 +458,35 @@ export class CalendarPilotSessionService {
       csrfToken,
       authentication: { actorId: decoded.uid, actorRole: role }
     };
+  }
+
+  /**
+   * R5: a new tab has no sessionStorage CSRF token, so the front end signs in
+   * again and the browser's single __session cookie is overwritten. Mark the
+   * same actor's previous session revoked so it is not orphaned. Firestore
+   * only: revoking Firebase refresh tokens would kill the session just issued.
+   * Best effort; a failure here must never fail the login.
+   */
+  public async supersedePreviousSession(
+    previousCookieValue: string,
+    actorId: string,
+    newSessionId: string,
+    now = new Date().toISOString()
+  ): Promise<void> {
+    try {
+      const previous = await this.auth.verifySessionCookie(
+        previousCookieValue,
+        false
+      );
+      const previousId = digest(previousCookieValue);
+      if (previous.uid !== actorId || previousId === newSessionId) return;
+      await this.db
+        .collection('calendar_pilot_sessions')
+        .doc(previousId)
+        .update({ revokedAt: now });
+    } catch {
+      // Expired, invalid or already-missing previous session: nothing to revoke.
+    }
   }
 
   public async authenticate(
