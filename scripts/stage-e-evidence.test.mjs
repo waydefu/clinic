@@ -1,7 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { join, resolve } from 'node:path';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   assembleStageEEvidence,
+  resolveStageEOutputPath,
+  runStageEEvidenceCli,
   syntheticMonitoringProofs
 } from './stage-e-evidence.mjs';
 
@@ -36,5 +39,74 @@ describe('stage E evidence', () => {
     expect(
       evidence.checks.find((item) => item.id === 'exact_sha_captured')?.pass
     ).toBe(false);
+  });
+});
+
+describe('stage E CLI output containment', () => {
+  const rootDir = resolve('/tmp/synthetic-workspace');
+  const outsidePath = resolve('/tmp/outside-stage-e.json');
+
+  const io = () => {
+    const out = [];
+    const err = [];
+    return {
+      out,
+      err,
+      stdout: { write: (chunk) => out.push(chunk) },
+      stderr: { write: (chunk) => err.push(chunk) },
+      writeFile: vi.fn()
+    };
+  };
+
+  it('does not write a file by default when --out is omitted', () => {
+    const harness = io();
+    const code = runStageEEvidenceCli({
+      argv: [],
+      stdout: harness.stdout,
+      stderr: harness.stderr,
+      writeFile: harness.writeFile,
+      rootDir
+    });
+    expect(code).toBe(0);
+    expect(harness.writeFile).not.toHaveBeenCalled();
+    expect(harness.out.join('')).toContain('"kind": "stage_e_evidence"');
+  });
+
+  it('writes to a contained path inside the workspace root', () => {
+    const harness = io();
+    const code = runStageEEvidenceCli({
+      argv: ['--out', 'output/evidence/stage-e.json'],
+      stdout: harness.stdout,
+      stderr: harness.stderr,
+      writeFile: harness.writeFile,
+      rootDir
+    });
+    expect(code).toBe(0);
+    expect(harness.writeFile).toHaveBeenCalledTimes(1);
+    expect(harness.writeFile).toHaveBeenCalledWith(
+      join(rootDir, 'output', 'evidence', 'stage-e.json'),
+      expect.stringContaining('"kind": "stage_e_evidence"')
+    );
+  });
+
+  it.each([
+    ['missing value', ['--out']],
+    ['empty path', ['--out', '']],
+    ['parent traversal', ['--out', '../escape.json']],
+    ['repo root', ['--out', '.']],
+    ['external absolute path', ['--out', outsidePath]]
+  ])('fails closed before writing on %s', (_label, argv) => {
+    const harness = io();
+    const code = runStageEEvidenceCli({
+      argv,
+      stdout: harness.stdout,
+      stderr: harness.stderr,
+      writeFile: harness.writeFile,
+      rootDir
+    });
+    expect(code).toBe(2);
+    expect(harness.writeFile).not.toHaveBeenCalled();
+    expect(harness.err.join('')).toContain('Usage:');
+    expect(() => resolveStageEOutputPath('../escape.json', rootDir)).toThrow();
   });
 });

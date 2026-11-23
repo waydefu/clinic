@@ -8,8 +8,10 @@ import {
 import {
   assembleC1SmokeEvidence,
   assertC1CollectProjectId,
+  C1_BUDGET_DISPLAY_NAME,
   c1PreApplyEnableApisCommand,
-  c1SmokeCollectCommands
+  c1SmokeCollectCommands,
+  selectC1TargetBudget
 } from './collect-c1-smoke.mjs';
 
 const recs = loadC0EngineeringRecs();
@@ -23,6 +25,27 @@ function terraformCiBindings() {
   }));
 }
 
+function c1Budget(overrides = {}) {
+  return {
+    name: 'billingAccounts/000000-000000-000000/budgets/synthetic-c1',
+    displayName: C1_BUDGET_DISPLAY_NAME,
+    budgetFilter: { projects: ['projects/1'] },
+    allUpdatesRule: {
+      pubsubTopic:
+        'projects/beauessence-clinic-stg-smoke1/topics/c1-budget-notifications'
+    },
+    amount: {
+      specifiedAmount: { currencyCode: 'TWD', units: '2000' }
+    },
+    thresholdRules: [
+      { thresholdPercent: 0.5 },
+      { thresholdPercent: 0.8 },
+      { thresholdPercent: 1.0 }
+    ],
+    ...overrides
+  };
+}
+
 function derivedFoundation(overrides = {}) {
   return {
     loggingBuckets: [
@@ -30,19 +53,7 @@ function derivedFoundation(overrides = {}) {
         name: 'projects/1/locations/asia-east1/buckets/c1-foundation'
       }
     ],
-    budgets: [
-      {
-        name: 'billingAccounts/000000-000000-000000/budgets/synthetic',
-        amount: {
-          specifiedAmount: { currencyCode: 'TWD', units: '2000' }
-        },
-        thresholdRules: [
-          { thresholdPercent: 0.5 },
-          { thresholdPercent: 0.8 },
-          { thresholdPercent: 1.0 }
-        ]
-      }
-    ],
+    budgets: [c1Budget()],
     billingProject: {
       billingEnabled: true,
       billingAccountName: 'billingAccounts/000000-000000-000000'
@@ -276,5 +287,114 @@ describe('C1 smoke collector (no gcloud in this sandbox)', () => {
     expect(evaluateC1Smoke(evidence, recs).issues.join('\n')).toMatch(
       /Firestore database/
     );
+  });
+
+  it('selects the C1 target budget regardless of billing list order', () => {
+    const foreignBudget = c1Budget({
+      name: 'billingAccounts/000000-000000-000000/budgets/foreign',
+      displayName: 'Unrelated project budget',
+      budgetFilter: { projects: ['projects/99999'] },
+      allUpdatesRule: {
+        pubsubTopic: 'projects/other-project/topics/budget-alerts'
+      },
+      amount: { specifiedAmount: { currencyCode: 'TWD', units: '9999' } }
+    });
+    const baseSnapshot = {
+      projectId: 'beauessence-clinic-stg-smoke1',
+      region: 'asia-east1',
+      services: recs.c1.apiAllowlist.map((api) => ({
+        config: { name: `projects/1/services/${api}` }
+      })),
+      iamPolicy: { bindings: terraformCiBindings() },
+      wifPools: [
+        {
+          name: 'projects/1/locations/global/workloadIdentityPools/c1-github'
+        }
+      ],
+      serviceAccounts: [{ email: terraformCiEmail }],
+      secretVersions: [],
+      firestoreDatabases: [],
+      identityServices: []
+    };
+    const first = assembleC1SmokeEvidence({
+      ...baseSnapshot,
+      ...derivedFoundation({ budgets: [foreignBudget, c1Budget()] })
+    });
+    const second = assembleC1SmokeEvidence({
+      ...baseSnapshot,
+      ...derivedFoundation({ budgets: [c1Budget(), foreignBudget] })
+    });
+    expect(first).toEqual(second);
+    expect(evaluateC1Smoke(first, recs)).toEqual({ ok: true, issues: [] });
+  });
+
+  it('fails closed when matching C1 budget is missing, duplicate, or invalid', () => {
+    const baseSnapshot = {
+      projectId: 'beauessence-clinic-stg-smoke1',
+      region: 'asia-east1',
+      services: recs.c1.apiAllowlist.map((api) => ({
+        config: { name: `projects/1/services/${api}` }
+      })),
+      iamPolicy: { bindings: terraformCiBindings() },
+      wifPools: [
+        {
+          name: 'projects/1/locations/global/workloadIdentityPools/c1-github'
+        }
+      ],
+      serviceAccounts: [{ email: terraformCiEmail }],
+      secretVersions: [],
+      firestoreDatabases: [],
+      identityServices: []
+    };
+
+    const unscopedOnly = assembleC1SmokeEvidence({
+      ...baseSnapshot,
+      ...derivedFoundation({
+        budgets: [
+          c1Budget({
+            budgetFilter: {},
+            allUpdatesRule: {}
+          })
+        ]
+      })
+    });
+    expect(unscopedOnly.budgetAmountTwd).toBeUndefined();
+    expect(evaluateC1Smoke(unscopedOnly, recs).ok).toBe(false);
+
+    const duplicateTarget = assembleC1SmokeEvidence({
+      ...baseSnapshot,
+      ...derivedFoundation({ budgets: [c1Budget(), c1Budget()] })
+    });
+    expect(duplicateTarget.budgetAmountTwd).toBeUndefined();
+    expect(evaluateC1Smoke(duplicateTarget, recs).ok).toBe(false);
+
+    const multiProject = c1Budget({
+      budgetFilter: { projects: ['projects/1', 'projects/2'] }
+    });
+    expect(
+      selectC1TargetBudget([multiProject], {
+        projectId: 'beauessence-clinic-stg-smoke1',
+        projectNumber: '1'
+      })
+    ).toBeUndefined();
+
+    const usdAmount = {
+      specifiedAmount: { currencyCode: 'USD', units: '2000' }
+    };
+    const wrongCurrency = assembleC1SmokeEvidence({
+      ...baseSnapshot,
+      ...derivedFoundation({ budgets: [c1Budget({ amount: usdAmount })] })
+    });
+    expect(wrongCurrency.budgetAmountTwd).toBeUndefined();
+    expect(evaluateC1Smoke(wrongCurrency, recs).ok).toBe(false);
+
+    const missingThreshold = assembleC1SmokeEvidence({
+      ...baseSnapshot,
+      ...derivedFoundation({
+        budgets: [c1Budget({ thresholdRules: [] })]
+      })
+    });
+    expect(missingThreshold.budgetThresholds).toBeUndefined();
+    expect(evaluateC1Smoke(missingThreshold, recs).ok).toBe(false);
   });
 });

@@ -1,8 +1,10 @@
+import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   createSastEvidence,
   renderSastEvidenceSummary,
-  renderStepOutputs
+  renderStepOutputs,
+  resolveSastEvidenceOutputDir
 } from './generate-sast-evidence.mjs';
 
 // 這些常數必須與 `.github/workflows/sast-scan.yml` 傳進來的環境變數同名（`SCM-R01`
@@ -359,4 +361,22 @@ describe('step outputs handed back to the calling workflow', () => {
       })
     ).toBe('conclusion=success\ncommit=unknown\n');
   });
+});
+
+describe('SAST evidence output directory containment', () => {
+  const rootDir = resolve('/tmp/synthetic-workspace');
+  const outsideDir = resolve('/tmp/outside-sast');
+
+  it('resolves a relative path inside the workspace root', () => {
+    expect(resolveSastEvidenceOutputDir('output/evidence', rootDir)).toBe(
+      join(rootDir, 'output', 'evidence')
+    );
+  });
+
+  it.each(['', ' ', '.', '../escape', 'output/../../escape', outsideDir])(
+    'rejects escaping or empty output path %j',
+    (badPath) => {
+      expect(() => resolveSastEvidenceOutputDir(badPath, rootDir)).toThrow();
+    }
+  );
 });
