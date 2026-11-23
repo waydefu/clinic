@@ -528,10 +528,7 @@ describe('publishing a schedule while a booking is created (AUD-02)', () => {
       })
     );
     expect(republished.publishedVersion).toBe(2);
-    const slotAfter = await db
-      .collection(COLLECTIONS.slots)
-      .doc(SLOT_ID)
-      .get();
-    expect(slotAfter.data()?.['reservationId']).toBe(booking.appointmentId);
+    const slot = await db.collection(COLLECTIONS.slots).doc(SLOT_ID).get();
+    expect(slot.data()?.['reservationId']).toBe(booking.appointmentId);
   });
 });
