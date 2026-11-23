@@ -9,8 +9,10 @@ vi.mock('node:child_process', () => ({ execFile: vi.fn() }));
 const origin =
   'https://beauessence-clinic-staging--synthetic-review-synthetic.web.app';
 const originalExitCode = process.exitCode;
-const html =
-  'ONLINE PREVIEW 公開預覽，網址持有人皆可存取 id="patient-name" id="patient-phone" id="patient-birth-month" id="patient-birth-day" id="patient-nationality-domestic" 資料只會保存在我這台裝置的瀏覽器 <script src="/app.1234567890.js"></script>';
+const clinicHtml =
+  'ONLINE PREVIEW 合成預覽環境，請勿輸入真實患者資料 id="clinic-main" <script src="/app.1234567890.js"></script>';
+const bookingHtml =
+  'id="patient-name" id="patient-phone" id="patient-birth-month" id="patient-birth-day" id="patient-nationality-domestic" 資料只會保存在我這台裝置的瀏覽器 <script src="/app.1234567890.js"></script>';
 
 beforeEach(() => {
   vi.resetModules();
@@ -30,25 +32,42 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+function securityHeaders(asset, extra = {}) {
+  return new Headers({
+    'content-security-policy':
+      "default-src 'self'; frame-ancestors 'none'; require-trusted-types-for 'script'",
+    'cross-origin-opener-policy': 'same-origin-allow-popups',
+    'cross-origin-resource-policy': 'same-origin',
+    'referrer-policy': 'no-referrer',
+    'x-content-type-options': 'nosniff',
+    'x-frame-options': 'DENY',
+    'x-robots-tag': 'noindex',
+    'cache-control': asset ? 'public, max-age=31536000, immutable' : 'no-cache',
+    ...extra
+  });
+}
+
+function redirectResponse(url, location) {
+  return {
+    status: 302,
+    url: String(url),
+    headers: securityHeaders(false, { location }),
+    text: () => Promise.resolve('')
+  };
+}
+
 function response(url, status = 200) {
-  const asset = String(url).endsWith('.js');
+  const target = String(url);
+  if (target === `${origin}/` && status === 200) {
+    return redirectResponse(url, '/clinic');
+  }
+  const asset = target.endsWith('.js');
+  const body = target.endsWith('/clinic') ? clinicHtml : bookingHtml;
   return {
     status,
-    url: String(url),
-    headers: new Headers({
-      'content-security-policy':
-        "default-src 'self'; frame-ancestors 'none'; require-trusted-types-for 'script'",
-      'cross-origin-opener-policy': 'same-origin-allow-popups',
-      'cross-origin-resource-policy': 'same-origin',
-      'referrer-policy': 'no-referrer',
-      'x-content-type-options': 'nosniff',
-      'x-frame-options': 'DENY',
-      'x-robots-tag': 'noindex',
-      'cache-control': asset
-        ? 'public, max-age=31536000, immutable'
-        : 'no-cache'
-    }),
-    text: async () => html
+    url: target,
+    headers: securityHeaders(asset),
+    text: () => Promise.resolve(body)
   };
 }
 function report() {
@@ -86,10 +105,14 @@ describe('preview request deadlines with synthetic HTTP and memory-only evidence
   });
 
   it('bounds HTML response-body consumption as well as fetch', async () => {
-    const fetch = vi.fn(async (url) => ({
-      ...response(url),
-      text: () => new Promise(() => {})
-    }));
+    const fetch = vi.fn((url) =>
+      String(url) === `${origin}/`
+        ? Promise.resolve(response(url))
+        : Promise.resolve({
+            ...response(url),
+            text: () => new Promise(() => {})
+          })
+    );
     vi.stubGlobal('fetch', fetch);
     const completion = import('./verify-preview-deployment.mjs');
     await started(fetch);
@@ -97,7 +120,7 @@ describe('preview request deadlines with synthetic HTTP and memory-only evidence
     expect(files.writeFile).toHaveBeenCalledTimes(2);
     await completion;
     expect(report().conclusion).toBe('failure');
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenCalledTimes(3);
   });
 
   it('bounds the independently fetched asset and keeps failed evidence', async () => {
@@ -108,23 +131,25 @@ describe('preview request deadlines with synthetic HTTP and memory-only evidence
     );
     vi.stubGlobal('fetch', fetch);
     const completion = import('./verify-preview-deployment.mjs');
-    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(3), {
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(4), {
       timeout: 1000,
       interval: 1
     });
     await vi.advanceTimersByTimeAsync(30_000);
     await completion;
     expect(report().conclusion).toBe('failure');
-    expect(fetch).toHaveBeenCalledTimes(3);
-    expect(fetch.mock.calls[2][1].signal.aborted).toBe(true);
+    expect(fetch).toHaveBeenCalledTimes(4);
+    expect(fetch.mock.calls[3][1].signal.aborted).toBe(true);
   });
 
   it('bounds cancellation of an unused asset body before declaring success', async () => {
     const cancel = vi.fn(() => new Promise(() => {}));
-    const fetch = vi.fn(async (url) => ({
-      ...response(url),
-      ...(String(url).endsWith('.js') ? { body: { cancel } } : {})
-    }));
+    const fetch = vi.fn((url) =>
+      Promise.resolve({
+        ...response(url),
+        ...(String(url).endsWith('.js') ? { body: { cancel } } : {})
+      })
+    );
     vi.stubGlobal('fetch', fetch);
     const completion = import('./verify-preview-deployment.mjs');
     await vi.waitFor(() => expect(cancel).toHaveBeenCalledTimes(1), {
@@ -134,33 +159,99 @@ describe('preview request deadlines with synthetic HTTP and memory-only evidence
     await vi.advanceTimersByTimeAsync(30_000);
     await completion;
     expect(report().conclusion).toBe('failure');
-    expect(fetch).toHaveBeenCalledTimes(3);
-    expect(fetch.mock.calls[2][1].signal.aborted).toBe(true);
+    expect(fetch).toHaveBeenCalledTimes(4);
+    expect(fetch.mock.calls[3][1].signal.aborted).toBe(true);
   });
 
-  it('preserves successful HTML, header, marker and immutable asset checks', async () => {
-    const fetch = vi.fn(async (url) => response(url));
+  it('preserves successful 302 clinic redirect, booking HTML and immutable asset checks', async () => {
+    const fetch = vi.fn((url) => Promise.resolve(response(url)));
     vi.stubGlobal('fetch', fetch);
     await import('./verify-preview-deployment.mjs');
     expect(report().conclusion).toBe('success');
     expect(report().checks.every((check) => check.passed)).toBe(true);
-    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(fetch).toHaveBeenCalledTimes(4);
     expect(
-      fetch.mock.calls.every(([, init]) => init.signal instanceof AbortSignal)
+      fetch.mock.calls.every(
+        ([, init]) =>
+          init.signal instanceof AbortSignal && init.redirect === 'manual'
+      )
     ).toBe(true);
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it('fails closed on cross-host redirect from / without following it', async () => {
+    const fetch = vi.fn((url) =>
+      Promise.resolve(
+        String(url) === `${origin}/`
+          ? redirectResponse(url, 'https://evil.example/clinic')
+          : response(url)
+      )
+    );
+    vi.stubGlobal('fetch', fetch);
+    await import('./verify-preview-deployment.mjs');
+    expect(report().conclusion).toBe('failure');
+    expect(process.exitCode).toBe(1);
+    const calledUrls = fetch.mock.calls.map(([u]) => String(u));
+    expect(calledUrls).not.toContain('https://evil.example/clinic');
+    expect(
+      report().checks.some(
+        (c) => c.name.includes('redirect stays on staging host') && !c.passed
+      )
+    ).toBe(true);
+  });
+
+  it('fails closed on wrong redirect target or missing clinic marker', async () => {
+    const wrongTarget = vi.fn((url) =>
+      Promise.resolve(
+        String(url) === `${origin}/`
+          ? redirectResponse(url, '/unexpected')
+          : response(url)
+      )
+    );
+    vi.stubGlobal('fetch', wrongTarget);
+    await import('./verify-preview-deployment.mjs');
+    expect(report().conclusion).toBe('failure');
+    expect(wrongTarget.mock.calls.map(([u]) => String(u))).not.toContain(
+      `${origin}/unexpected`
+    );
+
+    vi.resetModules();
+    files.writeFile.mockClear();
+    process.exitCode = originalExitCode;
+
+    const missingMarker = vi.fn((url) => {
+      if (String(url) !== `${origin}/clinic`) {
+        return Promise.resolve(response(url));
+      }
+      return Promise.resolve({
+        ...response(url),
+        text: () => Promise.resolve('ONLINE PREVIEW')
+      });
+    });
+    vi.stubGlobal('fetch', missingMarker);
+    await import('./verify-preview-deployment.mjs');
+    expect(report().conclusion).toBe('failure');
+    expect(
+      report().checks.some(
+        (c) => c.name.includes('id="clinic-main"') && !c.passed
+      )
+    ).toBe(true);
+  });
+
   it('preserves HTTP failure evidence without automatic retries', async () => {
-    const fetch = vi.fn(async (url) => response(url, 503));
+    const fetch = vi.fn((url) => Promise.resolve(response(url, 503)));
     vi.stubGlobal('fetch', fetch);
     await import('./verify-preview-deployment.mjs');
     expect(report().conclusion).toBe('failure');
     expect(
       report()
-        .checks.filter((check) => check.name.endsWith('HTTP 200'))
+        .checks.filter(
+          (check) =>
+            check.name.endsWith('HTTP 302 redirect') ||
+            check.name.endsWith('HTTP 200')
+        )
         .every((check) => !check.passed)
     ).toBe(true);
-    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });

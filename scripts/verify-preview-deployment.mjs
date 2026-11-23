@@ -1,14 +1,38 @@
 import { execFile } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
 import { withRequestDeadline } from './request-deadline.mjs';
 
+const REPO_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
+
+function resolveOutputDirectory(rawDir) {
+  if (typeof rawDir !== 'string' || rawDir.trim() === '') {
+    throw new Error(
+      'PREVIEW_EVIDENCE_OUTPUT_DIR must be a non-empty workspace path.'
+    );
+  }
+  const base = resolve(REPO_ROOT);
+  const target = resolve(base, rawDir);
+  const rel = relative(base, target);
+  if (
+    rel === '' ||
+    rel === '..' ||
+    rel.startsWith(`..${sep}`) ||
+    isAbsolute(rel)
+  ) {
+    throw new Error(`PREVIEW_EVIDENCE_OUTPUT_DIR escapes workspace: ${rawDir}`);
+  }
+  return target;
+}
+
 const execFileAsync = promisify(execFile);
-const outputDirectory =
-  process.env.PREVIEW_EVIDENCE_OUTPUT_DIR ?? 'output/evidence';
+const outputDirectory = resolveOutputDirectory(
+  process.env.PREVIEW_EVIDENCE_OUTPUT_DIR ?? 'output/evidence'
+);
 const previewInput =
   process.env.PREVIEW_URL ??
   process.argv.find((argument) => argument.startsWith('https://'));
@@ -75,24 +99,84 @@ function checkHeaders(response, label, expectedCache) {
   );
 }
 
-async function inspectHtml(path, label, markers) {
+async function inspectHtml(
+  path,
+  label,
+  markers,
+  { expectedRedirectPath } = {}
+) {
   const url = new URL(path, baseUrl);
   try {
-    const { response, body } = await withRequestDeadline(async (signal) => {
+    const result = await withRequestDeadline(async (signal) => {
+      if (expectedRedirectPath !== undefined) {
+        const initial = await fetch(url, {
+          headers: { 'user-agent': 'beauessence-preview-verifier/1' },
+          redirect: 'manual',
+          signal
+        });
+        await initial.body?.cancel();
+        signal.throwIfAborted();
+        record(
+          `${label}: HTTP 302 redirect`,
+          initial.status === 302,
+          `${initial.status}`
+        );
+        if (initial.status !== 302) return { ok: false };
+        const location = initial.headers.get('location') ?? '';
+        const target = location ? new URL(location, url) : null;
+        const sameOrigin = target !== null && target.origin === baseUrl.origin;
+        record(
+          `${label}: redirect stays on staging host`,
+          sameOrigin,
+          target?.href ?? '(missing)'
+        );
+        const expectedPath =
+          target !== null && target.pathname === expectedRedirectPath;
+        record(
+          `${label}: redirects to ${expectedRedirectPath}`,
+          sameOrigin && expectedPath,
+          target?.pathname ?? '(missing)'
+        );
+        if (!sameOrigin || !expectedPath) return { ok: false };
+        const response = await fetch(target, {
+          headers: { 'user-agent': 'beauessence-preview-verifier/1' },
+          redirect: 'manual',
+          signal
+        });
+        const body = await response.text();
+        signal.throwIfAborted();
+        return { ok: true, response, body, finalUrl: target };
+      }
+
       const response = await fetch(url, {
         headers: { 'user-agent': 'beauessence-preview-verifier/1' },
-        redirect: 'follow',
+        redirect: 'manual',
         signal
       });
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get('location') ?? '';
+        await response.body?.cancel();
+        signal.throwIfAborted();
+        record(`${label}: HTTP 200`, false, `${response.status}`);
+        record(
+          `${label}: remains on staging host`,
+          false,
+          `unexpected redirect to ${location || '(missing)'}`
+        );
+        return { ok: false };
+      }
       const body = await response.text();
       signal.throwIfAborted();
-      return { response, body };
+      return { ok: true, response, body, finalUrl: url };
     });
+    if (!result.ok) return;
+    const { response, body, finalUrl } = result;
+    const effectiveUrl = response.url || finalUrl.href;
     record(`${label}: HTTP 200`, response.status === 200, `${response.status}`);
     record(
       `${label}: remains on staging host`,
-      response.url.startsWith(baseUrl.origin),
-      response.url
+      effectiveUrl.startsWith(baseUrl.origin),
+      effectiveUrl
     );
     checkHeaders(response, label, ['no-cache']);
     for (const marker of markers) {
@@ -106,7 +190,7 @@ async function inspectHtml(path, label, markers) {
     for (const match of body.matchAll(
       /\b(?:src|href)="([^"]+\.(?:js|css)(?:\?[^"]*)?)"/g
     )) {
-      const asset = new URL(match[1], url);
+      const asset = new URL(match[1], finalUrl);
       if (asset.origin === baseUrl.origin) assets.add(asset.href);
     }
   } catch (error) {
@@ -114,10 +198,12 @@ async function inspectHtml(path, label, markers) {
   }
 }
 
-await inspectHtml('/', 'workbench entry', [
-  'ONLINE PREVIEW',
-  '公開預覽，網址持有人皆可存取'
-]);
+await inspectHtml(
+  '/',
+  'clinic entry',
+  ['ONLINE PREVIEW', '合成預覽環境，請勿輸入真實患者資料', 'id="clinic-main"'],
+  { expectedRedirectPath: '/clinic' }
+);
 // 2026-09-22（BOOKING-MINIMIZATION-2026-09-22）：生日只收月日，國籍只分
 // 本國／外國，不再收身分證或護照。這裡只釘「必填的那幾欄真的出貨了」。
 await inspectHtml('/booking', 'patient entry', [
@@ -144,6 +230,7 @@ for (const asset of [...assets].sort()) {
     const response = await withRequestDeadline(async (signal) => {
       const response = await fetch(asset, {
         headers: { 'user-agent': 'beauessence-preview-verifier/1' },
+        redirect: 'manual',
         signal
       });
       // Only headers are inspected; do not leave an unread body streaming.
