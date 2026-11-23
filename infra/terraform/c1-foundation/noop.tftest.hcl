@@ -79,6 +79,11 @@ run "named_sha_enables_c1_allowlist_only" {
   }
 
   assert {
+    condition     = google_service_account.terraform_ci[0].disabled == true
+    error_message = "C1 terraform-ci service account must default to disabled = true."
+  }
+
+  assert {
     condition = !contains(
       keys(google_project_service.c1),
       "identitytoolkit.googleapis.com"
@@ -214,6 +219,29 @@ run "wif_binding_requires_explicit_opt_in" {
   assert {
     condition     = google_service_account_iam_member.terraform_ci_wif["enabled"].role == "roles/iam.workloadIdentityUser"
     error_message = "C1 WIF binding must grant roles/iam.workloadIdentityUser only."
+  }
+}
+
+run "terraform_ci_enable_requires_explicit_opt_in" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha  = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                 = "beauessence-clinic-stg-smoke1"
+    billing_account_id         = "000000-000000-000000"
+    github_repository_id       = "123456789"
+    github_repository_owner_id = "987654321"
+    terraform_ci_disabled      = false
+  }
+
+  assert {
+    condition     = length(google_service_account.terraform_ci) == 1
+    error_message = "C1 must create the terraform-ci service account when SHA-gated apply is on."
+  }
+
+  assert {
+    condition     = google_service_account.terraform_ci[0].disabled == false
+    error_message = "C1 terraform-ci service account must become enabled only when terraform_ci_disabled is explicitly set to false."
   }
 }
 
