@@ -185,6 +185,11 @@ artifact），取代先前只有我們自己看得懂的 `dependency-inventory.j
 1.7。現有 artifact 只保留 90 日、未綁 deploy artifact digest，也沒有 provenance、
 signature 或 dependency-completeness 聲明；不得把它單獨稱為 release assurance。
 
+**現行對帳（2026-11-23，E3-11）：** [verify.yml](../../.github/workflows/verify.yml)
+的 `supply-chain` 工作已納入 CycloneDX SBOM 雜湊紀錄、同儲存庫 attestation 與缺漏時
+fail-closed 檢查；上述機制僅為建置期供應鏈驗證，不宣稱特定 SLSA 等級，也不構成任何
+部署或發布授權。
+
 同一個腳本同時是**授權 gate**：
 
 - 允許清單是本 repository 經審視的政策，不可統稱全部為 permissive；例如
@@ -367,6 +372,15 @@ patched 版本，解除條件成立，於是它被修掉而不是被續期。**�
 Git history、所有 provider token 格式或已刪 object。Canonical repository 須另以 pinned
 scanner 執行 PR diff/tree 與受控 full-history scan；fixture 必須合成，輸出不得包含
 secret 原文。管理者 bypass push 也不得被描述為已受 required gate 強制。
+
+**現行例外登記與分支保護對帳（2026-11-23，E3-11）：** 供應鏈稽核例外唯一權威登記檔為
+[security/audit-exceptions.json](../../security/audit-exceptions.json)（由
+`scripts/check-audit-exceptions.mjs` 驗證與 `pnpm-workspace.yaml` 同步）；治理規則例外
+唯一登記檔為 [docs/governance/waivers.json](../governance/waivers.json)（由
+`scripts/check-governance.mjs` 進行欄位與有效期限 fail-closed 檢查），現行狀態以
+[docs/state/current.md](../state/current.md) 為準。另 D-013（2026-09-09 修訂）已要求
+`enforce_admins=true`，遠端分支保護在未線上讀回前維持 `UNVERIFIED`；任何綠燈 gate 皆不
+代表部署或正式環境授權。
 
 ## 4-c. 標記與無障礙結構（`pnpm check:ui`）
 
