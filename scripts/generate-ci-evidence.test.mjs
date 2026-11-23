@@ -1,7 +1,9 @@
+import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   createCiEvidence,
   renderCiEvidenceSummary,
+  resolveCiEvidenceOutputDir,
   safeMarkdown
 } from './generate-ci-evidence.mjs';
 
@@ -266,4 +268,22 @@ describe('summary rendering', () => {
     expect(safeMarkdown('a|b')).toBe('a\\|b');
     expect(safeMarkdown('a\nb')).toBe('a b');
   });
+});
+
+describe('CI evidence output directory containment', () => {
+  const rootDir = resolve('/tmp/synthetic-workspace');
+  const outsideDir = resolve('/tmp/outside-evidence');
+
+  it('resolves a relative path inside the workspace root', () => {
+    expect(resolveCiEvidenceOutputDir('output/evidence', rootDir)).toBe(
+      join(rootDir, 'output', 'evidence')
+    );
+  });
+
+  it.each(['', ' ', '.', '../escape', 'output/../../escape', outsideDir])(
+    'rejects escaping or empty output path %j',
+    (badPath) => {
+      expect(() => resolveCiEvidenceOutputDir(badPath, rootDir)).toThrow();
+    }
+  );
 });

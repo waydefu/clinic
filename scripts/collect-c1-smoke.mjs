@@ -84,6 +84,31 @@ export function regionFromLoggingBuckets(buckets) {
   return undefined;
 }
 
+export const C1_BUDGET_DISPLAY_NAME = 'C1 synthetic staging alerting budget';
+
+function projectNumberFromSnapshot(snapshot) {
+  if (
+    typeof snapshot.projectNumber === 'string' &&
+    /^\d+$/.test(snapshot.projectNumber.trim())
+  ) {
+    return snapshot.projectNumber.trim();
+  }
+  const sources = [
+    ...loggingBucketsFromSnapshot(snapshot).map((item) => item?.name),
+    ...(Array.isArray(snapshot.wifPools) ? snapshot.wifPools : []).map(
+      (item) => item?.name
+    ),
+    ...(Array.isArray(snapshot.services) ? snapshot.services : []).map(
+      (item) => item?.config?.name ?? item?.name
+    )
+  ];
+  for (const source of sources) {
+    const match = /^projects\/(\d+)\//.exec(String(source ?? ''));
+    if (match !== null) return match[1];
+  }
+  return undefined;
+}
+
 function budgetsFromSnapshot(snapshot) {
   const value = snapshot.budgets;
   if (Array.isArray(value)) return value;
@@ -91,19 +116,66 @@ function budgetsFromSnapshot(snapshot) {
   return [];
 }
 
-function budgetAmountTwdFromBudgets(budgets) {
-  const amount = budgets[0]?.amount?.specifiedAmount;
-  const currency = amount?.currencyCode ?? amount?.currency_code;
-  if (currency !== 'TWD') return undefined;
-  if (amount?.units === undefined || amount?.units === null) return undefined;
-  const parsed = Number(amount.units);
-  return Number.isFinite(parsed) ? parsed : undefined;
+function matchesC1TargetBudget(budget, { projectId, projectNumber }) {
+  if (!budget || typeof budget !== 'object') return false;
+  const displayName = budget.displayName ?? budget.display_name;
+  if (displayName !== undefined && displayName !== C1_BUDGET_DISPLAY_NAME) {
+    return false;
+  }
+  const filter = budget.budgetFilter ?? budget.budget_filter;
+  const filterProjects = filter?.projects;
+  const allUpdates = budget.allUpdatesRule ?? budget.all_updates_rule;
+  const pubsubTopic = allUpdates?.pubsubTopic ?? allUpdates?.pubsub_topic;
+
+  const allowedRefs = new Set([`projects/${projectId}`]);
+  if (projectNumber !== undefined) allowedRefs.add(`projects/${projectNumber}`);
+
+  const hasFilterProjects =
+    Array.isArray(filterProjects) && filterProjects.length > 0;
+  if (hasFilterProjects) {
+    const singleTarget =
+      filterProjects.length === 1 && allowedRefs.has(filterProjects[0]);
+    if (!singleTarget) return false;
+  }
+
+  const expectedTopic = `projects/${projectId}/topics/c1-budget-notifications`;
+  const matchesTopic = pubsubTopic === expectedTopic;
+  if (pubsubTopic !== undefined && !matchesTopic) return false;
+
+  return hasFilterProjects || matchesTopic;
 }
 
-function budgetThresholdsFromBudgets(budgets) {
-  const rules = budgets[0]?.thresholdRules ?? budgets[0]?.threshold_rules;
-  if (!Array.isArray(rules)) return undefined;
-  return rules.map((rule) => rule.thresholdPercent ?? rule.threshold_percent);
+export function selectC1TargetBudget(budgets, target) {
+  const matches = budgets.filter((budget) =>
+    matchesC1TargetBudget(budget, target)
+  );
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
+function budgetAmountTwdFromBudget(budget) {
+  const specified =
+    budget?.amount?.specifiedAmount ?? budget?.amount?.specified_amount;
+  const currency = specified?.currencyCode ?? specified?.currency_code;
+  if (currency !== 'TWD') return undefined;
+  if (specified?.units === undefined || specified?.units === null) {
+    return undefined;
+  }
+  const units = String(specified.units).trim();
+  if (units === '') return undefined;
+  const parsed = Number(units);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function budgetThresholdsFromBudget(budget) {
+  const rules = budget?.thresholdRules ?? budget?.threshold_rules;
+  if (!Array.isArray(rules) || rules.length === 0) return undefined;
+  const values = rules.map(
+    (rule) => rule?.thresholdPercent ?? rule?.threshold_percent
+  );
+  const allFinite = values.every(
+    (value) => typeof value === 'number' && Number.isFinite(value)
+  );
+  return allFinite ? values : undefined;
 }
 
 function billingDetachedFromSnapshot(snapshot) {
@@ -152,6 +224,10 @@ export function assembleC1SmokeEvidence(snapshot) {
       (entry) => apiIdFromService(entry) === 'identitytoolkit.googleapis.com'
     ) || enabledApis.includes('identitytoolkit.googleapis.com');
   const budgets = budgetsFromSnapshot(snapshot);
+  const targetBudget = selectC1TargetBudget(budgets, {
+    projectId: snapshot.projectId,
+    projectNumber: projectNumberFromSnapshot(snapshot)
+  });
 
   return {
     projectId: snapshot.projectId,
@@ -161,8 +237,8 @@ export function assembleC1SmokeEvidence(snapshot) {
     wifPoolId,
     terraformCiSa,
     secretVersionCount,
-    budgetAmountTwd: budgetAmountTwdFromBudgets(budgets),
-    budgetThresholds: budgetThresholdsFromBudgets(budgets),
+    budgetAmountTwd: budgetAmountTwdFromBudget(targetBudget),
+    budgetThresholds: budgetThresholdsFromBudget(targetBudget),
     billingDetached: billingDetachedFromSnapshot(snapshot),
     firestoreDatabase,
     identityPlatformEnabled

@@ -1,7 +1,29 @@
 import { mkdir, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+
+const REPO_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
+
+export function resolveCiEvidenceOutputDir(rawDir, rootDir = REPO_ROOT) {
+  if (typeof rawDir !== 'string' || rawDir.trim() === '') {
+    throw new Error(
+      'CI_EVIDENCE_OUTPUT_DIR must be a non-empty workspace path.'
+    );
+  }
+  const base = resolve(rootDir);
+  const target = resolve(base, rawDir);
+  const rel = relative(base, target);
+  if (
+    rel === '' ||
+    rel === '..' ||
+    rel.startsWith(`..${sep}`) ||
+    isAbsolute(rel)
+  ) {
+    throw new Error(`CI_EVIDENCE_OUTPUT_DIR escapes workspace: ${rawDir}`);
+  }
+  return target;
+}
 
 // 這份證據是 `main` 的必要檢查所引用的東西。它的判斷規則只有一條，但那一條必須
 // 是對的：**任何一個必要 job 不是 success，結論就是 failure**——包括「沒有回報
@@ -114,8 +136,9 @@ export function renderCiEvidenceSummary(evidence) {
 }
 
 async function main() {
-  const outputDirectory =
-    process.env.CI_EVIDENCE_OUTPUT_DIR ?? 'output/evidence';
+  const outputDirectory = resolveCiEvidenceOutputDir(
+    process.env.CI_EVIDENCE_OUTPUT_DIR ?? 'output/evidence'
+  );
   const evidence = createCiEvidence({ env: process.env });
   const summary = renderCiEvidenceSummary(evidence);
 
