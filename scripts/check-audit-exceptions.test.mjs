@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  formatUtcDate,
   parseIgnoredAdvisories,
   renderReviewLines,
   reviewAuditExceptions
@@ -48,7 +49,6 @@ describe('audit exception governance', () => {
       '  ignoreGhsas:',
       "    - 'GHSA-aaaa-bbbb-cccc'",
       '    - "GHSA-dddd-eeee-ffff"',
-      '  otherSetting: unrelated',
       'overrides:',
       '  synthetic: GHSA-gggg-hhhh-jjjj'
     ].join('\n');
@@ -56,6 +56,119 @@ describe('audit exception governance', () => {
       'GHSA-aaaa-bbbb-cccc',
       'GHSA-dddd-eeee-ffff'
     ]);
+  });
+
+  it('strips full-line and inline YAML comments inside ignoreGhsas', () => {
+    const workspace = [
+      'auditConfig: # section header comment',
+      '  # nested comment',
+      '  ignoreGhsas: # list header comment',
+      '    # before item',
+      "    - 'GHSA-aaaa-bbbb-cccc' # inline single quoted",
+      '    - GHSA-dddd-eeee-ffff # inline bare',
+      'overrides:',
+      '  tar: "7"'
+    ].join('\n');
+    expect(parseIgnoredAdvisories(workspace)).toEqual([
+      'GHSA-aaaa-bbbb-cccc',
+      'GHSA-dddd-eeee-ffff'
+    ]);
+  });
+
+  const invalidYamlCases = [
+    ['flow list', 'auditConfig:\n  ignoreGhsas: [GHSA-aaaa-bbbb-cccc]\n'],
+    ['empty flow list', 'auditConfig:\n  ignoreGhsas: []\n'],
+    [
+      'multiline flow bracket',
+      'auditConfig:\n  ignoreGhsas: [\n    GHSA-aaaa-bbbb-cccc\n  ]\n'
+    ],
+    [
+      'inline auditConfig object',
+      'auditConfig: { ignoreGhsas: [GHSA-aaaa-bbbb-cccc] }\n'
+    ],
+    [
+      'unclosed quote',
+      "auditConfig:\n  ignoreGhsas:\n    - 'GHSA-aaaa-bbbb-cccc\n"
+    ],
+    ['empty quoted token', "auditConfig:\n  ignoreGhsas:\n    - ''\n"],
+    [
+      'trailing non-comment token',
+      'auditConfig:\n  ignoreGhsas:\n    - GHSA-aaaa-bbbb-cccc extra\n'
+    ],
+    [
+      '2-space list item indent',
+      'auditConfig:\n  ignoreGhsas:\n  - GHSA-aaaa-bbbb-cccc\n'
+    ],
+    [
+      '3-space list item indent',
+      'auditConfig:\n  ignoreGhsas:\n   - GHSA-aaaa-bbbb-cccc\n'
+    ],
+    [
+      '6-space list item indent',
+      'auditConfig:\n  ignoreGhsas:\n      - GHSA-aaaa-bbbb-cccc\n'
+    ],
+    [
+      'tab indentation',
+      'auditConfig:\n  ignoreGhsas:\n\t- GHSA-aaaa-bbbb-cccc\n'
+    ],
+    [
+      '4-space key indent',
+      'auditConfig:\n    ignoreGhsas:\n    - GHSA-aaaa-bbbb-cccc\n'
+    ],
+    [
+      'duplicate auditConfig section',
+      [
+        'auditConfig:',
+        '  ignoreGhsas:',
+        '    - GHSA-aaaa-bbbb-cccc',
+        'auditConfig:',
+        '  ignoreGhsas:',
+        '    - GHSA-dddd-eeee-ffff'
+      ].join('\n')
+    ],
+    [
+      'duplicate ignoreGhsas key',
+      [
+        'auditConfig:',
+        '  ignoreGhsas:',
+        '    - GHSA-aaaa-bbbb-cccc',
+        '  ignoreGhsas:',
+        '    - GHSA-dddd-eeee-ffff'
+      ].join('\n')
+    ],
+    [
+      'duplicate advisory item',
+      [
+        'auditConfig:',
+        '  ignoreGhsas:',
+        '    - GHSA-aaaa-bbbb-cccc',
+        '    - GHSA-aaaa-bbbb-cccc'
+      ].join('\n')
+    ],
+    [
+      'unknown key under auditConfig',
+      [
+        'auditConfig:',
+        '  ignoreGhsas:',
+        '    - GHSA-aaaa-bbbb-cccc',
+        '  ignoreCves:',
+        '    - CVE-2026-0001'
+      ].join('\n')
+    ],
+    ['empty auditConfig section', 'auditConfig:\noverrides:\n  tar: "7"\n'],
+    ['empty ignoreGhsas list', 'auditConfig:\n  ignoreGhsas:\n']
+  ];
+
+  it.each(invalidYamlCases)(
+    'fails closed on unsupported auditConfig YAML (%s)',
+    (_label, yaml) => {
+      expect(() => parseIgnoredAdvisories(yaml)).toThrow();
+    }
+  );
+
+  it('rejects missing or non-string workspace YAML input', () => {
+    expect(() => parseIgnoredAdvisories(null)).toThrow('字串');
+    expect(() => parseIgnoredAdvisories(undefined)).toThrow('字串');
   });
 
   it('reads nothing when no advisory is ignored', () => {
@@ -149,5 +262,61 @@ describe('audit exception governance', () => {
     expect(renderReviewLines(review.reviewed)).toEqual([
       '- GHSA-mh99-v99m-4gvg（brace-expansion，high）｜核准編號 SEC-03｜狀態 pending｜到期 2026-08-31｜範圍 dev-only'
     ]);
+  });
+
+  it('enforces UTC clock boundaries before, on, and after expiresOn', () => {
+    const before = reviewAuditExceptions({
+      ignored: ['GHSA-mh99-v99m-4gvg'],
+      registry: { exceptions: [entry({ expiresOn: '2026-08-31' })] },
+      now: '2026-08-30T23:59:59.999Z'
+    });
+    expect(before.ok).toBe(true);
+
+    const onStart = reviewAuditExceptions({
+      ignored: ['GHSA-mh99-v99m-4gvg'],
+      registry: { exceptions: [entry({ expiresOn: '2026-08-31' })] },
+      now: '2026-08-31T00:00:00.000Z'
+    });
+    expect(onStart.ok).toBe(true);
+
+    const onEnd = reviewAuditExceptions({
+      ignored: ['GHSA-mh99-v99m-4gvg'],
+      registry: { exceptions: [entry({ expiresOn: '2026-08-31' })] },
+      now: '2026-08-31T23:59:59.999Z'
+    });
+    expect(onEnd.ok).toBe(true);
+
+    const after = reviewAuditExceptions({
+      ignored: ['GHSA-mh99-v99m-4gvg'],
+      registry: { exceptions: [entry({ expiresOn: '2026-08-31' })] },
+      now: '2026-09-01T00:00:00.000Z'
+    });
+    expect(after.ok).toBe(false);
+    expect(after.problems.join('\n')).toContain('到期');
+  });
+
+  it.each(['2026-02-31', '2026-99-99', '2026/08/31'])(
+    'blocks impossible or malformed expiresOn date %s',
+    (badDate) => {
+      const review = reviewAuditExceptions({
+        ignored: ['GHSA-mh99-v99m-4gvg'],
+        registry: { exceptions: [entry({ expiresOn: badDate })] },
+        today: '2026-08-01'
+      });
+
+      expect(review.ok).toBe(false);
+      expect(review.problems.join('\n')).toContain('expiresOn');
+    }
+  );
+
+  it('rejects invalid synthetic UTC clock inputs', () => {
+    expect(() => formatUtcDate('not-a-date')).toThrow('UTC');
+    const review = reviewAuditExceptions({
+      ignored: ['GHSA-mh99-v99m-4gvg'],
+      registry: { exceptions: [entry()] },
+      today: '2026-02-30'
+    });
+    expect(review.ok).toBe(false);
+    expect(review.problems.join('\n')).toContain('today');
   });
 });

@@ -38,42 +38,202 @@ const REQUIRED_FIELDS = [
 ];
 
 const GHSA_PATTERN = /^GHSA(?:-[0-9a-z]{4}){3}$/u;
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
+const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/u;
+const TOP_AUDIT_KEY = /^(auditConfig|'auditConfig'|"auditConfig")\s*:(.*)$/u;
+const AUDIT_KEY_LINE = /^([A-Za-z0-9_-]+|'[^']+'|"[^"]+")\s*:(.*)$/u;
+const BAD_SCALAR = /^[[{|>!&*]|[\s#[\]{},]/u;
 
-// 只解析 `auditConfig.ignoreGhsas` 這一段的清單項目。刻意不引入 YAML 解析器：
-// 這裡要讀的結構固定且極小，而多一個相依就多一個供應鏈風險——在一支專門用來
-// 管理供應鏈例外的腳本裡尤其不划算。
+function isValidCalendarDate(value) {
+  if (typeof value !== 'string') return false;
+  const match = DATE_PATTERN.exec(value);
+  if (match === null) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() + 1 === month &&
+    date.getUTCDate() === day
+  );
+}
+
+export function formatUtcDate(clock = new Date()) {
+  const date = clock instanceof Date ? clock : new Date(clock);
+  if (Number.isNaN(date.getTime())) {
+    throw new Error('無效的 UTC 時間');
+  }
+  return date.toISOString().slice(0, 10);
+}
+
+function stripInlineComment(raw) {
+  let quote = null;
+  for (let i = 0; i < raw.length; i += 1) {
+    const ch = raw[i];
+    if (quote !== null) {
+      if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === "'" || ch === '"') {
+      quote = ch;
+      continue;
+    }
+    if (ch === '#' && (i === 0 || /\s/u.test(raw[i - 1]))) {
+      return raw.slice(0, i).trimEnd();
+    }
+  }
+  return raw.trimEnd();
+}
+
+function syntaxError(lineNumber, detail) {
+  return new Error(`auditConfig 第 ${lineNumber} 行${detail}`);
+}
+
+function parseScalarToken(raw, lineNumber) {
+  const trimmed = stripInlineComment(raw).trim();
+  if (trimmed.length === 0) {
+    throw syntaxError(lineNumber, '缺少項目值');
+  }
+  const first = trimmed[0];
+  if (first === "'" || first === '"') {
+    if (trimmed.length < 2 || trimmed[trimmed.length - 1] !== first) {
+      throw syntaxError(lineNumber, '不支援的引號格式');
+    }
+    const inner = trimmed.slice(1, -1);
+    if (inner.includes(first) || inner.trim().length === 0) {
+      throw syntaxError(lineNumber, '不支援的引號格式');
+    }
+    return inner;
+  }
+  if (BAD_SCALAR.test(trimmed)) {
+    throw syntaxError(lineNumber, `不支援的 YAML 格式：${trimmed}`);
+  }
+  return trimmed;
+}
+
+function unwrapOptionalQuotes(token) {
+  if (
+    token.length >= 2 &&
+    ((token[0] === "'" && token[token.length - 1] === "'") ||
+      (token[0] === '"' && token[token.length - 1] === '"'))
+  ) {
+    return token.slice(1, -1);
+  }
+  return token;
+}
+
+// 解析 `auditConfig.ignoreGhsas` 的 block list；遇到不支援的 YAML 形狀
+// （flow 清單、未知鍵、重複鍵、異常縮排、tab 或未閉合引號）一律 fail closed。
+// 刻意不引入外部 YAML 解析器：多一個相依就多一個供應鏈風險。
 export function parseIgnoredAdvisories(workspaceYaml) {
+  if (typeof workspaceYaml !== 'string') {
+    throw new Error('pnpm-workspace.yaml 內容必須是字串');
+  }
   const lines = workspaceYaml.split(/\r?\n/u);
   const ignored = [];
   let inAuditConfig = false;
   let inIgnoreList = false;
+  let seenAuditConfig = false;
+  let seenIgnoreGhsas = false;
+  let auditConfigLine = 0;
+  let ignoreGhsasLine = 0;
 
-  for (const line of lines) {
-    if (/^\S/u.test(line)) inAuditConfig = /^auditConfig\s*:/u.test(line);
-    if (!inAuditConfig) {
+  for (let idx = 0; idx < lines.length; idx += 1) {
+    const lineNumber = idx + 1;
+    const line = lines[idx];
+    if (/^\s*$/u.test(line) || /^\s*#/u.test(line)) continue;
+
+    if (!/^\s/u.test(line)) {
+      const content = stripInlineComment(line);
+      const topMatch = TOP_AUDIT_KEY.exec(content);
+      if (topMatch !== null) {
+        if (seenAuditConfig) {
+          throw syntaxError(lineNumber, '出現重複的 auditConfig 區段');
+        }
+        if (topMatch[2].trim().length > 0) {
+          throw syntaxError(lineNumber, '不支援行內值或 flow 格式');
+        }
+        seenAuditConfig = true;
+        inAuditConfig = true;
+        inIgnoreList = false;
+        auditConfigLine = lineNumber;
+        continue;
+      }
+      inAuditConfig = false;
       inIgnoreList = false;
       continue;
     }
-    if (/^\s{2}ignoreGhsas\s*:/u.test(line)) {
+
+    if (!inAuditConfig) continue;
+
+    const leadingMatch = /^[ \t]+/u.exec(line);
+    const leading = leadingMatch === null ? '' : leadingMatch[0];
+    if (leading.includes('\t')) {
+      throw syntaxError(lineNumber, '不支援 tab 縮排');
+    }
+
+    const indent = leading.length;
+    const body = stripInlineComment(line.slice(indent)).trim();
+
+    if (indent === 2) {
+      if (body.startsWith('-')) {
+        throw syntaxError(lineNumber, '清單項目必須縮排 4 格');
+      }
+      const keyMatch = AUDIT_KEY_LINE.exec(body);
+      if (keyMatch === null) {
+        throw syntaxError(lineNumber, '不支援的設定格式');
+      }
+      const key = unwrapOptionalQuotes(keyMatch[1]);
+      if (key !== 'ignoreGhsas') {
+        throw syntaxError(lineNumber, `不支援未知鍵 ${key}`);
+      }
+      if (seenIgnoreGhsas) {
+        throw syntaxError(lineNumber, '出現重複的 ignoreGhsas 鍵');
+      }
+      if (keyMatch[2].trim().length > 0) {
+        throw syntaxError(lineNumber, '不支援行內值或 flow 清單');
+      }
+      seenIgnoreGhsas = true;
       inIgnoreList = true;
+      ignoreGhsasLine = lineNumber;
       continue;
     }
-    if (inIgnoreList) {
-      const item = /^\s{4}-\s*(\S+)\s*$/u.exec(line);
-      if (item === null) {
-        if (line.trim().length > 0) inIgnoreList = false;
-        continue;
+
+    if (indent === 4 && inIgnoreList) {
+      const itemMatch = /^-(?:\s+(.*))?$/u.exec(body);
+      if (itemMatch === null) {
+        throw syntaxError(lineNumber, '不支援的清單項目格式');
       }
-      ignored.push(item[1].replace(/^['"]|['"]$/gu, ''));
+      const value = parseScalarToken(itemMatch[1] ?? '', lineNumber);
+      if (ignored.includes(value)) {
+        throw syntaxError(lineNumber, `出現重複項目 ${value}`);
+      }
+      ignored.push(value);
+      continue;
     }
+
+    throw syntaxError(lineNumber, `不支援的縮排（${indent} 格）`);
+  }
+
+  if (seenAuditConfig && !seenIgnoreGhsas) {
+    throw syntaxError(auditConfigLine, '缺少 ignoreGhsas 鍵');
+  }
+  if (seenIgnoreGhsas && ignored.length === 0) {
+    throw syntaxError(ignoreGhsasLine, '的 ignoreGhsas 不可為空');
   }
 
   return ignored;
 }
 
-export function reviewAuditExceptions({ ignored, registry, today }) {
+export function reviewAuditExceptions({ ignored, registry, today, now }) {
   const problems = [];
+  const resolvedToday =
+    today === undefined && now !== undefined ? formatUtcDate(now) : today;
+  const todayValid = isValidCalendarDate(String(resolvedToday ?? ''));
+  if (!todayValid) {
+    problems.push('today 必須是有效的 YYYY-MM-DD UTC 日期');
+  }
+
   const entries = Array.isArray(registry?.exceptions)
     ? registry.exceptions
     : [];
@@ -88,7 +248,14 @@ export function reviewAuditExceptions({ ignored, registry, today }) {
     byGhsa.set(entry?.ghsa, entry);
   }
 
+  const seenIgnored = new Set();
   for (const ghsa of ignored) {
+    if (seenIgnored.has(ghsa)) {
+      problems.push(`${ghsa}: auditConfig.ignoreGhsas 出現重複項目`);
+      continue;
+    }
+    seenIgnored.add(ghsa);
+
     const entry = byGhsa.get(ghsa);
     if (entry === undefined) {
       problems.push(
@@ -108,9 +275,9 @@ export function reviewAuditExceptions({ ignored, registry, today }) {
     if (!GHSA_PATTERN.test(String(entry.ghsa ?? '')))
       problems.push(`${entry.ghsa}: GHSA 識別碼格式不正確`);
 
-    if (!DATE_PATTERN.test(String(entry.expiresOn ?? ''))) {
+    if (!isValidCalendarDate(String(entry.expiresOn ?? ''))) {
       problems.push(`${ghsa}: expiresOn 必須是 YYYY-MM-DD`);
-    } else if (entry.expiresOn < today) {
+    } else if (todayValid && entry.expiresOn < resolvedToday) {
       problems.push(
         `${ghsa}: 例外已於 ${entry.expiresOn} 到期（核准編號 ${entry.approvalId}，狀態 ${entry.approvalStatus}）。重新核准並延期，或移除忽略設定並修補相依。`
       );
@@ -123,7 +290,7 @@ export function reviewAuditExceptions({ ignored, registry, today }) {
 
     if (
       entry.approvalStatus === 'approved' &&
-      !DATE_PATTERN.test(String(entry.approvedOn ?? ''))
+      !isValidCalendarDate(String(entry.approvedOn ?? ''))
     )
       problems.push(`${ghsa}: 標示為 approved 就必須填入 approvedOn 日期`);
   }
@@ -157,7 +324,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const review = reviewAuditExceptions({
     ignored,
     registry: JSON.parse(registryRaw),
-    today: new Date().toISOString().slice(0, 10)
+    today: formatUtcDate()
   });
 
   if (ignored.length === 0) {
