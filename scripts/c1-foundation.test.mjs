@@ -253,4 +253,28 @@ describe('C1 isolated foundation Terraform source', () => {
       read('infra/terraform/c1-foundation/terraform.tfvars.example')
     ).toContain('github_repository_id        = "not_granted"');
   });
+
+  it('defaults c1-terraform-ci to disabled and requires opt-in (R2)', () => {
+    const serviceAccountBlock =
+      main.match(
+        /^resource "google_service_account" "terraform_ci" \{([\s\S]*?)^\}/m
+      )?.[1] ?? '';
+    expect(serviceAccountBlock).toMatch(
+      /^\s*disabled\s*=\s*var\.terraform_ci_disabled\s*$/m
+    );
+    expect(variables).toMatch(
+      /variable "terraform_ci_disabled" \{[\s\S]*?type\s*=\s*bool[\s\S]*?default\s*=\s*true/
+    );
+    const noop = read('infra/terraform/c1-foundation/noop.tftest.hcl');
+    expect(noop).toContain(
+      'google_service_account.terraform_ci[0].disabled == true'
+    );
+    expect(noop).toContain('terraform_ci_disabled      = false');
+    expect(noop).toContain(
+      'google_service_account.terraform_ci[0].disabled == false'
+    );
+    expect(read('infra/terraform/c1-foundation/README.md')).toContain(
+      'terraform_ci_disabled'
+    );
+  });
 });
