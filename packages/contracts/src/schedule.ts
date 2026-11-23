@@ -75,6 +75,9 @@ export const DateExceptionSchema = z
     }
   );
 
+export const MAX_SCHEDULE_DATE_EXCEPTIONS = 366;
+export const MAX_SCHEDULE_BLOCKED_TIMES = 500;
+
 /**
  * The clinic grid is defined in Taipei time and the domain refuses anything
  * else, so the wire contract pins the same single value rather than accepting
@@ -94,13 +97,23 @@ export const ScheduleSchema = z
           message: 'Weekly availability must not repeat a weekday.'
         }
       ),
-    dateExceptions: z.array(DateExceptionSchema),
+    dateExceptions: z
+      .array(DateExceptionSchema)
+      .max(MAX_SCHEDULE_DATE_EXCEPTIONS),
     blockedTimes: z
       .object({
-        initial: z.array(LocalTimeSchema),
-        follow_up: z.array(LocalTimeSchema)
+        initial: z.array(LocalTimeSchema).max(MAX_SCHEDULE_BLOCKED_TIMES),
+        follow_up: z.array(LocalTimeSchema).max(MAX_SCHEDULE_BLOCKED_TIMES)
       })
       .strict()
+      .refine(
+        (blocked) =>
+          blocked.initial.length + blocked.follow_up.length <=
+          MAX_SCHEDULE_BLOCKED_TIMES,
+        {
+          message: 'Blocked times exceed the maximum allowed count.'
+        }
+      )
       .optional()
   })
   .strict();
