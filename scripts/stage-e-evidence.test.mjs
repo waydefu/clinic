@@ -47,13 +47,13 @@ describe('stage E CLI output containment', () => {
   const outsidePath = resolve('/tmp/outside-stage-e.json');
 
   const io = () => {
-    const out: string[] = [];
-    const err: string[] = [];
+    const out = [];
+    const err = [];
     return {
       out,
       err,
-      stdout: { write: (chunk: string) => out.push(chunk) },
-      stderr: { write: (chunk: string) => err.push(chunk) },
+      stdout: { write: (chunk) => out.push(chunk) },
+      stderr: { write: (chunk) => err.push(chunk) },
       writeFile: vi.fn()
     };
   };
