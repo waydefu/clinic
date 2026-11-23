@@ -132,6 +132,66 @@ describe('WP-B4 alert definitions', () => {
         ]
       },
       {
+        id: 'durable_booking_write_failure',
+        metric: 'booking_write_failure',
+        events: [
+          [
+            {
+              jsonPayload: {
+                operation: 'POST_v1_bookings',
+                result: 'error',
+                errorCode: 'INTERNAL_ERROR'
+              }
+            },
+            true
+          ],
+          [
+            {
+              jsonPayload: {
+                operation: 'POST_v1_bookings',
+                result: 'error',
+                errorCode: 'SERVICE_UNAVAILABLE'
+              }
+            },
+            false
+          ],
+          [
+            {
+              jsonPayload: {
+                operation: 'POST_v1_bookings',
+                result: 'ok',
+                errorCode: 'INTERNAL_ERROR'
+              }
+            },
+            false
+          ],
+          [
+            { jsonPayload: { operation: 'POST_v1_bookings', result: 'ok' } },
+            false
+          ],
+          [
+            {
+              jsonPayload: {
+                operation: 'GET_v1_bookings',
+                result: 'error',
+                errorCode: 'INTERNAL_ERROR'
+              }
+            },
+            false
+          ],
+          [
+            {
+              jsonPayload: {
+                operation: 'v1_bookings',
+                result: 'error',
+                errorCode: 'INTERNAL_ERROR'
+              }
+            },
+            false
+          ]
+        ]
+      },
+      {
         id: 'persistent_firestore_transaction_failure',
         metric: 'booking_transaction_failure',
         events: [
@@ -195,6 +255,31 @@ describe('WP-B4 alert definitions', () => {
           [{ jsonPayload: { errorCode: 'INTERNAL_ERROR' } }, false],
           [{ jsonPayload: {} }, false]
         ]
+      },
+      {
+        id: 'outbox_dead_letter',
+        metric: 'outbox_dead_letter',
+        events: [
+          [{ jsonPayload: { retryState: 'dead_lettered' } }, true],
+          [{ jsonPayload: { retryState: 'retrying' } }, false],
+          [{ jsonPayload: { retryState: 'none' } }, false]
+        ]
+      },
+      {
+        id: 'auth_failure_spike',
+        metric: 'auth_failure',
+        events: [
+          [{ jsonPayload: { errorCode: 'AUTHENTICATION_REQUIRED' } }, true],
+          [{ jsonPayload: { errorCode: 'AUTHORIZATION_DENIED' } }, false]
+        ]
+      },
+      {
+        id: 'authz_denial_spike',
+        metric: 'authz_denial',
+        events: [
+          [{ jsonPayload: { errorCode: 'AUTHORIZATION_DENIED' } }, true],
+          [{ jsonPayload: { errorCode: 'AUTHENTICATION_REQUIRED' } }, false]
+        ]
       }
     ];
     expect(() =>
@@ -247,5 +332,17 @@ describe('WP-B4 alert definitions', () => {
     expect(alerting.split(cloudRun)).toHaveLength(3);
     expect(alerting.split(auditTypes)).toHaveLength(2);
     expect(foundation.split(auditTypes)).toHaveLength(2);
+  });
+
+  it('rejects JSON and Terraform filter drift', () => {
+    const result = inspectWpB4AlertDefinitions((filePath, encoding) => {
+      const content = readFileSync(filePath, encoding);
+      if (filePath.endsWith('wp-b4-alert-policies.json')) {
+        return content.replace('POST_v1_bookings', 'v1_bookings');
+      }
+      return content;
+    });
+    expect(result.ok).toBe(false);
+    expect(result.issues.join('\n')).toContain('durable_booking_write_failure');
   });
 });

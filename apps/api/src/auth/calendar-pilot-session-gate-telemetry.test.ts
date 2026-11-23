@@ -1187,7 +1187,7 @@ describe('calendar session gate telemetry PII safety', () => {
 });
 
 describe('existing generic calendar-session exception log', () => {
-  it('still emits v1_calendar-session denied AUTHENTICATION_REQUIRED', async () => {
+  it('emits POST_v1_calendar-session denied auth log', async () => {
     const entries: StructuredLog[] = [];
     const filter = new ApiExceptionFilter(
       new InMemoryDeniedAccessAuditSink(),
@@ -1227,7 +1227,7 @@ describe('existing generic calendar-session exception log', () => {
     });
     expect(entries).toEqual([
       expect.objectContaining({
-        operation: 'v1_calendar-session',
+        operation: 'POST_v1_calendar-session',
         result: 'denied',
         errorCode: 'AUTHENTICATION_REQUIRED'
       })

@@ -163,12 +163,52 @@ export function inspectWpB4TerraformSource(readFile = readFileSync) {
   return { ok: issues.length === 0, issues };
 }
 
+export function parseTerraformLoggingMetricFilters(terraform) {
+  const filters = new Map();
+  const blockPattern =
+    /resource "google_logging_metric" "[^"]+" \{([\s\S]*?)\n\}/g;
+  for (const match of terraform.matchAll(blockPattern)) {
+    const block = match[1];
+    const nameMatch = /^\s*name\s*=\s*"([^"]+)"/m.exec(block);
+    const filterMatch = /^\s*filter\s*=\s*("(?:\\.|[^"\\])*")/m.exec(block);
+    if (nameMatch && filterMatch) {
+      filters.set(nameMatch[1], JSON.parse(filterMatch[1]));
+    }
+  }
+  return filters;
+}
+
+export function evaluateWpB4FilterParity(policies, terraform) {
+  const issues = [];
+  const tfFilters = parseTerraformLoggingMetricFilters(terraform);
+  const immediate = Array.isArray(policies?.immediate)
+    ? policies.immediate
+    : [];
+  for (const item of immediate) {
+    if (typeof item.logMetric !== 'string' || typeof item.filter !== 'string') {
+      continue;
+    }
+    if (!tfFilters.has(item.logMetric)) {
+      issues.push(`WP-B4 terraform missing logging metric ${item.logMetric}.`);
+    } else if (tfFilters.get(item.logMetric) !== item.filter) {
+      issues.push(
+        `WP-B4 ${item.id} filter drifted between JSON and Terraform.`
+      );
+    }
+  }
+  return { ok: issues.length === 0, issues };
+}
+
 export function inspectWpB4AlertDefinitions(readFile = readFileSync) {
-  const json = evaluateWpB4Definitions(loadWpB4Definitions(readFile));
+  const defs = loadWpB4Definitions(readFile);
+  const tfPath = join(root, 'infra/terraform/wp-b4-alerting/main.tf');
+  const tfSource = readFile(tfPath, 'utf8');
+  const json = evaluateWpB4Definitions(defs);
   const terraform = inspectWpB4TerraformSource(readFile);
+  const parity = evaluateWpB4FilterParity(defs.policies, tfSource);
   return {
-    ok: json.ok && terraform.ok,
-    issues: [...json.issues, ...terraform.issues]
+    ok: json.ok && terraform.ok && parity.ok,
+    issues: [...json.issues, ...terraform.issues, ...parity.issues]
   };
 }
 
