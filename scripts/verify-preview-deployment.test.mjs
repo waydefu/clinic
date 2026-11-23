@@ -252,6 +252,6 @@ describe('preview request deadlines with synthetic HTTP and memory-only evidence
         )
         .every((check) => !check.passed)
     ).toBe(true);
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenCalledTimes(3);
   });
 });
