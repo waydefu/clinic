@@ -74,10 +74,27 @@ function Assert-CandidateSha {
   if ($CandidateSha -notmatch '^[a-f0-9]{40}$') {
     throw 'Candidate SHA must be a full 40-character SHA.'
   }
-  git cat-file -e "$CandidateSha^{commit}" 2>$null
-  if ($LASTEXITCODE -ne 0) {
+  $prevNativePref = $PSNativeCommandUseErrorActionPreference
+  $commitPresent = $false
+  try {
+    $PSNativeCommandUseErrorActionPreference = $false
+    $global:LASTEXITCODE = 0
+    git cat-file -e "$CandidateSha^{commit}" 2>$null
+    $commitPresent = ($LASTEXITCODE -eq 0)
+  } finally {
+    $PSNativeCommandUseErrorActionPreference = $prevNativePref
+  }
+  if (-not $commitPresent) {
+    $global:LASTEXITCODE = 0
     git fetch origin $CandidateSha
-    git cat-file -e "$CandidateSha^{commit}"
+    if ($LASTEXITCODE -ne 0) {
+      throw "git fetch origin $CandidateSha failed with exit code $LASTEXITCODE."
+    }
+    $global:LASTEXITCODE = 0
+    git cat-file -e "$CandidateSha^{commit}" 2>$null
+    if ($LASTEXITCODE -ne 0) {
+      throw "Candidate commit $CandidateSha is still unavailable after git fetch."
+    }
   }
 }
 
