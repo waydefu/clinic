@@ -15,7 +15,7 @@ import {
  * carries no patient data by construction — there is no field for it.
  */
 
-function hasNoOverlappingIntervals(
+function hasValidIntervals(
   intervals: readonly {
     readonly startLocalTime: string;
     readonly endLocalTime: string;
@@ -24,12 +24,17 @@ function hasNoOverlappingIntervals(
   const sorted = [...intervals].sort((left, right) =>
     left.startLocalTime.localeCompare(right.startLocalTime)
   );
-  for (let index = 1; index < sorted.length; index += 1) {
-    const previous = sorted[index - 1];
+  for (let index = 0; index < sorted.length; index += 1) {
     const current = sorted[index];
     if (
+      current === undefined ||
+      current.startLocalTime >= current.endLocalTime
+    ) {
+      return false;
+    }
+    const previous = sorted[index - 1];
+    if (
       previous !== undefined &&
-      current !== undefined &&
       previous.endLocalTime > current.startLocalTime
     ) {
       return false;
@@ -43,10 +48,7 @@ export const TimeIntervalSchema = z
     startLocalTime: LocalTimeSchema,
     endLocalTime: LocalTimeSchema
   })
-  .strict()
-  .refine((interval) => interval.startLocalTime < interval.endLocalTime, {
-    message: 'Interval end must be after start.'
-  });
+  .strict();
 
 export const WeeklyAvailabilitySchema = z
   .object({
@@ -54,8 +56,8 @@ export const WeeklyAvailabilitySchema = z
     intervals: z.array(TimeIntervalSchema).min(1)
   })
   .strict()
-  .refine((entry) => hasNoOverlappingIntervals(entry.intervals), {
-    message: 'Intervals on the same day must not overlap.'
+  .refine((entry) => hasValidIntervals(entry.intervals), {
+    message: 'Intervals must have end after start and not overlap.'
   });
 
 export const DateExceptionSchema = z
@@ -67,10 +69,9 @@ export const DateExceptionSchema = z
   .strict()
   .refine(
     (entry) =>
-      entry.intervals === undefined ||
-      hasNoOverlappingIntervals(entry.intervals),
+      entry.intervals === undefined || hasValidIntervals(entry.intervals),
     {
-      message: 'Intervals on the same day must not overlap.'
+      message: 'Intervals must have end after start and not overlap.'
     }
   );
 
