@@ -179,10 +179,7 @@ export function reviewWaivers({ registry, today }) {
       if (ids.has(waiver.id)) problems.push(`duplicate waiver id ${waiver.id}`);
       ids.add(waiver.id);
     }
-    if (
-      isNonEmptyString(waiver.ruleId) &&
-      !KNOWN_RULE_IDS.has(waiver.ruleId)
-    ) {
+    if (isNonEmptyString(waiver.ruleId) && !KNOWN_RULE_IDS.has(waiver.ruleId)) {
       problems.push(`${prefix} unknown ruleId ${waiver.ruleId}`);
     }
     for (const dateField of WAIVER_DATE_FIELDS) {
