@@ -18,11 +18,13 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
+if ($PSVersionTable.PSVersion.Major -lt 7) {
+  throw 'PowerShell 7+ (pwsh) is required.'
+}
 . "$PSScriptRoot/pinned-secret-bindings.ps1"
 $projectId = 'beauessence-clinic-staging'
 $region = 'asia-east1'
 $channel = 'cal-pilot'
-$expectedExpiry = '2026-12-31T04:51:37Z'
 $approvedSecrets = @(
   'cal-pilot-manager-allowlist',
   'cal-pilot-firebase-web-api-key',

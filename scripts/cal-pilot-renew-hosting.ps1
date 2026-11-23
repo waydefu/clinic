@@ -7,6 +7,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
+if ($PSVersionTable.PSVersion.Major -lt 7) {
+  throw 'PowerShell 7+ (pwsh) is required.'
+}
 $projectId = 'beauessence-clinic-staging'
 $channel = 'cal-pilot'
 $approvedTarget = '2026-12-31T04:51:37Z'

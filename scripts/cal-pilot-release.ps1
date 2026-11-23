@@ -14,6 +14,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
+if ($PSVersionTable.PSVersion.Major -lt 7) {
+  throw 'PowerShell 7+ (pwsh) is required.'
+}
 . "$PSScriptRoot/pinned-secret-bindings.ps1"
 $projectId = 'beauessence-clinic-staging'
 $region = 'asia-east1'
@@ -293,21 +296,18 @@ $env:GOOGLE_CLOUD_PROJECT = $projectId
 $env:CALENDAR_PILOT_EXPIRES_AT = $ExpiresAt
 node scripts/seed-cal-pilot.mjs
 
-$deployJson = firebase hosting:channel:deploy $channel --expires 30d --project $projectId --json | ConvertFrom-Json
-function Find-PreviewUrl($Value) {
-  if ($null -eq $Value) { return $null }
-  if ($Value -is [string] -and $Value -match '^https://[^/]+\.web\.app/?$') { return [string]$Value }
-  if ($Value -is [System.Collections.IDictionary]) {
-    foreach ($item in $Value.Values) { $found = Find-PreviewUrl $item; if ($null -ne $found) { return $found } }
-  } elseif ($Value -is [System.Collections.IEnumerable] -and $Value -isnot [string]) {
-    foreach ($item in $Value) { $found = Find-PreviewUrl $item; if ($null -ne $found) { return $found } }
-  } else {
-    foreach ($property in $Value.PSObject.Properties) { $found = Find-PreviewUrl $property.Value; if ($null -ne $found) { return $found } }
-  }
-  return $null
+function Get-HostingChannel {
+  $channels = firebase hosting:channel:list --project $projectId --json | ConvertFrom-Json
+  $channelMatches = @($channels.result.channels | Where-Object { $_.name -eq "projects/$projectId/sites/$projectId/channels/$channel" })
+  if ($channelMatches.Count -ne 1) { throw 'CAL-PILOT Hosting channel was not found.' }
+  return $channelMatches[0]
 }
-$previewUrl = Find-PreviewUrl $deployJson
-if ([string]::IsNullOrWhiteSpace($previewUrl)) { throw 'Hosting preview URL was not returned.' }
+firebase hosting:channel:deploy $channel --expires 30d --project $projectId
+$deployedChannel = Get-HostingChannel
+$previewUrl = [string]$deployedChannel.url
+if ([string]::IsNullOrWhiteSpace($previewUrl) -or $previewUrl -notmatch '^https://[^/]+\.web\.app/?$') {
+  throw 'Hosting preview URL was not returned.'
+}
 $previewDomain = ([Uri]$previewUrl).Host
 $env:CALENDAR_PILOT_PREVIEW_DOMAIN = $previewDomain
 node scripts/configure-cal-pilot-identity.mjs
