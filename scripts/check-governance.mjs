@@ -21,6 +21,39 @@ export const AGENTS_WARN_LINES = 120;
 export const INDEX_WARN_BYTES = 5120;
 export const INDEX_FAIL_BYTES = 6144;
 export const KNOWN_RULE_IDS = new Set(['GOV-BOOT-SIZE', 'GOV-INDEX-SIZE']);
+const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/u;
+const REQUIRED_WAIVER_FIELDS = [
+  'id',
+  'ruleId',
+  'scope',
+  'reason',
+  'owner',
+  'approver',
+  'createdOn',
+  'effectiveOn',
+  'expiresOn',
+  'evidence'
+];
+const WAIVER_DATE_FIELDS = ['createdOn', 'effectiveOn', 'expiresOn'];
+
+function isNonEmptyString(value) {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function isValidIsoDate(value) {
+  if (!isNonEmptyString(value)) return false;
+  const match = ISO_DATE_PATTERN.exec(value);
+  if (match === null) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() + 1 === month &&
+    date.getUTCDate() === day
+  );
+}
 export const RETIRED_AGENTS_HEADINGS = [
   'Repository security posture — dated facts',
   'Current commands',
@@ -115,11 +148,17 @@ export function reviewWaivers({ registry, today }) {
   if (!registry || typeof registry !== 'object') {
     return ['docs/governance/waivers.json is malformed'];
   }
-  const known = new Set(
-    Array.isArray(registry.knownRuleIds)
-      ? registry.knownRuleIds
-      : [...KNOWN_RULE_IDS]
-  );
+  const todayValid = isValidIsoDate(today);
+  if (!todayValid) problems.push('today must be a valid YYYY-MM-DD date');
+  if (Array.isArray(registry.knownRuleIds)) {
+    for (const id of registry.knownRuleIds) {
+      if (!KNOWN_RULE_IDS.has(id)) {
+        problems.push(
+          `docs/governance/waivers.json declares unknown ruleId ${id}`
+        );
+      }
+    }
+  }
   const waivers = registry.waivers;
   if (!Array.isArray(waivers)) {
     return ['docs/governance/waivers.json waivers must be an array'];
@@ -127,32 +166,56 @@ export function reviewWaivers({ registry, today }) {
   const ids = new Set();
   for (const [index, waiver] of waivers.entries()) {
     const prefix = `waiver[${index}]`;
-    for (const field of [
-      'id',
-      'ruleId',
-      'scope',
-      'reason',
-      'owner',
-      'approver',
-      'createdOn',
-      'effectiveOn',
-      'expiresOn',
-      'evidence'
-    ]) {
-      if (!waiver?.[field]) problems.push(`${prefix} missing ${field}`);
+    if (!waiver || typeof waiver !== 'object' || Array.isArray(waiver)) {
+      problems.push(`${prefix} must be an object`);
+      continue;
     }
-    if (waiver?.id) {
+    for (const field of REQUIRED_WAIVER_FIELDS) {
+      if (!isNonEmptyString(waiver[field])) {
+        problems.push(`${prefix} missing ${field}`);
+      }
+    }
+    if (isNonEmptyString(waiver.id)) {
       if (ids.has(waiver.id)) problems.push(`duplicate waiver id ${waiver.id}`);
       ids.add(waiver.id);
     }
     if (
-      waiver?.ruleId &&
-      !known.has(waiver.ruleId) &&
+      isNonEmptyString(waiver.ruleId) &&
       !KNOWN_RULE_IDS.has(waiver.ruleId)
     ) {
       problems.push(`${prefix} unknown ruleId ${waiver.ruleId}`);
     }
-    if (waiver?.expiresOn && waiver.expiresOn < today) {
+    for (const dateField of WAIVER_DATE_FIELDS) {
+      if (
+        isNonEmptyString(waiver[dateField]) &&
+        !isValidIsoDate(waiver[dateField])
+      ) {
+        problems.push(`${prefix} invalid ${dateField} ${waiver[dateField]}`);
+      }
+    }
+    if (
+      isValidIsoDate(waiver.effectiveOn) &&
+      isValidIsoDate(waiver.expiresOn) &&
+      waiver.effectiveOn > waiver.expiresOn
+    ) {
+      problems.push(
+        `${prefix} effectiveOn ${waiver.effectiveOn} is after expiresOn ${waiver.expiresOn}`
+      );
+    }
+    if (
+      isValidIsoDate(waiver.createdOn) &&
+      isValidIsoDate(waiver.expiresOn) &&
+      waiver.createdOn > waiver.expiresOn
+    ) {
+      problems.push(
+        `${prefix} createdOn ${waiver.createdOn} is after expiresOn ${waiver.expiresOn}`
+      );
+    }
+    if (
+      todayValid &&
+      isValidIsoDate(waiver.expiresOn) &&
+      waiver.expiresOn < today
+    ) {
       problems.push(
         `${prefix} ${waiver.id || ''} expired on ${waiver.expiresOn}`
       );
@@ -162,15 +225,23 @@ export function reviewWaivers({ registry, today }) {
 }
 
 export function hasValidWaiver(waivers, ruleId, scope, today) {
-  return (waivers || []).some(
-    (waiver) =>
-      waiver.ruleId === ruleId &&
-      waiver.scope === scope &&
-      waiver.owner &&
-      waiver.approver &&
-      waiver.evidence &&
-      waiver.expiresOn >= today
-  );
+  if (!isValidIsoDate(today) || !KNOWN_RULE_IDS.has(ruleId)) return false;
+  return (waivers || []).some((waiver) => {
+    if (!waiver || typeof waiver !== 'object' || Array.isArray(waiver)) {
+      return false;
+    }
+    const hasFields = REQUIRED_WAIVER_FIELDS.every((field) =>
+      isNonEmptyString(waiver[field])
+    );
+    if (!hasFields) return false;
+    if (waiver.ruleId !== ruleId || waiver.scope !== scope) return false;
+    if (!WAIVER_DATE_FIELDS.every((field) => isValidIsoDate(waiver[field]))) {
+      return false;
+    }
+    if (waiver.createdOn > waiver.expiresOn) return false;
+    if (waiver.effectiveOn > waiver.expiresOn) return false;
+    return waiver.effectiveOn <= today && waiver.expiresOn >= today;
+  });
 }
 
 export async function fileExists(root, relative) {
