@@ -67,7 +67,7 @@ Calendar 是投影，不是可用性的來源。
 「讀到什麼」的純函式。規則放在計畫器，重試時重新計算即可；repository 只負責
 套用，本身不含判斷。
 
-**實測結果**（`corepack pnpm test:rules`，9 項通過）
+**實測結果**（2026-07-21 歷史快照數據，非現行測試總數；`corepack pnpm test:rules`，9 項通過）
 
 | 驗收項目 | 結果 |
 | --- | --- |
@@ -93,7 +93,7 @@ Calendar 是投影，不是可用性的來源。
 ### 3.1 接日曆實測的技術前置 — **已完成**
 
 依 roadmap 的順序，接上真實 Google Calendar 之前必須先完成。**四項技術前置
-全部完成**（截至 2026-07-23，單元 106 項、Emulator 44 項通過）：
+全部完成**（2026-07-23 歷史快照數據，非現行通過數；單元 106 項、Emulator 44 項通過）：
 
 1. **outbox 冪等鍵改為 base32hex** — ✅ 已完成 2026-07-22。鍵改由
    [`packages/domain/src/calendar-event-id.ts`](../../packages/domain/src/calendar-event-id.ts)
@@ -134,7 +134,7 @@ worker runner 或實際 Calendar 連線。D-009 核准日曆擁有者、授權�
 change-plan review、deployment authority 與 apply approval。C1 isolated
 foundation 明確不含 IdP、Firestore、backup/PITR 或 runtime；Firestore 只能在
 後續 C5/C6 獨立獲准 slice 建立。D-006
-（全員 MFA、自管帳號 TOTP、30m idle／8h absolute session（2026-10-03 起改為絕對 12 小時、無閒置登出，見 `STAFF-SESSION-12H-2026-10-03`；敏感操作 10 分鐘再驗證不變；此為歷史原文）、立即停權、授權碼
+（全員 MFA、自管帳號 TOTP、30m idle／8h absolute session（2026-10-03 曾改為絕對 12 小時，2026-11-09 進一步改為自 `auth_time` 起絕對 7 天、無閒置登出，敏感操作維持 10 分鐘新鮮 Google＋TOTP 再驗證與 CSRF 檢查，見 [決策登記簿](../product/phase-1-decision-register.md)；此為歷史原文）、立即停權、授權碼
 雜湊／撤銷／錯誤限制、永久 audit）及 D-010 的環境、主要區域及 RPO／RTO target
 已於 2026-07-28 核准，但均尚未實作；實際 IAM、備份、監控與跨區復原也尚未建立
 或驗證。
@@ -161,7 +161,7 @@ foundation 明確不含 IdP、Firestore、backup/PITR 或 runtime；Firestore �
 - 以已核准的執行身分部署 `apps/worker` runner，消費 `outbox_jobs`：建立、改期、
   取消對應的事件。`GoogleCalendarClient` 已有程式碼與單元測試，但尚未部署或連線。
 - 每筆預約使用固定的 Calendar Event ID 作為冪等鍵，重試不得產生重複事件。
-- 事件內容只放預約編號與掛號別。**不得放入**姓名、電話、身分證、健保卡、
+- 事件內容只放預約編號與掛號別（2026-07 歷史原文；專用預約日曆標題欄位已由 [ADR-0002](../adr/0002-calendar-is-a-projection-not-the-lock.md) 2026-09-29 修訂，其他日曆與正式上線 D-009 限制不變）。**不得放入**姓名、電話、身分證、健保卡、
   手術種類、備註標籤或回診項目——這些都足以揭露就醫關聯。
 - 失敗處理：指數退避重試、死信佇列、後台可見的待處理清單。
 

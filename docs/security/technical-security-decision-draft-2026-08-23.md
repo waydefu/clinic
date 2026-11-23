@@ -18,6 +18,12 @@
 | **建議稿** | 需要判斷，但已被既有核准決策框住。助理提出具體值，待簽字確認。 |
 | **不得由助理填** | 需要真實數字、尚未存在的設計，或會解鎖部署的總開關。 |
 
+> **2026-11-23 歷史快照對帳註記（E3-20）：** 本文件保留 `2026-08-23` 當時的回填草稿原貌，不構成部署、雲端或正式環境授權；離線環境下遠端設定一律視為 `UNVERIFIED`。後續生效之 Canon 對照如下：
+> - **T13 / T18 / T19（C0 與 Stage 2 實作）**：工程 C0 已於 2026-09-11 標為 `completed`（具名審查人欄位仍 `NAMED_REVIEWER_METADATA_PENDING`），現行狀態以 [first-stage-c0-authority.md](../architecture/first-stage-c0-authority.md) 與 [docs/state/current.md](../state/current.md) 為準。
+> - **T15（Calendar 標題與 D-009）**：專用預約日曆標題欄位已於 2026-09-29 由 [ADR-0002](../adr/0002-calendar-is-a-projection-not-the-lock.md) 修訂（僅限專用預約日曆，D-009 正式環境上線核准仍未解除）。
+> - **T21（D-013 分支保護）**：D-013 已於 2026-09-09 修訂要求 `enforce_admins=true`，詳見 [phase-1-decision-register.md](../product/phase-1-decision-register.md)；離線檢視下遠端 GitHub 設定仍屬 `UNVERIFIED`。
+> - **員工會話時限**：現行核准為自 `auth_time` 起絕對 7 天、無閒置登出，敏感操作維持 10 分鐘內新鮮 Google＋TOTP 再驗證（2026-11-09 決定，見 [phase-1-decision-register.md](../product/phase-1-decision-register.md)）。
+
 ## 一、2026-07-31 安全批次（T1～T5）
 
 ### T1 — 改用 Semgrep CE 作為阻斷證據（SEC-02）｜**已有答案**

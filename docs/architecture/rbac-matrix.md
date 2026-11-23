@@ -13,6 +13,14 @@ Session/RBAC 與 query enforcement 仍未完成。下方權限表是提案，不
 已實作或已核准宣告；`physician` 的現行權限清單仍為空。本文件不關閉任何
 D-series 決策。
 
+**現行會話與再驗證對齊（D-38／E3-06）：** 依
+[決策登記簿](../product/phase-1-decision-register.md)（2026-11-09）與
+[`apps/api/src/auth/calendar-pilot-session.ts`](../../apps/api/src/auth/calendar-pilot-session.ts)
+實作，員工會話為自 `auth_time` 起絕對 7 天、無閒置逾時（不因續用延長 `auth_time`）；
+寫入端點須通過伺服器端 CSRF 檢查，敏感操作（匯出、永久刪除、里程碑／終止確認等）
+維持 10 分鐘內新鮮 Google＋TOTP 再驗證，帳號停用後於下一次請求即拒絕。早年 30 分鐘
+閒置／8 小時與 12 小時絕對期限僅作歷史紀錄，不得略過既有再驗證或放寬權限。
+
 **撰寫日期：** 2026-08-04
 
 **適用範圍：** 內部工作臺、患者端、domain API、Cloud Functions 與 Firestore Rules
