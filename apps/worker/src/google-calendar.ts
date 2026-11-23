@@ -255,10 +255,12 @@ function calendarErrorReason(raw: string): string | undefined {
   return firstReason;
 }
 
-function calendarResponseEventStatus(raw: string): {
+interface CalendarEventStatus {
   readonly present: boolean;
   readonly status?: string;
-} {
+}
+
+function calendarResponseEventStatus(raw: string): CalendarEventStatus {
   if (raw.trim() === '' || raw.length > MAX_ERROR_RESPONSE_BYTES) {
     return { present: false };
   }
@@ -268,7 +270,11 @@ function calendarResponseEventStatus(raw: string): {
   } catch {
     return { present: false };
   }
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+  if (
+    typeof parsed !== 'object' ||
+    parsed === null ||
+    Array.isArray(parsed)
+  ) {
     return { present: false };
   }
   const record = parsed as Record<string, unknown>;
@@ -709,7 +715,7 @@ export class GoogleCalendarClient implements CalendarPort {
     ok: boolean;
     status: number;
     reason?: string;
-    eventStatus?: { readonly present: boolean; readonly status?: string };
+    eventStatus?: CalendarEventStatus;
   }> {
     const signal = requestSignal(this.requestTimeoutMs, deadlineSignal);
     try {
@@ -723,9 +729,7 @@ export class GoogleCalendarClient implements CalendarPort {
       );
       const ok = response.status >= 200 && response.status < 300;
       let reason: string | undefined;
-      let eventStatus:
-        | { readonly present: boolean; readonly status?: string }
-        | undefined;
+      let eventStatus: CalendarEventStatus | undefined;
       if (response.status === 403) {
         reason = calendarErrorReason(
           await awaitWithAbort(() => response.text(), signal)
