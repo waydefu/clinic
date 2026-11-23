@@ -855,10 +855,10 @@ describe('bounded CAL-PILOT source activation', () => {
       expect(effects[0]).toMatchObject({ method: 'POST', calendar: 'active' });
       expect(await progress()).toEqual(before);
       expect((await state())?.['status']).toBe('processing');
-      if (reason === 'owner')
-        expect(
-          (await configuration().get()).data()?.['workerLeaseOwner']
-        ).toBe('successor');
+      if (reason === 'owner') {
+        const config = (await configuration().get()).data();
+        expect(config?.['workerLeaseOwner']).toBe('successor');
+      }
     }
   );
 
@@ -879,14 +879,13 @@ describe('bounded CAL-PILOT source activation', () => {
       expect(added).toHaveLength(1);
       expect(added[0]).toMatchObject({ method: 'DELETE', calendar: 'old' });
       expect(await progress()).toEqual(before);
-      expect((await jobRef().collection(RECEIPTS).get()).size).toBe(
-        receiptsBefore
-      );
+      const receiptsAfter = (await jobRef().collection(RECEIPTS).get()).size;
+      expect(receiptsAfter).toBe(receiptsBefore);
       expect((await state())?.['status']).toBe('processing');
-      if (reason === 'owner')
-        expect(
-          (await configuration().get()).data()?.['workerLeaseOwner']
-        ).toBe('successor');
+      if (reason === 'owner') {
+        const config = (await configuration().get()).data();
+        expect(config?.['workerLeaseOwner']).toBe('successor');
+      }
     }
   );
 });
