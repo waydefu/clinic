@@ -499,6 +499,18 @@ describe('appointment query response', () => {
       startsAt: '2030-01-02T04:00:00.000Z',
       endsAt: '2030-01-02T04:30:00.000Z'
     };
+    expect(
+      GetAppointmentResponseSchema.parse({
+        ...base,
+        patient: { name: '測試甲', phone: '0900000001' }
+      }).patient
+    ).toEqual({ name: '測試甲', phone: '0900000001' });
+    expect(() =>
+      GetAppointmentResponseSchema.parse({
+        ...base,
+        patient: { name: '測試甲', birthDate: '--05-20' }
+      })
+    ).toThrow();
     for (const intakeNationality of ['domestic', 'foreign'])
       expect(
         GetAppointmentResponseSchema.parse({ ...base, intakeNationality })

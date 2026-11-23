@@ -705,8 +705,21 @@ export function createInternalTestBookingTransport({
         published === undefined
           ? next
           : overlayPublishedSchedule(next, published);
+      // 員工清單隨預約帶回患者全名與手機（STAFF-LIST-PATIENT-DISPLAY-2026-11-23）。
+      const listedPatients = new Map();
+      for (const item of listed.appointments) {
+        if (item.patient !== undefined && item.patientId !== undefined)
+          listedPatients.set(item.patientId, {
+            id: item.patientId,
+            name: item.patient.name,
+            phone: item.patient.phone
+          });
+      }
       return {
         ...withSchedule,
+        ...(listedPatients.size > 0
+          ? { patients: [...listedPatients.values()] }
+          : {}),
         ...(listed.truncated ? { appointmentsTruncated: true } : {}),
         appointments: listed.appointments.map((item) => ({
           id: item.appointmentId,

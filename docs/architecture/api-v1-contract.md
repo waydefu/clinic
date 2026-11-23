@@ -163,7 +163,10 @@ replay is an internal repository flag and is **not** returned on the wire.
 1–50, default 50) from 7 days before now to 31 days after it, ordered by
 `startsAt` then ID, with archived-patient rows skipped. Scope is `mine` for a
 patient and `clinic` for staff. The body stays `{ appointments }` (a strict
-schema, so no field is added to it). When rows remain after the page, the
+schema, so no top-level field is added to it). On the staff `clinic` scope each
+row also carries `patient: { name, phone }` (full name and phone digits; no
+birth date), added only after the `read_appointment` check passes and never on
+`mine` (STAFF-LIST-PATIENT-DISPLAY-2026-11-23). When rows remain after the page, the
 response carries an `x-next-cursor` header; sending it back as `?cursor=`
 continues after the last row returned, so rows that share a start time are
 neither skipped nor repeated. The cursor is only a position: scope and window

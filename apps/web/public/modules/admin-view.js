@@ -110,13 +110,17 @@ function patientDetail(state, appointment) {
     );
   // 新預約的生日只有月日（`--05-20`，BOOKING-MINIMIZATION-2026-09-22）。直接印
   // 出來櫃台會看到兩個減號，像是資料壞掉；換成「5/20」。舊紀錄可能帶年份。
-  const birth = birthDateHasYear(record.birthDate)
-    ? record.birthDate
-    : record.birthDate.slice(2).replace('-', '/');
+  const birth = !record.birthDate
+    ? ''
+    : birthDateHasYear(record.birthDate)
+      ? record.birthDate
+      : record.birthDate.slice(2).replace('-', '/');
   // 沒有值的段落整段不出現（filter 掉 falsy），而不是印一個空欄位。
   return [
-    escapeHtml(maskPatientPhone(record.phone)),
-    escapeHtml(birth),
+    // 員工清單顯示完整手機（STAFF-LIST-PATIENT-DISPLAY-2026-11-23）。
+    record.phone && escapeHtml(record.phone),
+    // C1 伺服器清單不帶生日，沒有就整段不出現。
+    birth && escapeHtml(birth),
     shownNationality,
     identityReview,
     // 證件與「預計攜帶健保卡」只存在於舊紀錄；新資料不再收集。
@@ -366,7 +370,7 @@ export function renderNextUp(state, now = Date.now()) {
   const phone =
     record?.phone === undefined
       ? ''
-      : `<span class="code">${escapeHtml(maskPatientPhone(record.phone))}</span>`;
+      : `<span class="code">${escapeHtml(record.phone)}</span>`;
   return `<p class="eyebrow">NEXT UP · 下一位</p><p class="next-up-time"><strong>${escapeHtml(formatTime(next.startsAt))}</strong><span>${escapeHtml(formatFullDate(next.startsAt))}</span></p><p class="next-up-patient"><strong>${escapeHtml(patientLabel(state, next.patientId))}</strong><span>${escapeHtml(BOOKING_KIND_LABELS[next.bookingKind] ?? '')}${next.itemLabel ? ` · ${escapeHtml(next.itemLabel)}` : ''}</span>${phone}</p><a class="summary-action" href="#appointments-section"><span class="summary-action-icon" aria-hidden="true">&#8594;</span>前往處理清單</a>`;
 }
 

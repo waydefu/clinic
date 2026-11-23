@@ -184,6 +184,10 @@ export interface PatientDirectoryPort {
     window?: AppointmentListWindow,
     after?: AppointmentListPosition
   ): Promise<AppointmentListResult>;
+  /** Staff list only: name and phone digits per patient; absent ids are omitted. */
+  readContacts(
+    patientIds: readonly string[]
+  ): Promise<ReadonlyMap<string, { name?: string; phone?: string }>>;
 }
 
 function isMonthDay(birthDate: string): boolean {
@@ -673,6 +677,29 @@ export class FirestorePatientDirectory implements PatientDirectoryPort {
    * serves, so no index is added. Without one the oldest rows come first,
    * however old.
    */
+  public async readContacts(
+    patientIds: readonly string[]
+  ): Promise<ReadonlyMap<string, { name?: string; phone?: string }>> {
+    const ids = [...new Set(patientIds.filter((id) => id !== ''))];
+    const out = new Map<string, { name?: string; phone?: string }>();
+    if (ids.length === 0) return out;
+    const snaps = await this.db.getAll(
+      ...ids.map((id) =>
+        this.db.collection(PATIENT_COLLECTIONS.patients).doc(id)
+      )
+    );
+    for (const snap of snaps) {
+      const name = stringField(snap.data(), 'name');
+      const phone = stringField(snap.data(), 'phoneDigits');
+      if (name !== undefined || phone !== undefined)
+        out.set(snap.id, {
+          ...(name === undefined ? {} : { name }),
+          ...(phone === undefined ? {} : { phone })
+        });
+    }
+    return out;
+  }
+
   public async listClinic(
     limit: number,
     window?: AppointmentListWindow,
@@ -932,6 +959,23 @@ export class InMemoryPatientDirectory implements PatientDirectoryPort {
       .sort(compareListOrder)
       .slice(0, limit);
     return { records };
+  }
+
+  public readContacts(
+    patientIds: readonly string[]
+  ): Promise<ReadonlyMap<string, { name?: string; phone?: string }>> {
+    const out = new Map<string, { name?: string; phone?: string }>();
+    for (const id of patientIds) {
+      const patient = this.patients.get(id);
+      if (patient === undefined) continue;
+      out.set(id, {
+        name: patient.name,
+        ...(patient.phoneDigits === undefined
+          ? {}
+          : { phone: patient.phoneDigits })
+      });
+    }
+    return Promise.resolve(out);
   }
 
   public async listClinic(
