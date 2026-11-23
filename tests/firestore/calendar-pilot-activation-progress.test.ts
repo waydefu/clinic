@@ -840,4 +840,53 @@ describe('bounded CAL-PILOT source activation', () => {
       expect((await jobRef().collection(RECEIPTS).get()).empty).toBe(true);
     }
   );
+
+  it.each(['deadline', 'owner'])(
+    'stops copy without cross-source writes or progress overwrite on lease loss: %s (D-12)',
+    async (reason) => {
+      await tick();
+      const before = await progress();
+      afterEffect = async () => {
+        if (reason === 'deadline') clock = DEADLINE;
+        else await configuration().update({ workerLeaseOwner: 'successor' });
+      };
+      await expect(tick()).rejects.toThrow(/lease/iu);
+      expect(effects).toHaveLength(1);
+      expect(effects[0]).toMatchObject({ method: 'POST', calendar: 'active' });
+      expect(await progress()).toEqual(before);
+      expect((await state())?.['status']).toBe('processing');
+      if (reason === 'owner')
+        expect(
+          (await configuration().get()).data()?.['workerLeaseOwner']
+        ).toBe('successor');
+    }
+  );
+
+  it.each(['deadline', 'owner'])(
+    'stops cleanup without further deletes or receipt removal on lease loss: %s (D-12)',
+    async (reason) => {
+      await runToPhase('cleanup');
+      const receiptsBefore = (await jobRef().collection(RECEIPTS).get()).size;
+      expect(receiptsBefore).toBeGreaterThan(0);
+      const before = await progress();
+      const effectsBefore = effects.length;
+      afterEffect = async () => {
+        if (reason === 'deadline') clock = DEADLINE;
+        else await configuration().update({ workerLeaseOwner: 'successor' });
+      };
+      await expect(tick()).rejects.toThrow(/lease/iu);
+      const added = effects.slice(effectsBefore);
+      expect(added).toHaveLength(1);
+      expect(added[0]).toMatchObject({ method: 'DELETE', calendar: 'old' });
+      expect(await progress()).toEqual(before);
+      expect((await jobRef().collection(RECEIPTS).get()).size).toBe(
+        receiptsBefore
+      );
+      expect((await state())?.['status']).toBe('processing');
+      if (reason === 'owner')
+        expect(
+          (await configuration().get()).data()?.['workerLeaseOwner']
+        ).toBe('successor');
+    }
+  );
 });
