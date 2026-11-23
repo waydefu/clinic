@@ -1613,7 +1613,7 @@ elements.appointments.addEventListener('click', (event) => {
     elements['booking-name'].value = record.name;
     if (typeof record.phone === 'string' && record.phone !== '') {
       prefilledBookingPhone = record.phone;
-      elements['booking-phone'].placeholder = maskPatientPhone(record.phone);
+      elements['booking-phone'].placeholder = record.phone;
       elements['booking-phone'].required = false;
     }
     // 新紀錄是 `--MM-DD`，瀏覽器端舊紀錄可能是完整日期；兩者都只取末五碼的

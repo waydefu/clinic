@@ -836,14 +836,14 @@ test.describe('工作臺預約生命週期', () => {
 
     const phone = page.locator('#booking-phone');
     await expect(phone).toHaveValue('');
-    await expect(phone).toHaveAttribute('placeholder', '*******678');
+    await expect(phone).toHaveAttribute('placeholder', '0912345678');
     await expect(phone).not.toHaveAttribute('required', '');
     await page.locator('#booking-name').fill('另一位合成病患');
     await expect(phone).toHaveAttribute('required', '');
-    await expect(phone).not.toHaveAttribute('placeholder', '*******678');
+    await expect(phone).not.toHaveAttribute('placeholder', '0912345678');
 
     await card.locator('[data-follow-up-book]').click();
-    await expect(phone).toHaveAttribute('placeholder', '*******678');
+    await expect(phone).toHaveAttribute('placeholder', '0912345678');
     await page.locator('#booking-items [data-booking-item]').first().check();
     await page.locator('#slots [data-select-slot]').first().click();
     await page.locator('#booking-form button[type="submit"]').click();
