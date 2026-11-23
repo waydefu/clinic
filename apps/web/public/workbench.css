@@ -2494,79 +2494,9 @@ details[open] > summary .workflow-summary-chevron {
 }
 
 /* ---------------------------------------------------------------------------
- * 初診基本資料的列印版面（W7，2026-07-27）。
- *
- * 只用 `@media print`，不引入任何列印函式庫。版面依業主提供的紙本初診表
- * （20260514 版）最上面那個大框排列：表頭三欄，其下依紙本順序逐列。
- *
- * 螢幕上這一塊是隱藏的（`hidden` 屬性），只有按下列印時才短暫填入內容。
- * 列印時反過來：整個工作臺收起來，只留這一張。
+ * 初診基本資料列印（W7）。雙面版面樣式在 intake-print.css，按下列印時才載入，
+ * 這裡只留「列印時只印這一張」所需的最小規則。螢幕上這一塊是隱藏的（`hidden`）。
  * ------------------------------------------------------------------------- */
-.intake-sheet {
-  color: var(--ink);
-  font-size: var(--text-body);
-}
-.intake-head {
-  border-bottom: 2px solid var(--ink);
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
-  justify-content: space-between;
-  margin-bottom: var(--space-sm);
-  padding-bottom: var(--space-2xs);
-}
-.intake-note {
-  color: var(--ink-muted);
-  font-size: var(--text-micro);
-}
-.intake-grid {
-  display: grid;
-  gap: var(--space-2xs);
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-.intake-cell {
-  border: 1px solid var(--line-strong);
-  display: grid;
-  gap: var(--space-4xs);
-  min-height: 3rem;
-  padding: var(--space-2xs) var(--space-xs);
-}
-.intake-cell[data-span='2'] {
-  grid-column: span 2;
-}
-.intake-cell[data-span='3'] {
-  grid-column: span 3;
-}
-.intake-cell[data-span='4'] {
-  grid-column: span 4;
-}
-.intake-label {
-  color: var(--ink-muted);
-  font-size: var(--text-micro);
-  letter-spacing: var(--tracking-label);
-}
-.intake-value {
-  font-size: var(--text-body);
-  overflow-wrap: anywhere;
-}
-/* 空白欄位輸出**底線**而不是「未填」：紙上要看得出「這裡等著被寫」。 */
-.intake-blank {
-  border-bottom: 1px solid var(--ink-muted);
-  display: inline-block;
-  vertical-align: baseline;
-}
-.intake-blank-xs {
-  width: 1.5rem;
-}
-.intake-blank-sm {
-  width: 4rem;
-}
-.intake-blank-md {
-  width: 10rem;
-}
-.intake-blank-full {
-  width: 100%;
-}
 /* 合成報到單：螢幕遮罩、列印完整，只驗證 2026-07-27 指定版面。
    正式必要性仍待 D-002；D-006 權限政策已核准，但 Stage 2 實作尚未完成。 */
 .intake-print-only {
@@ -2590,9 +2520,6 @@ details[open] > summary .workflow-summary-chevron {
   }
   .intake-print-only {
     display: inline;
-  }
-  .intake-cell {
-    break-inside: avoid;
   }
 }
 

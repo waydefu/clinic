@@ -13,7 +13,6 @@ import {
   renderCaseAssignments,
   renderDelegations,
   renderFollowUps,
-  renderIntakeSheet,
   renderNextUp,
   renderOutbox,
   renderReleases,
@@ -1700,9 +1699,24 @@ elements.appointments.addEventListener('click', async (event) => {
   // 患者資料用完就清掉，不讓列印容器留在 DOM 裡。
   if (action === 'print_intake') {
     const sheet = elements['intake-print'];
-    sheet.innerHTML = assertRenderable(renderIntakeSheet(state, id));
+    // 雙面版面的模組與樣式只在列印時才載入，不佔初始載入預算。
+    let intake;
+    try {
+      intake = await import('./modules/intake-sheet.js');
+      await intake.loadIntakeStylesheet();
+    } catch {
+      message('列印版面目前無法載入，請稍後再試。', 'error');
+      return;
+    }
+    sheet.innerHTML = assertRenderable(intake.renderIntakeSheet(state, id));
     sheet.hidden = false;
     sheet.removeAttribute('aria-hidden');
+    // 線稿與 logo 要先解碼完，列印預覽才不會缺圖。
+    await Promise.all(
+      [...sheet.querySelectorAll('img')].map((image) =>
+        image.decode().catch(() => undefined)
+      )
+    );
     window.print();
     sheet.hidden = true;
     sheet.setAttribute('aria-hidden', 'true');

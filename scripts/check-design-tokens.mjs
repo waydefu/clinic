@@ -99,7 +99,7 @@ const CEILINGS = {
     // 並刪掉舊首頁殘留規則，降到 3。
     'clinic-site.css': 3,
     'styles.css': 2,
-    'workbench.css': 1
+    'workbench.css': 0
   },
   '容器 clamp 端點': {
     // 2026-08-07 首次納入檢查。這四筆是品牌標誌與圖片的響應式寬度。

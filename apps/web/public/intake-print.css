@@ -1,0 +1,212 @@
+/* 初診雙面列印版面（業主 2026-11-23）。只在按下「列印初診基本資料」時由
+ * modules/intake-sheet.js 動態載入，不進 /index.html 的初始樣式表與效能預算。
+ * 版面照紙本（20260514 版）：正面一頁、背面一頁，A4 直式；字體一律正常粗細，
+ * 僅區塊標題略粗。螢幕上也畫出兩張紙的外框，方便預覽。 */
+@page {
+  size: A4 portrait;
+  margin: 8mm;
+}
+.intake-sheet {
+  color: #000;
+  font-size: 9.5pt;
+  line-height: 1.35;
+}
+.intake-page {
+  background: #fff;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 281mm;
+  margin: 0 auto 6mm;
+  width: 194mm;
+}
+.intake-page + .intake-page {
+  break-before: page;
+}
+.intake-top {
+  align-items: center;
+  display: flex;
+  gap: 6mm;
+  margin-bottom: 2mm;
+}
+.intake-title {
+  flex: none;
+  font-size: 12pt;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.intake-logo {
+  height: 11mm;
+  width: auto;
+}
+.intake-value {
+  border-bottom: 1px solid #000;
+  display: inline-block;
+  min-width: 22mm;
+  padding: 0 1mm;
+}
+.intake-box {
+  border: 2px solid #000;
+  border-collapse: collapse;
+  table-layout: auto;
+  width: 100%;
+}
+.intake-box th,
+.intake-box td {
+  border: 1px solid #000;
+  font-weight: 400;
+  padding: 1.2mm 1.5mm;
+  text-align: left;
+  vertical-align: middle;
+}
+.intake-id th {
+  white-space: nowrap;
+  width: 1%;
+}
+.intake-id td {
+  height: 8mm;
+}
+.intake-opt {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.8mm;
+  margin-right: 2.5mm;
+  white-space: nowrap;
+}
+.intake-cb {
+  border: 1px solid #000;
+  display: inline-block;
+  height: 3mm;
+  width: 3mm;
+}
+.intake-line {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  margin: 1.2mm 0;
+  row-gap: 1mm;
+}
+.intake-line > :first-child:not(.intake-opt):not(.intake-star) {
+  margin-right: 1.5mm;
+}
+.intake-source {
+  border-top: 1px solid #000;
+}
+.intake-star {
+  margin-right: 1.5mm;
+}
+.intake-front .intake-value {
+  border: 0;
+  min-width: 0;
+}
+.intake-heading {
+  font-size: 10.5pt;
+  font-weight: 600;
+  margin: 3mm 0 1.5mm;
+}
+.intake-health th {
+  white-space: nowrap;
+  width: 1%;
+}
+.intake-health .intake-half {
+  vertical-align: top;
+  width: 50%;
+}
+.intake-quiz td:first-child {
+  text-align: center;
+  width: 1%;
+}
+.intake-quiz th {
+  white-space: nowrap;
+  width: 30mm;
+}
+.intake-blank {
+  border-bottom: 1px solid #000;
+  display: inline-block;
+  height: 1em;
+}
+.intake-blank-sm {
+  width: 12mm;
+}
+.intake-blank-md {
+  width: 30mm;
+}
+.intake-blank-lg {
+  width: 60mm;
+}
+.intake-notice {
+  font-size: 8.5pt;
+  line-height: 1.9;
+  margin: 3mm 3mm 0;
+}
+.intake-sign {
+  margin: auto 0 0;
+  padding-bottom: 8mm;
+  text-align: center;
+}
+/* 背面：門診紀錄表。兩格「醫師門診紀錄」各佔剩餘高度的一半。 */
+.intake-back-top {
+  justify-content: space-between;
+}
+.intake-back-top .intake-title {
+  font-size: 14pt;
+}
+.intake-mrn .intake-value {
+  min-width: 40mm;
+}
+.intake-back-id th {
+  white-space: nowrap;
+  width: 1%;
+}
+.intake-back-id td:nth-child(2) {
+  width: 36%;
+}
+.intake-recs {
+  border: 2px solid #000;
+  border-top: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+.intake-rec {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+.intake-rec + .intake-rec {
+  border-top: 1px solid #000;
+}
+.intake-rec-title {
+  border-bottom: 1px solid #000;
+  font-size: 11pt;
+  font-weight: 600;
+  padding: 1mm 0;
+  text-align: center;
+}
+.intake-rec-date {
+  margin-left: 33%;
+  padding-top: 1.5mm;
+}
+.intake-rec-art {
+  align-items: flex-end;
+  display: flex;
+  gap: 6mm;
+  margin-top: 16mm;
+  padding-left: 8mm;
+}
+.intake-art-nose {
+  height: 30mm;
+  width: auto;
+}
+.intake-art-mouth {
+  height: 38mm;
+  width: auto;
+}
+@media screen {
+  .intake-page {
+    border: 1px solid #888;
+    height: 297mm;
+    padding: 8mm;
+    width: 210mm;
+  }
+}
