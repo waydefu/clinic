@@ -33,11 +33,13 @@ function runPwsh(command, extraEnv = {}) {
 }
 
 describe('CAL-PILOT release and rollback script safety', () => {
-  it('enforces PowerShell 7+, native strictness, and channel readback', () => {
+  it('enforces PS7+, native strictness, and channel readback', () => {
     for (const name of scriptNames) {
       const content = readScript(name);
       expect(content).toContain('PowerShell 7+ (pwsh) is required.');
-      expect(content).toContain('$PSNativeCommandUseErrorActionPreference = $true');
+      expect(content).toContain(
+        '$PSNativeCommandUseErrorActionPreference = $true'
+      );
     }
 
     const updateScript = readScript('cal-pilot-update.ps1');
@@ -155,7 +157,7 @@ describe('CAL-PILOT release and rollback script safety', () => {
     ]);
   });
 
-  it('aborts cal-pilot-build-images.ps1 immediately on any native failure', () => {
+  it('aborts build-images script immediately on native failure', () => {
     const buildPath = fileURLToPath(
       new URL('./cal-pilot-build-images.ps1', import.meta.url)
     );
@@ -265,7 +267,7 @@ describe('CAL-PILOT release and rollback script safety', () => {
     ]);
   });
 
-  it('fetches missing candidate commits without failing Assert-CandidateSha probe', () => {
+  it('fetches missing commit in Assert-CandidateSha without false fail', () => {
     const runtimeSource = readScript('cal-pilot-runtime-update.ps1');
     const helper = runtimeSource.match(
       /^function Assert-CandidateSha \{[\s\S]*?^\}/mu
@@ -333,10 +335,7 @@ describe('CAL-PILOT release and rollback script safety', () => {
         scenario: 'fetch-fail',
         ok: false,
         prefAfter: true,
-        log: [
-          { cmd: 'cat-file', pref: false },
-          { cmd: 'fetch', pref: true }
-        ]
+        log: [{ cmd: 'cat-file', pref: false }, { cmd: 'fetch', pref: true }]
       },
       {
         scenario: 'post-fetch-missing',
@@ -351,7 +350,7 @@ describe('CAL-PILOT release and rollback script safety', () => {
     ]);
   });
 
-  it('requires a unique Hosting channel readback in cal-pilot-release.ps1', () => {
+  it('requires unique Hosting channel readback in release script', () => {
     const releaseSource = readScript('cal-pilot-release.ps1');
     const helper = releaseSource.match(
       /^function Get-HostingChannel \{[\s\S]*?^\}/mu
