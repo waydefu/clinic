@@ -180,10 +180,10 @@ describe('CAL-PILOT release and rollback script safety', () => {
       '  if ($args[0] -eq "builds") {',
       '    $global:testCalls += "builds-submit"',
       '    if ($global:testFailAt -eq "builds-submit") { $global:LASTEXITCODE = 1 } else { $global:LASTEXITCODE = 0 }',
-      '  } elseif ($args[3] -like "*/api:*") {',
+      '  } elseif (($args -join " ") -like "*/api:*") {',
       '    $global:testCalls += "describe-api"',
       '    if ($global:testFailAt -eq "describe-api") { $global:LASTEXITCODE = 1 } else { $global:LASTEXITCODE = 0; "sha256:" + ("b" * 64) }',
-      '  } elseif ($args[3] -like "*/worker:*") {',
+      '  } elseif (($args -join " ") -like "*/worker:*") {',
       '    $global:testCalls += "describe-worker"',
       '    if ($global:testFailAt -eq "describe-worker") { $global:LASTEXITCODE = 1 } else { $global:LASTEXITCODE = 0; "sha256:" + ("c" * 64) }',
       '  }',
@@ -267,7 +267,7 @@ describe('CAL-PILOT release and rollback script safety', () => {
     ]);
   });
 
-  it('fetches missing commit in Assert-CandidateSha without false fail', () => {
+  it('fetches missing commit in Assert-CandidateSha safely', () => {
     const runtimeSource = readScript('cal-pilot-runtime-update.ps1');
     const helper = runtimeSource.match(
       /^function Assert-CandidateSha \{[\s\S]*?^\}/mu
