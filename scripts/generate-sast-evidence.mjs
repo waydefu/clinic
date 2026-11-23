@@ -1,8 +1,30 @@
 import { createHash } from 'node:crypto';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
-import { resolve, join } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import process from 'node:process';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+const REPO_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
+
+export function resolveSastEvidenceOutputDir(rawDir, rootDir = REPO_ROOT) {
+  if (typeof rawDir !== 'string' || rawDir.trim() === '') {
+    throw new Error(
+      'SAST_EVIDENCE_OUTPUT_DIR must be a non-empty workspace path.'
+    );
+  }
+  const base = resolve(rootDir);
+  const target = resolve(base, rawDir);
+  const rel = relative(base, target);
+  if (
+    rel === '' ||
+    rel === '..' ||
+    rel.startsWith(`..${sep}`) ||
+    isAbsolute(rel)
+  ) {
+    throw new Error(`SAST_EVIDENCE_OUTPUT_DIR escapes workspace: ${rawDir}`);
+  }
+  return target;
+}
 
 const DEFAULT_PATHS = {
   json: 'output/evidence/semgrep-results.json',
@@ -446,8 +468,9 @@ async function readOptional(path) {
 }
 
 async function runCli() {
-  const outputDirectory =
-    process.env.SAST_EVIDENCE_OUTPUT_DIR ?? 'output/evidence';
+  const outputDirectory = resolveSastEvidenceOutputDir(
+    process.env.SAST_EVIDENCE_OUTPUT_DIR ?? 'output/evidence'
+  );
   const manifestPath =
     process.env.SAST_UPSTREAM_RULE_MANIFEST ??
     'security/semgrep/upstream-rules.txt';

@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import process from 'node:process';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
   AUTH_SPIKE_ALERT_THRESHOLD,
@@ -229,20 +230,49 @@ export function assembleStageEEvidence({
   return JSON.parse(redact(evidence));
 }
 
+const REPO_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
+
 export const EVIDENCE_USAGE =
   'Usage: pnpm evidence:stage-e [--out <path>]\nSynthetic local proof only. Does not deploy, apply, or send email.\n';
 
-export function runStageEEvidenceCli({ argv, stdout, stderr, writeFile }) {
+export function resolveStageEOutputPath(rawPath, rootDir = REPO_ROOT) {
+  if (typeof rawPath !== 'string' || rawPath.trim() === '') {
+    throw new Error('--out must be a non-empty workspace path.');
+  }
+  const base = resolve(rootDir);
+  const target = resolve(base, rawPath);
+  const rel = relative(base, target);
+  if (
+    rel === '' ||
+    rel === '..' ||
+    rel.startsWith(`..${sep}`) ||
+    isAbsolute(rel)
+  ) {
+    throw new Error(`--out path escapes workspace: ${rawPath}`);
+  }
+  return target;
+}
+
+export function runStageEEvidenceCli({
+  argv,
+  stdout,
+  stderr,
+  writeFile,
+  rootDir = REPO_ROOT
+}) {
   const args = argv.filter((item) => item !== '--');
   const outIndex = args.indexOf('--out');
-  const outPath = outIndex >= 0 ? args[outIndex + 1] : undefined;
   try {
+    const outPath =
+      outIndex >= 0
+        ? resolveStageEOutputPath(args[outIndex + 1], rootDir)
+        : undefined;
     const evidence = assembleStageEEvidence();
     const payload = `${JSON.stringify(evidence, null, 2)}\n`;
-    stdout.write(payload);
-    if (typeof outPath === 'string' && outPath !== '') {
+    if (outPath !== undefined) {
       (writeFile ?? writeFileSync)(outPath, payload);
     }
+    stdout.write(payload);
     return evidence.pass ? 0 : 1;
   } catch (error) {
     stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
@@ -251,7 +281,11 @@ export function runStageEEvidenceCli({ argv, stdout, stderr, writeFile }) {
   }
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+const entryArg = process.argv[1];
+if (
+  entryArg !== undefined &&
+  import.meta.url === pathToFileURL(resolve(entryArg)).href
+) {
   process.exitCode = runStageEEvidenceCli({
     argv: process.argv.slice(2),
     stdout: process.stdout,
