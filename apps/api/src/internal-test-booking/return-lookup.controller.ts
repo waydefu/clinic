@@ -1,4 +1,4 @@
-import { Body, Controller, Inject, Optional, Post, Req } from '@nestjs/common';
+import { Body, Controller, Inject, Post, Req } from '@nestjs/common';
 import {
   ReturnLookupRequestSchema,
   ReturnLookupResponseSchema
@@ -38,9 +38,8 @@ export class ReturnLookupController {
     private readonly internalTestSettings: InternalTestBookingSettings,
     @Inject(INTERNAL_TEST_BOOKING_CLOCK)
     private readonly internalTestClock: InternalTestBookingClock,
-    @Optional()
     @Inject(WP_B2_RATE_LIMITER)
-    private readonly rateLimiter?: WpB2RateLimiter
+    private readonly rateLimiter: WpB2RateLimiter
   ) {}
 
   @Post()
@@ -56,14 +55,12 @@ export class ReturnLookupController {
     const authentication = await this.authenticator
       .authenticate(request)
       .catch(() => undefined);
-    if (this.rateLimiter !== undefined) {
-      const actorId = authentication?.actorId;
-      await this.rateLimiter.assertRequest(
-        actorId === undefined
-          ? { ip, write: false }
-          : { ip, actorId, write: false }
-      );
-    }
+    const actorId = authentication?.actorId;
+    await this.rateLimiter.assertRequest(
+      actorId === undefined
+        ? { ip, write: false }
+        : { ip, actorId, write: false }
+    );
     return admitResponse(
       ReturnLookupResponseSchema,
       await this.appointments.lookupReturn(
