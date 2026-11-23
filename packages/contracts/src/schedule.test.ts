@@ -3,10 +3,27 @@ import { describe, expect, it } from 'vitest';
 import {
   GetPublishedScheduleResponseSchema,
   ListSlotsResponseSchema,
+  MAX_SCHEDULE_BLOCKED_TIMES,
+  MAX_SCHEDULE_DATE_EXCEPTIONS,
   PublishScheduleRequestSchema,
   PublishScheduleResponseSchema,
   ScheduleSchema
 } from './index.js';
+
+function makeDateExceptions(count: number) {
+  return Array.from({ length: count }, (_, index) => ({
+    date: new Date(Date.UTC(2028, 0, 1 + index)).toISOString().slice(0, 10),
+    kind: 'closed' as const
+  }));
+}
+
+function makeBlockedTimes(count: number): string[] {
+  return Array.from({ length: count }, (_, index) => {
+    const hour = String(Math.floor(index / 60) % 24).padStart(2, '0');
+    const minute = String(index % 60).padStart(2, '0');
+    return `${hour}:${minute}`;
+  });
+}
 
 const schedule = {
   timeZone: 'Asia/Taipei',
@@ -161,6 +178,60 @@ describe('schedule contract', () => {
             intervals: [{ startLocalTime: '14:00', endLocalTime: '17:00' }]
           }
         ]
+      }).success
+    ).toBe(false);
+  });
+
+  it('bounds dateExceptions at 366 entries (B-35)', () => {
+    expect(MAX_SCHEDULE_DATE_EXCEPTIONS).toBe(366);
+    expect(
+      ScheduleSchema.safeParse({
+        ...schedule,
+        dateExceptions: makeDateExceptions(366)
+      }).success
+    ).toBe(true);
+    const over = { ...schedule, dateExceptions: makeDateExceptions(367) };
+    expect(ScheduleSchema.safeParse(over).success).toBe(false);
+    expect(
+      PublishScheduleRequestSchema.safeParse({
+        idempotencyKey: validKey,
+        expectedVersion: 1,
+        schedule: over
+      }).success
+    ).toBe(false);
+  });
+
+  it('bounds blockedTimes at 500 entries (B-35)', () => {
+    expect(MAX_SCHEDULE_BLOCKED_TIMES).toBe(500);
+    for (const blockedTimes of [
+      { initial: makeBlockedTimes(500), follow_up: [] },
+      { initial: [], follow_up: makeBlockedTimes(500) },
+      { initial: makeBlockedTimes(250), follow_up: makeBlockedTimes(250) }
+    ]) {
+      expect(
+        ScheduleSchema.safeParse({ ...schedule, blockedTimes }).success
+      ).toBe(true);
+    }
+    for (const blockedTimes of [
+      { initial: makeBlockedTimes(501), follow_up: [] },
+      { initial: [], follow_up: makeBlockedTimes(501) },
+      { initial: makeBlockedTimes(250), follow_up: makeBlockedTimes(251) }
+    ]) {
+      expect(
+        ScheduleSchema.safeParse({ ...schedule, blockedTimes }).success
+      ).toBe(false);
+    }
+    expect(
+      PublishScheduleRequestSchema.safeParse({
+        idempotencyKey: validKey,
+        expectedVersion: 1,
+        schedule: {
+          ...schedule,
+          blockedTimes: {
+            initial: makeBlockedTimes(250),
+            follow_up: makeBlockedTimes(251)
+          }
+        }
       }).success
     ).toBe(false);
   });
