@@ -127,3 +127,52 @@ describe('ordinary work is not obstructed', () => {
     expect(classify(undefined)).toBeNull();
   });
 });
+
+describe('gcloud mutation guard (B-18)', () => {
+  it.each([
+    'gcloud run deploy cal-pilot-api --project synthetic-proj --region asia-east1',
+    'gcloud run services update-traffic cal-pilot-api --to-revisions r1=100',
+    'gcloud projects add-iam-policy-binding synthetic-proj --member user:a --role roles/viewer',
+    'gcloud run services set-iam-policy cal-pilot-api policy.json',
+    'gcloud secrets versions add c1-secret --project synthetic-proj --data-file=-',
+    'gcloud scheduler jobs pause cal-pilot-five-minute-sync',
+    'gcloud scheduler jobs resume cal-pilot-five-minute-sync',
+    'gcloud builds submit . --project synthetic-proj',
+    'gcloud services enable run.googleapis.com --project synthetic-proj',
+    'gcloud auth activate-service-account --key-file key.json',
+    'sudo gcloud firestore export gs://synthetic-bucket'
+  ])('denies mutating gcloud command %s', (command) => {
+    expect(denied(command)).toBe('deny');
+  });
+
+  it.each([
+    'gcloud version',
+    'gcloud auth list --filter=status:ACTIVE',
+    'gcloud config get-value project',
+    'gcloud projects describe synthetic-proj',
+    'gcloud services list --project synthetic-proj --enabled',
+    'gcloud run services list --project synthetic-proj --region asia-east1',
+    'gcloud run services describe cal-pilot-api --project synthetic-proj',
+    'gcloud run services get-iam-policy cal-pilot-api --project synthetic-proj',
+    'gcloud secrets versions list c1-secret --project synthetic-proj --filter state=ENABLED',
+    'gcloud logging read "resource.type=cloud_run_revision" --limit 5'
+  ])('lets read-only gcloud command %s through', (command) => {
+    expect(classify(command)).toBeNull();
+  });
+
+  it('aligns visibility and branch-push reasons with GC-001 and D-013', () => {
+    const vis = classify('gh repo edit waydefu/clinic --visibility public');
+    expect(vis?.reason).not.toContain('must never become public');
+    expect(vis?.reason).toContain('GC-001');
+    expect(vis?.reason).toContain('UNVERIFIED');
+
+    const pushMain = classify('git push origin main');
+    const pushHead = classify('git push', () => 'main');
+    for (const verdict of [pushMain, pushHead]) {
+      expect(verdict?.reason).not.toContain('keeps the administrator bypass');
+      expect(verdict?.reason).toContain('D-013');
+      expect(verdict?.reason).toContain('enforce_admins=true');
+      expect(verdict?.reason).toContain('UNVERIFIED');
+    }
+  });
+});

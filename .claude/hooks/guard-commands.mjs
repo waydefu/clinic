@@ -44,11 +44,11 @@ const DENY = [
   ],
   [
     /^gh\s+repo\s+(?:edit\b.*--visibility\s+public|create\b.*--public)/i,
-    'waydefu/clinic must never become public. The public mirror is a separately curated, allowlist-exported repository with its own history — see the publication boundary in AGENTS.md.'
+    'Changing repository visibility or creating a public repository requires explicit owner authority. GC-001 records the current visibility boundary of waydefu/clinic, and remote settings remain UNVERIFIED offline. The curated public reference is exported separately through the allowlist.'
   ],
   [
     /^git\s+push\b(?=.*(?:\s|:)main(?:\s|$))/i,
-    'Direct pushes to main bypass the Verification evidence gate — branch protection here keeps the administrator bypass enabled, so it will succeed. Push an agent/* branch and open a pull request.'
+    'Direct pushes to main bypass the PR review and Verification evidence workflow (D-013 requires enforce_admins=true; remote branch protection stays UNVERIFIED offline). Push an agent/* branch and open a pull request.'
   ],
   [
     /^git\s+push\b(?=.*(?:--force(?!-with-lease)|\s-f\b))/i,
@@ -121,6 +121,95 @@ function segments(command) {
     .filter(Boolean);
 }
 
+const GCLOUD_MUTATION_REASON =
+  'Mutating gcloud commands change live cloud state. AGENTS.md requires fresh, explicit, per-commit owner authority before any cloud mutation. Hand the exact command to the owner.';
+
+const GCLOUD_VALUE_FLAGS = new Set([
+  '--project',
+  '--region',
+  '--location',
+  '--zone',
+  '--format',
+  '--filter',
+  '--configuration',
+  '--account',
+  '--impersonate-service-account',
+  '--platform',
+  '--limit',
+  '--sort-by',
+  '--member',
+  '--role',
+  '--image',
+  '--service-account',
+  '--tag',
+  '--to-revisions',
+  '--remove-tags',
+  '--set-env-vars',
+  '--set-secrets',
+  '--data-file',
+  '--key-file',
+  '--config',
+  '--substitutions',
+  '--uri',
+  '--http-method',
+  '--attempt-deadline',
+  '--audiences',
+  '--oidc-service-account-email',
+  '--oidc-token-audience'
+]);
+
+const GCLOUD_MUTATION_VERBS = new Set([
+  'deploy',
+  'delete',
+  'destroy',
+  'create',
+  'update',
+  'update-traffic',
+  'set-iam-policy',
+  'add-iam-policy-binding',
+  'remove-iam-policy-binding',
+  'enable',
+  'disable',
+  'pause',
+  'resume',
+  'submit',
+  'apply',
+  'import',
+  'export',
+  'restore',
+  'patch',
+  'revoke',
+  'activate-service-account'
+]);
+
+function isMutatingGcloud(part) {
+  const tokens = part.trim().split(/\s+/);
+  if (tokens[0]?.toLowerCase() !== 'gcloud') return false;
+  const positional = [];
+  for (let i = 1; i < tokens.length; i += 1) {
+    const token = tokens[i];
+    if (token.startsWith('-')) {
+      const flag = token.toLowerCase();
+      if (!token.includes('=') && GCLOUD_VALUE_FLAGS.has(flag)) {
+        i += 1;
+      }
+      continue;
+    }
+    positional.push(token.toLowerCase());
+  }
+  if (positional.some((token) => GCLOUD_MUTATION_VERBS.has(token))) {
+    return true;
+  }
+  if (
+    positional.includes('secrets') &&
+    positional.includes('versions') &&
+    positional.includes('add')
+  ) {
+    return true;
+  }
+  return false;
+}
+
 // Rules that need to know which branch HEAD is on. `git push origin main` is
 // caught by the pattern above; these catch the forms that never name the branch
 // because it is implied — which is how work lands on main by accident.
@@ -128,7 +217,7 @@ const ON_MAIN = [
   [
     /^git\s+push\b/i,
     'deny',
-    'HEAD is on main, so this pushes main. That bypasses the Verification evidence gate, and the administrator bypass means branch protection will let it through. Move the work to an agent/* branch.'
+    'HEAD is on main, so this pushes main directly instead of opening a PR through the Verification evidence gate (D-013 requires enforce_admins=true; remote settings stay UNVERIFIED offline). Move the work to an agent/* branch.'
   ],
   [
     /^git\s+commit\b/i,
@@ -144,6 +233,9 @@ export function classify(command, branchOf = () => null) {
   for (const part of segments(command)) {
     for (const [pattern, reason] of DENY)
       if (pattern.test(part)) return { decision: 'deny', reason, part };
+    if (isMutatingGcloud(part)) {
+      return { decision: 'deny', reason: GCLOUD_MUTATION_REASON, part };
+    }
     for (const [pattern, reason] of ESCALATE)
       if (pattern.test(part)) return { decision: 'escalate', reason, part };
     for (const [pattern, decision, reason] of ON_MAIN)

@@ -1,5 +1,15 @@
 # Phase 1 Decision Register
 
+## 2026-11-23 RC 剩餘項目負責人決定（B-35／B-25／B-20／RC-04）
+
+決策人：負責人（2026-11-23，回覆「照建議」）。未另提供 approval ID，不另造。本節只記錄範圍與技術方向，不授權部署、雲端操作、權限變更或真實資料。
+
+- **B-35（`SOL-SCHEDULE` 班表輸入陣列上限）**：`dateExceptions` 最多 366 筆、`blockedTimes` 最多 500 筆，超過由契約 schema（`.max()`）拒收並補單元測試。
+- **B-25（`SOL-OBSERVABILITY` 日誌保存與 sink）**：試行期維持現狀（日誌進 Google 預設空間、保留 30 天、不加 sink、不刪 `c1-foundation` bucket）；正式上線前再決定是否延長保存或限定台灣機房。稽核紀錄存於 Firestore `audit_events`，不受 30 天日誌保留影響；本項不改程式。
+- **B-20（`SOL-SUPPLY` 工具鏈版本支援政策）**：工具鏈跟隨 Node LTS、每季檢查；正式規範文件延至 12 月，不擋 11/30 RC。
+- **RC-04（`SOL-GOVERNANCE` 分支保護定期讀回）**：因需要 GitHub `administration:read` 權限與 CI workflow 變更（屬權限類），延至 12 月。
+- **同批工程處置紀錄（Claude 技術判斷，非負責人額外授權）**：`D-31`／`D-32` 合成日曆時長改依預約資料計算且 fixture 參數可設定；`B-19`／`B-32`／`B-42` lockfile 更新交由 CI 環境處理；`A12`／`D-25` 待具備建置環境同步 `packages/domain` vendor 後再實作。
+
 ## STAFF-LIST-PATIENT-DISPLAY-2026-11-23：員工清單顯示全名與完整手機
 
 決策人：負責人（2026-11-23）。只適用 C1 合成環境與合成資料，不授權真實資料、部署或雲端變更。
