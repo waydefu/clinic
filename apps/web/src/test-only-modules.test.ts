@@ -25,10 +25,10 @@ import {
   isTodayWork,
   renderAppointments,
   renderFollowUps,
-  renderIntakeSheet,
   renderNextUp,
   summaryCounts
 } from '../public/modules/admin-view.js';
+import { renderIntakeSheet } from '../public/modules/intake-sheet.js';
 import {
   bookingHorizonEndExclusive,
   calendarEventIdForAppointment,
@@ -1920,25 +1920,65 @@ describe('工作臺批次的新行為', () => {
     const sheetFor = (state: any, appointmentId: string) =>
       renderIntakeSheet(state, appointmentId);
 
-    it('印出已有的資料，沒收集的欄位留空白底線', () => {
+    it('兩頁結構：正面初診基本資料、背面門診紀錄表', () => {
       const state = initialState();
       const appointment = bookOne(state, ['service_snoring']);
+      const html = sheetFor(state, appointment.id);
+      expect(html.match(/<section class="intake-page /g)).toHaveLength(2);
+      const [front, back] = html.split(
+        '<section class="intake-page intake-back">'
+      );
+      expect(front).toContain('◎初診基本資料');
+      expect(back).toContain('門診紀錄表');
+      expect(back.match(/醫師門診紀錄/g)).toHaveLength(2);
+      expect(back.match(/日期：/g)).toHaveLength(2);
+      for (const art of ['nose-front', 'nose-side', 'mouth'])
+        expect(
+          back.match(new RegExp(`/intake-assets/${art}.svg`, 'g'))
+        ).toHaveLength(2);
+    });
+
+    it('帶入姓名、生日、完整手機、初診日期，背面表頭帶入姓名與生日', () => {
+      const state = initialState();
+      const appointment = bookOne(state, ['service_snoring']);
+      state.patients.at(-1).medicalRecordNumber = 'MR-123';
       const html = sheetFor(state, appointment.id);
       expect(html).toContain('測試患者甲');
       expect(html).toContain('0912345678');
-      // 住址、職業、聯絡人等刻意不線上收集：留白給櫃台或患者手寫，
-      // 不印「未填」——紙上要看得出「這裡等著被寫」。
-      expect(html).toContain('住址');
-      expect(html).toContain('intake-blank');
+      expect(html).toContain(' 年 05 月 20 日');
+      expect(html.match(/MR-123/g)).toHaveLength(2);
+      expect(html.match(/測試患者甲/g)).toHaveLength(2);
       expect(html).not.toContain('未填');
     });
 
-    it('生日只印月日、年份留白；國籍印線上勾選的值，新預約身分證欄留白', () => {
+    it('紙本的關鍵段落與勾選框逐字照印，且全部空白不帶任何勾選', () => {
       const state = initialState();
       const appointment = bookOne(state, ['service_snoring']);
       const html = sheetFor(state, appointment.id);
-      expect(html).toContain(' 年 05 月 20 日');
-      expect(html).toContain('<span class="intake-value">本國</span>');
+      for (const text of [
+        '如何得知診所訊息：',
+        '網路搜尋',
+        'Threads',
+        '◎自主健康評量表、過去健康狀況、病史、手術史、過敏史、生活習慣',
+        '(鼻塞、鼻過敏、打呼患者以下請填寫)',
+        '我最困擾的問題',
+        '曾經治療紀錄',
+        '止鼾牙套',
+        '本診所於公共空間(候診區、走廊、通道等)',
+        '(20260514 版)',
+        '以上資料由本人確認無誤，簽名：'
+      ])
+        expect(html).toContain(text);
+      expect(html).not.toMatch(/checked|data-checked/);
+      // 患者自填的來源標籤、備註等不再印進表單。
+      expect(html).not.toContain('看診項目');
+    });
+
+    it('生日只印月日、年份留白時仍有年份空白', () => {
+      const state = initialState();
+      const appointment = bookOne(state, ['service_snoring']);
+      const html = sheetFor(state, appointment.id);
+      expect(html).toContain('intake-blank');
       expect(html).not.toContain('intake-print-only');
     });
 
@@ -1981,7 +2021,7 @@ describe('工作臺批次的新行為', () => {
       record.phone = '123';
       record.nationalId = 'AB12';
       const html = sheetFor(state, appointment.id);
-      expect(html).toContain('<span class="intake-value">123</span>');
+      expect(html).toContain('>123</td>');
       expect(html).toContain('<span class="intake-print-only">AB12</span>');
       expect(html).toContain('<span class="intake-screen-only">****</span>');
     });

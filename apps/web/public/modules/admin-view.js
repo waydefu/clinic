@@ -6,7 +6,6 @@ import {
   DELETE_APPOINTMENT_REASONS,
   FOLLOW_UP_NOTE_TAGS,
   LEGACY_REQUEST_TAGS,
-  PATIENT_SOURCE_TAGS,
   PERMISSIONS,
   WEEKDAY_LABELS,
   ACTIVE_BOOKING_STATUSES
@@ -903,115 +902,6 @@ export function renderFollowUps(state, editingIds = new Set()) {
       return `<div data-client-form class="decision-card follow-up-decision-card" data-follow-up-form="${escapeHtml(appointment.id)}"><div class="follow-up-context"><span class="status-chip ${decision ? 'is-available' : 'is-reserved'}">${decision ? (decision.status === 'required' ? '依醫師指示需回診' : '依醫師指示目前無需回診') : '待登錄醫師指示'}</span><strong>${escapeHtml(patientLabel(state, appointment.patientId))}</strong><span>${escapeHtml(appointment.itemLabel ?? '')}</span><span class="field-hint">回診決定者：醫師 · 資料登錄者：${escapeHtml(recordedBy)}</span></div><div class="follow-up-row follow-up-row-primary"><label class="follow-up-field follow-up-medical">病歷號碼<input name="medicalRecordNumber" type="text" maxlength="20" autocomplete="off" value="${escapeHtml(chartNumber ?? '')}"><span class="field-hint">診所自編的號碼，可用它搜尋預約。沒有固定格式，照病歷上的填。</span></label><label class="follow-up-field follow-up-status">醫師指示<select name="status"><option value="required" ${decision?.status === 'required' ? 'selected' : ''}>依醫師指示需要回診</option><option value="not_required" ${decision?.status === 'not_required' ? 'selected' : ''}>依醫師指示目前無需回診</option></select></label></div><div class="follow-up-row follow-up-row-secondary">${managerField}<fieldset class="tag-picker follow-up-tags"><legend>回診項目（可複選）</legend>${tags}</fieldset><label class="follow-up-field follow-up-certificate">診斷書份數<input name="certificateCopies" type="number" min="0" max="10" value="${escapeHtml(String(decision?.certificateCopies ?? 0))}"></label></div><div class="follow-up-row follow-up-row-notes"><label class="follow-up-field follow-up-note">自填備註<input name="noteText" type="text" maxlength="120" value="${escapeHtml(decision?.noteText ?? '')}"></label><button class="button button-primary follow-up-submit" type="submit">儲存回診指示</button></div></div>`;
     })
     .join('');
-}
-
-/**
- * 初診基本資料列印頁（W7，業主 2026-07-27）。
- *
- * 它做的事只有一件：把**已經有的**資料排進紙本初診表最上面那個大框的版面，
- * 其餘欄位輸出空白底線讓患者或櫃台到診時手寫。**不儲存任何病歷內容**——真正的
- * 電子病歷受醫療法與《醫療機構電子病歷製作及管理辦法》規範，那是另一件事。
- *
- * 舊證件在畫面與列印均以最小揭露遮罩，列印後仍立即清空容器。
- * D-002、D-006 核准的存取控制仍待 Stage 2 C2～C4 實作與驗證。
- *
- * 沒有收集的欄位（住址、職業、婚姻、市話、聯絡人、LineID、性別、年齡）一律留白：
- * 那是資料最小化的結果，不是漏印。空白底線讓紙上看得出「這裡要填」。
- */
-// 空白底線用 class 決定寬度，**不能用 inline style 屬性**：CSP 是
-// `style-src 'self'`（無 'unsafe-inline'），style 屬性會被整個擋掉——屬性字串
-// 還在，但完全不生效（week-view 的定位當初就是為此改走 CSSOM）。
-function blankLine(size = 'md') {
-  return `<span class="intake-blank intake-blank-${size}"></span>`;
-}
-
-export function renderIntakeSheet(state, appointmentId) {
-  const appointment = state.appointments.find(
-    (item) => item.id === appointmentId
-  );
-  if (appointment === undefined) return '';
-  const record = patient(state, appointment.patientId) ?? {};
-  const birth = birthDateHasYear(record.birthDate)
-    ? `${record.birthDate.slice(0, 4)} 年 ${record.birthDate.slice(5, 7)} 月 ${record.birthDate.slice(8, 10)} 日`
-    : `${blankLine('sm')} 年 ${(record.birthDate ?? '').slice(2, 4)} 月 ${(record.birthDate ?? '').slice(5, 7)} 日`;
-
-  // 只有初診單列印身分證完整值；護照維持遮罩。
-  const legacyDocument = record.nationalId || record.passportNumber;
-  let document_ = blankLine();
-  if (legacyDocument) {
-    const masked = escapeHtml(maskIdentityDocument(record));
-    document_ = record.nationalId
-      ? `<span class="intake-screen-only">${masked}</span><span class="intake-print-only">${escapeHtml(record.nationalId)}</span>`
-      : masked;
-  }
-
-  const sources = tagLabels(appointment.sourceTags, PATIENT_SOURCE_TAGS);
-  const referral =
-    appointment.referrerName === undefined || appointment.referrerName === ''
-      ? ''
-      : `（介紹人：${escapeHtml(appointment.referrerName)}）`;
-
-  const cell = (label, value, span = 1) =>
-    `<div class="intake-cell" data-span="${span}"><span class="intake-label">${label}</span><span class="intake-value">${value}</span></div>`;
-  let managerCell = '';
-  if (isWorkbenchCapabilityEnabled('CASE_MANAGEMENT')) {
-    const assignment = state.caseAssignments.find(
-      (item) => item.appointmentId === appointmentId && item.status === 'active'
-    );
-    managerCell = cell(
-      '管理師',
-      assignment
-        ? escapeHtml(managerLabel(state, assignment.managerId))
-        : blankLine('sm')
-    );
-  }
-
-  return `<div class="intake-sheet">
-    <header class="intake-head">
-      <strong>一森渼診所 · 初診基本資料</strong>
-      <span class="intake-note">線上已填的欄位已印出；空白處請於到診時填寫。</span>
-    </header>
-    <div class="intake-grid">
-      ${cell('病歷號碼', record.medicalRecordNumber ? escapeHtml(record.medicalRecordNumber) : blankLine('sm'))}
-      ${cell('初診日期', escapeHtml(formatFullDate(appointment.startsAt)))}
-      ${managerCell}
-      ${cell('姓名', record.name ? escapeHtml(record.name) : blankLine())}
-      ${cell('生日', birth)}
-      ${cell('年齡', blankLine('sm'))}
-      ${cell('性別', `${blankLine('xs')} 男 ／ ${blankLine('xs')} 女`)}
-      ${cell('身分證字號', document_)}
-      ${cell(
-        '國籍',
-        NATIONALITY_LABELS[
-          appointment.intakeNationality ?? record.nationality
-        ] ?? `${blankLine('xs')} 本國 ／ ${blankLine('xs')} 外國`
-      )}
-      ${cell('手機', record.phone ? escapeHtml(record.phone) : blankLine())}
-      ${cell('市話', blankLine())}
-      ${cell('婚姻', `${blankLine('xs')} 已婚 ／ ${blankLine('xs')} 單身`)}
-      ${cell('住址', blankLine('full'), 3)}
-      ${cell('職業', blankLine())}
-      ${cell('聯絡人', blankLine())}
-      ${cell('聯絡人手機', blankLine())}
-      ${cell('關係', blankLine('sm'))}
-      ${cell('LineID', blankLine())}
-      ${cell(
-        '如何得知診所訊息',
-        sources.length === 0
-          ? blankLine('full')
-          : `${escapeHtml(sources.join('、'))}${referral}`,
-        4
-      )}
-      ${cell('本次看診項目', escapeHtml(appointment.itemLabel ?? ''), 2)}
-      ${cell(
-        '患者備註',
-        appointment.patientNote
-          ? escapeHtml(appointment.patientNote)
-          : blankLine('full'),
-        2
-      )}
-    </div>
-  </div>`;
 }
 
 // 個管指派同樣是掃描工作：管理者要一眼看出「誰還沒指派」。表格把狀態與患者
