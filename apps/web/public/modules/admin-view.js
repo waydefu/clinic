@@ -11,10 +11,7 @@ import {
   WEEKDAY_LABELS,
   ACTIVE_BOOKING_STATUSES
 } from './constants.js';
-import {
-  birthDateHasYear,
-  maskIdentityDocument
-} from './patient-registry.js';
+import { birthDateHasYear, maskIdentityDocument } from './patient-registry.js';
 import { renderTagOptions } from './tag-picker.js';
 import { isUpcomingSlot } from './schedule-engine.js';
 import { taipeiDate, taipeiIso, taipeiTodayDate } from './taipei-time.js';
