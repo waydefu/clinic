@@ -490,13 +490,13 @@ describe('CAL-PILOT R5 superseded session on re-login (new tab)', () => {
     await controller.create(
       { idToken: 'x'.repeat(100) },
       reply,
-      { headers: {}, ip: '127.0.0.1' } as never,
+      { headers: {}, ip: '127.0.0.1' },
       `__session=${COOKIE}`
     );
     await controller.create(
       { idToken: 'x'.repeat(100) },
       reply,
-      { headers: {}, ip: '127.0.0.1' } as never,
+      { headers: {}, ip: '127.0.0.1' },
       undefined
     );
     expect(seen).toEqual([COOKIE, undefined]);
