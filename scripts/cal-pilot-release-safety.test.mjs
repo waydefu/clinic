@@ -335,7 +335,10 @@ describe('CAL-PILOT release and rollback script safety', () => {
         scenario: 'fetch-fail',
         ok: false,
         prefAfter: true,
-        log: [{ cmd: 'cat-file', pref: false }, { cmd: 'fetch', pref: true }]
+        log: [
+          { cmd: 'cat-file', pref: false },
+          { cmd: 'fetch', pref: true }
+        ]
       },
       {
         scenario: 'post-fetch-missing',
