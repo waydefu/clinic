@@ -271,10 +271,7 @@ export function buildSourceFixtureEvents(
   let seq = 0;
   const push = (event: Omit<SourceFixtureEvent, 'uid'>) => {
     seq += 1;
-    events.push({
-      ...event,
-      uid: `calpilot-fixture-${seq}@synthetic.invalid`
-    });
+    events.push({ ...event, uid: `calpilot-fixture-${seq}@synthetic.invalid` });
   };
   const labelFor = (nameIndex: number, itemIndex: number): string => {
     const name = resolved.names[nameIndex % resolved.names.length] ?? '測試';
@@ -399,7 +396,7 @@ export function parseSourceFixtureCliArgs(
   argv: readonly string[]
 ): SourceFixtureConfig {
   let anchorDate: string | undefined;
-  let defaultDurationMinutes: number | undefined;
+  let durationMinutes: number | undefined;
   let saturdayCount: number | undefined;
   let generatedAt: string | undefined;
   let includeEdgeCases: boolean | undefined;
@@ -424,7 +421,7 @@ export function parseSourceFixtureCliArgs(
     };
     if (flag === '--anchor-date') anchorDate = readNext();
     else if (flag === '--duration-minutes') {
-      defaultDurationMinutes = parseIntFlag();
+      durationMinutes = parseIntFlag();
     } else if (flag === '--saturday-count') {
       saturdayCount = parseIntFlag();
     } else if (flag === '--generated-at') generatedAt = readNext();
@@ -434,9 +431,9 @@ export function parseSourceFixtureCliArgs(
 
   return {
     ...(anchorDate === undefined ? {} : { anchorDate }),
-    ...(defaultDurationMinutes === undefined
+    ...(durationMinutes === undefined
       ? {}
-      : { defaultDurationMinutes }),
+      : { defaultDurationMinutes: durationMinutes }),
     ...(saturdayCount === undefined ? {} : { saturdayCount }),
     ...(generatedAt === undefined ? {} : { generatedAt }),
     ...(includeEdgeCases === undefined ? {} : { includeEdgeCases })
@@ -450,7 +447,5 @@ if (
   const config = parseSourceFixtureCliArgs(process.argv.slice(2));
   const events = buildSourceFixtureEvents(config);
   process.stdout.write(renderSourceFixtureIcs(config));
-  console.error(
-    `已產生 ${events.length} 筆合成事件（僅供 CAL-PILOT 合成演練）。`
-  );
+  console.error(`已產生 ${events.length} 筆合成事件。`);
 }

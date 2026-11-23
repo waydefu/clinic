@@ -51,10 +51,7 @@ describe('sanitizeSourceEvent — 允許通過的內容', () => {
   });
 
   it('來源缺少結束時間時省略 endsAt 欄位', () => {
-    const result = sanitizeSourceEvent(
-      sourceEvent({ end: undefined }),
-      WINDOW
-    );
+    const result = sanitizeSourceEvent(sourceEvent({ end: undefined }), WINDOW);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
