@@ -17,7 +17,7 @@ import {
   LOCAL_FIREBASE_PROJECT_ID,
   requireLocalFirestoreEmulatorTarget
 } from '../../packages/config/src/index.js';
-import type { Schedule } from '@beauessence/domain';
+import { OPEN_STATUSES, type Schedule } from '@beauessence/domain';
 
 requireLocalFirestoreEmulatorTarget(process.env['FIRESTORE_EMULATOR_HOST']);
 const projectId = LOCAL_FIREBASE_PROJECT_ID;
@@ -453,5 +453,82 @@ describe('publishing a schedule while a booking is created (AUD-02)', () => {
       const publicationCommitted = (await publishedVersion()) === 2;
       expect(bookingCommitted && publicationCommitted).toBe(false);
     }
+  });
+
+  it('blocks orphaning publication for every domain OPEN_STATUSES value (D-07)', async () => {
+    await publishFirstSchedule();
+    const booking = bookingRequest();
+    await bookings.reserve(booking);
+    const appointmentRef = db
+      .collection(COLLECTIONS.appointments)
+      .doc(booking.appointmentId);
+    const slotRef = db.collection(COLLECTIONS.slots).doc(booking.slotId);
+    const guardRef = db
+      .collection(COLLECTIONS.patientBookingGuards)
+      .doc(booking.patientId);
+
+    for (const status of OPEN_STATUSES) {
+      await appointmentRef.update({ status });
+      const before = await Promise.all([
+        appointmentRef.get(),
+        slotRef.get(),
+        guardRef.get()
+      ]);
+      const request = publishRequest({
+        draft: EMPTY_SCHEDULE,
+        expectedVersion: 1,
+        key: `schedule-publish-open-status-${status}`
+      });
+      await expect(schedules.publish(request)).rejects.toMatchObject({
+        code: 'SCHEDULE_ORPHANS_APPOINTMENTS'
+      });
+      const after = await Promise.all([
+        appointmentRef.get(),
+        slotRef.get(),
+        guardRef.get()
+      ]);
+      expect(after.map((snapshot) => snapshot.data())).toEqual(
+        before.map((snapshot) => snapshot.data())
+      );
+      expect(await publishedVersion()).toBe(1);
+    }
+  });
+
+  it('bounds slot reads to the requested horizon window for listOccupiedSlots and publish (A02)', async () => {
+    await publishFirstSchedule();
+    const booking = bookingRequest();
+    await bookings.reserve(booking);
+    await db.collection(COLLECTIONS.slots).doc('slot_20291101_1200').set({
+      schemaVersion: 1,
+      kind: 'initial',
+      startsAt: '2029-11-01T04:00:00.000Z',
+      reservationId: 'past_appt'
+    });
+    await db.collection(COLLECTIONS.slots).doc('slot_20310101_1200').set({
+      schemaVersion: 1,
+      kind: 'invalid_kind',
+      startsAt: '2031-01-01T04:00:00.000Z'
+    });
+
+    const occupied = await schedules.listOccupiedSlots({
+      startsAtFrom: '2029-12-14T16:00:00.000Z',
+      startsAtBefore: '2030-01-15T16:00:00.000Z'
+    });
+    expect(occupied).toHaveLength(1);
+    expect(occupied[0]).toMatchObject({
+      id: SLOT_ID,
+      reservationId: booking.appointmentId
+    });
+
+    const republished = await schedules.publish(
+      publishRequest({
+        draft: schedule,
+        expectedVersion: 1,
+        key: 'schedule_publish_bounded_window'
+      })
+    );
+    expect(republished.publishedVersion).toBe(2);
+    const slot = await db.collection(COLLECTIONS.slots).doc(SLOT_ID).get();
+    expect(slot.data()?.['reservationId']).toBe(booking.appointmentId);
   });
 });

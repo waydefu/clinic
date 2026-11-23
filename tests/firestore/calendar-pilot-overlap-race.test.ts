@@ -301,4 +301,51 @@ describe('CAL-PILOT overlapping creation race', () => {
       .get();
     expect(appointments.size).toBe(2);
   });
+
+  it('allows touching endpoints, rejects true busy overlap, and excludes future disjoint blocks (A08)', async () => {
+    const blocks = db.collection('calendar_pilot_availability_blocks');
+    await Promise.all([
+      blocks.doc('touching_before').set({
+        kind: 'busy',
+        bookingKind: null,
+        startsAt: '2026-09-10T04:30:00.000Z',
+        endsAt: FIRST_START
+      }),
+      blocks.doc('touching_after').set({
+        kind: 'busy',
+        bookingKind: null,
+        startsAt: '2026-09-10T05:30:00.000Z',
+        endsAt: '2026-09-10T06:00:00.000Z'
+      }),
+      blocks.doc('future_disjoint').set({
+        kind: 'invalid_kind',
+        bookingKind: null,
+        startsAt: '2026-09-10T06:00:00.000Z',
+        endsAt: 'not-a-timestamp'
+      })
+    ]);
+
+    const created = await repository.createSyntheticAppointment(
+      createCommand({
+        idempotencyKey: 'a08_touching_and_bounded',
+        patientCode: 'A17'
+      })
+    );
+    expect(created.replayed).toBe(false);
+
+    await blocks.doc('overlapping_busy').set({
+      kind: 'busy',
+      bookingKind: null,
+      startsAt: '2026-09-10T05:15:00.000Z',
+      endsAt: '2026-09-10T05:45:00.000Z'
+    });
+    await expect(
+      repository.createSyntheticAppointment(
+        createCommand({
+          idempotencyKey: 'a08_true_overlap',
+          patientCode: 'A18'
+        })
+      )
+    ).rejects.toThrow(ConflictError);
+  });
 });
