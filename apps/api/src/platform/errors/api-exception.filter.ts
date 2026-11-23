@@ -68,6 +68,26 @@ function routeTemplate(request: HttpRequest): string {
   return 'unknown';
 }
 
+const HTTP_METHODS = new Set([
+  'GET',
+  'POST',
+  'PUT',
+  'PATCH',
+  'DELETE',
+  'HEAD',
+  'OPTIONS'
+]);
+
+export function structuredLogOperation(request: HttpRequest): string {
+  const route = routeTemplate(request);
+  if (route === 'unknown') return 'unknown';
+  const method = request.method?.toUpperCase();
+  if (method !== undefined && HTTP_METHODS.has(method)) {
+    return `${method}_${route}`;
+  }
+  return route;
+}
+
 function reasonCategory(
   error: unknown
 ): DeniedAccessReasonCategory | undefined {
@@ -116,7 +136,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
           environment: 'internal_test',
           service: 'api',
           correlationId,
-          operation: routeTemplate(request),
+          operation: structuredLogOperation(request),
           result:
             mapped.body.error.code === 'RATE_LIMITED'
               ? 'rate_limited'

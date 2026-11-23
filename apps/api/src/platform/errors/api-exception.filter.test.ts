@@ -6,7 +6,8 @@ import { InMemoryApiMetrics } from '../runtime/api-metrics.js';
 import {
   AuthenticationRequiredError,
   AuthorizationDeniedError,
-  RateLimitedError
+  RateLimitedError,
+  ServiceUnavailableError
 } from './api-error.js';
 import {
   ApiExceptionFilter,
@@ -228,5 +229,74 @@ describe('ApiExceptionFilter denied-authorization audit lifecycle', () => {
     expect(captured.headers[DENIED_AUDIT_APPEND_HEADER]).toBe('recorded');
     expect(denials.list()).toHaveLength(1);
     expect(denials.list()[0]?.action).not.toMatch(/session|token|cookie/i);
+  });
+});
+
+describe('ApiExceptionFilter structured log operations (B-06)', () => {
+  async function emitStructuredLog(
+    error: unknown,
+    request: { readonly method?: string; readonly routerPath?: string }
+  ): Promise<StructuredLog[]> {
+    const logs: StructuredLog[] = [];
+    const filter = new ApiExceptionFilter(undefined, undefined, {
+      emit(entry) {
+        logs.push(entry);
+      }
+    });
+    await filter.catch(error, host(reply(), request));
+    return logs;
+  }
+
+  it('emits POST_v1_bookings operation on POST failure', async () => {
+    const logs = await emitStructuredLog(new Error('db fail'), {
+      method: 'POST',
+      routerPath: '/v1/bookings'
+    });
+    expect(logs).toEqual([
+      expect.objectContaining({
+        operation: 'POST_v1_bookings',
+        result: 'error',
+        errorCode: 'INTERNAL_ERROR'
+      })
+    ]);
+  });
+
+  it('emits POST_v1_bookings for SERVICE_UNAVAILABLE on POST', async () => {
+    const logs = await emitStructuredLog(new ServiceUnavailableError(), {
+      method: 'POST',
+      routerPath: '/v1/bookings'
+    });
+    expect(logs).toEqual([
+      expect.objectContaining({
+        operation: 'POST_v1_bookings',
+        result: 'error',
+        errorCode: 'SERVICE_UNAVAILABLE'
+      })
+    ]);
+  });
+
+  it('keeps GET_v1_bookings distinct from POST_v1_bookings', async () => {
+    const logs = await emitStructuredLog(new Error('db fail'), {
+      method: 'GET',
+      routerPath: '/v1/bookings'
+    });
+    expect(logs).toEqual([
+      expect.objectContaining({
+        operation: 'GET_v1_bookings',
+        result: 'error',
+        errorCode: 'INTERNAL_ERROR'
+      })
+    ]);
+  });
+
+  it('falls back cleanly when route or method is missing', async () => {
+    const unknownLogs = await emitStructuredLog(new Error('bad route'), {
+      method: 'POST'
+    });
+    const methodlessLogs = await emitStructuredLog(new Error('missing verb'), {
+      routerPath: '/v1/bookings'
+    });
+    expect(unknownLogs[0]?.operation).toBe('unknown');
+    expect(methodlessLogs[0]?.operation).toBe('v1_bookings');
   });
 });
