@@ -79,6 +79,12 @@ export interface CalendarProjectionOptions {
   readonly timeoutMs?: number;
   /** Starts at the processor boundary so pre-adapter overhead also consumes it. */
   readonly signal?: AbortSignal;
+  /**
+   * When false, an HTTP 409 conflict on upsert fails closed instead of
+   * falling back to PATCH. Used by fresh-write smoke probes so remnants
+   * cannot masquerade as a new write.
+   */
+  readonly allowConflictFallback?: boolean;
 }
 
 export interface CalendarPort {

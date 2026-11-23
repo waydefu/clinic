@@ -226,13 +226,43 @@ describe('GoogleCalendarClient', () => {
   });
 
   it('insert 回 409 時改 patch，維持一個事件（冪等）', async () => {
-    const { impl, calls } = fakeFetch([409, 200]);
+    const confirmed = JSON.stringify({ id: KEY, status: 'confirmed' });
+    const { impl, calls } = fakeFetch([409, 200], ['{}', confirmed]);
     await client(impl).project(request());
 
     expect(calls).toHaveLength(2);
     expect(calls[0]?.method).toBe('POST');
     expect(calls[1]?.method).toBe('PATCH');
     expect(calls[1]?.url).toContain(encodeURIComponent(KEY));
+    expect(JSON.parse(calls[1]?.body ?? '{}').status).toBe('confirmed');
+  });
+
+  it('rejects 409 patch when provider keeps cancelled status', async () => {
+    const cancelled = JSON.stringify({ id: KEY, status: 'cancelled' });
+    const { impl, calls } = fakeFetch([409, 200], ['{}', cancelled]);
+    const err = await codeOf(() => client(impl).project(request()));
+
+    expect(calls).toHaveLength(2);
+    expect(err.retryable).toBe(false);
+  });
+
+  it('rejects insert 201 when provider returns cancelled status', async () => {
+    const cancelled = JSON.stringify({ id: KEY, status: 'cancelled' });
+    const { impl } = fakeFetch([201], [cancelled]);
+    const err = await codeOf(() => client(impl).project(request()));
+
+    expect(err.retryable).toBe(false);
+  });
+
+  it('fails closed on 409 when allowConflictFallback is false', async () => {
+    const { impl, calls } = fakeFetch([409]);
+    const result = await codeOf(() =>
+      client(impl).project(request(), { allowConflictFallback: false })
+    );
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.method).toBe('POST');
+    expect(result.retryable).toBe(false);
   });
 
   it('cancel 走 events.delete；404／410 視為成功', async () => {

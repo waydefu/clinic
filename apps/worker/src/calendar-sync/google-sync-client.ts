@@ -178,6 +178,26 @@ async function responseJson(response: Response): Promise<unknown> {
   }
 }
 
+async function assertConfirmedEventResponse(response: Response): Promise<void> {
+  const raw = await responseJson(response);
+  if (
+    typeof raw !== 'object' ||
+    raw === null ||
+    Array.isArray(raw) ||
+    !Object.hasOwn(raw, 'status')
+  ) {
+    return;
+  }
+  const status = (raw as Record<string, unknown>)['status'];
+  if (status !== 'confirmed') {
+    throw new GoogleCalendarSyncError(
+      'Google Calendar event did not confirm active status.',
+      response.status,
+      false
+    );
+  }
+}
+
 export class GoogleCalendarEventReader implements CalendarEventReader {
   public constructor(
     private readonly calendarId: string,
@@ -520,7 +540,10 @@ export class GoogleCalendarEventWriter {
       { method: 'POST', body },
       new Set([409])
     );
-    if (inserted.status !== 409) return;
+    if (inserted.status !== 409) {
+      await assertConfirmedEventResponse(inserted);
+      return;
+    }
     const etag = await this.readEtag(event.eventId, event.linkId);
     if (etag === undefined)
       throw new GoogleCalendarSyncError(
@@ -528,7 +551,7 @@ export class GoogleCalendarEventWriter {
         404,
         false
       );
-    await this.update(event, etag);
+    await this.update(event, etag, true);
   }
 
   public async update(
@@ -538,13 +561,19 @@ export class GoogleCalendarEventWriter {
   ): Promise<void> {
     if (!/^"[\x21\x23-\x7e]*"$/u.test(expectedEtag))
       throw new Error('Calendar event version is unavailable.');
-    await this.request(`/events/${encodeURIComponent(event.eventId)}`, {
-      method: 'PATCH',
-      body: restore
-        ? JSON.stringify({ ...this.mutationBody(event), status: 'confirmed' })
-        : this.patchBody(event),
-      headers: { 'If-Match': expectedEtag }
-    });
+    const updated = await this.request(
+      `/events/${encodeURIComponent(event.eventId)}`,
+      {
+        method: 'PATCH',
+        body: restore
+          ? JSON.stringify({ ...this.mutationBody(event), status: 'confirmed' })
+          : this.patchBody(event),
+        headers: { 'If-Match': expectedEtag }
+      }
+    );
+    if (restore) {
+      await assertConfirmedEventResponse(updated);
+    }
   }
 
   private mutationBody(event: CalendarWriteEvent): Record<string, unknown> {

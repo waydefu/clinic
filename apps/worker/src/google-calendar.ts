@@ -255,6 +255,31 @@ function calendarErrorReason(raw: string): string | undefined {
   return firstReason;
 }
 
+function calendarResponseEventStatus(raw: string): {
+  readonly present: boolean;
+  readonly status?: string;
+} {
+  if (raw.trim() === '' || raw.length > MAX_ERROR_RESPONSE_BYTES) {
+    return { present: false };
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { present: false };
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    return { present: false };
+  }
+  const record = parsed as Record<string, unknown>;
+  if (!Object.hasOwn(record, 'status')) {
+    return { present: false };
+  }
+  return typeof record['status'] === 'string'
+    ? { present: true, status: record['status'] }
+    : { present: true };
+}
+
 function parseServiceAccount(serviceAccountJson: string): ServiceAccount {
   let parsed: unknown;
   try {
@@ -544,7 +569,12 @@ export class GoogleCalendarClient implements CalendarPort {
     }
     if (request.action === 'cancel')
       return this.cancel(request, token, deadlineSignal);
-    return this.upsert(request, token, deadlineSignal);
+    return this.upsert(
+      request,
+      token,
+      deadlineSignal,
+      options.allowConflictFallback ?? true
+    );
   }
 
   /**
@@ -552,7 +582,10 @@ export class GoogleCalendarClient implements CalendarPort {
    * markers. The optional approved title is only wired by the dedicated C1
    * appointment test worker; sensitive fields outside ADR-0002 stay off-wire.
    */
-  private eventBody(request: CalendarProjectionRequest): string {
+  private eventBody(
+    request: CalendarProjectionRequest,
+    restore = false
+  ): string {
     const body = buildClinicCalendarEventBody({
       eventId: request.idempotencyKey,
       appointmentId: request.appointmentId,
@@ -569,7 +602,9 @@ export class GoogleCalendarClient implements CalendarPort {
     assertClinicCalendarPayloadAllowlist(
       body as unknown as Record<string, unknown>
     );
-    return JSON.stringify(body);
+    return restore
+      ? JSON.stringify({ ...body, status: 'confirmed' })
+      : JSON.stringify(body);
   }
 
   private encodedPath(...segments: string[]): string {
@@ -581,7 +616,8 @@ export class GoogleCalendarClient implements CalendarPort {
   private async upsert(
     request: CalendarProjectionRequest,
     token: string,
-    deadlineSignal: AbortSignal
+    deadlineSignal: AbortSignal,
+    allowConflictFallback = true
   ): Promise<void> {
     const headers = {
       Authorization: `Bearer ${token}`,
@@ -592,24 +628,54 @@ export class GoogleCalendarClient implements CalendarPort {
       {
         method: 'POST',
         headers,
-        body: this.eventBody(request)
+        body: this.eventBody(request, false)
       },
-      deadlineSignal
+      deadlineSignal,
+      true
     );
-    if (insert.ok) return;
+    if (insert.ok) {
+      if (
+        insert.eventStatus?.present &&
+        insert.eventStatus.status !== 'confirmed'
+      ) {
+        throw new CalendarError(
+          'Calendar insert returned non-confirmed event status.',
+          false
+        );
+      }
+      return;
+    }
     // 409＝事件已存在（Google 明說無法保證偵測 ID 衝突，故不得當失敗）：
-    // 改為 patch 更新同一個事件，維持一筆而非兩筆。
+    // 改為 patch 更新同一個事件並明確帶回 status=confirmed，避免殘留 cancelled。
     if (insert.status === 409) {
+      if (!allowConflictFallback) {
+        throw new CalendarError(
+          'Calendar insert conflicted with an existing or cancelled event (409).',
+          false
+        );
+      }
       const patch = await this.call(
         this.encodedPath(request.idempotencyKey),
         {
           method: 'PATCH',
           headers,
-          body: this.eventBody(request)
+          body: this.eventBody(request, true)
         },
-        deadlineSignal
+        deadlineSignal,
+        true
       );
-      if (patch.ok) return;
+      if (patch.ok) {
+        if (
+          patch.eventStatus?.present &&
+          patch.eventStatus.status !== 'confirmed'
+        ) {
+          throw new CalendarError(
+            'Calendar patch returned non-confirmed event status.',
+            false
+          );
+        }
+        return;
+      }
       throw this.toError('patch', patch.status, patch.reason);
     }
     throw this.toError('insert', insert.status, insert.reason);
@@ -637,8 +703,14 @@ export class GoogleCalendarClient implements CalendarPort {
   private async call(
     url: string,
     init: { method: string; headers: Record<string, string>; body?: string },
-    deadlineSignal: AbortSignal
-  ): Promise<{ ok: boolean; status: number; reason?: string }> {
+    deadlineSignal: AbortSignal,
+    inspectEventStatus = false
+  ): Promise<{
+    ok: boolean;
+    status: number;
+    reason?: string;
+    eventStatus?: { readonly present: boolean; readonly status?: string };
+  }> {
     const signal = requestSignal(this.requestTimeoutMs, deadlineSignal);
     try {
       const response = await awaitWithAbort(
@@ -649,16 +721,25 @@ export class GoogleCalendarClient implements CalendarPort {
           }),
         signal
       );
-      const reason =
-        response.status === 403
-          ? calendarErrorReason(
-              await awaitWithAbort(() => response.text(), signal)
-            )
-          : undefined;
+      const ok = response.status >= 200 && response.status < 300;
+      let reason: string | undefined;
+      let eventStatus:
+        | { readonly present: boolean; readonly status?: string }
+        | undefined;
+      if (response.status === 403) {
+        reason = calendarErrorReason(
+          await awaitWithAbort(() => response.text(), signal)
+        );
+      } else if (ok && inspectEventStatus) {
+        eventStatus = calendarResponseEventStatus(
+          await awaitWithAbort(() => response.text(), signal)
+        );
+      }
       return {
-        ok: response.status >= 200 && response.status < 300,
+        ok,
         status: response.status,
-        ...(reason === undefined ? {} : { reason })
+        ...(reason === undefined ? {} : { reason }),
+        ...(eventStatus === undefined ? {} : { eventStatus })
       };
     } catch {
       // 網路層錯誤（連線中斷、逾時）屬暫時性；不回傳底層訊息，避免 URL 或
