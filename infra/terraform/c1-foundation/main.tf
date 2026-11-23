@@ -45,6 +45,7 @@ resource "google_service_account" "terraform_ci" {
   account_id   = "c1-terraform-ci"
   display_name = "C1 Terraform CI via WIF"
   description  = "Least-privilege CI account. No Owner/Editor. No datastore.user."
+  disabled     = var.terraform_ci_disabled
 }
 
 resource "google_iam_workload_identity_pool" "github" {

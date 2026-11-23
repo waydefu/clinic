@@ -122,6 +122,12 @@ variable "github_wif_binding_enabled" {
   default     = false
 }
 
+variable "terraform_ci_disabled" {
+  type        = bool
+  description = "Whether c1-terraform-ci is disabled in IAM. Default true reflects the 2026-11-17 owner-approved disabled state so terraform plan does not propose re-enabling it; set false only with explicit owner approval when an approved CI workflow requires it."
+  default     = true
+}
+
 variable "budget_amount_twd" {
   type        = number
   description = "Alerting budget in TWD; not a hard spending cap and never auto-detaches billing."
