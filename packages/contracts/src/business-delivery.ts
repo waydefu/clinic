@@ -135,6 +135,21 @@ export type MilestoneAcknowledgementResponse = z.infer<
   typeof MilestoneAcknowledgementResponseSchema
 >;
 
+export const MAX_BUSINESS_EXPORT_RANGE_DAYS = 366;
+const MS_PER_DAY = 86_400_000;
+
+function utcDayNumber(date: string): number {
+  const parts = date.split('-');
+  const year = Number(parts[0]);
+  const month = Number(parts[1]);
+  const day = Number(parts[2]);
+  return Date.UTC(year, month - 1, day) / MS_PER_DAY;
+}
+
+function inclusiveCalendarDays(from: string, to: string): number {
+  return utcDayNumber(to) - utcDayNumber(from) + 1;
+}
+
 /**
  * CP-04 export. The server fixes the columns (the approved allowlist) and the
  * scope; the client only picks the Taipei date range. CSV is the only format
@@ -148,7 +163,18 @@ export const CreateBusinessExportRequestSchema = z
     from: LocalDateSchema,
     to: LocalDateSchema
   })
-  .strict();
+  .strict()
+  .refine((value) => value.from <= value.to, {
+    message: 'Export start date must be on or before end date.'
+  })
+  .refine(
+    (value) =>
+      inclusiveCalendarDays(value.from, value.to) <=
+      MAX_BUSINESS_EXPORT_RANGE_DAYS,
+    {
+      message: 'Export date range exceeds the maximum allowed days.'
+    }
+  );
 
 export const RevokeBusinessExportRequestSchema = z
   .object({ idempotencyKey: IdempotencyKeySchema })

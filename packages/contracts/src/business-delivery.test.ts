@@ -5,7 +5,9 @@ import {
   BusinessTerminationReceiptSchema,
   BusinessMilestonesResponseSchema,
   CloseBusinessTerminationRequestSchema,
+  CreateBusinessExportRequestSchema,
   CreateBusinessTerminationRequestSchema,
+  MAX_BUSINESS_EXPORT_RANGE_DAYS,
   MilestoneAcknowledgementRequestSchema,
   MonthlyUsageQuerySchema,
   MonthlyUsageResponseSchema
@@ -240,5 +242,43 @@ describe('response schemas', () => {
         maintenance: { status: 'not_started' }
       }).finalPayment
     ).toEqual({ status: 'blocked' });
+  });
+});
+
+describe('CreateBusinessExportRequestSchema (B-38)', () => {
+  const exportKey = 'export-key-0000000001';
+
+  it('accepts same-day and 366-day leap-year bounds', () => {
+    expect(MAX_BUSINESS_EXPORT_RANGE_DAYS).toBe(366);
+    for (const [from, to] of [
+      ['2030-05-01', '2030-05-01'],
+      ['2032-01-01', '2032-12-31']
+    ]) {
+      expect(
+        CreateBusinessExportRequestSchema.parse({
+          idempotencyKey: exportKey,
+          format: 'csv',
+          from,
+          to
+        })
+      ).toEqual({ idempotencyKey: exportKey, format: 'csv', from, to });
+    }
+  });
+
+  it('rejects reversed or over-366-day export ranges', () => {
+    for (const [from, to] of [
+      ['2030-11-01', '2030-10-01'],
+      ['2032-01-01', '2033-01-01'],
+      ['2030-01-01', '2031-01-02']
+    ]) {
+      expect(
+        CreateBusinessExportRequestSchema.safeParse({
+          idempotencyKey: exportKey,
+          format: 'csv',
+          from,
+          to
+        }).success
+      ).toBe(false);
+    }
   });
 });
