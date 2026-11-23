@@ -435,3 +435,70 @@ describe('CAL-PILOT logout controller failure semantics', () => {
     expect(reply.value).toContain('__session=; Max-Age=0');
   });
 });
+
+describe('CAL-PILOT R5 superseded session on re-login (new tab)', () => {
+  it('revokes only the old Firestore session of the same actor, not Firebase tokens', async () => {
+    const auth = authFor({});
+    const db = dbFor(() => Promise.resolve(undefined));
+    const service = serviceFor({ auth: auth.auth, db: db.db });
+
+    await service.supersedePreviousSession(COOKIE, UID, 'f'.repeat(64), NOW);
+
+    expect(db.calls).toEqual([{ revokedAt: NOW }]);
+    expect(auth.calls.revoke).toEqual([]);
+  });
+
+  it('leaves a different actor, the new session itself and bad cookies alone', async () => {
+    const other = authFor({ verifyResult: { uid: 'someone-else' } });
+    const otherDb = dbFor(() => Promise.resolve(undefined));
+    await serviceFor({
+      auth: other.auth,
+      db: otherDb.db
+    }).supersedePreviousSession(COOKIE, UID, 'f'.repeat(64), NOW);
+    const bad = authFor({ verifyError: new Error('expired') });
+    const badDb = dbFor(() => Promise.resolve(undefined));
+    await expect(
+      serviceFor({ auth: bad.auth, db: badDb.db }).supersedePreviousSession(
+        COOKIE,
+        UID,
+        'f'.repeat(64),
+        NOW
+      )
+    ).resolves.toBeUndefined();
+    expect(otherDb.calls).toEqual([]);
+    expect(badDb.calls).toEqual([]);
+  });
+
+  it('controller passes the existing __session cookie into create', async () => {
+    const seen: unknown[] = [];
+    const sessions = {
+      create: (...args: unknown[]) => {
+        seen.push(args[3]);
+        return Promise.resolve({
+          cookieValue: 'new',
+          cookieMaxAgeSeconds: 60,
+          csrfToken: 'c',
+          authentication: { actorId: UID, actorRole: 'front_desk' }
+        });
+      }
+    } as unknown as CalendarPilotSessionService;
+    const controller = new CalendarPilotSessionController(sessions, {
+      assertUnauthenticatedIp: async () => {},
+      assertIdentifiedWrite: async () => {}
+    } as never);
+    const reply = { header() {} };
+    await controller.create(
+      { idToken: 'x'.repeat(100) },
+      reply,
+      { headers: {}, ip: '127.0.0.1' },
+      `__session=${COOKIE}`
+    );
+    await controller.create(
+      { idToken: 'x'.repeat(100) },
+      reply,
+      { headers: {}, ip: '127.0.0.1' },
+      undefined
+    );
+    expect(seen).toEqual([COOKIE, undefined]);
+  });
+});
