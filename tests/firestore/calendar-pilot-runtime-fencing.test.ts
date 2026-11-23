@@ -1040,6 +1040,49 @@ describe('inbound persistence is fenced in the configuration-reading transaction
     }
   );
 
+  it('advances syncToken and publishes healthy only while the lease is valid (D-05)', async () => {
+    const repository = await ownConfiguration();
+    await configuration().update({ health: 'syncing' });
+    await expect(
+      repository.commitSync({ ...commit, nextSyncToken: 'next-sync-token' })
+    ).resolves.toBeUndefined();
+    expect(
+      (
+        await db.collection('calendar_pilot_sources').doc(SOURCE).get()
+      ).data()?.['syncToken']
+    ).toBe('next-sync-token');
+    expect((await configuration().get()).data()).toMatchObject({
+      health: 'healthy',
+      lastSuccessfulSyncAt: NOW
+    });
+  });
+
+  it.each(['owner', 'deadline', 'configuration', 'disabled'])(
+    'does not advance syncToken or publish healthy after losing lease: %s (D-05)',
+    async (reason) => {
+      const repository = await ownConfiguration();
+      await configuration().update({ health: 'syncing' });
+      if (reason === 'owner')
+        await configuration().update({ workerLeaseOwner: 'successor' });
+      if (reason === 'deadline') clock = DEADLINE;
+      if (reason === 'configuration')
+        await configuration().update({ expiresAt: NOW });
+      if (reason === 'disabled')
+        await configuration().update({ inboundEnabled: false });
+      await expect(
+        repository.commitSync({ ...commit, nextSyncToken: 'next-sync-token' })
+      ).rejects.toThrow(/lease/iu);
+      expect(
+        (
+          await db.collection('calendar_pilot_sources').doc(SOURCE).get()
+        ).data()?.['syncToken']
+      ).toBe('test');
+      const current = (await configuration().get()).data();
+      expect(current?.['health']).toBe('syncing');
+      expect(current).not.toHaveProperty('lastSuccessfulSyncAt');
+    }
+  );
+
   it('cannot clear a token or write an audit after ownership changes', async () => {
     const repository = await ownConfiguration();
     await configuration().update({ workerLeaseOwner: 'successor' });
