@@ -31,6 +31,7 @@ import {
   INTERNAL_TEST_BOOKING_SETTINGS
 } from '../internal-test-booking/internal-test-booking.tokens.js';
 import type { InternalTestBookingSettings } from '../internal-test-booking/internal-test-booking.gate.js';
+import { WP_B2_RATE_LIMITER } from '../platform/runtime/wp-b2-rate-limiter.js';
 
 const OPEN_INTERNAL_TEST_SETTINGS: InternalTestBookingSettings = {
   enabled: true,
@@ -127,10 +128,24 @@ const harnessRepository: ScheduleRepositoryPort = {
     {
       provide: INTERNAL_TEST_BOOKING_CLOCK,
       useValue: FIXED_INTERNAL_TEST_CLOCK
+    },
+    {
+      provide: WP_B2_RATE_LIMITER,
+      useValue: { assertRequest: () => Promise.resolve() }
     }
   ]
 })
 class ScheduleRbacHarnessModule {}
+
+@Module({
+  controllers: [ScheduleController],
+  providers: (
+    Reflect.getMetadata('providers', ScheduleRbacHarnessModule) as Array<{
+      provide: unknown;
+    }>
+  ).filter((provider) => provider.provide !== WP_B2_RATE_LIMITER)
+})
+class ScheduleMissingLimiterModule {}
 
 function actorHeaders(
   role: CandidateRole,
@@ -255,5 +270,15 @@ describe('ScheduleController RBAC harness', () => {
     });
     expect(patient.statusCode).toBe(403);
     expect(frontDesk.statusCode).toBe(403);
+  });
+
+  it('refuses startup when the required request limiter is not injected (E4-14)', async () => {
+    await expect(
+      NestFactory.create(
+        ScheduleMissingLimiterModule,
+        new FastifyAdapter({ logger: false }),
+        { logger: false, abortOnError: false }
+      )
+    ).rejects.toThrow('WpB2RateLimiter');
   });
 });

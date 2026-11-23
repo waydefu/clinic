@@ -94,7 +94,7 @@ export class AppointmentController {
     @Inject(INTERNAL_TEST_BOOKING_CLOCK)
     private readonly internalTestClock: InternalTestBookingClock,
     @Inject(WP_B2_RATE_LIMITER)
-    private readonly rateLimiter?: WpB2RateLimiter
+    private readonly rateLimiter: WpB2RateLimiter
   ) {}
 
   private assertInternalTestGate(): void {
@@ -110,13 +110,11 @@ export class AppointmentController {
   ): Promise<AuthenticationContext> {
     const authentication = await this.authenticator.authenticate(request);
     request.authentication = authentication;
-    if (this.rateLimiter !== undefined) {
-      await this.rateLimiter.assertRequest({
-        ip: deriveClientIp(request),
-        actorId: authentication.actorId,
-        write
-      });
-    }
+    await this.rateLimiter.assertRequest({
+      ip: deriveClientIp(request),
+      actorId: authentication.actorId,
+      write
+    });
     return authentication;
   }
 
