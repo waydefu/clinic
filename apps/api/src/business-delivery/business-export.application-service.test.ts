@@ -214,7 +214,7 @@ describe('create', () => {
         'fresh',
         staff(OWNER_ROLE)
       )
-    ).rejects.toBeInstanceOf(DomainError);
+    ).rejects.toBeInstanceOf(ZodError);
     expect(reauthCalls).toBe(1);
     expect(repo.created).toHaveLength(1);
   });
@@ -232,10 +232,32 @@ describe('create', () => {
         'fresh',
         staff(OWNER_ROLE)
       )
-    ).rejects.toBeInstanceOf(DomainError);
+    ).rejects.toBeInstanceOf(ZodError);
     await expect(
       instance.create(
         { ...body, from: '2030-01-01', to: '2031-01-02' },
+        'fresh',
+        staff(OWNER_ROLE)
+      )
+    ).rejects.toBeInstanceOf(ZodError);
+    const strictConfig: BusinessDeliveryConfig = {
+      ...ENABLED,
+      policy: {
+        ...POLICY,
+        export: { ...POLICY.export, maxRangeDays: 30 }
+      }
+    };
+    const strictInstance = service(
+      repo.repository,
+      () => {
+        reauthCalls += 1;
+        return Promise.resolve();
+      },
+      strictConfig
+    );
+    await expect(
+      strictInstance.create(
+        { ...body, from: '2030-01-01', to: '2030-01-31' },
         'fresh',
         staff(OWNER_ROLE)
       )
