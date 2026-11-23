@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   renderCaseAssignments,
   renderFollowUps,
-  renderIntakeSheet,
   renderTasks,
   renderWorkload
 } from '../public/modules/admin-view.js';
 import { PERMISSIONS } from '../public/modules/constants.js';
+import { renderIntakeSheet } from '../public/modules/intake-sheet.js';
 import { initialState } from '../public/modules/state-schema.js';
 import {
   activeOperationalTasks,
