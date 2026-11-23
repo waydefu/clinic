@@ -84,6 +84,86 @@ describe('schedule contract', () => {
       ScheduleSchema.safeParse({ ...schedule, ...extraField }).success
     ).toBe(false);
   });
+
+  it('rejects reversed or zero-length intervals (B-35)', () => {
+    for (const interval of [
+      { startLocalTime: '12:00', endLocalTime: '12:00' },
+      { startLocalTime: '14:00', endLocalTime: '12:00' }
+    ]) {
+      expect(
+        ScheduleSchema.safeParse({
+          ...schedule,
+          weeklyAvailability: [{ weekday: 3, intervals: [interval] }]
+        }).success
+      ).toBe(false);
+      expect(
+        ScheduleSchema.safeParse({
+          ...schedule,
+          dateExceptions: [
+            {
+              date: '2030-01-06',
+              kind: 'extra_open',
+              intervals: [interval]
+            }
+          ]
+        }).success
+      ).toBe(false);
+    }
+  });
+
+  it('rejects overlapping intervals and accepts adjacent intervals (B-35)', () => {
+    const overlapping = [
+      { startLocalTime: '09:00', endLocalTime: '12:30' },
+      { startLocalTime: '12:00', endLocalTime: '17:00' }
+    ];
+    expect(
+      ScheduleSchema.safeParse({
+        ...schedule,
+        weeklyAvailability: [{ weekday: 3, intervals: overlapping }]
+      }).success
+    ).toBe(false);
+    expect(
+      ScheduleSchema.safeParse({
+        ...schedule,
+        dateExceptions: [
+          {
+            date: '2030-01-06',
+            kind: 'extra_open',
+            intervals: overlapping
+          }
+        ]
+      }).success
+    ).toBe(false);
+
+    const adjacent = [
+      { startLocalTime: '09:00', endLocalTime: '12:00' },
+      { startLocalTime: '12:00', endLocalTime: '17:00' }
+    ];
+    expect(
+      ScheduleSchema.safeParse({
+        ...schedule,
+        weeklyAvailability: [{ weekday: 3, intervals: adjacent }]
+      }).success
+    ).toBe(true);
+  });
+
+  it('rejects duplicate weekdays in weeklyAvailability (B-35)', () => {
+    expect(
+      ScheduleSchema.safeParse({
+        ...schedule,
+        weeklyAvailability: [
+          {
+            weekday: 3,
+            intervals: [{ startLocalTime: '09:00', endLocalTime: '12:00' }]
+          },
+          {
+            weekday: 3,
+            intervals: [{ startLocalTime: '14:00', endLocalTime: '17:00' }]
+          }
+        ]
+      }).success
+    ).toBe(false);
+  });
 });
 
 describe('publish schedule command', () => {

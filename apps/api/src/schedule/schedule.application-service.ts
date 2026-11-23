@@ -136,8 +136,15 @@ export class ScheduleApplicationService {
     await this.authorization.assertCanReadGrid(authentication);
     const published = await this.repository.readPublished();
     if (published.schedule === null) return { slots: [] };
-    const occupied = await this.repository.listOccupiedSlots();
     const requestedAt = this.clock.nowUtc();
+    const generation = internalTestSlotGeneration(requestedAt);
+    const startMs = Date.parse(`${generation.startDate}T00:00:00+08:00`);
+    const occupied = await this.repository.listOccupiedSlots({
+      startsAtFrom: new Date(startMs).toISOString(),
+      startsAtBefore: new Date(
+        startMs + generation.dayCount * 86_400_000
+      ).toISOString()
+    });
     return {
       slots: listPublishedGrid(
         published.schedule,

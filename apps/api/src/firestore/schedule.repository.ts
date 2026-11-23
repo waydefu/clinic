@@ -1,5 +1,6 @@
 import {
   DomainError,
+  OPEN_STATUSES,
   parseAppointmentSnapshot,
   parsePublishedScheduleSnapshot,
   parseSlotSnapshot,
@@ -19,17 +20,33 @@ import type { DocumentSnapshot, Firestore } from 'firebase-admin/firestore';
 
 import type {
   PublishedScheduleResult,
-  ScheduleRepositoryPort
+  ScheduleRepositoryPort,
+  SlotQueryWindow
 } from '../schedule/schedule.repository-port.js';
 import { COLLECTIONS } from './booking.repository.js';
 
 export const SCHEDULE_DOCUMENT_ID = 'current';
 
-const OPEN_APPOINTMENT_STATUSES = [
-  'confirmed',
-  'cancellation_requested',
-  'arrived'
-];
+function slotGenerationWindow(
+  startDate: string,
+  dayCount: number
+): SlotQueryWindow {
+  const startMs = Date.parse(`${startDate}T00:00:00+08:00`);
+  if (
+    !Number.isFinite(startMs) ||
+    !Number.isInteger(dayCount) ||
+    dayCount < 0
+  ) {
+    throw new DomainError(
+      'INVALID_VALUE',
+      'Slot generation window is invalid.'
+    );
+  }
+  return {
+    startsAtFrom: new Date(startMs).toISOString(),
+    startsAtBefore: new Date(startMs + dayCount * 86_400_000).toISOString()
+  };
+}
 
 /**
  * Persists the clinic published grid. Slot occupancy stays on sparse `slots`
@@ -45,8 +62,17 @@ export class FirestoreScheduleRepository implements ScheduleRepositoryPort {
     return parsePublishedScheduleSnapshot(snapshot.data());
   }
 
-  public async listOccupiedSlots(): Promise<readonly SlotSnapshot[]> {
-    const documents = await this.db.collection(COLLECTIONS.slots).get();
+  public async listOccupiedSlots(
+    window?: SlotQueryWindow
+  ): Promise<readonly SlotSnapshot[]> {
+    const collection = this.db.collection(COLLECTIONS.slots);
+    const query =
+      window === undefined
+        ? collection
+        : collection
+            .where('startsAt', '>=', window.startsAtFrom)
+            .where('startsAt', '<', window.startsAtBefore);
+    const documents = await query.get();
     return documents.docs.map((document) =>
       parseSlotSnapshot(document.id, document.data())
     );
@@ -79,7 +105,7 @@ export class FirestoreScheduleRepository implements ScheduleRepositoryPort {
       const openAppointmentDocuments = await transaction.get(
         this.db
           .collection(COLLECTIONS.appointments)
-          .where('status', 'in', OPEN_APPOINTMENT_STATUSES)
+          .where('status', 'in', [...OPEN_STATUSES])
       );
       const appointments: ScheduledAppointmentSnapshot[] =
         openAppointmentDocuments.docs.map((document) => {
@@ -94,8 +120,15 @@ export class FirestoreScheduleRepository implements ScheduleRepositoryPort {
           };
         });
 
+      const slotWindow = slotGenerationWindow(
+        request.slotGeneration.startDate,
+        request.slotGeneration.dayCount
+      );
       const slotDocuments = await transaction.get(
-        this.db.collection(COLLECTIONS.slots)
+        this.db
+          .collection(COLLECTIONS.slots)
+          .where('startsAt', '>=', slotWindow.startsAtFrom)
+          .where('startsAt', '<', slotWindow.startsAtBefore)
       );
       const existingSlots: SlotSnapshot[] = slotDocuments.docs.map((document) =>
         parseSlotSnapshot(document.id, document.data())

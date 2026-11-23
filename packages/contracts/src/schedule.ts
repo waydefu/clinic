@@ -15,19 +15,48 @@ import {
  * carries no patient data by construction — there is no field for it.
  */
 
+function hasNoOverlappingIntervals(
+  intervals: readonly {
+    readonly startLocalTime: string;
+    readonly endLocalTime: string;
+  }[]
+): boolean {
+  const sorted = [...intervals].sort((left, right) =>
+    left.startLocalTime.localeCompare(right.startLocalTime)
+  );
+  for (let index = 1; index < sorted.length; index += 1) {
+    const previous = sorted[index - 1];
+    const current = sorted[index];
+    if (
+      previous !== undefined &&
+      current !== undefined &&
+      previous.endLocalTime > current.startLocalTime
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export const TimeIntervalSchema = z
   .object({
     startLocalTime: LocalTimeSchema,
     endLocalTime: LocalTimeSchema
   })
-  .strict();
+  .strict()
+  .refine((interval) => interval.startLocalTime < interval.endLocalTime, {
+    message: 'Interval end must be after start.'
+  });
 
 export const WeeklyAvailabilitySchema = z
   .object({
     weekday: z.number().int().min(0).max(6),
     intervals: z.array(TimeIntervalSchema).min(1)
   })
-  .strict();
+  .strict()
+  .refine((entry) => hasNoOverlappingIntervals(entry.intervals), {
+    message: 'Intervals on the same day must not overlap.'
+  });
 
 export const DateExceptionSchema = z
   .object({
@@ -35,7 +64,15 @@ export const DateExceptionSchema = z
     kind: z.enum(['closed', 'extra_open']),
     intervals: z.array(TimeIntervalSchema).optional()
   })
-  .strict();
+  .strict()
+  .refine(
+    (entry) =>
+      entry.intervals === undefined ||
+      hasNoOverlappingIntervals(entry.intervals),
+    {
+      message: 'Intervals on the same day must not overlap.'
+    }
+  );
 
 /**
  * The clinic grid is defined in Taipei time and the domain refuses anything
@@ -45,7 +82,17 @@ export const DateExceptionSchema = z
 export const ScheduleSchema = z
   .object({
     timeZone: z.literal('Asia/Taipei'),
-    weeklyAvailability: z.array(WeeklyAvailabilitySchema),
+    weeklyAvailability: z
+      .array(WeeklyAvailabilitySchema)
+      .max(7)
+      .refine(
+        (entries) =>
+          new Set(entries.map((entry) => entry.weekday)).size ===
+          entries.length,
+        {
+          message: 'Weekly availability must not repeat a weekday.'
+        }
+      ),
     dateExceptions: z.array(DateExceptionSchema),
     blockedTimes: z
       .object({
