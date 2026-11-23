@@ -1,6 +1,8 @@
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
+import { withRequestDeadline } from './request-deadline.mjs';
+
 // 分支保護是整套證據設計的最後一哩：verify.yml 會跑、evidence job 會在任一上游
 // 失敗時 exit 1，但**只有 GitHub 端把它設為 required**，紅燈才真的擋得住合併。
 // 那個設定在網頁介面裡，版控看不到，所以它是這個專案唯一「靠記憶」的把關。
@@ -80,6 +82,23 @@ export function protectionPolicyFailures(parsed) {
   return failures;
 }
 
+export async function fetchGitHubApi(path, { token, fetchImpl = fetch }) {
+  return withRequestDeadline(async (signal) => {
+    const response = await fetchImpl(`https://api.github.com${path}`, {
+      headers: {
+        accept: 'application/vnd.github+json',
+        authorization: `Bearer ${token}`,
+        'user-agent': 'beauessence-branch-protection-check/1',
+        'x-github-api-version': '2022-11-28'
+      },
+      signal
+    });
+    const body = await response.text();
+    signal.throwIfAborted();
+    return { status: response.status, body };
+  });
+}
+
 async function main() {
   const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN;
   if (token === undefined) {
@@ -94,23 +113,21 @@ async function main() {
     process.exit(2);
   }
 
-  const api = async (path) => {
-    const response = await fetch(`https://api.github.com${path}`, {
-      headers: {
-        accept: 'application/vnd.github+json',
-        authorization: `Bearer ${token}`,
-        'user-agent': 'beauessence-branch-protection-check/1',
-        'x-github-api-version': '2022-11-28'
-      }
-    });
-    return { status: response.status, body: await response.text() };
-  };
+  const api = (path) => fetchGitHubApi(path, { token });
 
   // classic branch protection 與 ruleset 兩種設定方式都要看，任一達成即可。
-  const protection = await api(
-    `/repos/${REPOSITORY}/branches/${BRANCH}/protection`
-  );
-  const rulesets = await api(`/repos/${REPOSITORY}/rules/branches/${BRANCH}`);
+  let protection;
+  let rulesets;
+  try {
+    protection = await api(
+      `/repos/${REPOSITORY}/branches/${BRANCH}/protection`
+    );
+    rulesets = await api(`/repos/${REPOSITORY}/rules/branches/${BRANCH}`);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error(`Reading branch protection failed: ${detail}`);
+    process.exit(2);
+  }
 
   const evaluated = enforcedChecks({ protection, rulesets });
   if (evaluated.unreadable !== undefined) {

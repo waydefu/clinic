@@ -223,4 +223,48 @@ describe('governance health check', () => {
       ).join('\n')
     ).toMatch(/Same-bar fallback|Tiered routing/);
   });
+
+  it('rejects whitespace-only fields, bad dates, and inverted windows (E1-25)', () => {
+    const isValid = (overrides = {}, now = today) =>
+      hasValidWaiver([waiver(overrides)], 'GOV-BOOT-SIZE', 'AGENTS.md', now);
+    const reviewOne = (overrides = {}) =>
+      reviewWaivers({ registry: { waivers: [waiver(overrides)] }, today }).join(
+        '\n'
+      );
+
+    expect(reviewOne({ reason: '   ' })).toContain('missing reason');
+    expect(isValid({ reason: '   ' })).toBe(false);
+
+    for (const badDate of ['2026-02-31', '9999-99-99', 'not-a-date']) {
+      expect(reviewOne({ expiresOn: badDate })).toContain('invalid expiresOn');
+      expect(isValid({ expiresOn: badDate })).toBe(false);
+    }
+
+    const invertedEffective = {
+      effectiveOn: '2026-10-01',
+      expiresOn: '2026-09-15'
+    };
+    expect(reviewOne(invertedEffective)).toContain('effectiveOn');
+    expect(isValid(invertedEffective, '2026-09-10')).toBe(false);
+
+    const invertedCreated = {
+      createdOn: '2026-10-01',
+      expiresOn: '2026-09-15'
+    };
+    expect(reviewOne(invertedCreated)).toContain('createdOn');
+    expect(isValid(invertedCreated)).toBe(false);
+
+    expect(isValid({ effectiveOn: '2026-09-10' })).toBe(false);
+
+    for (const field of ['id', 'reason', 'createdOn', 'effectiveOn']) {
+      expect(isValid({ [field]: '' })).toBe(false);
+    }
+
+    expect(
+      reviewWaivers({
+        registry: { knownRuleIds: ['CUSTOM-RULE'], waivers: [] },
+        today
+      }).join('\n')
+    ).toContain('unknown ruleId CUSTOM-RULE');
+  });
 });

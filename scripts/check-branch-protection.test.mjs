@@ -1,9 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   enforcedChecks,
+  fetchGitHubApi,
   missingChecks,
   protectionPolicyFailures
 } from './check-branch-protection.mjs';
+import { REQUEST_TIMEOUT_MS } from './request-deadline.mjs';
 
 const NOT_CONFIGURED = { status: 404, body: '' };
 const NO_RULESETS = { status: 200, body: '[]' };
@@ -185,5 +187,50 @@ describe('D-013 protection policy', () => {
         allow_deletions: { enabled: true }
       })
     ).toContain('allow_deletions must stay disabled');
+  });
+});
+
+describe('GitHub API request timeout (E1-21)', () => {
+  it('passes an AbortSignal and returns the response payload', async () => {
+    const fetchImpl = vi.fn((_url, init) => {
+      expect(init.signal).toBeInstanceOf(AbortSignal);
+      expect(init.signal.aborted).toBe(false);
+      return Promise.resolve({
+        status: 200,
+        text: () => Promise.resolve('[]')
+      });
+    });
+
+    const result = await fetchGitHubApi('/repos/waydefu/clinic/rules', {
+      token: 'synthetic-token',
+      fetchImpl
+    });
+
+    expect(result).toEqual({ status: 200, body: '[]' });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('aborts and rejects when GitHub API hangs past REQUEST_TIMEOUT_MS', async () => {
+    vi.useFakeTimers();
+    try {
+      let capturedSignal;
+      const hangingFetch = (_url, init) => {
+        capturedSignal = init.signal;
+        return new Promise(() => {});
+      };
+
+      const pending = expect(
+        fetchGitHubApi('/repos/waydefu/clinic/branches/main/protection', {
+          token: 'synthetic-token',
+          fetchImpl: hangingFetch
+        })
+      ).rejects.toThrow('Request timed out.');
+
+      await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS);
+      await pending;
+      expect(capturedSignal?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
