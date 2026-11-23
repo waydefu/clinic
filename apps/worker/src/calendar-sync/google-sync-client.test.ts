@@ -490,12 +490,15 @@ describe('GoogleCalendarEventWriter', () => {
           {
             id: 'calpilotevent001',
             etag: '"etag-001"',
+            status: 'cancelled',
             extendedProperties: { private: { beauessenceLinkId: 'block_001' } }
           },
           200
         )
       )
-      .mockResolvedValueOnce(response({}, 200));
+      .mockResolvedValueOnce(
+        response({ id: 'calpilotevent001', status: 'confirmed' }, 200)
+      );
     const writer = new GoogleCalendarEventWriter(
       'calendar@example.invalid',
       () => Promise.resolve('access-token'),
@@ -514,9 +517,75 @@ describe('GoogleCalendarEventWriter', () => {
     expect(
       new Headers(fetchImpl.mock.calls[2]?.[1]?.headers).get('If-Match')
     ).toBe('"etag-001"');
-    expect(
-      JSON.parse(String(fetchImpl.mock.calls[2]?.[1]?.body))
-    ).not.toHaveProperty('id');
+    const patchBody = JSON.parse(String(fetchImpl.mock.calls[2]?.[1]?.body));
+    expect(patchBody).not.toHaveProperty('id');
+    expect(patchBody.status).toBe('confirmed');
+  });
+
+  it('rejects 409 restore when provider remains cancelled', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(response({}, 409))
+      .mockResolvedValueOnce(
+        response(
+          {
+            id: 'calpilotevent001',
+            etag: '"etag-001"',
+            status: 'cancelled',
+            extendedProperties: { private: { beauessenceLinkId: 'block_001' } }
+          },
+          200
+        )
+      )
+      .mockResolvedValueOnce(
+        response({ id: 'calpilotevent001', status: 'cancelled' }, 200)
+      );
+    const writer = new GoogleCalendarEventWriter(
+      'calendar@example.invalid',
+      () => Promise.resolve('access-token'),
+      fetchImpl
+    );
+    await expect(
+      writer.upsert({
+        eventId: 'calpilotevent001',
+        title: '[忙碌] 會議',
+        startsAt: '2026-09-02T06:00:00.000Z',
+        endsAt: '2026-09-02T07:00:00.000Z',
+        linkId: 'block_001'
+      })
+    ).rejects.toEqual(
+      expect.objectContaining({
+        name: 'GoogleCalendarSyncError',
+        retryable: false
+      })
+    );
+  });
+
+  it('rejects upsert POST when provider returns cancelled status', async () => {
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(
+        response({ id: 'calpilotevent001', status: 'cancelled' }, 200)
+      )
+    );
+    const writer = new GoogleCalendarEventWriter(
+      'calendar@example.invalid',
+      () => Promise.resolve('access-token'),
+      fetchImpl
+    );
+    await expect(
+      writer.upsert({
+        eventId: 'calpilotevent001',
+        title: '[忙碌] 會議',
+        startsAt: '2026-09-02T06:00:00.000Z',
+        endsAt: '2026-09-02T07:00:00.000Z',
+        linkId: 'block_001'
+      })
+    ).rejects.toEqual(
+      expect.objectContaining({
+        name: 'GoogleCalendarSyncError',
+        retryable: false
+      })
+    );
   });
 
   it('does not patch a conflicting event owned by another link', async () => {

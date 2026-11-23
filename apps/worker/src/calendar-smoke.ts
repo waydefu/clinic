@@ -11,33 +11,63 @@
  *
  * 執行方式見 docs/runbooks/calendar-go-live.md 的「本機煙霧測試」。
  */
+import { randomUUID } from 'node:crypto';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+
 import { calendarEventIdForAppointment } from '@beauessence/domain';
 import {
   CLINIC_EVENT_COLOR_ID,
   InMemoryCalendar,
   clinicEventEnd,
+  type CalendarPort,
   type CalendarProjectionRequest
 } from './calendar-port.js';
 import { createCalendarPort } from './google-calendar.js';
 
-async function main(): Promise<void> {
-  const port = createCalendarPort(process.env);
+export interface CalendarSmokeOptions {
+  readonly env?: Record<string, string | undefined>;
+  readonly port?: CalendarPort;
+  readonly runId?: string;
+  readonly now?: () => number;
+  readonly log?: (line: string) => void;
+}
+
+export interface CalendarSmokeResult {
+  readonly appointmentId: string;
+  readonly eventId: string;
+}
+
+export async function runCalendarSmoke(
+  options: CalendarSmokeOptions = {}
+): Promise<CalendarSmokeResult> {
+  const log = options.log ?? ((line: string) => console.log(line));
+  const port = options.port ?? createCalendarPort(options.env ?? process.env);
   if (port instanceof InMemoryCalendar) {
-    console.error(
-      '未偵測到 Google Calendar 測試整合（CLOUD_ADC 或服務帳號 JSON），已回退假日曆。' +
-        '請先設定 GOOGLE_CALENDAR_INTEGRATION_MODE=test 並注入憑證；未對外呼叫。'
+    throw new Error(
+      '未偵測到 Google Calendar 測試整合（CLOUD_ADC 或服務帳號 JSON），' +
+        '已回退假日曆。請先設定 GOOGLE_CALENDAR_INTEGRATION_MODE=test ' +
+        '並注入憑證；未對外呼叫。'
     );
-    process.exitCode = 1;
-    return;
   }
 
-  const startsAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const rawRunId = (options.runId ?? randomUUID()).replace(
+    /[^a-zA-Z0-9_-]/gu,
+    ''
+  );
+  if (rawRunId.length === 0) {
+    throw new Error('Smoke run identifier must not be empty.');
+  }
+  const appointmentId = `smoke-test-${rawRunId}`;
+  const eventId = calendarEventIdForAppointment(appointmentId);
+  const nowMs = (options.now ?? Date.now)();
+  const startsAt = new Date(nowMs + 24 * 60 * 60 * 1000).toISOString();
   const base: CalendarProjectionRequest = {
-    idempotencyKey: calendarEventIdForAppointment('smoke-test'),
-    correlationId: 'corr_calendar_smoke_test',
-    causationId: 'audit_calendar_smoke_test',
+    idempotencyKey: eventId,
+    correlationId: `corr_calendar_smoke_${rawRunId}`,
+    causationId: `audit_calendar_smoke_${rawRunId}`,
     action: 'upsert',
-    appointmentId: 'smoke-test',
+    appointmentId,
     appointmentStatus: 'confirmed',
     startsAt,
     endsAt: clinicEventEnd(startsAt),
@@ -45,28 +75,35 @@ async function main(): Promise<void> {
     colorId: CLINIC_EVENT_COLOR_ID
   };
 
-  console.log('1/2 upsert 一筆合成事件…');
-  await port.project(base);
-  console.log('    ✓ 已建立（或命中既有事件，冪等）。');
+  log('1/2 upsert 一筆全新合成事件（不允許 409 回退）…');
+  await port.project(base, { allowConflictFallback: false });
+  log('    ✓ 已建立全新合成事件。');
 
-  console.log('2/2 cancel 同一事件…');
+  log('2/2 cancel 同一事件…');
   await port.project({
     ...base,
     action: 'cancel',
     appointmentStatus: 'cancelled'
   });
-  console.log('    ✓ 已刪除。寫入與刪除權限皆正常。');
+  log('    ✓ 已刪除。寫入與刪除權限皆正常。');
 
-  console.log(
+  log(
     '煙霧測試完成：僅一筆合成、無 PII 的事件被建立並隨即刪除。' +
       '此測試不代表 D-009 核准，也不允許連正式／私人日曆或真實病患資料。'
   );
+  return { appointmentId, eventId };
 }
 
-main().catch((error: unknown) => {
-  console.error(
-    '煙霧測試失敗：',
-    error instanceof Error ? error.message : String(error)
-  );
-  process.exitCode = 1;
-});
+const entryPath = process.argv[1];
+if (
+  entryPath !== undefined &&
+  import.meta.url === pathToFileURL(resolve(entryPath)).href
+) {
+  runCalendarSmoke().catch((error: unknown) => {
+    console.error(
+      '煙霧測試失敗：',
+      error instanceof Error ? error.message : String(error)
+    );
+    process.exitCode = 1;
+  });
+}
