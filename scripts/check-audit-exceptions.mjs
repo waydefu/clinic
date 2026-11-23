@@ -39,6 +39,9 @@ const REQUIRED_FIELDS = [
 
 const GHSA_PATTERN = /^GHSA(?:-[0-9a-z]{4}){3}$/u;
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/u;
+const AUDIT_CONFIG_LINE = /^(auditConfig|'auditConfig'|"auditConfig")\s*:(.*)$/u;
+const AUDIT_KEY_LINE = /^([A-Za-z0-9_-]+|'[^']+'|"[^"]+")\s*:(.*)$/u;
+const UNSUPPORTED_SCALAR_SYNTAX = /^[\[{|>!&*]|[\s#[\]{},]/u;
 
 function isValidCalendarDate(value) {
   if (typeof value !== 'string') return false;
@@ -82,29 +85,19 @@ function stripInlineComment(raw) {
 
 function parseScalarToken(raw, lineNumber) {
   const trimmed = stripInlineComment(raw).trim();
-  if (trimmed.length === 0) {
-    throw new Error(`auditConfig.ignoreGhsas 第 ${lineNumber} 行缺少項目值`);
-  }
+  const prefix = `auditConfig.ignoreGhsas 第 ${lineNumber} 行`;
+  if (trimmed.length === 0) throw new Error(`${prefix}缺少項目值`);
   const first = trimmed[0];
   if (first === "'" || first === '"') {
-    if (trimmed.length < 2 || trimmed[trimmed.length - 1] !== first) {
-      throw new Error(
-        `auditConfig.ignoreGhsas 第 ${lineNumber} 行不支援的引號格式`
-      );
-    }
+    if (trimmed.length < 2 || trimmed[trimmed.length - 1] !== first)
+      throw new Error(`${prefix}不支援的引號格式`);
     const inner = trimmed.slice(1, -1);
-    if (inner.includes(first) || inner.trim().length === 0) {
-      throw new Error(
-        `auditConfig.ignoreGhsas 第 ${lineNumber} 行不支援的引號格式`
-      );
-    }
+    if (inner.includes(first) || inner.trim().length === 0)
+      throw new Error(`${prefix}不支援的引號格式`);
     return inner;
   }
-  if (/^[\[{|>!&*]|[\s#[\]{},]/u.test(trimmed)) {
-    throw new Error(
-      `auditConfig.ignoreGhsas 第 ${lineNumber} 行不支援的 YAML 格式：${trimmed}`
-    );
-  }
+  if (UNSUPPORTED_SCALAR_SYNTAX.test(trimmed))
+    throw new Error(`${prefix}不支援的 YAML 格式：${trimmed}`);
   return trimmed;
 }
 
@@ -123,9 +116,8 @@ function unwrapOptionalQuotes(token) {
 // 形狀（flow 清單、未知鍵、重複鍵、異常縮排、tab 或未閉合引號）一律 fail closed。
 // 刻意不引入外部 YAML 解析器：多一個相依就多一個供應鏈風險。
 export function parseIgnoredAdvisories(workspaceYaml) {
-  if (typeof workspaceYaml !== 'string') {
+  if (typeof workspaceYaml !== 'string')
     throw new Error('pnpm-workspace.yaml 內容必須是字串');
-  }
   const lines = workspaceYaml.split(/\r?\n/u);
   const ignored = [];
   let inAuditConfig = false;
@@ -142,20 +134,14 @@ export function parseIgnoredAdvisories(workspaceYaml) {
 
     if (!/^\s/u.test(line)) {
       const content = stripInlineComment(line);
-      const topMatch = /^(auditConfig|'auditConfig'|"auditConfig")\s*:(.*)$/u.exec(
-        content
-      );
+      const topMatch = AUDIT_CONFIG_LINE.exec(content);
       if (topMatch !== null) {
-        if (seenAuditConfig) {
+        if (seenAuditConfig)
           throw new Error(
             `pnpm-workspace.yaml 第 ${lineNumber} 行出現重複的 auditConfig 區段`
           );
-        }
-        if (topMatch[2].trim().length > 0) {
-          throw new Error(
-            `auditConfig 第 ${lineNumber} 行不支援行內值或 flow 格式`
-          );
-        }
+        if (topMatch[2].trim().length > 0)
+          throw new Error(`auditConfig 第 ${lineNumber} 行不支援行內值或 flow 格式`);
         seenAuditConfig = true;
         inAuditConfig = true;
         inIgnoreList = false;
@@ -171,37 +157,27 @@ export function parseIgnoredAdvisories(workspaceYaml) {
 
     const leadingMatch = /^[ \t]+/u.exec(line);
     const leading = leadingMatch === null ? '' : leadingMatch[0];
-    if (leading.includes('\t')) {
+    if (leading.includes('\t'))
       throw new Error(`auditConfig 第 ${lineNumber} 行不支援 tab 縮排`);
-    }
 
     const indent = leading.length;
     const body = stripInlineComment(line.slice(indent)).trim();
 
     if (indent === 2) {
-      if (body.startsWith('-')) {
-        throw new Error(
-          `auditConfig 第 ${lineNumber} 行清單項目必須縮排 4 格`
-        );
-      }
-      const keyMatch = /^([A-Za-z0-9_-]+|'[^']+'|"[^"]+")\s*:(.*)$/u.exec(body);
-      if (keyMatch === null) {
+      if (body.startsWith('-'))
+        throw new Error(`auditConfig 第 ${lineNumber} 行清單項目必須縮排 4 格`);
+      const keyMatch = AUDIT_KEY_LINE.exec(body);
+      if (keyMatch === null)
         throw new Error(`auditConfig 第 ${lineNumber} 行不支援的設定格式`);
-      }
       const key = unwrapOptionalQuotes(keyMatch[1]);
-      if (key !== 'ignoreGhsas') {
+      if (key !== 'ignoreGhsas')
         throw new Error(`auditConfig 第 ${lineNumber} 行不支援未知鍵 ${key}`);
-      }
-      if (seenIgnoreGhsas) {
-        throw new Error(
-          `auditConfig 第 ${lineNumber} 行出現重複的 ignoreGhsas 鍵`
-        );
-      }
-      if (keyMatch[2].trim().length > 0) {
+      if (seenIgnoreGhsas)
+        throw new Error(`auditConfig 第 ${lineNumber} 行出現重複的 ignoreGhsas 鍵`);
+      if (keyMatch[2].trim().length > 0)
         throw new Error(
           `auditConfig.ignoreGhsas 第 ${lineNumber} 行不支援行內值或 flow 清單`
         );
-      }
       seenIgnoreGhsas = true;
       inIgnoreList = true;
       ignoreGhsasLine = lineNumber;
@@ -209,33 +185,24 @@ export function parseIgnoredAdvisories(workspaceYaml) {
     }
 
     if (indent === 4 && inIgnoreList) {
+      const prefix = `auditConfig.ignoreGhsas 第 ${lineNumber} 行`;
       const itemMatch = /^-(?:\s+(.*))?$/u.exec(body);
-      if (itemMatch === null) {
-        throw new Error(
-          `auditConfig.ignoreGhsas 第 ${lineNumber} 行不支援的清單項目格式`
-        );
-      }
+      if (itemMatch === null)
+        throw new Error(`${prefix}不支援的清單項目格式`);
       const value = parseScalarToken(itemMatch[1] ?? '', lineNumber);
-      if (ignored.includes(value)) {
-        throw new Error(
-          `auditConfig.ignoreGhsas 第 ${lineNumber} 行出現重複項目 ${value}`
-        );
-      }
+      if (ignored.includes(value))
+        throw new Error(`${prefix}出現重複項目 ${value}`);
       ignored.push(value);
       continue;
     }
 
-    throw new Error(
-      `auditConfig 第 ${lineNumber} 行不支援的縮排（${indent} 格）`
-    );
+    throw new Error(`auditConfig 第 ${lineNumber} 行不支援的縮排（${indent} 格）`);
   }
 
-  if (seenAuditConfig && !seenIgnoreGhsas) {
+  if (seenAuditConfig && !seenIgnoreGhsas)
     throw new Error(`auditConfig 第 ${auditConfigLine} 行缺少 ignoreGhsas 鍵`);
-  }
-  if (seenIgnoreGhsas && ignored.length === 0) {
+  if (seenIgnoreGhsas && ignored.length === 0)
     throw new Error(`auditConfig.ignoreGhsas 第 ${ignoreGhsasLine} 行不可為空`);
-  }
 
   return ignored;
 }
