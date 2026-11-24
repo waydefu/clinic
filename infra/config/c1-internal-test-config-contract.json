@@ -73,8 +73,8 @@
       "requiredWhen": {
         "BUSINESS_DELIVERY_ENABLED": "true"
       },
-      "allowedValues": ["", "BD-POLICY-2026-09-29"],
-      "notes": "Only BD-POLICY-2026-09-29 is approved for internal_synthetic."
+      "allowedValues": ["", "BD-POLICY-2026-09-29", "BD-POLICY-2026-11-24"],
+      "notes": "BD-POLICY-2026-09-29 and BD-POLICY-2026-11-24 are approved for internal_synthetic."
     },
     {
       "name": "BUSINESS_DELIVERY_SCOPE",

@@ -3129,6 +3129,13 @@ clinic's own site. The owner selected the repository schedule later on
 - 風險：個資法第 7 條第 4 項規定，同意的舉證責任在蒐集者。建議日後補書面或 email 同意，並存放在 repo 外。
 - Status: 待補同意紀錄
 
+## 2026-11-24 商務交付政策對齊外部合約（A-10）
+
+- 負責人於 2026-11-24 對 A-10 六項回覆「照建議」：外部合約優先於 `BD-POLICY-2026-09-29` 的 repo 值。
+- 新增政策版本 `BD-POLICY-2026-11-24`：尾款 25,000 元、維護費自正式上線日起算、試用 30 天、調整期上限 30 天；其餘同 09-29。09-29 版與其文件保留為歷史。
+- 詳見 [商務交付政策對齊外部合約](2026-11-24-business-delivery-policy-contract-alignment.md)。
+- Status: approved
+
 ## Approval record template
 
 ```text

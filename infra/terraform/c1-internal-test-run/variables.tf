@@ -195,10 +195,10 @@ variable "business_delivery_policy_version" {
   default     = ""
   validation {
     condition = (
-      var.business_delivery_policy_version == "" ||
-      var.business_delivery_policy_version == "BD-POLICY-2026-09-29"
+      var.business_delivery_policy_version == "" || var.business_delivery_policy_version == "BD-POLICY-2026-09-29" ||
+      var.business_delivery_policy_version == "BD-POLICY-2026-11-24"
     )
-    error_message = "Business Delivery policy version must be empty or BD-POLICY-2026-09-29."
+    error_message = "Business Delivery policy version must be empty, BD-POLICY-2026-09-29 or BD-POLICY-2026-11-24."
   }
 }
 

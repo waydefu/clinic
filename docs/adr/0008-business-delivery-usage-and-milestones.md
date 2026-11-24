@@ -43,6 +43,10 @@
 
 ### 里程碑
 
+> 2026-11-24 更新：`BD-POLICY-2026-11-24` 將測試期改為 30 天、調整上限 30 天、
+> 維護費改自正式上線日起算（見[對齊紀錄](../product/2026-11-24-business-delivery-policy-contract-alignment.md)）。
+> 以下為 09-29 版（`maintenanceStart = day_after_final_payment`）的原文。
+
 - 測試期：由 `first_eligible_use` 算，20 天含當天。
 - 正式上線日：**業主確認**的日期（第一次用真實資料開放病患預約），不由系統推定。
 - 正式運行滿月：上線日＋1 個日曆月（月底夾到較短月份）。
