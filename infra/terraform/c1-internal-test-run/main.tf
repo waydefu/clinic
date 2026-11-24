@@ -450,7 +450,7 @@ resource "google_cloud_run_v2_service" "api" {
       condition = (
         (!local.business_delivery_maintenance_prerequisites_active || var.project_id == "beauessence-clinic-stg-c1a01") &&
         (!var.business_delivery_enabled || (
-          var.business_delivery_policy_version == "BD-POLICY-2026-09-29" &&
+          contains(["BD-POLICY-2026-09-29", "BD-POLICY-2026-11-24"], var.business_delivery_policy_version) &&
           var.business_delivery_scope == "internal_synthetic" &&
           var.business_delivery_observed_since != "" &&
           local.business_delivery_maintenance_pin_numeric

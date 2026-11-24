@@ -7,6 +7,7 @@ import {
   resolveApprovedBusinessDeliveryPolicy,
   taipeiMonthRange
 } from './business-delivery-policy.js';
+import { calculateBusinessDeliveryMilestones } from './business-delivery.js';
 import { DomainError } from './errors.js';
 
 const POLICY = resolveApprovedBusinessDeliveryPolicy(
@@ -351,5 +352,101 @@ describe('assertMilestoneAcknowledgementAllowed', () => {
         }
       })
     ).toThrow(DomainError);
+  });
+});
+
+describe('BD-POLICY-2026-11-24 contract alignment (A-10)', () => {
+  const POLICY_1124 = resolveApprovedBusinessDeliveryPolicy(
+    'BD-POLICY-2026-11-24',
+    'internal_synthetic'
+  );
+
+  it('resolves with 30-day trial and 30-day adjustment cap, rest as 09-29', () => {
+    expect(POLICY_1124.milestones).toEqual({
+      trialCalendarDays: 30,
+      maxAdjustmentDays: 30,
+      formalOperationCalendarMonths: 1
+    });
+    expect(POLICY_1124.maintenanceStart).toBe('formal_launch_date');
+    expect(POLICY.maintenanceStart).toBe('day_after_final_payment');
+    expect(POLICY_1124.lateEventCutoffDays).toBe(5);
+    expect(POLICY_1124.maintenanceFeesTwd).toEqual({
+      normal: 1800,
+      unused: 500
+    });
+    expect(POLICY_1124.export).toEqual(POLICY.export);
+    expect(POLICY_1124.retention).toEqual(POLICY.retention);
+    expect(POLICY_1124.termination).toEqual(POLICY.termination);
+    expect(() =>
+      resolveApprovedBusinessDeliveryPolicy(
+        'BD-POLICY-2026-11-24',
+        'production'
+      )
+    ).toThrow(DomainError);
+  });
+
+  it('starts maintenance on the launch date without a final payment', () => {
+    const acknowledgements = {
+      formalLaunch: { launchDate: '2030-10-15' }
+    };
+    expect(
+      evaluateBusinessMilestones({
+        policy: POLICY_1124,
+        now: '2030-10-14T15:59:59.999Z',
+        acknowledgements
+      }).maintenance
+    ).toEqual({ status: 'scheduled', startDate: '2030-10-15' });
+    const active = evaluateBusinessMilestones({
+      policy: POLICY_1124,
+      now: '2030-10-14T16:00:00.000Z',
+      acknowledgements
+    });
+    expect(active.maintenance).toEqual({
+      status: 'active',
+      startDate: '2030-10-15'
+    });
+    expect(active.finalPayment).toEqual({ status: 'blocked' });
+  });
+
+  it('keeps the launch start after the final payment is acknowledged', () => {
+    const status = evaluateBusinessMilestones({
+      policy: POLICY_1124,
+      now: '2030-11-20T16:00:00.000Z',
+      acknowledgements: {
+        formalLaunch: { launchDate: '2030-10-15' },
+        finalPayment: { acknowledgedAt: '2030-11-20T15:30:00.000Z' }
+      }
+    });
+    expect(status.maintenance).toEqual({
+      status: 'active',
+      startDate: '2030-10-15'
+    });
+  });
+
+  it('09-29 still starts maintenance the day after payment', () => {
+    expect(
+      evaluateBusinessMilestones({
+        policy: POLICY,
+        now: '2030-11-25T00:00:00.000Z',
+        acknowledgements: { formalLaunch: { launchDate: '2030-10-15' } }
+      }).maintenance
+    ).toEqual({ status: 'not_started' });
+  });
+
+  it('rejects an adjustment above 30 days and accepts 30', () => {
+    const input = {
+      firstEligibleUse: {
+        occurredAt: '2030-10-01T02:00:00.000Z',
+        actorKind: 'real_staff' as const
+      },
+      policy: POLICY_1124.milestones
+    };
+    expect(() =>
+      calculateBusinessDeliveryMilestones({ ...input, adjustmentDays: 31 })
+    ).toThrow(DomainError);
+    expect(
+      calculateBusinessDeliveryMilestones({ ...input, adjustmentDays: 30 })
+        .adjustmentDays
+    ).toBe(30);
   });
 });

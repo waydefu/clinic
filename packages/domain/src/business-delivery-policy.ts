@@ -26,6 +26,11 @@ export interface ApprovedBusinessDeliveryPolicy {
   readonly approvedOn: string;
   readonly applicableScopes: readonly BusinessReportScope[];
   readonly milestones: BusinessDeliveryPolicy;
+  /**
+   * When maintenance billing starts: the day after the final-payment
+   * acknowledgement (09-29) or the acknowledged formal launch date (11-24).
+   */
+  readonly maintenanceStart: 'day_after_final_payment' | 'formal_launch_date';
   /** Events observed up to this many Taipei days after month end still count. */
   readonly lateEventCutoffDays: number;
   /** `COMMERCIAL-AUTHORITY-2026-09-22`; display only, never an invoice. */
@@ -53,43 +58,65 @@ export interface ApprovedBusinessDeliveryPolicy {
 }
 
 export const BUSINESS_DELIVERY_POLICY_VERSIONS = [
-  'BD-POLICY-2026-09-29'
+  'BD-POLICY-2026-09-29',
+  'BD-POLICY-2026-11-24'
 ] as const;
 export type BusinessDeliveryPolicyVersion =
   (typeof BUSINESS_DELIVERY_POLICY_VERSIONS)[number];
 
+const POLICY_2026_09_29: ApprovedBusinessDeliveryPolicy = Object.freeze({
+  version: 'BD-POLICY-2026-09-29',
+  approvedOn: '2026-09-29',
+  // Production use still needs professional privacy/legal review and
+  // separate authority; the record approves the C1 synthetic scope only.
+  applicableScopes: Object.freeze(['internal_synthetic'] as const),
+  milestones: Object.freeze({
+    trialCalendarDays: 20,
+    maxAdjustmentDays: 10,
+    formalOperationCalendarMonths: 1
+  }),
+  maintenanceStart: 'day_after_final_payment',
+  lateEventCutoffDays: 5,
+  maintenanceFeesTwd: Object.freeze({ normal: 1800, unused: 500 }),
+  reauthenticationMaxAgeSeconds: 600,
+  export: Object.freeze({
+    formats: Object.freeze(['csv'] as const),
+    downloadWindowHours: 24,
+    maxDownloads: 3,
+    fileRetentionDays: 7,
+    // Engineering bound, not a policy value: one year per file keeps each
+    // export inside a single atomic write.
+    maxRangeDays: 366
+  }),
+  retention: Object.freeze({ recoverableDays: 30 }),
+  termination: Object.freeze({
+    minimumNoticeDays: 30,
+    controlledCopyRetentionDays: 30
+  })
+});
+
+/**
+ * A-10 contract alignment (`docs/product/2026-11-24-business-delivery-policy-contract-alignment.md`):
+ * trial 30 days, adjustment 30 days, maintenance from the formal launch date.
+ * Everything else is identical to 09-29.
+ */
+const POLICY_2026_11_24: ApprovedBusinessDeliveryPolicy = Object.freeze({
+  ...POLICY_2026_09_29,
+  version: 'BD-POLICY-2026-11-24',
+  approvedOn: '2026-11-24',
+  milestones: Object.freeze({
+    trialCalendarDays: 30,
+    maxAdjustmentDays: 30,
+    formalOperationCalendarMonths: 1
+  }),
+  maintenanceStart: 'formal_launch_date'
+});
+
 const APPROVED_POLICIES: Readonly<
   Record<BusinessDeliveryPolicyVersion, ApprovedBusinessDeliveryPolicy>
 > = Object.freeze({
-  'BD-POLICY-2026-09-29': Object.freeze({
-    version: 'BD-POLICY-2026-09-29',
-    approvedOn: '2026-09-29',
-    // Production use still needs professional privacy/legal review and
-    // separate authority; the record approves the C1 synthetic scope only.
-    applicableScopes: Object.freeze(['internal_synthetic'] as const),
-    milestones: Object.freeze({
-      trialCalendarDays: 20,
-      maxAdjustmentDays: 10,
-      formalOperationCalendarMonths: 1
-    }),
-    lateEventCutoffDays: 5,
-    maintenanceFeesTwd: Object.freeze({ normal: 1800, unused: 500 }),
-    reauthenticationMaxAgeSeconds: 600,
-    export: Object.freeze({
-      formats: Object.freeze(['csv'] as const),
-      downloadWindowHours: 24,
-      maxDownloads: 3,
-      fileRetentionDays: 7,
-      // Engineering bound, not a policy value: one year per file keeps each
-      // export inside a single atomic write.
-      maxRangeDays: 366
-    }),
-    retention: Object.freeze({ recoverableDays: 30 }),
-    termination: Object.freeze({
-      minimumNoticeDays: 30,
-      controlledCopyRetentionDays: 30
-    })
-  })
+  'BD-POLICY-2026-09-29': POLICY_2026_09_29,
+  'BD-POLICY-2026-11-24': POLICY_2026_11_24
 });
 
 export function resolveApprovedBusinessDeliveryPolicy(
@@ -279,6 +306,13 @@ export function evaluateBusinessMilestones(input: {
   };
 
   const payment = input.acknowledgements.finalPayment;
+  // 11-24: maintenance runs from the launch date whether or not the final
+  // payment is acknowledged; the final-payment gate is unchanged.
+  const fromLaunch = input.policy.maintenanceStart === 'formal_launch_date';
+  const launchMaintenance: BusinessMilestoneStatus['maintenance'] = {
+    status: today >= launch.launchDate ? 'active' : 'scheduled',
+    startDate: launch.launchDate
+  };
   if (payment === undefined) {
     return {
       trial,
@@ -287,10 +321,11 @@ export function evaluateBusinessMilestones(input: {
       finalPayment: {
         status: reached ? 'awaiting_acknowledgement' : 'blocked'
       },
-      maintenance: { status: 'not_started' }
+      maintenance: fromLaunch ? launchMaintenance : { status: 'not_started' }
     };
   }
-  const startDate = maintenanceStartDateAfter(payment.acknowledgedAt);
+  let startDate = maintenanceStartDateAfter(payment.acknowledgedAt);
+  if (fromLaunch) startDate = launch.launchDate;
   return {
     trial,
     formalLaunch: { status: 'acknowledged', launchDate: launch.launchDate },
