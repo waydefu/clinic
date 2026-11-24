@@ -83,7 +83,11 @@ export function evaluateC1ConfigContract(contract = loadC1ConfigContract()) {
   );
   const expectedBusinessDeliveryConfig = {
     BUSINESS_DELIVERY_ENABLED: ['true', 'false'],
-    BUSINESS_DELIVERY_POLICY_VERSION: ['', 'BD-POLICY-2026-09-29', 'BD-POLICY-2026-11-24'],
+    BUSINESS_DELIVERY_POLICY_VERSION: [
+      '',
+      'BD-POLICY-2026-09-29',
+      'BD-POLICY-2026-11-24'
+    ],
     BUSINESS_DELIVERY_SCOPE: ['', 'internal_synthetic']
   };
   for (const [name, allowedValues] of Object.entries(
