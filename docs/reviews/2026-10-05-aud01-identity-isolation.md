@@ -52,3 +52,29 @@ Windows Corepack wrapper 可能綁到另一個 `node.exe` 或傳入未轉換的 
 final reviewer result 已核實為 PASS，下一步提交去識別化修復 PR；必須取得 exact-head required CI，不能借用 C1 文件 PR 的 CI。AUD-01 source 交付完成後再查 AUD-07 的原始證據及 siblings；必要修正分別經核准合併、final main CI 後才另行 freeze SHA。
 
 未合併的本機修正可只回退本次自己寫的檔案／分支；若已交付，另走核准 revert PR，不覆蓋其他人的變動、不改寫歷史。沒有部署、GCloud build／apply／Hosting 修改、真實資料／Calendar 操作、DB migration 或資料刪除；C1 時窗、費用與 exact plans 仍按各自核准邊界。
+
+## 關帳鏈核對（2026-11-25，E4-03）
+
+本節是 append-only，上方「`EXACT-CI-PENDING`」等原文逐字保留；它記錄之後可核對的關帳鏈，
+不公開私有 original manifest 的 payload、identity 或重現腳本。
+
+- **PR #238 ancestry：** PR #238（head `2228462de8e7e3d47076cd55cf2053bed9af3a56`，
+  分支 `agent/audit-01-07-closeout-20261005`）已合併為 main 的
+  `9e082f6eff87e3e052cb92f98abc856ef87251a1`（2026-10-05T17:42:01+08:00）。
+  該 commit 是目前 main `826cf0d74b11c59495334bcfbe80f58fee47dcd5` 的祖先
+  （`git merge-base --is-ancestor 9e082f6e 826cf0d7` 成立）。
+- **同一 source 的 CI：** 合併 commit `9e082f6e` 的 `verify` push run `37291773264` 為 success，
+  取代本文件寫成當時的 `EXACT-CI-PENDING`；current main `826cf0d7` 的 `verify` push run
+  `45541626196` 為 success。兩者都是 source／CI 層級，不是 runtime 驗收。
+- **私有 manifest：** 業主保管的 original manifest 已由本文件寫成時的 reviewer 核對；
+  本 repo 不收錄其 payload，此處只能說「已核對」，無法由 repo 內容獨立重驗。
+- **負向案例（現存於 main，路徑為證）：**
+  - `apps/api/src/internal-test-booking/internal-test-booking.authenticator.test.ts`：
+    回診憑證混入員工 session cookie、或混入其他身分時被拒絕。
+  - `apps/api/src/appointments/appointment.application-service.test.ts`：
+    verified patient 與 intake 並存時，在身分解析與保留前被拒絕。
+  - `apps/web/src/internal-test-booking-transport.test.ts`（`return-patient context isolation`）：
+    新初診／新 lookup 清除舊回診憑證、失效流程的延遲 lookup 不被採用、staff 頁面不帶患者憑證。
+- **未涵蓋：** 部署後 runtime 的身分隔離實測為 `NOT_RUN`，需 11/26 C1 窗口。
+  文中「AUD-01 保持 OPEN」是 2026-10-05 的日期狀態，現行狀態以本節與最新證據為準，
+  不得因本節自動視為 production 修復完成。
