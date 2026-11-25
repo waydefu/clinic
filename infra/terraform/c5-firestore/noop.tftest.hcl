@@ -137,7 +137,8 @@ run "oversized_project_id_is_rejected" {
   command = plan
 
   variables {
-    project_id = "beauessence-clinic-stg-replace-me"
+    exact_apply_authority_sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                = "beauessence-clinic-stg-replace-me"
   }
 
   expect_failures = [
@@ -149,7 +150,8 @@ run "staging_project_is_rejected" {
   command = plan
 
   variables {
-    project_id = "beauessence-clinic-staging"
+    exact_apply_authority_sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                = "beauessence-clinic-staging"
   }
 
   expect_failures = [
