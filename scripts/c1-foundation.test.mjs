@@ -56,9 +56,7 @@ describe('C1 isolated foundation Terraform source', () => {
     expect(main).toContain(
       'apply_enabled = var.exact_apply_authority_sha != "not_granted"'
     );
-    expect(main).toContain(
-      'for_each           = local.allowed_services'
-    );
+    expect(main).toContain('for_each           = local.allowed_services');
   });
 
   it('keeps authority as a fail-closed precondition and never as resource count (B-11)', () => {
