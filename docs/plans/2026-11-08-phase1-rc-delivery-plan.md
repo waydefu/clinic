@@ -440,6 +440,91 @@ A 批 #466～#474 由 Claude 驗收合併中；以下只是來源切片，狀態
 
 未在 repo 內處理、等負責人的：CI-IAC 的 Terraform plan-only 驗證（本機被 guard 擋，需開窗或 CI 變更）；RC-04（需 `administration:read` 身分與排程）；SOL-INTEGRATION 整合與凍結證據（W3）；第三節雲端窗口全部。
 
+### 總讀回：2026-11-25（RC 凍結前）
+
+本小節只追加，不改以上任何歷史快照。事實來源：`git log origin/main`（head `dc8be34e`）、`gh pr list --state merged`（PR #536～#582）、第十節、[決定登記](../product/phase-1-decision-register.md) 的 2026-11-23、2026-11-24 兩節。PR 與包的對應只依 PR 標題與內文；對不上的寫「無法對應」，不猜。
+
+**怎麼讀這張表**：「已合併」只代表 repo 來源切片進了 `main`，不等於雲端實測通過；需要 C1 窗口驗證的一律標「11/26 開窗實測」，本檔不標 PASS。第十節 11/22 的負責人決定是「建議移 12 月清單不採用，34 個未終態包全部繼續完成」；下表「移 12 月」只收決定登記或本次交辦明列、不進本次 RC 窗口的子項。
+
+**狀態代碼**：T＝終態且已合併；M＝11/22 起有新 PR 合併，整包是否結案本檔不斷言；W＝含需 11/26 開窗實測的項目；D＝列 12 月或不在本次窗口；N＝11/22 起無新 PR，沿用 11/20 盤點（第 10.1 節）。
+
+#### 包別現況（59 包）
+
+| 包 | 狀態 | PR／依據 |
+| --- | --- | --- |
+| LUNA-E2E-INVENTORY、LUNA-FIRESTORE-RUNNER、LUNA-ROBOTS-COMMENTS、LUNA-WORKBENCH-START、SOL-ARCH-GATE、SOL-ASSET-BUILD、SOL-BUILD、SOL-BUSINESS、SOL-CALENDAR-WATCH、SOL-CI-SECURITY、SOL-CONTAINERS、SOL-CONTRACTS、SOL-DESIGN-GATE、SOL-DOC-GATE、SOL-HTTP、SOL-LIFECYCLE、SOL-OUTBOX、SOL-READ-FAILURE、SOL-RETENTION、SOL-SAST、SOL-SESSION-UI、SOL-STRUCTURE-GATE、SOL-VISUAL-EVIDENCE（23 包） | T | 第 10.1 節類別 1；PR 編號沿用該節與更早快照，本次未逐包重列 |
+| SOL-CUSTODY、NO-WORK | T | 第 10.1 節類別 4，無實作範圍 |
+| SOL-SESSION | M、W | #562（R5 停止每分頁重發櫃台 session）、#565（E4-14 limiter 與模組組裝）、#573（C3 七天 session 自然到期唯讀讀回）。R5 與 C3 到期後拒絕行為：11/26 開窗實測 |
+| SOL-CALENDAR-LEASE | M | #564（D-05／D-12 失去租約邊界測試）；Gate 2 50 次正常收斂讀回 #557（observations 50、blocked 0、conflicts 0） |
+| SOL-CALENDAR-RESTORE | M、W | #568（D-01／D-02 409 還原確認、D-03 煙霧測試）、#576（D-31／D-32）。#568 行為：11/26 開窗實測；真實日曆還原演練仍列 12 月 Stage 6 |
+| SOL-IAM | M、W | #535（B-01／B-02／NEW-10，已合併）、#563（R2：`c1-foundation` 預設維持 `c1-terraform-ci` 停用）。R2 plan：11/26 開窗實測；其餘 IAM finding 與 NEW-10 tfstate bucket 雲端項沿用 11/20 盤點 |
+| SOL-IAC-LIFECYCLE | N、D（子項） | 最後相關 PR #535；B-11、B-50 列 12 月，不在本次窗口 |
+| SOL-CI-IAC | N、D（子項） | 最後相關 PR #468；B-05 plan-only workflow 列 12 月，不在本次窗口 |
+| SOL-INTEGRATION | D | 59 包中唯一無來源 PR；不在本次 RC，列 12 月（第 10.4 節第 4 項；11/22 決定未整批移月，此項依本次範圍判斷另列，見下方備註） |
+| SOL-SCHEDULE | M | #566（B-35 區間驗證、D-07、A02、A08）、#575（B-35 `dateExceptions` 366／`blockedTimes` 500 上限，對應 11/23 決定登記） |
+| SOL-SUPPLY | M | #567（E1-08、B-48）；B-20 工具鏈版本政策文件依 11/23 決定列 12 月，不擋 RC |
+| SOL-RUNTIME-EVIDENCE | M | #569（E2-02／E2-10／E1-18）、#571（E4-07） |
+| SOL-GOVERNANCE | M、D（子項） | #570（E1-21、E1-25）、#574（B-18 與 11/23 決定登記）；RC-04 依 11/23 決定列 12 月 |
+| SOL-OBSERVABILITY | M | #572（B-06、B-54）；B-25 依 11/23 決定維持現狀（不加 sink，不改程式） |
+| SOL-ROUTE-INVENTORY | M | #546（E3-10 補 CAL-PILOT 路由清單）、#577（E1-16／E1-17） |
+| SOL-EXPORT | M | #549（A09 讀取資源上限）、#578（B-38 日期區間契約） |
+| SOL-DOCS | M | #545（E3-13）、#579（E3-11／E3-20／E3-13／E3-31／D-38／E3-06） |
+| SOL-RELEASE | M | #580（E1-01／02／03／05／07／11） |
+| SOL-IDENTITY | M | #550（B-34 電話 wire schema 對齊 domain） |
+| SOL-RBAC | M | #551（A04 讀班表網格獨立權限、E3-17） |
+| SOL-CALENDAR-CANDIDATE、SOL-CALENDAR-ENVELOPE、SOL-CALENDAR-TESTS | N | 11/22 起無對應 PR；最後 PR 見第 10.4 節第 9 項 |
+| SOL-INGRESS、SOL-MAINTENANCE、SOL-SECRETS、SOL-NOTIFICATION、SOL-QUERY-INDEX、SOL-TTL | N | 11/22 起無對應 PR；第 10.1 節類別 2 |
+| SOL-CLI、SOL-CONFIG、SOL-HTML、SOL-LIST、SOL-PRIVACY、SOL-RETURN、SOL-SESSION-DOCS | N | 11/22 起無對應 PR；第 10.1 節類別 3 |
+
+#### RC-01～RC-11
+
+| ID | 狀態 | PR／依據 |
+| --- | --- | --- |
+| RC-01、RC-02、RC-05、RC-09、RC-10 | T | 第 10.2 節（#453、#454、#520、#487、#536） |
+| RC-03 | 負責人文書 | 照片書面同意與 `staff-*.png` 檢視待負責人；D-001、D-002 同屬負責人文書，不是程式工作 |
+| RC-04 | D | 11/23 決定登記：需 `administration:read` 與 CI 變更，延至 12 月 |
+| RC-06 | W | #523、#530、#524 已合；凍結版 CP-08 回歸待 11/26 之後 |
+| RC-07 | M | Gate 2 50 次讀回 #557；續期至 2026-12-16（#520） |
+| RC-08 | T、D（子項） | 量測 workflow #488；程式切分列 12 月 |
+| RC-11 | T | #455、#522；每週讀回持續 |
+
+#### 11/22～11/24 其他合併 PR
+
+| PR | 對應 | 備註 |
+| --- | --- | --- |
+| #536～#540 | 文件 | 長跑紀錄、11/21 窗口計畫、第十節草稿、凍結計畫、11/21 窗口讀回 |
+| #541 | 第十節 | 記錄 11/22 負責人決定（不移 12 月） |
+| #542、#543、#544、#547、#548、#552、#553、#554 | 無法對應包別 | Gate 2／calendar pilot 工具與對帳修補，標題未標包名 |
+| #555、#556、#558～#561 | 無法對應包別 | 員工畫面患者欄與手機顯示（`STAFF-LIST-PATIENT-DISPLAY-2026-11-23`） |
+| #581、#582 | CP-10 A-10 | 實作 `BD-POLICY-2026-11-24`（外部合約優先，政策版本更新）；金額不在本檔重列 |
+
+#### 11/26 開窗實測清單（C1 窗口 2026-11-26 20:00 臺北，12:00Z）
+
+此清單全部尚未實測，本檔不標 PASS。
+
+- stage 2／3 項目。
+- R5：#562。
+- #568：409 還原確認與煙霧測試。
+- C3 到期：#573 只證明 `2026-11-23T08:23:46Z` 自然到期且 `revokedAt` 為空；到期後拒絕與第 7 天仍可用未實機測試。
+- R2 plan：#563。
+- 凍結版 CP-08 回歸（RC-06）在窗口之後。
+
+#### 不在本次 RC 窗口
+
+IaC B-11、B-50；CI B-05；`SOL-INTEGRATION`；八種故障注入案例；CAL-PILOT 標籤與預算。CAL-PILOT 合成子範圍於 `2026-11-28T04:51Z` 到期，不延期。
+
+#### 筆數
+
+| 類別 | 數量 | 說明 |
+| --- | --- | --- |
+| T（終態） | 25 | 23＋2，與第 10.1 節類別 1、4 相同 |
+| M（11/22 起有新 PR） | 15 | 其中 3 包含開窗項（SESSION、CALENDAR-RESTORE、IAM）；GOVERNANCE 含 D 子項 |
+| N（無新 PR，沿用 11/20） | 18 | 其中 IAC-LIFECYCLE、CI-IAC 含 D 子項 |
+| D（整包不在本次 RC） | 1 | SOL-INTEGRATION |
+| 合計 | 59 | 25＋15＋18＋1 |
+
+備註：第十節 10.4 的 11/22 負責人決定原文是不採用整批移 12 月；本小節把 SOL-INTEGRATION 與上列子項記為「不在本次 RC 窗口」，依據是 11/25 的範圍判斷與 11/23 決定登記（RC-04、B-20），不是新的負責人決定。SOL-NOTIFICATION 等原列 10.4 的包，現況仍是未結，本檔不改其狀態。
+
 ## 十、2026-11-22 決策草稿：59 包與 C2～C6 實際盤點與建議移 12 月清單
 
 > **聲明（已決定）**：本節是 **2026-11-20 實查盤點草稿與建議**（以 `origin/main` 至 PR #537、#522、#518、#519 與 2026-11-16 至 11-19 審查報告為依據），**盤點本身不構成任何延後、縮範圍或雲端操作授權；負責人已於 2026-11-22 決定，見 10.4**。
