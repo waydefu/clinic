@@ -208,4 +208,20 @@ describe('Terraform mock tests are part of required verify CI', () => {
       'needs: [verify, rules, e2e, supply-chain, sast, gitleaks]'
     );
   });
+
+  it('keeps the B-11 authority-revocation runs in the C1/C5 mock suites', () => {
+    for (const suite of [
+      'c1-foundation/noop.tftest.hcl',
+      'c5-firestore/noop.tftest.hcl'
+    ]) {
+      const source = read(`infra/terraform/${suite}`);
+      for (const run of [
+        'revoked_authority_fails_closed',
+        'empty_authority_is_rejected',
+        'mismatched_authority_is_rejected'
+      ]) {
+        expect(source).toContain(`run "${run}"`);
+      }
+    }
+  });
 });
