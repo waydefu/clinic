@@ -9,16 +9,16 @@ output "project_id" {
 }
 
 output "terraform_ci_email" {
-  value       = local.apply_enabled ? google_service_account.terraform_ci[0].email : null
-  description = "WIF Terraform service account. Null while the module is a no-op."
+  value       = google_service_account.terraform_ci.email
+  description = "WIF Terraform service account. Resource always exists; authority only gates apply."
 }
 
 output "wif_provider" {
-  value       = local.apply_enabled ? google_iam_workload_identity_pool_provider.github[0].name : null
+  value       = google_iam_workload_identity_pool_provider.github.name
   description = "Workload identity provider resource name."
 }
 
 output "budget_pubsub_topic" {
-  value       = local.apply_enabled ? google_pubsub_topic.budget[0].id : null
+  value       = google_pubsub_topic.budget.id
   description = "Budget 50/80/100 notification topic. Freeze/pause remain operator actions."
 }

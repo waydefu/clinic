@@ -1,55 +1,46 @@
-# Credential-free proof that the default SHA creates zero Google resources.
-# This is not apply and not C1 PASS.
+# Credential-free proof that the authority SHA gates apply fail-closed and
+# never controls resource existence (B-11). This is not apply and not C1 PASS.
 
 mock_provider "google" {}
 
-run "default_sha_is_noop" {
+# A revoked, missing or mismatched authority must fail the plan. A failed plan
+# can never contain a destroy, so revoking the SHA cannot remove resources.
+run "revoked_authority_fails_closed" {
   command = plan
 
-  assert {
-    condition     = local.apply_enabled == false
-    error_message = "C1 apply_enabled must be false when SHA is not_granted."
+  variables {
+    exact_apply_authority_sha = "not_granted"
+    project_id                = "beauessence-clinic-stg-smoke1"
+    billing_account_id        = "000000-000000-000000"
   }
 
-  assert {
-    condition     = length(google_project_service.c1) == 0
-    error_message = "C1 must create zero project services when SHA is not_granted."
+  expect_failures = [
+    data.google_project.c1
+  ]
+}
+
+run "empty_authority_is_rejected" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha = ""
   }
 
-  assert {
-    condition     = length(google_service_account.terraform_ci) == 0
-    error_message = "C1 must create zero service accounts when SHA is not_granted."
+  expect_failures = [
+    var.exact_apply_authority_sha
+  ]
+}
+
+run "mismatched_authority_is_rejected" {
+  command = plan
+
+  variables {
+    exact_apply_authority_sha = "not-a-40-character-sha"
   }
 
-  assert {
-    condition     = length(google_project_iam_member.terraform_ci) == 0
-    error_message = "C1 must create zero project IAM grants when SHA is not_granted."
-  }
-
-  assert {
-    condition     = length(google_iam_workload_identity_pool.github) == 0
-    error_message = "C1 must create zero WIF pools when SHA is not_granted."
-  }
-
-  assert {
-    condition     = length(google_service_account_iam_member.terraform_ci_wif) == 0
-    error_message = "C1 must create zero WIF bindings when SHA is not_granted."
-  }
-
-  assert {
-    condition     = length(google_secret_manager_secret.reserved) == 0
-    error_message = "C1 must create zero secrets when SHA is not_granted."
-  }
-
-  assert {
-    condition     = length(google_billing_budget.c1) == 0
-    error_message = "C1 must create zero budgets when SHA is not_granted."
-  }
-
-  assert {
-    condition     = length(google_monitoring_alert_policy.iam_setiampolicy) == 0
-    error_message = "C1 must create zero alert policies when SHA is not_granted."
-  }
+  expect_failures = [
+    var.exact_apply_authority_sha
+  ]
 }
 
 run "named_sha_enables_c1_allowlist_only" {
@@ -74,12 +65,12 @@ run "named_sha_enables_c1_allowlist_only" {
   }
 
   assert {
-    condition     = length(google_service_account.terraform_ci) == 1
+    condition     = google_service_account.terraform_ci.account_id == "c1-terraform-ci"
     error_message = "C1 must create the terraform-ci service account when SHA-gated apply is on."
   }
 
   assert {
-    condition     = google_service_account.terraform_ci[0].disabled == true
+    condition     = google_service_account.terraform_ci.disabled == true
     error_message = "C1 terraform-ci service account must default to disabled = true."
   }
 
@@ -108,60 +99,60 @@ run "named_sha_enables_c1_allowlist_only" {
   }
 
   assert {
-    condition     = length(google_billing_budget.c1) == 1
+    condition     = google_billing_budget.c1.display_name == "C1 synthetic staging alerting budget"
     error_message = "C1 must create the NT$2000 alerting budget when SHA-gated apply is on."
   }
 
   assert {
-    condition     = google_billing_budget.c1[0].amount[0].specified_amount[0].currency_code == "TWD"
+    condition     = google_billing_budget.c1.amount[0].specified_amount[0].currency_code == "TWD"
     error_message = "C1 budget currency must be TWD."
   }
 
   assert {
-    condition     = google_billing_budget.c1[0].amount[0].specified_amount[0].units == "2000"
+    condition     = google_billing_budget.c1.amount[0].specified_amount[0].units == "2000"
     error_message = "C1 budget amount must be NT$2000."
   }
 
   assert {
-    condition     = google_logging_project_bucket_config.c1[0].bucket_id == "c1-foundation"
+    condition     = google_logging_project_bucket_config.c1.bucket_id == "c1-foundation"
     error_message = "C1 logging bucket must be c1-foundation."
   }
 
   assert {
-    condition     = google_logging_project_bucket_config.c1[0].location == "asia-east1"
+    condition     = google_logging_project_bucket_config.c1.location == "asia-east1"
     error_message = "C1 logging bucket must be in asia-east1."
   }
 
   assert {
-    condition     = google_iam_workload_identity_pool.github[0].workload_identity_pool_id == "c1-github"
+    condition     = google_iam_workload_identity_pool.github.workload_identity_pool_id == "c1-github"
     error_message = "C1 WIF pool must be c1-github."
   }
 
   assert {
-    condition     = length(google_pubsub_topic_iam_member.monitoring_publisher) == 1
+    condition     = google_pubsub_topic_iam_member.monitoring_publisher.role == "roles/pubsub.publisher"
     error_message = "C1 must grant the Monitoring service agent Pub/Sub publisher before the notification channel."
   }
 
   assert {
     condition = (
-      google_pubsub_topic_iam_member.budget_publisher[0].member ==
+      google_pubsub_topic_iam_member.budget_publisher.member ==
       "serviceAccount:billing-budget-alert@system.gserviceaccount.com"
     )
     error_message = "C1 budget Pub/Sub publisher must be billing-budget-alert@system.gserviceaccount.com, not gcp-sa-billingbudgets."
   }
 
   assert {
-    condition     = length(google_monitoring_alert_policy.iam_setiampolicy) == 1
+    condition     = google_monitoring_alert_policy.iam_setiampolicy.enabled == true
     error_message = "C1 must create the IAM SetIamPolicy alert when SHA-gated apply is on."
   }
 
   assert {
-    condition     = google_monitoring_alert_policy.iam_setiampolicy[0].display_name == "C1 IAM SetIamPolicy"
+    condition     = google_monitoring_alert_policy.iam_setiampolicy.display_name == "C1 IAM SetIamPolicy"
     error_message = "C1 IAM alert display name must be C1 IAM SetIamPolicy."
   }
 
   assert {
-    condition     = google_monitoring_alert_policy.iam_setiampolicy[0].combiner == "OR"
+    condition     = google_monitoring_alert_policy.iam_setiampolicy.combiner == "OR"
     error_message = "C1 IAM alert combiner must be OR."
   }
 }
@@ -179,7 +170,7 @@ run "wif_trust_is_pinned_to_numeric_ids_and_approved_refs" {
 
   assert {
     condition = (
-      google_iam_workload_identity_pool_provider.github[0].attribute_condition ==
+      google_iam_workload_identity_pool_provider.github.attribute_condition ==
       "assertion.repository == 'waydefu/clinic' && assertion.repository_id == '123456789' && assertion.repository_owner_id == '987654321' && assertion.ref in ['refs/heads/main']"
     )
     error_message = "C1 WIF trust must pin repository name, numeric repository id, numeric owner id and the approved ref."
@@ -187,7 +178,7 @@ run "wif_trust_is_pinned_to_numeric_ids_and_approved_refs" {
 
   assert {
     condition = (
-      google_iam_workload_identity_pool_provider.github[0].attribute_mapping["attribute.workflow_ref"] ==
+      google_iam_workload_identity_pool_provider.github.attribute_mapping["attribute.workflow_ref"] ==
       "assertion.workflow_ref"
     )
     error_message = "C1 WIF provider must map attribute.workflow_ref to assertion.workflow_ref."
@@ -235,12 +226,12 @@ run "terraform_ci_enable_requires_explicit_opt_in" {
   }
 
   assert {
-    condition     = length(google_service_account.terraform_ci) == 1
+    condition     = google_service_account.terraform_ci.account_id == "c1-terraform-ci"
     error_message = "C1 must create the terraform-ci service account when SHA-gated apply is on."
   }
 
   assert {
-    condition     = google_service_account.terraform_ci[0].disabled == false
+    condition     = google_service_account.terraform_ci.disabled == false
     error_message = "C1 terraform-ci service account must become enabled only when terraform_ci_disabled is explicitly set to false."
   }
 }
@@ -279,7 +270,11 @@ run "non_numeric_repository_id_is_rejected" {
   command = plan
 
   variables {
-    github_repository_id = "waydefu"
+    exact_apply_authority_sha  = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                 = "beauessence-clinic-stg-smoke1"
+    billing_account_id         = "000000-000000-000000"
+    github_repository_id       = "waydefu"
+    github_repository_owner_id = "987654321"
   }
 
   expect_failures = [
@@ -291,7 +286,12 @@ run "wildcard_ref_is_rejected" {
   command = plan
 
   variables {
-    github_allowed_refs = ["refs/heads/*"]
+    exact_apply_authority_sha  = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                 = "beauessence-clinic-stg-smoke1"
+    billing_account_id         = "000000-000000-000000"
+    github_repository_id       = "123456789"
+    github_repository_owner_id = "987654321"
+    github_allowed_refs        = ["refs/heads/*"]
   }
 
   expect_failures = [
@@ -357,7 +357,11 @@ run "oversized_project_id_is_rejected" {
   command = plan
 
   variables {
-    project_id = "beauessence-clinic-stg-replace-me"
+    exact_apply_authority_sha  = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                 = "beauessence-clinic-stg-replace-me"
+    billing_account_id         = "000000-000000-000000"
+    github_repository_id       = "123456789"
+    github_repository_owner_id = "987654321"
   }
 
   expect_failures = [
@@ -369,7 +373,11 @@ run "staging_project_is_rejected" {
   command = plan
 
   variables {
-    project_id = "beauessence-clinic-staging"
+    exact_apply_authority_sha  = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    project_id                 = "beauessence-clinic-staging"
+    billing_account_id         = "000000-000000-000000"
+    github_repository_id       = "123456789"
+    github_repository_owner_id = "987654321"
   }
 
   expect_failures = [

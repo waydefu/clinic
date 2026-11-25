@@ -35,11 +35,11 @@ function expectCiGrantBoundary(source) {
       .map(([role]) => JSON.parse(role))
       .sort()
   ).toEqual([...C1_TERRAFORM_CI_ROLES].sort());
-  expect(block).toMatch(/for_each\s*=\s*local\.apply_enabled \? toset\(\[/);
+  expect(block).toMatch(/for_each\s*=\s*toset\(\[/);
   expect(block).toMatch(/project\s*=\s*var\.project_id\s*$/m);
   expect(block).toMatch(/role\s*=\s*each\.value\s*$/m);
   expect(block).toMatch(
-    /member\s*=\s*"serviceAccount:\$\{google_service_account\.terraform_ci\[0\]\.email\}"\s*$/m
+    /member\s*=\s*"serviceAccount:\$\{google_service_account\.terraform_ci\.email\}"\s*$/m
   );
 }
 
@@ -56,9 +56,30 @@ describe('C1 isolated foundation Terraform source', () => {
     expect(main).toContain(
       'apply_enabled = var.exact_apply_authority_sha != "not_granted"'
     );
-    expect(main).toContain(
-      'for_each           = local.apply_enabled ? local.allowed_services : toset([])'
+    expect(main).toContain('for_each           = local.allowed_services');
+  });
+
+  it('keeps authority as a fail-closed precondition and never as resource count (B-11)', () => {
+    expect(main).not.toMatch(/^\s*count\s*=\s*local\.apply_enabled/m);
+    expect(main).not.toMatch(/local\.apply_enabled \?/);
+    expect(main).toMatch(
+      /data "google_project" "c1" \{[\s\S]*?precondition \{\s*condition\s*=\s*local\.apply_enabled\s/
     );
+    expect(main).not.toContain('prevent_destroy');
+    const moved = read('infra/terraform/c1-foundation/moved.tf');
+    expect([...moved.matchAll(/^moved \{/gm)]).toHaveLength(11);
+    const move = /from = (\S+)\[0\]\n\s*to\s*= (\S+)\n/g;
+    for (const [, from, to] of moved.matchAll(move)) {
+      expect(from).toBe(to);
+    }
+    const noop = read('infra/terraform/c1-foundation/noop.tftest.hcl');
+    for (const run of [
+      'revoked_authority_fails_closed',
+      'empty_authority_is_rejected',
+      'mismatched_authority_is_rejected'
+    ]) {
+      expect(noop).toContain(`run "${run}"`);
+    }
   });
 
   it('keeps the C1 API allowlist and excludes C2–C6 cloud products', () => {
@@ -98,11 +119,8 @@ describe('C1 isolated foundation Terraform source', () => {
     ],
     ['a missing role', main.replace('"roles/pubsub.admin"', '')],
     [
-      'an unconditional grant',
-      main.replace(
-        'for_each = local.apply_enabled ? toset([',
-        'for_each = true ? toset(['
-      )
+      'a conditional grant',
+      main.replace('for_each = toset([', 'for_each = true ? toset([')
     ],
     [
       'another project',
@@ -118,7 +136,7 @@ describe('C1 isolated foundation Terraform source', () => {
     [
       'another principal',
       main.replace(
-        '"serviceAccount:${google_service_account.terraform_ci[0].email}"',
+        '"serviceAccount:${google_service_account.terraform_ci.email}"',
         '"serviceAccount:unapproved@fixture.invalid"'
       )
     ],
@@ -143,9 +161,6 @@ describe('C1 isolated foundation Terraform source', () => {
         .sort()
     ).toEqual([...C1_TERRAFORM_CI_ROLES].sort());
     expect(noop).toContain(
-      'length(google_project_iam_member.terraform_ci) == 0'
-    );
-    expect(noop).toContain(
       'grant.role == role && grant.project == var.project_id'
     );
   });
@@ -160,7 +175,7 @@ describe('C1 isolated foundation Terraform source', () => {
     expect(main).toContain('google_pubsub_topic_iam_member.budget_publisher');
     expect(main).toContain('billing-budget-alert@system.gserviceaccount.com');
     expect(main).not.toMatch(
-      /service-\$\{data\.google_project\.c1\[0\]\.number\}@gcp-sa-billingbudgets/
+      /service-\$\{data\.google_project\.c1\.number\}@gcp-sa-billingbudgets/
     );
     expect(main).toContain(
       'google_pubsub_topic_iam_member.monitoring_publisher'
@@ -168,7 +183,7 @@ describe('C1 isolated foundation Terraform source', () => {
     expect(main).toContain('google_monitoring_alert_policy');
     expect(main).toContain('c1-iam-setiampolicy');
     expect(main).toContain(
-      'google_monitoring_notification_channel.budget_pubsub[0].name'
+      'google_monitoring_notification_channel.budget_pubsub.name'
     );
     expect(main).not.toMatch(/type\s*=\s*"email"/);
     expect(read('infra/terraform/c1-foundation/noop.tftest.hcl')).toContain(
@@ -233,7 +248,7 @@ describe('C1 isolated foundation Terraform source', () => {
     expect(main).toContain('assertion.ref in [');
     expect(main).toContain('var.github_allowed_refs');
     expect(main).toContain(
-      'for_each           = local.apply_enabled ? (var.github_wif_binding_enabled ? toset(["enabled"]) : toset([])) : toset([])'
+      'for_each           = var.github_wif_binding_enabled ? toset(["enabled"]) : toset([])'
     );
     expect(main).toContain(
       'attribute.repository_id/${var.github_repository_id}'
@@ -267,11 +282,11 @@ describe('C1 isolated foundation Terraform source', () => {
     );
     const noop = read('infra/terraform/c1-foundation/noop.tftest.hcl');
     expect(noop).toContain(
-      'google_service_account.terraform_ci[0].disabled == true'
+      'google_service_account.terraform_ci.disabled == true'
     );
     expect(noop).toContain('terraform_ci_disabled      = false');
     expect(noop).toContain(
-      'google_service_account.terraform_ci[0].disabled == false'
+      'google_service_account.terraform_ci.disabled == false'
     );
     expect(read('infra/terraform/c1-foundation/README.md')).toContain(
       'terraform_ci_disabled'

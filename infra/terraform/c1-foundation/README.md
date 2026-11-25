@@ -1,7 +1,10 @@
 # C1 isolated foundation (source only)
 
-**Not C1 PASS.** Default `exact_apply_authority_sha = not_granted`
-creates **zero** resources. Existing `beauessence-clinic-staging` is
+**Not C1 PASS.** Default `exact_apply_authority_sha = not_granted` makes
+`terraform plan` fail closed (a precondition on `data.google_project.c1`);
+the authority never controls whether resources exist, so revoking it can
+never plan a destroy (B-11; `moved.tf` migrated the old `[0]` addresses).
+Existing `beauessence-clinic-staging` is
 rejected as `project_id`. Placeholder `beauessence-clinic-stg-unapplied`
 is for validate/tests only (it is longer than GCP's 30-character
 project-id limit and cannot be applied). Live ids are
@@ -14,8 +17,7 @@ production, Calendar and DR secondary.
 
 SHA-gated `google_monitoring_alert_policy.iam_setiampolicy` fires on the
 existing `c1-iam-setiampolicy` log metric and notifies the budget Pub/Sub
-channel only. Email recipients stay out of the repository. Default SHA
-creates zero alert policies. Sequential C1 smoke does not require the
+channel only. Email recipients stay out of the repository. Sequential C1 smoke does not require the
 live policy (completed C1 evidence stays valid). Inspect with
 `pnpm inspect:internal-test-monitoring`.
 
@@ -90,8 +92,8 @@ The billing budget is scoped by `var.billing_account_id`, not by these project
 role grants. Its first apply uses the separately authorized human bootstrap;
 this table must not infer billing authority for the CI identity.
 
-The credential-free C1 mock plan proves the default SHA creates zero project
-IAM members and zero WIF bindings, the default `github_wif_binding_enabled = false`
+The credential-free C1 mock plan proves a revoked, empty or mismatched SHA fails the
+plan, the default `github_wif_binding_enabled = false`
 keeps the WIF binding at zero memberships even with a named SHA, the default
 `terraform_ci_disabled = true` keeps `google_service_account.terraform_ci`
 disabled even with a named SHA (requiring explicit `terraform_ci_disabled = false`

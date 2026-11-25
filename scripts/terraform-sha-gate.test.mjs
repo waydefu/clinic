@@ -13,6 +13,13 @@ import {
   terraformValidateCommands
 } from './terraform-sha-gate.mjs';
 
+// Count-gated rules still apply to C2/C6 and the fixtures below; C1/C5 are
+// decoupled from the authority SHA (B-11).
+const LEGACY_COUNT_GATED_C1_MODULE = {
+  ...C_SLICE_TERRAFORM_MODULES[0],
+  existenceDecoupled: false
+};
+
 const passingTftest = `mock_provider "google" {}
 command = plan
 length(google_project_service.c1) == 0
@@ -24,7 +31,7 @@ const c1FixtureVariables =
   'default     = "not_granted"\nbeauessence-clinic-staging\nbeauessence-clinic-stg-[a-z0-9]{1,7}\n';
 
 function c1FixtureMain(localsSource) {
-  const services = C_SLICE_TERRAFORM_MODULES[0].allowedServiceSubstrings
+  const services = LEGACY_COUNT_GATED_C1_MODULE.allowedServiceSubstrings
     .map((service) => `    "${service}"`)
     .join(',\n');
   return `${localsSource}
@@ -88,7 +95,7 @@ describe('C-slice Terraform SHA gate (static dry-run, no apply)', () => {
       ['true', false]
     ]) {
       const result = evaluateCSliceTerraformSource(
-        C_SLICE_TERRAFORM_MODULES[0],
+        LEGACY_COUNT_GATED_C1_MODULE,
         {
           ...files,
           main: `locals {\n  apply_enabled                      = ${expression}\n}`
@@ -111,7 +118,7 @@ describe('C-slice Terraform SHA gate (static dry-run, no apply)', () => {
   apply_enabled = ${exactApplyEnabled} ${comment}
 }`);
       const result = evaluateCSliceTerraformSource(
-        C_SLICE_TERRAFORM_MODULES[0],
+        LEGACY_COUNT_GATED_C1_MODULE,
         c1FixtureFiles(main)
       );
       expect(result.issues).not.toContain('C1 must SHA-gate apply_enabled.');
@@ -125,7 +132,7 @@ describe('C-slice Terraform SHA gate (static dry-run, no apply)', () => {
   # { apply_enabled = ${exactApplyEnabled}
 }`);
     const result = evaluateCSliceTerraformSource(
-      C_SLICE_TERRAFORM_MODULES[0],
+      LEGACY_COUNT_GATED_C1_MODULE,
       c1FixtureFiles(main)
     );
     expect(result.issues).toContain('C1 must SHA-gate apply_enabled.');
@@ -139,14 +146,14 @@ describe('C-slice Terraform SHA gate (static dry-run, no apply)', () => {
     const variables = read(`${relativeDirectory}/variables.tf`);
     const tftest = read(`${relativeDirectory}/noop.tftest.hcl`);
     const original = evaluateCSliceTerraformSource(
-      C_SLICE_TERRAFORM_MODULES[0],
+      LEGACY_COUNT_GATED_C1_MODULE,
       { main, variables, tftest }
     );
     const mutatedMain = main.replace(
       exactLine,
       `apply_enabled = true\n  # { apply_enabled = ${exactApplyEnabled}\n`
     );
-    const result = evaluateCSliceTerraformSource(C_SLICE_TERRAFORM_MODULES[0], {
+    const result = evaluateCSliceTerraformSource(LEGACY_COUNT_GATED_C1_MODULE, {
       main: mutatedMain,
       variables,
       tftest
@@ -162,7 +169,7 @@ describe('C-slice Terraform SHA gate (static dry-run, no apply)', () => {
     const variables = read(`${relativeDirectory}/variables.tf`);
     const tftest = read(`${relativeDirectory}/noop.tftest.hcl`);
     const original = evaluateCSliceTerraformSource(
-      C_SLICE_TERRAFORM_MODULES[0],
+      LEGACY_COUNT_GATED_C1_MODULE,
       { main, variables, tftest }
     );
     const mutatedMain = `${main}
@@ -176,7 +183,7 @@ locals {
   hidden_close = "}"
 }
 `;
-    const result = evaluateCSliceTerraformSource(C_SLICE_TERRAFORM_MODULES[0], {
+    const result = evaluateCSliceTerraformSource(LEGACY_COUNT_GATED_C1_MODULE, {
       main: mutatedMain,
       variables,
       tftest
@@ -225,7 +232,7 @@ locals {
     ];
     for (const localsSource of mainSources) {
       const result = evaluateCSliceTerraformSource(
-        C_SLICE_TERRAFORM_MODULES[0],
+        LEGACY_COUNT_GATED_C1_MODULE,
         c1FixtureFiles(c1FixtureMain(localsSource))
       );
       expect(result.issues).toContain('C1 must SHA-gate apply_enabled.');
@@ -262,7 +269,7 @@ resource "google_project_service" "quoted_count_symbols" {
   });
 
   it('rejects an ungated resource or a C1 Firestore bleed', () => {
-    const c1 = C_SLICE_TERRAFORM_MODULES[0];
+    const c1 = LEGACY_COUNT_GATED_C1_MODULE;
     const ungated = evaluateCSliceTerraformSource(c1, {
       main: `
 locals { apply_enabled = var.exact_apply_authority_sha != "not_granted" }
@@ -367,12 +374,68 @@ resource "google_project_service" "real" {
       /unterminated quoted string/
     );
     const result = evaluateCSliceTerraformSource(
-      C_SLICE_TERRAFORM_MODULES[0],
+      LEGACY_COUNT_GATED_C1_MODULE,
       c1FixtureFiles(malformedMain)
     );
     expect(result.ok).toBe(false);
     expect(result.issues).toContain(
       'C1 main.tf cannot be scanned safely: unterminated quoted string.'
     );
+  });
+
+  it('requires C1/C5 authority to be a precondition, never a count or for_each gate (B-11)', () => {
+    const decoupledModules = C_SLICE_TERRAFORM_MODULES.filter(
+      (module) => module.existenceDecoupled === true
+    );
+    const slices = decoupledModules.map((module) => module.slice);
+    expect(slices).toEqual(['C1', 'C5']);
+    const decoupled = C_SLICE_TERRAFORM_MODULES[0];
+    const comments = decoupled.allowedServiceSubstrings
+      .map((service) => `# ${service}`)
+      .join('\n');
+    const files = {
+      main: `
+locals { apply_enabled = var.exact_apply_authority_sha != "not_granted" }
+resource "google_project_service" "c1" {
+  for_each = toset(["iam.googleapis.com"])
+  lifecycle {
+    precondition {
+      condition     = local.apply_enabled
+      error_message = "x"
+    }
+  }
+}
+${comments}
+`,
+      variables: c1FixtureVariables,
+      tftest: `${passingTftest}\nexpect_failures = [x]\n`,
+      moved: 'moved {\n  from = a.b[0]\n  to   = a.b\n}\n'
+    };
+    const accepted = evaluateCSliceTerraformSource(decoupled, files);
+    expect(accepted.issues).toEqual([]);
+
+    const gated = evaluateCSliceTerraformSource(decoupled, {
+      ...files,
+      main: files.main.replace(
+        'for_each = toset(["iam.googleapis.com"])',
+        'count = local.apply_enabled ? 1 : 0'
+      )
+    });
+    expect(gated.issues.join('\n')).toMatch(/must not let the authority SHA/);
+
+    const noMoved = evaluateCSliceTerraformSource(decoupled, {
+      ...files,
+      moved: ''
+    });
+    expect(noMoved.issues.join('\n')).toMatch(/moved blocks/);
+
+    const noPrecondition = evaluateCSliceTerraformSource(decoupled, {
+      ...files,
+      main: files.main.replace(
+        'condition     = local.apply_enabled',
+        'condition = true'
+      )
+    });
+    expect(noPrecondition.issues.join('\n')).toMatch(/precondition/);
   });
 });

@@ -3,14 +3,13 @@ locals {
 }
 
 resource "google_project_service" "c5" {
-  for_each           = local.apply_enabled ? toset(["firestore.googleapis.com"]) : toset([])
+  for_each           = toset(["firestore.googleapis.com"])
   project            = var.project_id
   service            = each.value
   disable_on_destroy = false
 }
 
 resource "google_firestore_database" "synthetic" {
-  count                             = local.apply_enabled ? 1 : 0
   project                           = var.project_id
   name                              = "(default)"
   location_id                       = var.region
@@ -21,13 +20,21 @@ resource "google_firestore_database" "synthetic" {
   delete_protection_state           = "DELETE_PROTECTION_ENABLED"
   deletion_policy                   = "ABANDON"
   depends_on                        = [google_project_service.c5]
+
+  lifecycle {
+    # B-11: authority gates apply, never resource existence. A missing or
+    # mismatched SHA fails the plan closed instead of planning destroys.
+    precondition {
+      condition     = local.apply_enabled
+      error_message = "C5 requires exact_apply_authority_sha to be a granted 40-character SHA; resources are never removed by revoking it."
+    }
+  }
 }
 
 # C0-ENG-REC necessary baseline: same-location daily backup, 30-day retention.
-# PITR is the 7-day window on the database. This schedule is SHA-gated; default
-# SHA creates zero backups. Apply still needs a fresh exact-SHA packet.
+# PITR is the 7-day window on the database. Apply is gated by the authority
+# precondition on the database.
 resource "google_firestore_backup_schedule" "daily" {
-  count     = local.apply_enabled ? 1 : 0
   project   = var.project_id
   database  = "(default)"
   retention = "2592000s"
@@ -37,7 +44,6 @@ resource "google_firestore_backup_schedule" "daily" {
 
 # BACKUP-B-2026-11-15: weekly backup, 14-week retention (Firestore maximum).
 resource "google_firestore_backup_schedule" "weekly" {
-  count     = local.apply_enabled ? 1 : 0
   project   = var.project_id
   database  = "(default)"
   retention = "8467200s"
@@ -53,7 +59,6 @@ resource "google_firestore_backup_schedule" "weekly" {
 # purgeAt, so the API also refuses to serve any chunk past its purgeAt.
 # Single-field indexing is disabled because nothing queries this field.
 resource "google_firestore_field" "export_chunk_ttl" {
-  count      = local.apply_enabled ? 1 : 0
   project    = var.project_id
   database   = "(default)"
   collection = "bd_export_chunks"

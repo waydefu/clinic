@@ -1,6 +1,8 @@
 # C5 Firestore Native (source only)
 
-**Not C5 authority.** Default SHA creates zero resources. Location
+**Not C5 authority.** The default SHA fails the plan closed (precondition on
+the database) and never removes resources (B-11; `moved.tf` migrated the old
+`[0]` addresses). Location
 `asia-east1`, PITR enabled, delete protection on, SHA-gated same-location
 daily backup with 30-day retention, plus a weekly (Sunday) backup kept 14 weeks
 (BACKUP-B-2026-11-15). The monthly out-of-project export (2 years) is not

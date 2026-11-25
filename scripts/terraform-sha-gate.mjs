@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -11,6 +11,7 @@ export const C_SLICE_TERRAFORM_MODULES = [
   {
     slice: 'C1',
     directory: 'infra/terraform/c1-foundation',
+    existenceDecoupled: true,
     allowedServiceSubstrings: [
       'billingbudgets.googleapis.com',
       'cloudbilling.googleapis.com',
@@ -48,6 +49,7 @@ export const C_SLICE_TERRAFORM_MODULES = [
   {
     slice: 'C5',
     directory: 'infra/terraform/c5-firestore',
+    existenceDecoupled: true,
     allowedServiceSubstrings: ['firestore.googleapis.com'],
     forbiddenSubstrings: [
       'identitytoolkit.googleapis.com',
@@ -568,7 +570,26 @@ export function evaluateCSliceTerraformSource(module, files) {
   if (tftest.includes('command = apply')) {
     issues.push(`${module.slice} terraform test must not apply.`);
   }
-  if (!tftest.includes('length(') || !tftest.includes('== 0')) {
+  if (module.existenceDecoupled === true) {
+    // B-11: authority must fail the plan closed, never remove resources.
+    if (!tftest.includes('expect_failures')) {
+      issues.push(
+        `${module.slice} terraform test must expect the authority gate to fail the plan.`
+      );
+    }
+    const gatePrecondition =
+      /precondition\s*\{\s*condition\s*=\s*local\.apply_enabled\s/;
+    if (!gatePrecondition.test(main)) {
+      issues.push(
+        `${module.slice} must gate apply with a local.apply_enabled precondition.`
+      );
+    }
+    if (!/^moved\s*\{/m.test(files.moved ?? '')) {
+      issues.push(
+        `${module.slice} must ship moved blocks for ungated resources.`
+      );
+    }
+  } else if (!tftest.includes('length(') || !tftest.includes('== 0')) {
     issues.push(`${module.slice} terraform test must assert zero resources.`);
   }
   if (!tftest.includes('beauessence-clinic-staging')) {
@@ -599,7 +620,13 @@ export function evaluateCSliceTerraformSource(module, files) {
         `${module.slice} ${block.kind} ${block.type}.${block.name} cannot be scanned safely: ${reason}.`
       );
     }
-    if (!gated) {
+    if (module.existenceDecoupled === true) {
+      if (gated) {
+        issues.push(
+          `${module.slice} ${block.kind} ${block.type}.${block.name} must not let the authority SHA control existence.`
+        );
+      }
+    } else if (!gated) {
       issues.push(
         `${module.slice} ${block.kind} ${block.type}.${block.name} is not SHA-gated.`
       );
@@ -614,7 +641,10 @@ export function evaluateAllCSliceTerraform(repoRoot = root) {
     const files = {
       main: readFileSync(join(directory, 'main.tf'), 'utf8'),
       variables: readFileSync(join(directory, 'variables.tf'), 'utf8'),
-      tftest: readFileSync(join(directory, 'noop.tftest.hcl'), 'utf8')
+      tftest: readFileSync(join(directory, 'noop.tftest.hcl'), 'utf8'),
+      moved: existsSync(join(directory, 'moved.tf'))
+        ? readFileSync(join(directory, 'moved.tf'), 'utf8')
+        : ''
     };
     const evaluation = evaluateCSliceTerraformSource(module, files);
     return {
