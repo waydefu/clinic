@@ -1,9 +1,13 @@
 locals {
+  # Single source of truth: owner decision 2026-11-24, no extension; ends 2026-11-28 inclusive.
+  approved_end_date = "2026-11-28"
+  # Cloud Billing treats end_date as exclusive (usage "before" this date).
+  budget_end_exclusive = split("-", substr(timeadd("${local.approved_end_date}T00:00:00Z", "24h"), 0, 10))
   labels = {
     application = "cal-pilot"
     data_class  = "synthetic-only"
     environment = "staging"
-    expires     = "30-days"
+    expires     = local.approved_end_date
   }
   services = toset([
     "artifactregistry.googleapis.com",
@@ -191,7 +195,7 @@ resource "google_cloud_scheduler_job" "sync" {
 
 resource "google_billing_budget" "pilot" {
   billing_account = var.billing_account_id
-  display_name    = "CAL-PILOT synthetic alert budget through 2026-11-28"
+  display_name    = "CAL-PILOT synthetic alert budget through ${local.approved_end_date}"
   budget_filter {
     projects = ["projects/${data.google_project.pilot.number}"]
     custom_period {
@@ -201,10 +205,9 @@ resource "google_billing_budget" "pilot" {
         day   = 30
       }
       end_date {
-        year  = 2026
-        month = 11
-        # Cloud Billing treats end_date as exclusive (usage "before" this date).
-        day = 29
+        year  = tonumber(local.budget_end_exclusive[0])
+        month = tonumber(local.budget_end_exclusive[1])
+        day   = tonumber(local.budget_end_exclusive[2])
       }
     }
   }
