@@ -70,9 +70,8 @@ describe('C1 isolated foundation Terraform source', () => {
     expect(main).not.toContain('prevent_destroy');
     const moved = read('infra/terraform/c1-foundation/moved.tf');
     expect([...moved.matchAll(/^moved \{/gm)]).toHaveLength(11);
-    for (const [, from, to] of moved.matchAll(
-      /from = (\S+)\[0\]\n\s*to\s*= (\S+)\n/g
-    )) {
+    const move = /from = (\S+)\[0\]\n\s*to\s*= (\S+)\n/g;
+    for (const [, from, to] of moved.matchAll(move)) {
       expect(from).toBe(to);
     }
     const noop = read('infra/terraform/c1-foundation/noop.tftest.hcl');
