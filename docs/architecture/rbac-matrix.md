@@ -115,6 +115,14 @@ leftover `admin` 讀取時對齊 `normaliseRole`）。`/index.html` gzip total �
 才能刪除，規則在 [`packages/domain/src/delegated-authorization`](../../packages/domain/src/delegated-authorization.ts)。
 角色表刻意不變動，稽核因此永遠分得出「這個角色本來就能做」與「這次是被授權的」。
 
+> **已知且接受的限制（E4-13，2026-11-25 記錄）：** 委派授權的失敗次數／lockout 目前只存在
+> `InMemoryDelegatedAuthorizationAttemptStore`（`apps/api/src/platform/authorization/delegated-authorization-attempt-store.ts`，
+> 以 `Map` 保存），且 `DelegatedAuthorizationService` 沒有被任何 route 或 `AppModule` 接線，
+> 所以目前不存在「已部署的委派 lockout」可以失效，也不得把它描述成跨 instance／重啟仍有效的控制。
+> `shortcut:` 單一 process 記憶體計數；未獲核准接線前維持現狀，若日後核准接線，必須先補
+> 同 process 並行、跨 instance／重啟後 lockout 持續、失敗上限與 audit 的測試，並先在決策登錄記錄。
+> 本次沒有接線，也沒有改動任何 auth／RBAC 程式碼。
+
 ### 3.2 個案管理
 
 | 權限 | 管理者 | 櫃檯 | 諮詢師 | 醫師 | 病患 |

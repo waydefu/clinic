@@ -181,3 +181,30 @@ BD runtime/Google 真還原與完整回歸仍沿用原順序；新部署須當�
 
 本 PR 未修改測試或 enforcement，未以補文件宣稱產品關帳。Rollback 是移除這三個
 文件變更，沒有部署回退需求；治理 state、Roadmap、D-series 與保護設定均未改。
+
+## 後續更正（2026-11-25，E4-01／E4-12）
+
+本節是 append-only 更正，上方所有紀錄、數值與 PASS／FAIL 逐字保留。
+
+**E4-12：日期 PASS 與現行 main 判斷分開。** 本檔與
+[稽核修正收尾交接](2026-10-04-audit-closeout-handoff.md)中的 PASS，只代表 2026-10-02／10-04 當時的
+source SHA（`4ccc752e`）或合併後的 main，且 runtime 項目多為 `NOT_RUN`。它們不是「現在 main 通過」，
+也不能抵銷後來的變更。現行 main 判斷要引用較新的 exact-SHA 證據：本更正寫成時 main 為
+`826cf0d74b11c59495334bcfbe80f58fee47dcd5`，該 SHA 的 `verify` push run 為
+`45541626196`（success）；這是 source／CI 層級證據，不是 runtime 或部署證據。
+
+**E4-01：限流與防枚舉的 exact-source、負向案例與 current-main 指標。**
+2026-09-26 handoff 與 2026-09-28 closeout 的 `security_rate_limit`／`security_anti_enumeration` PASS
+是舊日期證據，不得當成現行控制。可核對的來源與測試如下（以 repo 路徑引用，現況以 exact SHA 的 CI 為準）：
+
+| 項目 | 路徑 |
+| --- | --- |
+| 限流器 exact source | `apps/api/src/platform/runtime/wp-b2-rate-limiter.ts`、`apps/api/src/platform/runtime/rate-limiter.ts`、`apps/api/src/platform/runtime/durable-rate-limit-store.ts` |
+| 限流負向／邊界案例 | `apps/api/src/platform/runtime/wp-b2-rate-limiter.test.ts`：門檻到達回 429 並帶 Retry-After、lookup 失敗鎖 15 分鐘且換 limiter instance 仍鎖、同一 lookup 身分換來源 IP 仍受限、並行 consume 不少算、durable store 寫入失敗時 fail-closed 回 503 |
+| 防枚舉負向案例 | `apps/api/src/appointments/appointment.patient-flow.test.ts`（重複無效回診 lookup 被限流且不洩漏存在與否）；`apps/api/src/appointments/appointment.application-service.test.ts`（未知 lookup 回通用 miss） |
+| 限流與拒絕稽核 | `apps/api/src/appointments/appointment.rate-limit-and-denial.test.ts`、`apps/api/src/firestore/rate-limit.repository.test.ts` |
+
+仍未涵蓋、不得視為 PASS：真實 Hosting／Cloud Run 入口下的來源 IP 歸因（2026-09-26 handoff 已記為
+公開上線前提）、現行部署版本的 runtime 限流實測（`NOT_RUN`，需 11/26 C1 窗口）。
+
+> 原始 PASS 的私有證據組由業主保管，本更正不公開其內容。
