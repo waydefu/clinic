@@ -3136,6 +3136,15 @@ clinic's own site. The owner selected the repository schedule later on
 - 詳見 [商務交付政策對齊外部合約](2026-11-24-business-delivery-policy-contract-alignment.md)。
 - Status: approved
 
+## 2026-11-25 Drive 交付文件對照決定
+
+- 診所負責人與主管是同一人。系統只有 `manager`／`front_desk` 兩種角色，`manager` 帳號即診所負責人；永久刪除、legal hold 仍只限此帳號，且要重新驗證並填理由（規則不變，見 [商務交付政策決定](2026-09-29-business-delivery-policy-decisions.md) 第 2 節）。外部交付文件已同步更正。
+- 獨立備份（AWS）：外部交付文件要求正式上線前完成另一家雲端的獨立加密副本並實際演練。RC（11/30）不需要；改列為 `GATE-03`（PRODUCTION_READY）前置條件：正式上線前要把 `requireIndependentCopy`、`requireDistinctLocation` 改為 true，並完成一次獨立副本與還原。
+- 合作終止後的資料返還：照外部交付文件，終止後最長 30 日內，診所負責人帳號保留僅限資料查閱、下載、簽收與交接所需的限制性使用權；簽收完成或 30 日期滿後才撤銷。其他員工與開發者權限仍於終止時撤銷。現行程式在終止時撤銷全部權限、返還又只能登入下載，兩者會卡住；程式修正排 2026-12，RC 只測拒絕路徑，不受影響。
+- 登入：每次登入都要 Google＋TOTP，session 絕對 7 天、不因閒置登出（2026-11-09 決定不變）；外部文件 07 的舊寫法已更正。
+- PRIVACY D-001／D-002 補件：負責人 11/25 決定先記錄、晚點處理；在此之前隱私政策仍不得發布（狀態不變）。
+- Status: approved
+
 ## Approval record template
 
 ```text

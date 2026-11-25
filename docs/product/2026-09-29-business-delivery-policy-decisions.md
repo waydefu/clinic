@@ -87,6 +87,8 @@
 | 失敗處理 | 任一步失敗（匯出失敗、未簽收等）就延後結案，不假結案 |
 | 費用結清 | 由人處理；系統不自動以結清狀態阻擋資料返還 |
 
+2026-11-25 補充：終止後最長 30 日內，診所負責人帳號保留查閱、下載、簽收與交接所需的限制性使用權，簽收完成或期滿才撤銷；程式修正排 2026-12（見決定登記 2026-11-25 一節）。
+
 ## 7. 備份證據 policy（由既有決定推導，非新問題）
 
 `assessBusinessBackupEvidence` 的 Google 現行 profile 依既有決定組成，不另作新核准：
@@ -100,6 +102,8 @@
 | `requireRestoreDrill` | true | 第 5 節 |
 | `requireFailureAlert` | true | BD-04 驗收條件 |
 | `maximumRpoMinutes`／`maximumRtoMinutes` | 60／240 | D-010 |
+
+2026-11-25 補充：上表是 RC 的 Google 現行 profile；正式上線（GATE-03）前，requireIndependentCopy 與 requireDistinctLocation 必須改為 true，並完成一次獨立副本與還原（見決定登記 2026-11-25 一節）。
 
 AWS 階段開始時，這組值要依當時決定改為獨立副本 profile，不能沿用。
 
