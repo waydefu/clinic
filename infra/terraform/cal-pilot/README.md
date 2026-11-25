@@ -6,7 +6,9 @@ containers, a deny-direct-browser Firestore database, a **paused** five-minute
 Scheduler job and the NT$30 50/80/100% alert budget. The budget uses one static
 custom period from 2026-08-30 through 2026-11-28, so it does not reset monthly.
 The API `end_date` is therefore 2026-11-29 because Google treats that field as
-exclusive.
+exclusive. The `expires` label, the budget display name and the `end_date`
+all derive from `local.approved_end_date` in `main.tf` (not extended; owner
+decision 2026-11-24).
 It does not create secret versions, Calendar ACLs, Cloud Run revisions or
 Hosting releases.
 

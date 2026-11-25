@@ -929,6 +929,71 @@ describe('createInternalTestBookingTransport', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(3);
   });
 
+  it('lets the server list replace inconsistent local appointments, and a timeout never looks like an empty list', async () => {
+    const local = vi.fn(() =>
+      Promise.resolve({
+        version: 8,
+        slots: [],
+        appointments: [{ id: 'local_stale_appointment' }]
+      })
+    );
+    const readsFor = (bookings: () => Promise<unknown>) =>
+      vi.fn((url: string) => {
+        if (url === '/v1/bookings') return bookings();
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve(
+              url === '/v1/slots'
+                ? { slots: [] }
+                : {
+                    publishedVersion: 1,
+                    publishedAt: '2030-01-01T00:00:00.000Z',
+                    schedule: initialState().schedule
+                  }
+            )
+        });
+      });
+
+    const served = createInternalTestBookingTransport({
+      local,
+      toError: httpTransportError,
+      fetchImpl: readsFor(() =>
+        Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              appointments: [
+                {
+                  appointmentId: 'server_appointment',
+                  startsAt: '2030-01-01T02:00:00.000Z',
+                  status: 'confirmed'
+                }
+              ]
+            })
+        })
+      )
+    });
+    const listed = (await served('/state')) as {
+      appointments: Array<{ id: string }>;
+    };
+    expect(listed.appointments.map((item) => item.id)).toEqual([
+      'server_appointment'
+    ]);
+
+    const timedOut = createInternalTestBookingTransport({
+      local,
+      toError: httpTransportError,
+      fetchImpl: readsFor(() =>
+        Promise.reject(new DOMException('synthetic timeout', 'TimeoutError'))
+      )
+    });
+    await expect(timedOut('/state')).rejects.toHaveProperty(
+      'name',
+      'TimeoutError'
+    );
+  });
+
   it('rejects a malformed published schedule before returning state', async () => {
     const snapshot = initialState();
     const local = vi.fn(() => Promise.resolve(snapshot));

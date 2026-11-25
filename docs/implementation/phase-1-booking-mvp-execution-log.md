@@ -1,5 +1,12 @@
 # 第一階段 Booking MVP 施工日誌與決策清冊 (Execution Log)
 
+> **歷史紀錄標示（D-40，2026-11-25 附註；僅新增此標示，下方原始內容與數值逐字保留）：**
+> 本施工日誌的最新一筆記錄停在 **2026-08-23**（C6 deployment result）。它是日期化證據，只能回答
+> 「2026-08-23 當時做了什麼、驗了什麼」，**不能**用來確認目前的部署、preview 頻道、gate 或
+> 11/11 required jobs 狀態。現況請看[決策登錄](../product/phase-1-decision-register.md)、
+> [docs/state/current.md](../state/current.md)（生成投影，非 Canon）與最新的
+> `docs/reviews/` 日期證據。本標示未加入任何未驗證的現況。
+
 **建立日期：** 2026-08-19 (Asia/Taipei)  
 **基準 Commit SHA：** `ea3316e027ab675dde564419412f979aa0e57f68`  
 **初始狀態：** `main` 分支，工作區乾淨，無未追蹤或未提交變更。

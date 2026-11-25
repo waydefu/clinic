@@ -1,5 +1,31 @@
 # Phase 1 Approval Gate
 
+> **更正與分層說明（E3-12／E4-02，2026-11-25 附註；僅新增，下方 2026-08-11 原文與表格逐字保留）：**
+> 本檔仍是 `document-lifecycle.md` 指定的路徑例外（現行 gate 檔），但**下方的文字、Decision
+> dashboard 與 Expansion S dashboard 是 2026-08-11 的盤點快照**，不是即時狀態；其中
+> 「未實作」「未授權」這類單一概括已被較新的 Canon 分層取代。各項 D-series 的現況只以
+> [決策登錄](../product/phase-1-decision-register.md) 為準；安全邊界只以
+> [AGENTS.md Safety Floor](../../AGENTS.md) 為準；`docs/state/current.md` 是生成投影，不是 Canon。
+>
+> **逐能力分四層**（決策、實作、同版本證據、部署授權互相獨立，一層不代表另一層；
+> 本表只轉述 AGENTS.md 與登錄的既有文字，不判斷目前實際狀態，動態狀態未讀取者為 `UNVERIFIED`）：
+>
+> | 能力 | 決策（Decision） | 實作（Implementation） | 同版本證據（Same-revision evidence） | 部署授權（Deploy authority） |
+> | --- | --- | --- | --- | --- |
+> | 公開 production `/v1/bookings` 與 go-live | 登錄 IP-001 把 internal test 與 public production 分開；go-live 仍為禁用 | 不得在 `AppModule` 無閘門匯入 `AppointmentController`／`BookPilotModule` | 以該 exact commit 的 CI 與日期證據為準，不沿用舊 PASS | 無；需另行取得 production 部署授權 |
+> | 內部測試預約（IP-001 `INTERNAL_TEST_ROUTE_AUTHORIZED`） | 登錄已記錄 | 只可經 `InternalTestBookingModule`，fail-closed（開關＋UTC 到期＋隔離專案或模擬器） | 該 commit 的 CI；C1 窗口讀回是日期證據 | 僅隔離專案 `beauessence-clinic-stg-c1a01` 或 Firestore 模擬器 |
+> | D-006 身分／D-010 雲端目標 | 登錄記錄為已核准（目標值） | 與核准分開；需 Stage 2 change plan | 需逐 commit／環境驗證 | 核准不等於 production 部署授權 |
+> | Calendar | CAL-PILOT 僅合成範圍；production 投影待 production D-009、回寫待 D-016 | CAL-PILOT 的合成日曆可完成技術同步 | 以 exact commit 與日期證據為準 | production 診所日曆維持封鎖 |
+> | Hosting preview | 登錄與 AGENTS.md 規定每次需新授權 | 靜態檔、到期頻道 `synthetic-review` | exact SHA 的 `verify:preview` 等日期證據 | 每次需 exact commit、專案、頻道與到期；不可升為 live |
+> | D-001～D-005、D-007／D-014／D-015、D-011 | D-001～D-005 維持 `pending`（IP-001 僅允許內部暫行實作）；D-007／D-014／D-015 為 `DEFERRED_OUTSIDE_CURRENT_PHASE1_DELIVERY`；D-011 為 `GO_LIVE_DEFERRED` | 依該決策是否核准而定，不得以程式預設值取代 | 同上 | 無 |
+>
+> **Dashboard 與 canonical scope 對照（E4-02）：** 下方兩張 dashboard 列的是 2026-08 的 D-001～D-011
+> 與 D-014～D-016，現行對應來源為：Phase 1 D-series 狀態 → 決策登錄；安全底線 → AGENTS.md；
+> internal test 與 public production 分界 → 登錄 IP-001 與 AGENTS.md「Remain disabled」；
+> 路線與執行順序 → [roadmap](../roadmap.md) 與 [phase-1-execution-plan](../phase-1-execution-plan.md)；
+> 近期收斂紀錄 → [2026-11-25 SOL-INTEGRATION 讀回](2026-11-25-sol-integration-readback.md)。
+> 本檔仍保留為 live gate 例外，未移動、未改 lifecycle／索引／gate 測試，也未更動任何 D-series 狀態。
+
 **Current status (2026-08-11 read-only reconciliation):** Stage 0／Checkpoint A is complete and the
 project is in Stage 1 owner decisions. D-010 target architecture/SLO is now
 approved; D-004 has recorded hours/multi-service direction but remains pending,
