@@ -392,8 +392,7 @@ resource "google_project_service" "real" {
     const decoupled = C_SLICE_TERRAFORM_MODULES[0];
     const comments = decoupled.allowedServiceSubstrings
       .map((service) => `# ${service}`)
-      .join('
-');
+      .join('\n');
     const files = {
       main: `
 locals { apply_enabled = var.exact_apply_authority_sha != "not_granted" }
@@ -406,7 +405,7 @@ resource "google_project_service" "c1" {
     }
   }
 }
-${decoupled.allowedServiceSubstrings.map((service) => `# ${service}`).join('\n')}
+${comments}
 `,
       variables: c1FixtureVariables,
       tftest: `${passingTftest}\nexpect_failures = [x]\n`,
