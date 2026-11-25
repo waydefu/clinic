@@ -221,11 +221,23 @@ describe('CAL-PILOT extension policy', () => {
       new URL('../apps/web/src/calendar-pilot-entry.js', import.meta.url),
       'utf8'
     );
+    // B-50: label, display name and end date all derive from one local.
+    const approvedEnd = terraform.match(
+      /approved_end_date = "(\d{4}-\d{2}-\d{2})"/
+    )?.[1];
+    expect(approvedEnd).toBe('2026-11-28');
+    expect(terraform).toContain('expires     = local.approved_end_date');
     expect(terraform).toContain(
-      'display_name    = "CAL-PILOT synthetic alert budget through 2026-11-28"'
+      'display_name    = "CAL-PILOT synthetic alert budget through ${local.approved_end_date}"'
     );
     expect(terraform).toContain('custom_period {');
-    expect(terraform).toContain('day = 29');
+    expect(terraform).toContain(
+      'timeadd("${local.approved_end_date}T00:00:00Z", "24h")'
+    );
+    expect(terraform).toContain('year  = tonumber(local.budget_end_exclusive[0])');
+    expect(terraform).toContain('day   = tonumber(local.budget_end_exclusive[2])');
+    expect(terraform).not.toMatch(/expires\s*=\s*"/);
+    expect(terraform).not.toContain('30-days');
     expect(terraform).toContain('for_each = toset([0.5, 0.8, 1.0])');
     expect(terraform).toContain('paused           = false');
     expect(client).toContain('CAL-PILOT 合成日曆測試');
