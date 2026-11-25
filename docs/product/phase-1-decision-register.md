@@ -122,7 +122,7 @@ RC 答案以本節為準。
 | OR-37 | 止鼾療程時長改為到診後確認，不再回頭 | 結案題目 | 無 |
 | 決定 D-24 | RC 不採用試用調整模型，12 月後再談 | SOL-BUSINESS 延伸工作維持不做；不新增付款或薪資 ledger | 無 |
 | LEASE Gate 2 | RC 只接專用測試日曆、只用合成資料；不碰診所正式日曆 | 沿用 2026-11-04 Gate 2 核准的界線；真實日曆寫入仍須負責人另核 C1 雲端批次；不授權 IAM 或部署 | [協調計畫](../plans/2026-10-22-sol-calendar-lease-coordination.md) 的狀態行與「Gate 2 仍等待…」為歷史描述，已加註以本節為準 |
-| CAL-PILOT 延期 | 合成子範圍延到 2026-12-31（台北時間） | 範圍與排除項不變：僅合成、僅專用測試日曆，不是 production D-009／D-016，也不是 Stage 2 | 實際到期時間戳在 RC-07 續期窗口決定並讀回；程式與雲端設定尚未修改 |
+| CAL-PILOT 延期 | 合成子範圍延到 2026-12-31（台北時間） | 範圍與排除項不變：僅合成、僅專用測試日曆，不是 production D-009／D-016，也不是 Stage 2 | 實際到期時間戳在 RC-07 續期窗口決定並讀回；程式與雲端設定尚未修改 2026-11-24 補充：2026-12-31 是 APPROVAL-RC-2026-11-14 核准的上限；CAL-PILOT 專案（staging）合成子範圍依負責人 2026-11-24 決定不續期，2026-11-28 到期（以 `infra/terraform/cal-pilot/main.tf` 的 `approved_end_date` 為準）；C1 日曆設定照本核准續行，不受影響。 |
 
 ## IDENTITY-PRINT-FULL-ID-2026-11-10
 
@@ -1361,7 +1361,7 @@ merge、部署、secret、IAM、資料轉換與其他受保護動作，仍各自
   **備註不寫入日曆**（可能含醫療資料，Safety Floor 仍禁止）；醫療資料、自由文字、完整生日
   與憑證仍一律禁止。
 - `COMMERCIAL-AUTHORITY-2026-09-22`：遠端 Google Drive 現行原檔為準，本機 DOCX 非 current authority。
-  已確認總價 NT$80,000、三期 30,000／30,000／20,000、正常維護 1,800／完全未使用月 500。
+  已確認總價 NT$80,000、三期 30,000／30,000／20,000、正常維護 1,800／完全未使用月 500。（歷史：2026-11-24 起以[契約對齊紀錄](2026-11-24-business-delivery-policy-contract-alignment.md)與 `BD-POLICY-2026-11-24` 為準，尾款為 25,000 元；本行不是現行值。）
   完全未使用為當月無員工 Workbench 登入 AND 無病患完成 booking create；缺證據不能當零。
 - `P1-09-AUTHORITY-REFRESH-2026-09-22`：不為舊 19:58:18 gate 趕工或沿用；
   新 exact-SHA、UTC 時窗、完整 mutation、booking/config expiry 與 rollback 必須另外明確核准。
