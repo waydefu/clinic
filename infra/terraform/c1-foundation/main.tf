@@ -28,19 +28,26 @@ locals {
 }
 
 data "google_project" "c1" {
-  count      = local.apply_enabled ? 1 : 0
   project_id = var.project_id
+
+  lifecycle {
+    # B-11: authority gates apply, never resource existence. A missing or
+    # mismatched SHA fails the plan closed instead of planning destroys.
+    precondition {
+      condition     = local.apply_enabled
+      error_message = "C1 requires exact_apply_authority_sha to be a granted 40-character SHA; resources are never removed by revoking it."
+    }
+  }
 }
 
 resource "google_project_service" "c1" {
-  for_each           = local.apply_enabled ? local.allowed_services : toset([])
+  for_each           = local.allowed_services
   project            = var.project_id
   service            = each.value
   disable_on_destroy = false
 }
 
 resource "google_service_account" "terraform_ci" {
-  count        = local.apply_enabled ? 1 : 0
   project      = var.project_id
   account_id   = "c1-terraform-ci"
   display_name = "C1 Terraform CI via WIF"
@@ -49,7 +56,6 @@ resource "google_service_account" "terraform_ci" {
 }
 
 resource "google_iam_workload_identity_pool" "github" {
-  count                     = local.apply_enabled ? 1 : 0
   project                   = var.project_id
   workload_identity_pool_id = "c1-github"
   display_name              = "C1 GitHub WIF"
@@ -58,9 +64,8 @@ resource "google_iam_workload_identity_pool" "github" {
 }
 
 resource "google_iam_workload_identity_pool_provider" "github" {
-  count                              = local.apply_enabled ? 1 : 0
   project                            = var.project_id
-  workload_identity_pool_id          = google_iam_workload_identity_pool.github[0].workload_identity_pool_id
+  workload_identity_pool_id          = google_iam_workload_identity_pool.github.workload_identity_pool_id
   workload_identity_pool_provider_id = "github-oidc"
   display_name                       = "GitHub OIDC"
   attribute_mapping = {
@@ -86,14 +91,14 @@ resource "google_iam_workload_identity_pool_provider" "github" {
 }
 
 resource "google_service_account_iam_member" "terraform_ci_wif" {
-  for_each           = local.apply_enabled ? (var.github_wif_binding_enabled ? toset(["enabled"]) : toset([])) : toset([])
-  service_account_id = google_service_account.terraform_ci[0].name
+  for_each           = var.github_wif_binding_enabled ? toset(["enabled"]) : toset([])
+  service_account_id = google_service_account.terraform_ci.name
   role               = "roles/iam.workloadIdentityUser"
-  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github[0].name}/attribute.repository_id/${var.github_repository_id}"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository_id/${var.github_repository_id}"
 }
 
 resource "google_project_iam_member" "terraform_ci" {
-  for_each = local.apply_enabled ? toset([
+  for_each = toset([
     "roles/serviceusage.serviceUsageAdmin",
     "roles/iam.serviceAccountAdmin",
     "roles/iam.workloadIdentityPoolAdmin",
@@ -101,14 +106,14 @@ resource "google_project_iam_member" "terraform_ci" {
     "roles/logging.admin",
     "roles/monitoring.admin",
     "roles/pubsub.admin"
-  ]) : toset([])
+  ])
   project = var.project_id
   role    = each.value
-  member  = "serviceAccount:${google_service_account.terraform_ci[0].email}"
+  member  = "serviceAccount:${google_service_account.terraform_ci.email}"
 }
 
 resource "google_secret_manager_secret" "reserved" {
-  for_each  = local.apply_enabled ? local.empty_secrets : toset([])
+  for_each  = local.empty_secrets
   project   = var.project_id
   secret_id = each.value
   labels    = local.labels
@@ -121,7 +126,6 @@ resource "google_secret_manager_secret" "reserved" {
 }
 
 resource "google_logging_project_bucket_config" "c1" {
-  count          = local.apply_enabled ? 1 : 0
   project        = var.project_id
   location       = var.region
   bucket_id      = "c1-foundation"
@@ -130,7 +134,6 @@ resource "google_logging_project_bucket_config" "c1" {
 }
 
 resource "google_pubsub_topic" "budget" {
-  count      = local.apply_enabled ? 1 : 0
   project    = var.project_id
   name       = "c1-budget-notifications"
   labels     = local.labels
@@ -138,9 +141,8 @@ resource "google_pubsub_topic" "budget" {
 }
 
 resource "google_pubsub_topic_iam_member" "budget_publisher" {
-  count   = local.apply_enabled ? 1 : 0
   project = var.project_id
-  topic   = google_pubsub_topic.budget[0].name
+  topic   = google_pubsub_topic.budget.name
   role    = "roles/pubsub.publisher"
   # Live Billing Budgets publishes as this system agent. The project-numbered
   # gcp-sa-billingbudgets agent is not provisioned on a new C1 project
@@ -153,11 +155,10 @@ resource "google_pubsub_topic_iam_member" "budget_publisher" {
 }
 
 resource "google_pubsub_topic_iam_member" "monitoring_publisher" {
-  count   = local.apply_enabled ? 1 : 0
   project = var.project_id
-  topic   = google_pubsub_topic.budget[0].name
+  topic   = google_pubsub_topic.budget.name
   role    = "roles/pubsub.publisher"
-  member  = "serviceAccount:service-${data.google_project.c1[0].number}@gcp-sa-monitoring.iam.gserviceaccount.com"
+  member  = "serviceAccount:service-${data.google_project.c1.number}@gcp-sa-monitoring.iam.gserviceaccount.com"
   depends_on = [
     google_project_service.c1,
     google_pubsub_topic.budget
@@ -165,11 +166,10 @@ resource "google_pubsub_topic_iam_member" "monitoring_publisher" {
 }
 
 resource "google_billing_budget" "c1" {
-  count           = local.apply_enabled ? 1 : 0
   billing_account = var.billing_account_id
   display_name    = "C1 synthetic staging alerting budget"
   budget_filter {
-    projects = ["projects/${data.google_project.c1[0].number}"]
+    projects = ["projects/${data.google_project.c1.number}"]
   }
   amount {
     specified_amount {
@@ -185,7 +185,7 @@ resource "google_billing_budget" "c1" {
     }
   }
   all_updates_rule {
-    pubsub_topic                   = google_pubsub_topic.budget[0].id
+    pubsub_topic                   = google_pubsub_topic.budget.id
     schema_version                 = "1.0"
     disable_default_iam_recipients = false
   }
@@ -207,12 +207,11 @@ resource "google_billing_budget" "c1" {
 }
 
 resource "google_monitoring_notification_channel" "budget_pubsub" {
-  count        = local.apply_enabled ? 1 : 0
   project      = var.project_id
   display_name = "C1 budget Pub/Sub"
   type         = "pubsub"
   labels = {
-    topic = google_pubsub_topic.budget[0].id
+    topic = google_pubsub_topic.budget.id
   }
   depends_on = [
     google_project_service.c1,
@@ -221,7 +220,6 @@ resource "google_monitoring_notification_channel" "budget_pubsub" {
 }
 
 resource "google_logging_metric" "iam_setiampolicy" {
-  count   = local.apply_enabled ? 1 : 0
   project = var.project_id
   name    = "c1-iam-setiampolicy"
   filter  = "protoPayload.methodName=\"SetIamPolicy\""
@@ -232,17 +230,15 @@ resource "google_logging_metric" "iam_setiampolicy" {
   depends_on = [google_project_service.c1]
 }
 
-# SHA-gated. Uses the existing budget Pub/Sub channel — no email recipients
-# in the repository (C0-ENG-REC). Default SHA creates zero alert policies.
-# Apply still needs a fresh exact-SHA packet. Do not invent named people.
+# Uses the existing budget Pub/Sub channel — no email recipients
+# in the repository (C0-ENG-REC). Apply is gated by the authority precondition. Do not invent named people.
 resource "google_monitoring_alert_policy" "iam_setiampolicy" {
-  count        = local.apply_enabled ? 1 : 0
   project      = var.project_id
   display_name = "C1 IAM SetIamPolicy"
   combiner     = "OR"
   enabled      = true
   notification_channels = [
-    google_monitoring_notification_channel.budget_pubsub[0].name
+    google_monitoring_notification_channel.budget_pubsub.name
   ]
   conditions {
     display_name = "c1-iam-setiampolicy above zero"
