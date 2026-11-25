@@ -234,8 +234,12 @@ describe('CAL-PILOT extension policy', () => {
     expect(terraform).toContain(
       'timeadd("${local.approved_end_date}T00:00:00Z", "24h")'
     );
-    expect(terraform).toContain('year  = tonumber(local.budget_end_exclusive[0])');
-    expect(terraform).toContain('day   = tonumber(local.budget_end_exclusive[2])');
+    expect(terraform).toContain(
+    'year  = tonumber(local.budget_end_exclusive[0])'
+    );
+    expect(terraform).toContain(
+    'day   = tonumber(local.budget_end_exclusive[2])'
+    );
     expect(terraform).not.toMatch(/expires\s*=\s*"/);
     expect(terraform).not.toContain('30-days');
     expect(terraform).toContain('for_each = toset([0.5, 0.8, 1.0])');
