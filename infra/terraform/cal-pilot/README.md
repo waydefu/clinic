@@ -25,6 +25,8 @@ prevention and object versioning on that bucket. The approved
 `2026-12-31T04:51:37Z` expiry (extended 2026-11-14, see APPROVAL-RC-2026-11-14; the original `2026-11-28T04:51:37Z` is historical) remains an application kill switch even if
 cleanup is delayed.
 
+For the CAL-PILOT staging project itself, the owner decided on 2026-11-24 not to renew: its labels and budget end on 2026-11-28 (`local.approved_end_date` in `main.tf`). The 2026-12-31 value is the approval ceiling that the C1 calendar configuration continues under.
+
 Pass the owner-approved billing account through the sensitive
 `TF_VAR_billing_account_id` environment variable for every plan and apply. The
 configuration never infers or commits a billing account identifier.

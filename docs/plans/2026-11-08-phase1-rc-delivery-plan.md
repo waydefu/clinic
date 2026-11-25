@@ -12,7 +12,7 @@ RC 完成條件（全部要有可查證據）：
 
 1. 59 包的來源工作全部結束：完成合併，或明確延後並寫理由與歸屬（Expansion S／Stage 6／12 月）。
 2. C1 內部測試環境的員工端完整流程以合成資料跑過：預約、改期、取消、到診、CSV、封存、報表、Business Delivery Stage 2b。[CP-08 回歸 worksheet](2026-10-01-cp-08-regression-evidence-worksheet.md) 在 RC 精確 commit 上填完；[CP-10 清單](2026-10-01-cp-10-current-project-acceptance-checklist.md)由負責人簽。
-3. C2～C6 測試環境切片：逐片提出 request（排除項、成本、operator、approver、plan/apply、rollback），負責人逐片核准後部署並讀回。做不到的片 11/22 前標明並移到 12 月。
+3. C2～C6 測試環境切片：逐片提出 request（排除項、成本、operator、approver、plan/apply、rollback），負責人逐片核准後部署並讀回。做不到的片 11/22 前標明並移到 12 月。（11/22 已處理：負責人決定不移 12 月，見第十節 10.4；各片狀態見 [C2～C6 request 總表](2026-11-15-c2-c6-rc-deployment-requests.md)。）
 4. Gate 2：專用測試日曆續期、真實日曆實測（至少 50 次正常收斂；故障情境另列）。CAL-PILOT 合成子範圍 2026-11-28T04:51:37Z 到期，11/25 前決定是否延期。
 5. 決策：第二節的待決事項在期限前有具名答案、日期、適用範圍、排除項（格式依 [核准紀錄格式](../product/current-execution-and-approval-plan.md)）。需法律／隱私／醫療專業審查者，RC 只要求「答案定案＋審查安排」，審查完成列為正式上線前條件。
 6. RC 精確 commit 打 tag（例如 `phase1-rc1`），附 exact-head CI 全綠證據。
@@ -55,7 +55,7 @@ RC 完成條件（全部要有可查證據）：
 | OR-37 | 止鼾療程時長 | 已改為到診後確認；請確認不再回頭 | 無（關閉題目） |
 | D-24 | 試用調整模型是否採用 | DESIGN-PROPOSED／BLOCKED-OWNER | SOL-BUSINESS 延伸工作 |
 | LEASE Gate 2 | 真實 runtime 接入範圍 | `2026-10-22-sol-calendar-lease-coordination.md` 檔頭與 :17、:176 不一致，請釐清 | RC-07 |
-| CAL-PILOT 延期 | 合成子範圍 2026-11-28T04:51:37Z 到期，落在 CP-10 驗收當中 | 2026-11-16：C1 日曆設定已續到 2026-12-16，12 月中再續到 12/31；`cal-pilot` 預覽頻道已於 10/01 到期，負責人決定不重建（見 reviews/2026-11-16-calendar-gate2-readback.md） | RC-07、CP-10 |
+| CAL-PILOT 延期 | 合成子範圍 2026-11-28T04:51:37Z 到期，落在 CP-10 驗收當中 | 2026-11-16：C1 日曆設定已續到 2026-12-16，12 月中再續到 12/31；`cal-pilot` 預覽頻道已於 10/01 到期，負責人決定不重建（見 reviews/2026-11-16-calendar-gate2-readback.md） 2026-11-24 補充：2026-12-31 是 APPROVAL-RC-2026-11-14 核准的上限；CAL-PILOT 專案（staging）合成子範圍依負責人 2026-11-24 決定不續期，2026-11-28 到期（以 `infra/terraform/cal-pilot/main.tf` 的 `approved_end_date` 為準）；C1 日曆設定照本核准續行，不受影響。 | RC-07、CP-10 |
 
 ### 11/19 前
 **2026-11-15 進度**：本批 12 題全部已決，見決定登記 APPROVAL-RC-2026-11-15、APPROVAL-RC-2026-11-15B 與 BACKUP-B-2026-11-15。仍待負責人提供：診所登記全名與公用信箱（D-001）、Google 資料處理附約確認（D-002）。
@@ -507,11 +507,14 @@ A 批 #466～#474 由 Claude 驗收合併中；以下只是來源切片，狀態
 - #568：409 還原確認與煙霧測試。
 - C3 到期：#573 只證明 `2026-11-23T08:23:46Z` 自然到期且 `revokedAt` 為空；到期後拒絕與第 7 天仍可用未實機測試。
 - R2 plan：#563。
+- B-11 後 c1-foundation／c5-firestore：plan 只有 moved（0 新增／0 修改／0 刪除）才 apply。
+- 八種故障注入（C1 專用合成日曆）。
+- CAL-PILOT 專案：只准預算與 `expires` 標籤 in-place 更新，不動排程、不新增／刪除。
 - 凍結版 CP-08 回歸（RC-06）在窗口之後。
 
 #### 不在本次 RC 窗口
 
-IaC B-11、B-50；CI B-05；`SOL-INTEGRATION`；八種故障注入案例；CAL-PILOT 標籤與預算。CAL-PILOT 合成子範圍於 `2026-11-28T04:51Z` 到期，不延期。
+**2026-11-25 更新（負責人核准「全排26」）**：IaC B-11、B-50、CI B-05、`SOL-INTEGRATION` 已合併（#584～#586）；c1-foundation／c5-firestore moved apply、八種故障注入、CAL-PILOT 標籤與預算改排入 11/26 窗口。仍不在本窗：D-001／D-002（負責人補件）；C2、C6、`c1-internal-test-run`、`wp-b4-alerting` 仍以授權 SHA 決定資源存在（與 B-11 同型），移 12 月。CAL-PILOT 專案合成子範圍於 `2026-11-28T04:51Z` 到期，不延期；C1 日曆設定照 APPROVAL-RC-2026-11-14 續行。
 
 #### 筆數
 
@@ -607,7 +610,7 @@ IaC B-11、B-50；CI B-05；`SOL-INTEGRATION`；八種故障注入案例；CAL-P
 | **11/22** | **負責人範圍決策與必補決策件**：(1) 依本節 10.4 拍板移 12 月清單與 Gate 2 去留；(2) 補齊 **D-001**（診所登記全名、公用信箱）與 **D-002**（Google DPA 確認截圖存 repo 外）；(3) 決定 **CP-10 A-10**（依[凍結準備計畫](2026-11-26-freeze-cp08-cp10-readiness.md)第二部去識別商務差異表逐條勾選） | 本節 10.4、[決定登記](../product/phase-1-decision-register.md)、[CP-10](2026-10-01-cp-10-current-project-acceptance-checklist.md)、[凍結準備計畫](2026-11-26-freeze-cp08-cp10-readiness.md) | 形成正式日期化決定紀錄，使 RC 完成條件第 1、5 點於凍結前達標 |
 | **11/22–11/25（條件式留 RC）** | **Gate 2 真實測試日曆至少 50 次正常收斂**：視 11/21 2.3／2.4 通過結果，分 2～3 個獨立窗口（單窗 20～25 次）完成 ≥ 50 次收斂並以 `calendar-pilot-observation-check.mjs` 離線驗證入庫 | [2026-11-21 開窗計畫](2026-11-21-c1-window-plan.md)第 4 節、`SOL-CALENDAR-LEASE`、RC-07 | `trials >= 50`、`blocked == 0`、`conflict == 0`、`allConverged == true`；若 11/21 失敗或進度不及，於 11/22 或 11/25 核准移 12 月 |
 | **11/23 `08:23Z` 起** | **C3 七天 session 自然到期讀回**：負責人先登入 gcloud ADC，唯讀查核 11/16 主管 7 天 session 到期狀態（`2026-11-23T08:23:00Z` 前保護主管 session 不登出、不停用） | [11/16 報告](../reviews/2026-11-16-c1-window-rc06-c3-c4.md)、[C2～C6 申請](2026-11-15-c2-c6-rc-deployment-requests.md) C3、`SOL-SESSION` | 讀回紀錄存進 `docs/reviews/`，補齊 C3 關鍵七天外證 |
-| **11/25 前** | **CAL-PILOT 合成子範圍延期確認**：現行合成子範圍將於 `2026-11-28T04:51:37Z` 到期（落在 CP-10 驗收期間），確認既有 `APPROVAL-RC-2026-11-14`（延至 12/31）與 C1 日曆設定（已續至 `2026-12-16`）之銜接 | 第一節第 4 點、[11/16 日曆讀回](../reviews/2026-11-16-calendar-gate2-readback.md) | 避免 11/28–11/29 CP-10 驗收途中碰到子範圍到期 |
+| **11/25 前** | **11/25 已確認**：2026-11-24 補充：2026-12-31 是 APPROVAL-RC-2026-11-14 核准的上限；CAL-PILOT 專案（staging）合成子範圍依負責人 2026-11-24 決定不續期，2026-11-28 到期（以 `infra/terraform/cal-pilot/main.tf` 的 `approved_end_date` 為準）；C1 日曆設定照本核准續行，不受影響。 **CAL-PILOT 合成子範圍延期確認**：現行合成子範圍將於 `2026-11-28T04:51:37Z` 到期（落在 CP-10 驗收期間），確認既有 `APPROVAL-RC-2026-11-14`（延至 12/31）與 C1 日曆設定（已續至 `2026-12-16`）之銜接 | 第一節第 4 點、[11/16 日曆讀回](../reviews/2026-11-16-calendar-gate2-readback.md) | 避免 11/28–11/29 CP-10 驗收途中碰到子範圍到期 |
 | **11/26** | **程式凍結與凍結版 C2～C5（及通過之 C6）重部署**：鎖定 RC exact commit、確認 exact-head CI 全綠；以凍結 commit 重建映像與 Hosting 並完成 C2～C5／C6 凍結版 SHA 讀回（若 #528 每週備份未於 11/21 apply，可併本窗） | 第一節第 2、3、6 點、[C2～C6 申請](2026-11-15-c2-c6-rc-deployment-requests.md) | 所有運行中服務 digest 與 RC exact SHA 100% 一致，關窗回復讀回齊備 |
 | **11/27–11/29** | **CP-08 全系統回歸與 CP-10 負責人驗收**：依[凍結準備計畫](2026-11-26-freeze-cp08-cp10-readiness.md)第一部於凍結 commit 填完 [CP-08 worksheet](2026-10-01-cp-08-regression-evidence-worksheet.md)（人工無障礙 12 月）；11/28–11/29 負責人逐項驗收並簽核 [CP-10 清單](2026-10-01-cp-10-current-project-acceptance-checklist.md)（A-07、A-08 期滿路徑、PUB-03 移 12 月） | 第一節第 2 點、CP-08、CP-10、[凍結準備計畫](2026-11-26-freeze-cp08-cp10-readiness.md) | CP-08 全項有凍結 SHA 證據，CP-10 經負責人簽核 |
 | **11/30** | **打 RC tag（如 `phase1-rc1`）並交接 12 月正式上線計畫** | 第一節第 6 點、第八節 | exact-head CI 全綠＋tag＋12 月移出清單交接完成 |

@@ -198,7 +198,7 @@ D-001–005、production D-009/016、隱私發布、正式入口／診所持有�
 | 項目 | 現行值／語意 |
 | --- | --- |
 | 建置 | NT$80,000 |
-| 三期 | NT$30,000／30,000／20,000 |
+| 三期 | NT$30,000／30,000／20,000 （歷史：尾款已更正為 25,000，見[契約對齊紀錄](../product/2026-11-24-business-delivery-policy-contract-alignment.md)） |
 | 正常月 | NT$1,800 |
 | 完全未使用月 | NT$500；同臺北日曆月無任何診所員工 Workbench 登入 AND 無病患完成預約 |
 | 完成預約 | 成功 booking create 的業務事件，不是 staff 設 appointment `completed` 的就診完成 |

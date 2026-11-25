@@ -5,7 +5,7 @@
 **這是草稿，不是核准。** 每一片部署前，負責人必須針對該片明確同意；同意不延伸到其他片或未列出的項目。
 **本文件不授權任何雲端操作**（gcloud、firebase、terraform、部署、讀回皆然）、不授權真實資料、production、
 正式日曆、正式 DNS 或病患登入。依據：[RC 交付計畫](2026-11-08-phase1-rc-delivery-plan.md)第 15 行
-（C2～C6 逐片提 request；做不到的片 11/22 前標明並移到 12 月）。
+（C2～C6 逐片提 request；做不到的片 11/22 前標明並移到 12 月）。（11/22 已處理：見本文件總表與 RC 計畫 10.4 負責人決定。）
 欄位依 [執行手冊 §10.2](../product/full-project-execution-book-2026-07-31.md)（外部狀態變更申請）；
 核准時另依[核准紀錄格式](../product/current-execution-and-approval-plan.md)留紀錄。
 
