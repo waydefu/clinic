@@ -907,8 +907,7 @@ describe('createInternalTestBookingTransport', () => {
           return Promise.resolve({
             ok: false,
             status: 401,
-            json: () =>
-              Promise.resolve({ error: { code: 'UNAUTHENTICATED' } })
+            json: () => Promise.resolve({ error: { code: 'UNAUTHENTICATED' } })
           });
         if (url === '/v1/schedule')
           return Promise.resolve({
