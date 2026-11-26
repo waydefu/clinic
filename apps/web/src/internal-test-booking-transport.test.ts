@@ -323,6 +323,33 @@ describe('mapInternalTestBookingRequest', () => {
     expect(accountless?.body).not.toHaveProperty('onBehalfPatientId');
     expect(accountless?.body).not.toHaveProperty('patientNote');
 
+    // F-1126-02：工作台代建不得把本機產生的 patient_001 當病患 id 送出，
+    // 要改送 intake 讓伺服器寫入 patients 並回傳不透明 id。
+    const staff = mapInternalTestBookingRequest('/bookings', 'POST', {
+      slotId: 'slot_001',
+      itemIds: ['service_consult'],
+      bookingKind: 'initial',
+      origin: 'staff',
+      onBehalfPatientId: 'patient_001',
+      patient: {
+        name: '王小明',
+        phone: '0912345678',
+        birthDate: '--03-08',
+        nationality: 'domestic'
+      }
+    });
+    expect(staff?.body).toMatchObject({
+      intake: {
+        name: '王小明',
+        phone: '0912345678',
+        birthDate: '--03-08',
+        nationality: 'domestic',
+        privacyConsent: true
+      }
+    });
+    expect(staff?.body).not.toHaveProperty('onBehalfPatientId');
+    expect(staff?.body).not.toHaveProperty('patient');
+
     const withNote = mapInternalTestBookingRequest('/bookings', 'POST', {
       slotId: 'slot_001',
       itemIds: ['service_consult'],

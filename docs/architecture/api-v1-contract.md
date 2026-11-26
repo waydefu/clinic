@@ -48,6 +48,7 @@ Routes being mounted is not production, real-data or deployment authority.
 - `GET /v1/business-delivery/monthly-usage`
 - `GET /v1/business-delivery/milestones`
 - `POST /v1/business-delivery/milestones/:milestoneId/acknowledgements`
+- `GET /v1/business-delivery/exports`
 - `POST /v1/business-delivery/exports`
 - `GET /v1/business-delivery/exports/:exportId`
 - `GET /v1/business-delivery/exports/:exportId/download`
@@ -55,6 +56,8 @@ Routes being mounted is not production, real-data or deployment authority.
 - `POST /v1/business-delivery/retention/archive`
 - `POST /v1/business-delivery/retention/restore`
 - `GET /v1/business-delivery/retention/identity-candidates`
+- `GET /v1/business-delivery/retention/identity-reviews`
+- `GET /v1/business-delivery/retention/patient-search`
 - `POST /v1/business-delivery/retention/confirm-identity`
 - `POST /v1/business-delivery/retention/permanent-delete`
 - `POST /v1/business-delivery/retention/legal-hold`

@@ -159,7 +159,9 @@ function setup(
     pendingDeletion: vi.fn((now) => {
       calls.pendingDeletion.push(now);
       return Promise.resolve(PENDING);
-    })
+    }),
+    searchPatients: vi.fn(() => Promise.resolve({ patients: [] })),
+    identityReviews: vi.fn(() => Promise.resolve({ patients: [] }))
   };
   const assertFresh = vi.fn(reauthenticate);
   const service = new BusinessRetentionApplicationService(
@@ -230,6 +232,37 @@ describe('BusinessRetentionApplicationService authorization', () => {
       expect(repository.pendingDeletion).not.toHaveBeenCalled();
     }
   );
+
+  it.each(ROLES.filter((role) => !managers.includes(role)))(
+    'denies patient search and identity reviews to the %s role',
+    async (role) => {
+      const { service, repository } = setup();
+      await expect(
+        service.searchPatients('王', staff(role))
+      ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+      await expect(service.identityReviews(staff(role))).rejects.toBeInstanceOf(
+        AuthorizationDeniedError
+      );
+      expect(repository.searchPatients).not.toHaveBeenCalled();
+      expect(repository.identityReviews).not.toHaveBeenCalled();
+    }
+  );
+
+  it('lets a manager search, rejecting an empty or over-long query first', async () => {
+    const { service, repository } = setup();
+    await service.searchPatients('王小明', staff(MANAGER));
+    expect(repository.searchPatients).toHaveBeenCalledWith({
+      query: '王小明',
+      actorRef: expect.stringMatching(/^[a-f0-9]{64}$/),
+      now: NOW
+    });
+    for (const bad of ['', '   ', undefined, 'x'.repeat(31)]) {
+      await expect(
+        service.searchPatients(bad, staff(MANAGER))
+      ).rejects.toBeInstanceOf(ZodError);
+    }
+    expect(repository.searchPatients).toHaveBeenCalledOnce();
+  });
 
   it('answers 404 before other work when the feature is disabled', async () => {
     const { service, repository, assertFresh } = setup({ enabled: false });

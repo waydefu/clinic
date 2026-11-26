@@ -72,6 +72,10 @@ function fake() {
         calls.push(`get:${exportId}`);
         return Promise.resolve(exportId === EXPORT_ID ? JOB : undefined);
       },
+      list() {
+        calls.push('list');
+        return Promise.resolve([JOB]);
+      },
       download(exportId: string) {
         calls.push(`download:${exportId}`);
         return Promise.resolve(
@@ -128,6 +132,9 @@ describe('BusinessExportApplicationService permissions', () => {
       await expect(
         instance.download(EXPORT_ID, staff(role))
       ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+      await expect(instance.list(staff(role))).rejects.toBeInstanceOf(
+        AuthorizationDeniedError
+      );
       await expect(
         instance.revoke(
           EXPORT_ID,
@@ -298,6 +305,17 @@ describe('get, download and revoke', () => {
         staff(OWNER_ROLE)
       )
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('lists recent exports for the owner role only', async () => {
+    await expect(service().list(staff(OWNER_ROLE))).resolves.toEqual({
+      exports: [
+        {
+          exportId: EXPORT_ID,
+          label: '2030-10-01 至 2030-10-31｜建立 2030-10-20 08:00｜可下載'
+        }
+      ]
+    });
   });
 
   it('returns the file for a known export', async () => {

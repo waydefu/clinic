@@ -1,4 +1,4 @@
-import { expect, test, type Route } from '@playwright/test';
+import { expect, test, type Page, type Route } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { gzipSync } from 'node:zlib';
 import { CANDIDATE_ROLE_PERMISSIONS } from '../../apps/api/src/platform/authorization/rbac.js';
@@ -192,6 +192,19 @@ async function openBusinessViewWithListenerBaseline(page) {
   expect(mounted.hashchange - baseline.hashchange).toBe(1);
   expect(mounted.pagehide - baseline.pagehide).toBe(1);
   return { baseline, mounted };
+}
+
+// 代碼欄位預設收在「進階：手動輸入代碼」；要手動輸入的測試先展開。
+async function openManualIdFields(page: Page) {
+  await page
+    .locator('details.manual-id')
+    .first()
+    .waitFor({ state: 'attached' });
+  await page
+    .locator('details.manual-id')
+    .evaluateAll((nodes) =>
+      nodes.forEach((node) => ((node as HTMLDetailsElement).open = true))
+    );
 }
 
 function json(route: Route, body: unknown, status = 200) {
@@ -922,6 +935,7 @@ test.describe('商務與驗收工作區', () => {
     });
 
     await page.goto('/staff#business-section');
+    await openManualIdFields(page);
     await expect(page.locator('#business-section')).toContainText(
       'patient_test_archived_001'
     );
@@ -996,6 +1010,61 @@ test.describe('商務與驗收工作區', () => {
     }
   });
 
+  test('finds a patient by name and fills the archive form without typing an ID', async ({
+    page
+  }) => {
+    await enableServerSession(page);
+    const searches: Array<string | null> = [];
+    const writes = [];
+    await page.route('**/v1/business-delivery/**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      const path = url.pathname;
+      if (path.endsWith('/monthly-usage')) return json(route, MONTHLY_USAGE);
+      if (path.endsWith('/milestones')) return json(route, INITIAL_MILESTONES);
+      if (path.endsWith('/pending-deletion'))
+        return json(route, { patients: [] });
+      if (path.endsWith('/patient-search')) {
+        searches.push(url.searchParams.get('q'));
+        return json(route, {
+          patients: [
+            {
+              patientId: 'a8d64d067543ebf6251617049065c51d',
+              label: '王小明　電話末 3 碼 678　生日 03-08',
+              detail: '最近預約：2026-10-01 09:00 已完成'
+            }
+          ]
+        });
+      }
+      if (request.method() === 'POST' && path.endsWith('/archive')) {
+        const body = request.postDataJSON();
+        writes.push(body);
+        return json(route, {
+          patientId: body.patientId,
+          state: 'archived',
+          restorableUntil: '2026-10-31T00:00:00.000Z'
+        });
+      }
+      return json(route, { error: { message: '找不到指定的資料。' } }, 404);
+    });
+
+    await page.goto('/staff#business-section');
+    await page.getByLabel('姓名或電話').fill('王小明');
+    await page.getByRole('button', { name: '找患者' }).click();
+    await expect(page.locator('#business-section')).toContainText(
+      '電話末 3 碼 678'
+    );
+    await page.getByRole('button', { name: '選這位' }).click();
+    await expect(page.locator('#business-section')).toContainText(
+      '已選：王小明'
+    );
+    await page.getByRole('button', { name: '重新登入並封存' }).click();
+    await expect(page.locator('#business-section')).toContainText('已封存');
+    expect(searches).toEqual(['王小明']);
+    expect(writes).toHaveLength(1);
+    expect(writes[0].patientId).toBe('a8d64d067543ebf6251617049065c51d');
+  });
+
   test('confirms an archived identity for a flagged record without re-authentication', async ({
     page
   }) => {
@@ -1036,6 +1105,7 @@ test.describe('商務與驗收工作區', () => {
     });
 
     await page.goto('/staff#business-section');
+    await openManualIdFields(page);
     await page
       .getByLabel('待確認新紀錄 ID')
       .fill('patient_test_provisional_001');
@@ -1235,6 +1305,7 @@ test.describe('商務與驗收工作區', () => {
 
     await page.clock.setFixedTime(new Date('2026-10-01T04:00:00.000Z'));
     await page.goto('/staff#business-section');
+    await openManualIdFields(page);
     const noticeDate = await page.getByLabel('通知日期（台北）').inputValue();
     expect(noticeDate).toBe('2026-10-01');
     await page.getByRole('button', { name: '重新登入並開啟終止通知' }).click();

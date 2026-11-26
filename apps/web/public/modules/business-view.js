@@ -37,6 +37,9 @@ const MILESTONE_STATUS_LABELS = Object.freeze({
   active: '進行中',
   reached: '已達成'
 });
+const ID_EXAMPLE = '例：a8d64d067543ebf6251617049065c51d';
+const ID_HINT = '英數代碼；可由「找患者」或清單自動帶入';
+const EXPORT_ID_EXAMPLE = '例：exp_a8d64d067543ebf6251617049065c51d12345678';
 const TERMINATION_STATE_LABELS = Object.freeze({
   termination_pending: '合作終止通知進行中',
   controlled_retention: '受控保留期',
@@ -305,6 +308,32 @@ function input(type, name, options = {}) {
   return node;
 }
 
+function manualIdField(label, control, example = ID_EXAMPLE, hint = ID_HINT) {
+  control.placeholder = example;
+  control.required = false;
+  const details = element('details', 'manual-id');
+  details.append(
+    element('summary', '', '進階：手動輸入代碼'),
+    makeField(label, control, hint)
+  );
+  return details;
+}
+
+const holdLabel = (p) =>
+  p.legalHold ? 'legal hold：已設定' : 'legal hold：未設定';
+
+function patientCard(patient, lines, label, onPick) {
+  const item = element('article', 'event-panel');
+  item.append(
+    element('strong', '', patient.label ?? patient.patientId),
+    ...lines.map((line) => element('p', '', line))
+  );
+  const pick = button(label);
+  pick.addEventListener('click', onPick);
+  item.append(pick);
+  return item;
+}
+
 function reasonSelect(name, omit = []) {
   const select = document.createElement('select');
   select.name = name;
@@ -395,6 +424,8 @@ export function createBusinessWriteRunner({
     } = {}
   ) => {
     if (!isViewActive() || writeLock.controller) return;
+    if (Object.entries(payload).some(([k, v]) => /Id$/.test(k) && v === ''))
+      return setStatus('請先選好對象（用「找患者」或清單選取）。', 'error');
     const key = nextKey(action, payload);
     const body = { idempotencyKey: key, ...payload };
     const controller = new AbortController();
@@ -662,7 +693,14 @@ export function initializeBusinessView({
   }
   const exportId = input('text', 'exportId', { autocomplete: 'off' });
   const evidenceRef = input('text', 'evidenceRef', { autocomplete: 'off' });
-  const exportField = makeField('已簽收匯出識別碼', exportId);
+  exportId.required = false;
+  const recentExports = document.createElement('select');
+  recentExports.name = 'recentExport';
+  const exportField = element('div', 'field-group');
+  exportField.append(
+    makeField('最近的匯出', recentExports),
+    manualIdField('已簽收匯出識別碼', exportId, EXPORT_ID_EXAMPLE)
+  );
   const evidenceField = makeField('人工核對證據編號', evidenceRef);
   const acknowledgmentSubmit = button(
     '重新登入並記錄確認',
@@ -967,6 +1005,51 @@ export function initializeBusinessView({
   });
 
   const patientField = (name) => input('text', name, { autocomplete: 'off' });
+
+  const selectedLine = element('p', 'result-summary');
+  const searchForm = document.createElement('form');
+  searchForm.className = 'filter-bar';
+  const searchQuery = input('search', 'patientSearch', {
+    autocomplete: 'off'
+  });
+  searchQuery.placeholder = '例：王小明 或 0912345678';
+  searchQuery.maxLength = 30;
+  const searchSubmit = button('找患者', 'button button-primary', 'submit');
+  searchForm.append(makeField('姓名或電話', searchQuery), searchSubmit);
+  const searchOutput = element('div', 'card-list');
+  const selectPatient = (patient) => {
+    for (const field of [archiveId, restoreId, holdId, deleteId])
+      field.value = patient.patientId;
+    selectedLine.textContent = `已選：${patient.label ?? patient.patientId}`;
+  };
+  searchForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const q = searchQuery.value.trim();
+    searchOutput.replaceChildren();
+    searchSubmit.disabled = true;
+    try {
+      const data = await api(
+        `/v1/business-delivery/retention/patient-search?q=${encodeURIComponent(q)}`
+      );
+      if (disposed) return;
+      searchOutput.append(
+        element(
+          'p',
+          'result-summary',
+          data.patients.length === 0 ? '找不到符合的患者。' : ''
+        )
+      );
+      for (const p of data.patients)
+        searchOutput.append(
+          patientCard(p, [p.detail], '選這位', () => selectPatient(p))
+        );
+    } catch (error) {
+      if (!disposed) setStatus(reportError(error), 'error');
+    } finally {
+      searchSubmit.disabled = false;
+    }
+  });
+
   const archiveForm = document.createElement('form');
   archiveForm.className = 'filter-bar';
   const archiveId = patientField('patientId');
@@ -975,7 +1058,10 @@ export function initializeBusinessView({
     'button button-primary',
     'submit'
   );
-  archiveForm.append(makeField('患者不透明識別碼', archiveId), archiveSubmit);
+  archiveForm.append(
+    manualIdField('患者不透明識別碼', archiveId),
+    archiveSubmit
+  );
   archiveForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     if (
@@ -1003,7 +1089,10 @@ export function initializeBusinessView({
     'button button-secondary',
     'submit'
   );
-  restoreForm.append(makeField('患者不透明識別碼', restoreId), restoreSubmit);
+  restoreForm.append(
+    manualIdField('患者不透明識別碼', restoreId),
+    restoreSubmit
+  );
   restoreForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     if (
@@ -1034,7 +1123,7 @@ export function initializeBusinessView({
     'submit'
   );
   holdForm.append(
-    makeField('患者不透明識別碼', holdId),
+    manualIdField('患者不透明識別碼', holdId),
     makeField('legal hold', hold),
     makeField('原因代碼', holdReason),
     holdSubmit
@@ -1075,7 +1164,7 @@ export function initializeBusinessView({
     'submit'
   );
   deleteForm.append(
-    makeField('患者不透明識別碼', deleteId),
+    manualIdField('患者不透明識別碼', deleteId),
     makeField('原因代碼', deleteReason),
     confirmationLabel,
     deleteSubmit
@@ -1106,7 +1195,6 @@ export function initializeBusinessView({
     }
   });
 
-  // 待櫃台確認身分：管理者核對後，把新預約重新連回原封存病患。
   const identityForm = document.createElement('form');
   identityForm.className = 'filter-bar';
   const identityProvisionalId = patientField('provisionalPatientId');
@@ -1119,20 +1207,38 @@ export function initializeBusinessView({
     'submit'
   );
   const identityOutput = element('div', 'card-list');
+  const reviewsSummary = element('p', 'result-summary');
+  const reviewsOutput = element('div', 'card-list');
   identityForm.append(
-    makeField('待確認新紀錄 ID', identityProvisionalId),
-    makeField('候選封存紀錄 ID', identityArchivedId),
+    manualIdField('待確認新紀錄 ID', identityProvisionalId),
+    manualIdField('候選封存紀錄 ID', identityArchivedId),
     makeField('確認原因', identityReason),
     identityLookup,
     identitySubmit
   );
+  async function loadIdentityReviews() {
+    try {
+      const data = await api(
+        '/v1/business-delivery/retention/identity-reviews'
+      );
+      if (disposed) return;
+      reviewsOutput.replaceChildren();
+      reviewsSummary.textContent =
+        data.patients.length === 0 ? '沒有待確認的新紀錄。' : '';
+      for (const p of data.patients)
+        reviewsOutput.append(
+          patientCard(p, [p.detail], '查詢候選', () => {
+            identityProvisionalId.value = p.patientId;
+            identityArchivedId.value = '';
+            identityLookup.click();
+          })
+        );
+    } catch (error) {
+      if (!disposed) reviewsSummary.textContent = reportError(error);
+    }
+  }
   identityLookup.addEventListener('click', async () => {
     identityOutput.replaceChildren();
-    if (identityProvisionalId.value === '') {
-      setStatus('請先輸入待確認新紀錄 ID。', 'error');
-      identityProvisionalId.focus();
-      return;
-    }
     identityLookup.disabled = true;
     try {
       const data = await api(
@@ -1146,25 +1252,18 @@ export function initializeBusinessView({
           `${data.candidates.length} 筆候選封存身分。`
         )
       );
-      for (const candidate of data.candidates) {
-        const item = element('article', 'event-panel');
-        item.append(
-          element('strong', '', candidate.patientId),
-          element('p', '', `封存時間：${dateLabel(candidate.archivedAt)}`),
-          element(
-            'p',
-            '',
-            candidate.legalHold ? 'legal hold：已設定' : 'legal hold：未設定'
+      for (const c of data.candidates)
+        identityOutput.append(
+          patientCard(
+            c,
+            [`封存時間：${dateLabel(c.archivedAt)}`, holdLabel(c)],
+            '選用此候選',
+            () => {
+              identityArchivedId.value = c.patientId;
+              identitySubmit.focus();
+            }
           )
         );
-        const useCandidate = button('選用此候選');
-        useCandidate.addEventListener('click', () => {
-          identityArchivedId.value = candidate.patientId;
-          identitySubmit.focus();
-        });
-        item.append(useCandidate);
-        identityOutput.append(item);
-      }
     } catch (error) {
       if (!disposed) setStatus(reportError(error), 'error');
     } finally {
@@ -1193,10 +1292,14 @@ export function initializeBusinessView({
       identityProvisionalId.value = '';
       identityArchivedId.value = '';
       identityOutput.replaceChildren();
+      void loadIdentityReviews();
     }
   });
 
   retentionForms.append(
+    searchForm,
+    searchOutput,
+    selectedLine,
     archiveForm,
     restoreForm,
     holdForm,
@@ -1206,6 +1309,9 @@ export function initializeBusinessView({
       'section-description',
       '預約被標示「待櫃台確認」時，請先核對本人，再查詢候選並確認；確認後原封存資料復原、新預約連回原紀錄，新建的暫時紀錄會封存保留，不會刪除。'
     ),
+    element('h4', '', '待確認的新紀錄'),
+    reviewsSummary,
+    reviewsOutput,
     identityForm,
     identityOutput
   );
@@ -1232,31 +1338,19 @@ export function initializeBusinessView({
         next === undefined
           ? `${pendingShown} 位患者待處理。`
           : `已顯示 ${pendingShown} 位患者，還有更多。`;
-      for (const patient of patients) {
-        const item = element('article', 'event-panel');
-        item.append(
-          element('strong', '', patient.patientId),
-          element('p', '', `封存時間：${dateLabel(patient.archivedAt)}`),
-          element(
-            'p',
-            '',
-            `可送人工刪除審理日：${dateLabel(patient.restorableUntil)}`
-          ),
-          element(
-            'p',
-            '',
-            patient.legalHold ? 'legal hold：已設定' : 'legal hold：未設定'
+      for (const patient of patients)
+        pendingList.append(
+          patientCard(
+            patient,
+            [
+              `封存時間：${dateLabel(patient.archivedAt)}`,
+              `可送人工刪除審理日：${dateLabel(patient.restorableUntil)}`,
+              holdLabel(patient)
+            ],
+            '填入患者識別碼',
+            () => selectPatient(patient)
           )
         );
-        const useId = button('填入患者識別碼');
-        useId.addEventListener('click', () => {
-          for (const field of [archiveId, restoreId, holdId, deleteId])
-            field.value = patient.patientId;
-          archiveId.focus();
-        });
-        item.append(useId);
-        pendingList.append(item);
-      }
     } catch (error) {
       // A failed first load clears the list; a failed 載入更多 keeps what is
       // shown and leaves the button to try the same page again.
@@ -1377,6 +1471,18 @@ export function initializeBusinessView({
     evidenceField.hidden = dataReturn;
     evidenceRef.disabled = dataReturn;
   };
+  recentExports.addEventListener('change', () => {
+    exportId.value = recentExports.value;
+  });
+  async function loadRecentExports() {
+    const data = await api('/v1/business-delivery/exports').catch(() => ({
+      exports: []
+    }));
+    if (disposed) return;
+    recentExports.replaceChildren(new Option('請選擇', ''));
+    for (const job of data.exports)
+      recentExports.append(new Option(job.label, job.exportId));
+  }
   receiptKind.addEventListener('change', updateAcknowledgementFields);
   updateAcknowledgementFields();
   noticeForm.addEventListener('submit', async (event) => {
@@ -1517,7 +1623,13 @@ export function initializeBusinessView({
     void loadMonth();
   });
 
-  void Promise.all([loadMonth(), loadMilestones(), loadPendingDeletion()]);
+  void Promise.all([
+    loadMonth(),
+    loadMilestones(),
+    loadPendingDeletion(),
+    loadIdentityReviews(),
+    loadRecentExports()
+  ]);
   return () => {
     if (!disposeView()) return;
     content.replaceChildren();

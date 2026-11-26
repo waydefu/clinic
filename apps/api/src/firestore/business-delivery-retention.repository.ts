@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 import {
   ACTIVE_BOOKING_LIMIT,
@@ -18,6 +18,8 @@ import type {
   PatientArchivedResponse,
   PatientIdentityCandidatesResponse,
   PatientIdentityConfirmedResponse,
+  PatientIdentityReviewsResponse,
+  PatientSearchResponse,
   PatientLegalHoldResponse,
   PatientPermanentlyDeletedResponse,
   PatientRestoredResponse,
@@ -53,6 +55,39 @@ export interface PendingDeletionPosition {
 export interface PendingDeletionPage extends PendingPatientDeletionResponse {
   /** Present only when more records follow this page. */
   readonly next?: PendingDeletionPosition;
+}
+
+/** Most rows one patient search returns. */
+export const MAX_PATIENT_SEARCH = 20;
+
+const APPOINTMENT_STATUS_TEXT: Record<string, string> = {
+  confirmed: '已確認',
+  arrived: '已報到',
+  cancellation_requested: '取消申請中',
+  cancelled: '已取消',
+  completed: '已完成',
+  no_show: '未到'
+};
+
+/** Name, last 3 phone digits and birth month-day, for a manager to tell people apart. */
+function displayLabel(data: Record<string, unknown> | undefined): string {
+  const phone = stringField(data, 'phoneDigits') ?? '';
+  const birth = stringField(data, 'birthMonthDay') ?? '';
+  return [
+    stringField(data, 'name') ?? '',
+    phone === '' ? '' : `電話末 3 碼 ${phone.slice(-3)}`,
+    birth === '' ? '' : `生日 ${birth.slice(2)}`
+  ]
+    .filter((part) => part !== '')
+    .join('　');
+}
+
+/** UTC timestamp to Taipei `YYYY-MM-DD HH:mm`. */
+function taipeiMinute(utc: string): string {
+  const at = Date.parse(utc);
+  return Number.isNaN(at)
+    ? ''
+    : new Date(at + 8 * 3_600_000).toISOString().slice(0, 16).replace('T', ' ');
 }
 
 export const RETENTION_COLLECTIONS = {
@@ -612,6 +647,109 @@ export class FirestoreBusinessRetentionRepository {
           }
         ];
       })
+    };
+  }
+
+  /**
+   * Manager-only finder for the retention forms. A phone-like query matches
+   * the stored phone digits by prefix; anything else matches the name by
+   * prefix. At most MAX_PATIENT_SEARCH rows. Every call writes one log entry
+   * holding only a hash and the length of the query, never the text.
+   */
+  public async searchPatients(input: {
+    readonly query: string;
+    readonly actorRef: string;
+    readonly now: string;
+  }): Promise<PatientSearchResponse> {
+    const digits = input.query.replace(/\D/g, '');
+    const phoneLike = /^[0-9+\-() ]+$/.test(input.query) && digits.length >= 3;
+    const term = phoneLike ? digits : input.query;
+    const end = `${term}\uf8ff`;
+    const found = await (phoneLike
+      ? this.db
+          .collection(PATIENT_COLLECTIONS.patients)
+          .where('phoneDigits', '>=', term)
+          .where('phoneDigits', '<=', end)
+          .orderBy('phoneDigits')
+          .limit(MAX_PATIENT_SEARCH)
+          .get()
+      : this.db
+          .collection(PATIENT_COLLECTIONS.patients)
+          .where('name', '>=', term)
+          .where('name', '<=', end)
+          .orderBy('name')
+          .limit(MAX_PATIENT_SEARCH)
+          .get());
+    const rows = await Promise.all(
+      found.docs.map(async (document) => {
+        const data = document.data();
+        const appointments = await this.db
+          .collection(COLLECTIONS.appointments)
+          .where('patientId', '==', document.id)
+          .get();
+        let latest: { startsAt: string; status: string } | undefined;
+        for (const appointment of appointments.docs) {
+          const startsAt = stringField(appointment.data(), 'startsAt');
+          const status = stringField(appointment.data(), 'status');
+          if (
+            startsAt !== undefined &&
+            status !== undefined &&
+            (latest === undefined || startsAt > latest.startsAt)
+          )
+            latest = { startsAt, status };
+        }
+        return {
+          patientId: document.id,
+          label: displayLabel(data),
+          detail: `最近預約：${
+            latest === undefined
+              ? '無'
+              : `${taipeiMinute(latest.startsAt)} ${APPOINTMENT_STATUS_TEXT[latest.status] ?? latest.status}`
+          }${hasArchivedAt(data) ? '（已封存）' : ''}`
+        };
+      })
+    );
+    await this.db
+      .collection(RETENTION_COLLECTIONS.log)
+      .doc(`patient_search_${randomUUID()}`)
+      .create({
+        schemaVersion: 1,
+        action: 'patient_search',
+        patientId: '',
+        actorRef: input.actorRef,
+        at: input.now,
+        requestHash: sha256(input.query),
+        queryLength: input.query.length,
+        result: { count: rows.length }
+      });
+    return { patients: rows };
+  }
+
+  /** New records flagged for identity review (待櫃台確認), newest first. */
+  public async identityReviews(): Promise<PatientIdentityReviewsResponse> {
+    const found = await this.db
+      .collection(PATIENT_COLLECTIONS.patients)
+      .where('identityReviewRequired', '==', true)
+      .limit(MAX_PATIENT_SEARCH * 5)
+      .get();
+    const rows = found.docs.flatMap((document) => {
+      const data = document.data();
+      if (hasArchivedAt(data)) return [];
+      return [
+        {
+          patientId: document.id,
+          createdAt: stringField(data, 'createdAt') ?? '',
+          label: displayLabel(data)
+        }
+      ];
+    });
+    rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return {
+      patients: rows.slice(0, MAX_PATIENT_SEARCH).map((row) => ({
+        patientId: row.patientId,
+        label: row.label,
+        detail: `建立時間：${taipeiMinute(row.createdAt)}`
+      }))
     };
   }
 

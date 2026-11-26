@@ -2,7 +2,8 @@ import { NotFoundException } from '@nestjs/common';
 import {
   CreateBusinessExportRequestSchema,
   RevokeBusinessExportRequestSchema,
-  type BusinessExportJob
+  type BusinessExportJob,
+  type BusinessExportListResponse
 } from '@beauessence/contracts';
 import { isRole, taipeiDateRange } from '@beauessence/domain';
 
@@ -19,10 +20,18 @@ import { actorRefForUid } from './usage-events.js';
 
 export type BusinessExportRepositoryPort = Pick<
   FirestoreBusinessExportRepository,
-  'create' | 'get' | 'download' | 'revoke'
+  'create' | 'get' | 'list' | 'download' | 'revoke'
 >;
 
 const EXPORT_ID = /^exp_[a-f0-9]{40}$/;
+
+const EXPORT_STATUS_TEXT: Record<BusinessExportJob['status'], string> = {
+  ready: '可下載',
+  exhausted: '下載次數已用完',
+  expired: '已到期',
+  revoked: '已撤銷',
+  purged: '檔案已清除'
+};
 
 function authorizeExport(authentication: AuthenticationContext): void {
   // Strict: a legacy alias must not widen a server session into a new role.
@@ -89,6 +98,21 @@ export class BusinessExportApplicationService {
       now,
       policy: config.policy
     });
+  }
+
+  /** Recent exports (newest first) so a manager picks one instead of typing an ID. */
+  public async list(
+    authentication: AuthenticationContext
+  ): Promise<BusinessExportListResponse> {
+    this.enabledConfig();
+    authorizeExport(authentication);
+    const jobs = await this.repository.list(this.nowUtc(), 10);
+    return {
+      exports: jobs.map((job) => ({
+        exportId: job.exportId,
+        label: `${job.from} 至 ${job.to}｜建立 ${new Date(Date.parse(job.createdAt) + 8 * 3_600_000).toISOString().slice(0, 16).replace('T', ' ')}｜${EXPORT_STATUS_TEXT[job.status]}`
+      }))
+    };
   }
 
   public async get(

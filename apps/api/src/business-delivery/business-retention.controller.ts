@@ -52,6 +52,24 @@ export class BusinessRetentionController {
     return this.application.restore(body, request.calendarPilotAuthentication);
   }
 
+  @Get('patient-search')
+  public searchPatients(
+    @Query('q') q: unknown,
+    @Req() request: CalendarPilotAuthenticatedRequest
+  ) {
+    return this.application.searchPatients(
+      q,
+      request.calendarPilotAuthentication
+    );
+  }
+
+  @Get('identity-reviews')
+  public identityReviews(@Req() request: CalendarPilotAuthenticatedRequest) {
+    return this.application.identityReviews(
+      request.calendarPilotAuthentication
+    );
+  }
+
   @Get('identity-candidates')
   public identityCandidates(
     @Query('patientId') patientId: unknown,

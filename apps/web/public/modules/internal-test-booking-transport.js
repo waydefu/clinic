@@ -140,6 +140,27 @@ function firstServiceId(body) {
   return undefined;
 }
 
+// 工作台代建新病患：不能把瀏覽器本機產生的 id 當 onBehalfPatientId 送出
+// （伺服器的 patients 沒有那筆）。改送 intake，由伺服器建立或對應病患並回傳 id。
+// 櫃台人員在現場收件即視為已告知隱私聲明（待負責人確認，見 PR 說明）。
+function staffIntake(body) {
+  if (body.intake !== undefined && body.intake !== null)
+    return { intake: body.intake };
+  const patient = body.patient;
+  if (body.origin !== 'staff' || patient === undefined || patient === null)
+    return undefined;
+  if (typeof patient !== 'object') return undefined;
+  return {
+    intake: {
+      name: patient.name,
+      phone: patient.phone,
+      birthDate: patient.birthDate,
+      nationality: patient.nationality,
+      privacyConsent: true
+    }
+  };
+}
+
 export function mapInternalTestBookingRequest(
   path,
   method,
@@ -156,10 +177,9 @@ export function mapInternalTestBookingRequest(
         slotId: body.slotId,
         serviceId: firstServiceId(body),
         bookingKind: body.bookingKind,
-        ...(body.intake !== undefined && body.intake !== null
-          ? { intake: body.intake }
-          : {}),
+        ...(staffIntake(body) ?? {}),
         ...(body.intake === undefined &&
+        staffIntake(body) === undefined &&
         typeof body.onBehalfPatientId === 'string'
           ? { onBehalfPatientId: body.onBehalfPatientId }
           : {}),

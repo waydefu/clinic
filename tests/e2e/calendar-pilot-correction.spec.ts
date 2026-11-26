@@ -557,10 +557,14 @@ test.describe('CAL-PILOT controlled correction workbench', () => {
       .poll(() => ordinaryBooking)
       .toMatchObject({
         slotId: 'slot_manual_001',
-        onBehalfPatientId: expect.any(String)
+        intake: {
+          name: '一般預約患者',
+          phone: '0998765432',
+          birthDate: '--04-09',
+          nationality: 'domestic',
+          privacyConsent: true
+        }
       });
-    expect(ordinaryBooking?.onBehalfPatientId).not.toBe(
-      'patient_opaque_logout_001'
-    );
+    expect(ordinaryBooking).not.toHaveProperty('onBehalfPatientId');
   });
 });

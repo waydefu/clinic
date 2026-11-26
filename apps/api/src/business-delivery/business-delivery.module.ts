@@ -90,7 +90,13 @@ import {
           // Disabled: no Firebase client is created; every route answers 404.
           return new BusinessExportApplicationService(
             { enabled: false },
-            { create: refuse, get: refuse, download: refuse, revoke: refuse },
+            {
+              create: refuse,
+              get: refuse,
+              list: refuse,
+              download: refuse,
+              revoke: refuse
+            },
             { assertFresh: refuse },
             clock
           );
@@ -120,7 +126,9 @@ import {
               identityCandidates: refuse,
               permanentlyDelete: refuse,
               setLegalHold: refuse,
-              pendingDeletion: refuse
+              pendingDeletion: refuse,
+              searchPatients: refuse,
+              identityReviews: refuse
             },
             { assertFresh: refuse },
             clock
