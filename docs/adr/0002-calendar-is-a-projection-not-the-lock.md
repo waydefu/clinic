@@ -72,7 +72,7 @@ calendar_appointment_001
   重查衝突並追加 audit，因此與本 ADR 相容；若未來要 auto-apply 或讓 Calendar 成為
   co-authority，才必須用新的 accepted ADR 明確取代本決定。
 - outbox 的 `idempotencyKey` 必須可直接作為合法的 Calendar event ID。
-- 日曆事件內容維持最小化：只放預約編號、掛號別與時間。姓名、電話、身分證、
+- 日曆事件內容維持最小化：只放掛號別與時間（描述欄不放預約編號，辨識靠 extendedProperties）。姓名、電話、身分證、
   手術種類與備註一律不得離開本系統，並已有測試持續驗證。
 
 ## 2026-09-29 修訂：專用預約日曆的標題欄位

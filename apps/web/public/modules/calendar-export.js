@@ -71,7 +71,6 @@ export function buildIcs(appointment) {
     `DTSTART:${stamp(appointment.startsAt)}`,
     `SUMMARY:${escapeText(buildSummary(appointment))}`,
     `LOCATION:${escapeText(CLINIC.address)}`,
-    `DESCRIPTION:${escapeText(`預約編號 ${appointment.id}`)}`,
     `COLOR:${EVENT_COLOR}`,
     'BEGIN:VALARM',
     `TRIGGER:${REMINDER_TRIGGER}`,
@@ -97,8 +96,7 @@ export function buildGoogleCalendarUrl(appointment) {
     action: 'TEMPLATE',
     text: buildSummary(appointment),
     dates: `${at}/${at}`,
-    location: CLINIC.address,
-    details: `預約編號 ${appointment.id}`
+    location: CLINIC.address
   });
   return `https://calendar.google.com/calendar/render?${parameters.toString()}`;
 }

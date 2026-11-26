@@ -195,7 +195,7 @@ describe('clinic Calendar projection allowlist', () => {
     expect(payload.extendedProperties.private.beauessenceLinkId).toBe(
       'appointment_001'
     );
-    expect(payload.description).toBe('預約編號 appointment_001');
+    expect(payload.description).toBe('');
   });
 
   it('refuses forbidden clinical, identity-document and money fields', () => {
