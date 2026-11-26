@@ -1124,12 +1124,15 @@ elements['patient-booking-form'].addEventListener('submit', async (event) => {
           '請於門診時間前十分鐘抵達櫃台。';
         elements['booking-complete-reminder'].hidden = false;
         elements['booking-result'].innerHTML = assertRenderable(
-          `<strong>預約編號：${escapeHtml(result.appointmentId)}</strong><span>${escapeHtml(formatFullDate(result.startsAt))} ${escapeHtml(formatTime(result.startsAt))} · ${escapeHtml(itemLabel)}</span>`
+          `<strong>${escapeHtml(formatFullDate(result.startsAt))} ${escapeHtml(formatTime(result.startsAt))}</strong><span>${escapeHtml(itemLabel)}</span>`
         );
         await refreshPublishedGrid();
         renderAll();
         showBookingResult();
-        message(`預約已建立：${result.appointmentId}。`, 'success');
+        message(
+          `預約已建立：${formatFullDate(result.startsAt)} ${formatTime(result.startsAt)}。`,
+          'success'
+        );
         return;
       }
       state = result;
@@ -1154,11 +1157,14 @@ elements['patient-booking-form'].addEventListener('submit', async (event) => {
         '請於門診時間前十分鐘抵達櫃台。資料仍只保存在目前瀏覽器。';
       elements['booking-complete-reminder'].hidden = false;
       elements['booking-result'].innerHTML = assertRenderable(
-        `<strong>預約編號：${escapeHtml(appointment.id)}</strong><span>${escapeHtml(formatFullDate(appointment.startsAt))} ${escapeHtml(formatTime(appointment.startsAt))} · ${escapeHtml(appointment.itemLabel)}</span>`
+        `<strong>${escapeHtml(formatFullDate(appointment.startsAt))} ${escapeHtml(formatTime(appointment.startsAt))}</strong><span>${escapeHtml(appointment.itemLabel)}</span>`
       );
       renderAll();
       showBookingResult();
-      message(`預約已建立：${appointment.id}。`, 'success');
+      message(
+        `預約已建立：${formatFullDate(appointment.startsAt)} ${formatTime(appointment.startsAt)}。`,
+        'success'
+      );
     },
     failureMessage: (error) => `未送出預約：${error.message}`
   });
