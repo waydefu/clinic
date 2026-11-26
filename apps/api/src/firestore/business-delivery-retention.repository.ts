@@ -661,17 +661,25 @@ export class FirestoreBusinessRetentionRepository {
     readonly actorRef: string;
     readonly now: string;
   }): Promise<PatientSearchResponse> {
-    const patients = this.db.collection(PATIENT_COLLECTIONS.patients);
     const digits = input.query.replace(/\D/g, '');
     const phoneLike = /^[0-9+\-() ]+$/.test(input.query) && digits.length >= 3;
-    const field = phoneLike ? 'phoneDigits' : 'name';
     const term = phoneLike ? digits : input.query;
-    const found = await patients
-      .where(field, '>=', term)
-      .where(field, '<=', `${term}\uf8ff`)
-      .orderBy(field)
-      .limit(MAX_PATIENT_SEARCH)
-      .get();
+    const end = `${term}\uf8ff`;
+    const found = await (phoneLike
+      ? this.db
+          .collection(PATIENT_COLLECTIONS.patients)
+          .where('phoneDigits', '>=', term)
+          .where('phoneDigits', '<=', end)
+          .orderBy('phoneDigits')
+          .limit(MAX_PATIENT_SEARCH)
+          .get()
+      : this.db
+          .collection(PATIENT_COLLECTIONS.patients)
+          .where('name', '>=', term)
+          .where('name', '<=', end)
+          .orderBy('name')
+          .limit(MAX_PATIENT_SEARCH)
+          .get());
     const rows = await Promise.all(
       found.docs.map(async (document) => {
         const data = document.data();

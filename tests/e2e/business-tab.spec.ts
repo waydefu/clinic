@@ -1030,14 +1030,8 @@ test.describe('商務與驗收工作區', () => {
           patients: [
             {
               patientId: 'a8d64d067543ebf6251617049065c51d',
-              name: '王小明',
-              phoneLast3: '678',
-              birthMonthDay: '--03-08',
-              archived: false,
-              lastAppointment: {
-                startsAt: '2026-10-01T01:00:00.000Z',
-                status: 'completed'
-              }
+              label: '王小明　電話末 3 碼 678　生日 03-08',
+              detail: '最近預約：2026-10-01 09:00 已完成'
             }
           ]
         });
