@@ -228,7 +228,7 @@ export function buildClinicCalendarEventBody(input: {
   return {
     id: input.eventId,
     summary,
-    description: `預約編號 ${input.appointmentId}`,
+    description: '',
     location: input.clinicAddress,
     colorId: input.colorId,
     start: { dateTime: input.startsAt, timeZone: 'Asia/Taipei' },
