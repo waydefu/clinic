@@ -419,15 +419,8 @@ test.describe('internal-test booking occupancy overlay', () => {
       endpoint: 'schedule',
       label: 'schedule network failure',
       failure: 'network'
-    },
-    { endpoint: 'bookings', label: 'bookings HTTP 401', failure: 401 },
-    { endpoint: 'bookings', label: 'bookings HTTP 403', failure: 403 },
-    { endpoint: 'bookings', label: 'bookings HTTP 503', failure: 503 },
-    {
-      endpoint: 'bookings',
-      label: 'bookings network failure',
-      failure: 'network'
     }
+    // 匿名病患的 /booking 不讀 /v1/bookings，沒有 bookings 失敗案例；員工頁由單元測試涵蓋。
   ];
 
   for (const readFailure of stateReadFailures) {
@@ -611,7 +604,7 @@ test.describe('internal-test booking occupancy overlay', () => {
 
     const olderLastRead = page.waitForResponse(
       (response) =>
-        response.url().endsWith('/v1/bookings') &&
+        response.url().endsWith('/v1/schedule') &&
         response.request().method() === 'GET'
     );
     if (releaseOlder === undefined)
