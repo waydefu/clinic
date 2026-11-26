@@ -68,6 +68,11 @@ const elements = Object.fromEntries(
 const isOnline = !['127.0.0.1', 'localhost'].includes(window.location.hostname);
 const mobileViewport = window.matchMedia('(max-width: 48rem)');
 const appShell = document.querySelector('.app-shell');
+// 商務區的操作回饋在區內；點擊時清掉頂端橫條殘留的舊訊息，避免兩處互相矛盾。
+elements['business-section']?.addEventListener('click', () => {
+  elements.status.textContent = '';
+  elements.status.dataset.state = 'info';
+});
 const restrictedDom = [
   ...document.querySelectorAll('[data-admin-nav], [data-admin-only]')
 ];

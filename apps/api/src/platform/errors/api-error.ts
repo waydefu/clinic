@@ -1,6 +1,7 @@
 import type {
   ApiErrorCode,
   ApiErrorResponse,
+  ApiErrorReason,
   BusinessTerminationMissingStep
 } from '@beauessence/contracts';
 import { DomainError, type DomainErrorCode } from '@beauessence/domain';
@@ -95,12 +96,18 @@ export class ServiceUnavailableError extends PlatformError {
 export class ConflictError extends PlatformError {
   public readonly apiCode = 'CONFLICT' as const;
   public constructor(
-    public readonly missingSteps?: readonly BusinessTerminationMissingStep[]
+    public readonly missingSteps?: readonly BusinessTerminationMissingStep[],
+    public readonly reason?: ApiErrorReason
   ) {
     super('The requested state transition conflicts with current state.');
     this.name = 'ConflictError';
   }
 }
+
+const MESSAGE_BY_REASON: Record<ApiErrorReason, string> = {
+  PATIENT_HAS_UPCOMING_APPOINTMENT:
+    '這位患者還有未來的預約，請先取消或完成預約再封存。'
+};
 
 const BUSINESS_TERMINATION_MISSING_STEP_LABELS: Record<
   BusinessTerminationMissingStep,
@@ -250,14 +257,17 @@ export function mapErrorToApiResponse(
   const code = classify(error);
   const missingSteps =
     error instanceof ConflictError ? error.missingSteps : undefined;
+  const reason = error instanceof ConflictError ? error.reason : undefined;
   const safeMessage =
-    missingSteps === undefined || missingSteps.length === 0
-      ? (SAFE_MESSAGE_BY_API_CODE[code] ??
-        SAFE_MESSAGE_BY_API_CODE.INTERNAL_ERROR)
-      : `結案條件尚未完成：${missingSteps
-          .map((step) => BUSINESS_TERMINATION_MISSING_STEP_LABELS[step])
-          .filter((step) => step !== undefined)
-          .join('、')}`;
+    reason !== undefined
+      ? MESSAGE_BY_REASON[reason]
+      : missingSteps === undefined || missingSteps.length === 0
+        ? (SAFE_MESSAGE_BY_API_CODE[code] ??
+          SAFE_MESSAGE_BY_API_CODE.INTERNAL_ERROR)
+        : `結案條件尚未完成：${missingSteps
+            .map((step) => BUSINESS_TERMINATION_MISSING_STEP_LABELS[step])
+            .filter((step) => step !== undefined)
+            .join('、')}`;
   return {
     status: HTTP_STATUS_BY_API_CODE[code] ?? 500,
     headers: retryAfterHeader(error),
@@ -265,6 +275,7 @@ export function mapErrorToApiResponse(
       error: {
         code,
         message: safeMessage,
+        ...(reason === undefined ? {} : { reason }),
         correlationId: safeCorrelationId(correlationId)
       }
     }

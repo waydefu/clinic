@@ -285,6 +285,9 @@ All future errors use `ApiErrorResponseSchema`:
 }
 ```
 
+A conflict may add an optional stable `reason` code (for example
+`PATIENT_HAS_UPCOMING_APPOINTMENT`) next to `code`; the status stays 409.
+
 `correlationId` is opaque and must never be a phone number, email address,
 calendar event ID, access token or patient identifier.
 

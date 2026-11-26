@@ -410,7 +410,7 @@ export class FirestoreBusinessRetentionRepository {
           return Date.parse(startsAt) > Date.parse(command.now);
         })
       ) {
-        throw new ConflictError();
+        throw new ConflictError(undefined, 'PATIENT_HAS_UPCOMING_APPOINTMENT');
       }
 
       let plan: ReturnType<typeof planRetentionOperation>;

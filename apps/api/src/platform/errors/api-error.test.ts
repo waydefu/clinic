@@ -177,4 +177,18 @@ describe('mapErrorToApiResponse', () => {
       expect(ApiErrorResponseSchema.safeParse(mapped.body).success).toBe(true);
     }
   });
+
+  it('gives a patient-archive conflict a stable reason and a specific message', () => {
+    const mapped = mapErrorToApiResponse(
+      new ConflictError(undefined, 'PATIENT_HAS_UPCOMING_APPOINTMENT'),
+      CORRELATION
+    );
+    expect(mapped.status).toBe(409);
+    expect(mapped.body.error.code).toBe('CONFLICT');
+    expect(mapped.body.error.reason).toBe('PATIENT_HAS_UPCOMING_APPOINTMENT');
+    expect(mapped.body.error.message).toContain('未來的預約');
+    expect(ApiErrorResponseSchema.safeParse(mapped.body).success).toBe(true);
+    const plain = mapErrorToApiResponse(new ConflictError(), CORRELATION);
+    expect(plain.body.error).not.toHaveProperty('reason');
+  });
 });
