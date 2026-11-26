@@ -31,11 +31,13 @@ export async function chooseNationality(
  * 不能等 `#booking-complete-heading` 的文字：「預約已建立」同時是 patient.html
  * 裡那個標題的**靜態預設值**，所以那個斷言在按下送出的瞬間就通過了，之後的步驟
  * 會跑在還沒寫進 localStorage 的狀態上（2026-07-27 實際踩到：讀出來是 null）。
- * `#booking-result` 的預約編號是成功處理器才填的，那才是真的訊號。
+ * `#booking-result` 的預約日期是成功處理器才填的，那才是真的訊號。
  */
 export async function submitBooking(page: Page): Promise<void> {
   await page.locator('#confirm-patient-booking').click();
-  await expect(page.locator('#booking-result')).toContainText('appointment_');
+  await expect(page.locator('#booking-result')).toContainText(
+    /d{4}年d{1,2}月d{1,2}日/
+  );
 }
 
 /**
