@@ -228,8 +228,16 @@ test.describe('患者線上預約', () => {
     await expect(page.locator('#booking-complete-heading')).toHaveText(
       '預約已建立'
     );
-    await expect(page.locator('#booking-result')).toContainText('預約編號');
-    await expect(page.locator('#booking-result')).toContainText('appointment_');
+    // 員工與患者畫面不顯示亂碼編號：成功區塊與訊息只有日期時間與療程。
+    await expect(page.locator('#booking-result')).toContainText(
+      /\d{4}年\d{1,2}月\d{1,2}日/
+    );
+    await expect(page.locator('#booking-result')).not.toContainText(
+      'appointment_'
+    );
+    await expect(page.locator('#patient-submit-status')).not.toContainText(
+      'appointment_'
+    );
     await expect(page.locator('[data-booking-result]')).toBeVisible();
     await expect(page.locator('[data-step-indicator]')).toHaveCount(3);
     await expect(page.locator('[data-booking-step="4"]')).toHaveCount(0);

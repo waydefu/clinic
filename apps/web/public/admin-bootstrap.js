@@ -1446,7 +1446,7 @@ elements['booking-form'].addEventListener('submit', async (event) => {
       const successMessage =
         created === undefined
           ? '預約已建立，可於「櫃台處理清單」查看。'
-          : `預約已建立：${created.id} · ${formatFullDate(created.startsAt)} ${formatTime(created.startsAt)}。`;
+          : `預約已建立：${patient.name ? `${patient.name} · ` : ''}${formatFullDate(created.startsAt)} ${formatTime(created.startsAt)}。`;
       elements['booking-workflow'].open = false;
       message(successMessage, 'success');
       if (created !== undefined)
@@ -1554,7 +1554,12 @@ elements['appointment-batch-bar'].addEventListener('click', async (event) => {
         } catch (error) {
           // 一筆失敗不該讓其餘幾筆停下來，但也不能假裝全部成功——收集起來
           // 一次照實回報。
-          failures.push(`${id}：${error.message}`);
+          const item = state.appointments.find((entry) => entry.id === id);
+          failures.push(
+            item === undefined
+              ? error.message
+              : `${state.patients.find((p) => p.id === item.patientId)?.name ?? ''} ${formatFullDate(item.startsAt)} ${formatTime(item.startsAt)}：${error.message}`.trim()
+          );
         }
       }
     },

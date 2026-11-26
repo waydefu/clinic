@@ -290,11 +290,7 @@ async function openPatientSlotStep(page: Page): Promise<void> {
   await expect(page.locator('[data-booking-step="2"]')).toBeVisible();
 }
 
-async function createOptInBooking(
-  page: Page,
-  slotId: string,
-  appointmentId: string
-): Promise<void> {
+async function createOptInBooking(page: Page, slotId: string): Promise<void> {
   await page.goto('/booking?internalTestBooking=1');
   await page.evaluate(() => window.localStorage.clear());
   await page.reload();
@@ -302,7 +298,9 @@ async function createOptInBooking(
   await page.locator(`[data-patient-slot="${slotId}"]`).click();
   await fillPatientCreateForm(page);
   await page.locator('#confirm-patient-booking').click();
-  await expect(page.locator('#booking-result')).toContainText(appointmentId);
+  await expect(page.locator('#booking-result')).toContainText(
+    /\d{4}年\d{1,2}月\d{1,2}日/
+  );
 }
 
 async function openCreatedBookingManagement(page: Page): Promise<void> {
@@ -736,7 +734,7 @@ test.describe('internal-test booking occupancy overlay', () => {
     await page.locator('#confirm-patient-booking').click();
 
     await expect(page.locator('#booking-result')).toContainText(
-      'appointment_api_001'
+      /\d{4}年\d{1,2}月\d{1,2}日/
     );
     expect(posted.body).toMatchObject({
       slotId: 'slot_overlay_open',
@@ -818,7 +816,7 @@ test.describe('internal-test booking occupancy overlay', () => {
       }
     );
 
-    await createOptInBooking(page, 'slot_overlay_open', 'appointment_api_001');
+    await createOptInBooking(page, 'slot_overlay_open');
     await openCreatedBookingManagement(page);
     await page.locator('[data-managed-cancel]').click();
     await page.getByRole('button', { name: '確認取消' }).click();
@@ -860,11 +858,7 @@ test.describe('internal-test booking occupancy overlay', () => {
       }
     );
 
-    await createOptInBooking(
-      page,
-      'slot_overlay_open',
-      'appointment_api_cutoff'
-    );
+    await createOptInBooking(page, 'slot_overlay_open');
     await openCreatedBookingManagement(page);
 
     await expect(page.locator('[data-managed-cancel]')).toHaveCount(0);
@@ -902,7 +896,7 @@ test.describe('internal-test booking occupancy overlay', () => {
       { cancel: 'closed' }
     );
 
-    await createOptInBooking(page, 'slot_overlay_open', 'appointment_api_001');
+    await createOptInBooking(page, 'slot_overlay_open');
     await openCreatedBookingManagement(page);
     await page.locator('[data-managed-cancel]').click();
     await page.getByRole('button', { name: '確認取消' }).click();
@@ -955,7 +949,7 @@ test.describe('internal-test booking occupancy overlay', () => {
       }
     );
 
-    await createOptInBooking(page, 'slot_overlay_open', 'appointment_api_001');
+    await createOptInBooking(page, 'slot_overlay_open');
     await openCreatedBookingManagement(page);
     await page
       .locator('[data-managed-reschedule-slot="appointment_api_001"]')
@@ -1540,7 +1534,7 @@ test.describe('internal-test booking occupancy overlay', () => {
       }
     );
 
-    await createOptInBooking(page, 'slot_overlay_open', 'appointment_api_001');
+    await createOptInBooking(page, 'slot_overlay_open');
     await openCreatedBookingManagement(page);
     const cardTime = page.locator('.booking-lookup-card-heading strong');
     const oldWhen = await cardTime.innerText();
@@ -1635,7 +1629,7 @@ test.describe('internal-test booking occupancy overlay', () => {
     await page.locator('#patient-note').fill(note);
     await page.locator('#confirm-patient-booking').click();
     await expect(page.locator('#booking-result')).toContainText(
-      'appointment_api_note_001'
+      /\d{4}年\d{1,2}月\d{1,2}日/
     );
     expect(posted.body).toMatchObject({ patientNote: note });
     server.storedNote = posted.body?.patientNote as string;
@@ -1858,7 +1852,7 @@ test.describe('internal-test booking occupancy overlay', () => {
     await page.locator('#confirm-patient-booking').click();
 
     await expect(page.locator('#booking-result')).toContainText(
-      'appointment_follow_up_001'
+      /\d{4}年\d{1,2}月\d{1,2}日/
     );
     expect(posted.body).toMatchObject({
       slotId: 'slot_follow_up_open',
@@ -1916,7 +1910,7 @@ test.describe('internal-test booking occupancy overlay', () => {
     await page.locator('[data-patient-slot="slot_return_001"]').click();
     await page.locator('#confirm-patient-booking').click();
     await expect(page.locator('#booking-result')).toContainText(
-      'appointment_synthetic_001'
+      /\d{4}年\d{1,2}月\d{1,2}日/
     );
     expect(posted.createHeaders?.['x-return-session']).toBe(
       'synthetic_return_001'
@@ -1933,7 +1927,7 @@ test.describe('internal-test booking occupancy overlay', () => {
     await page.locator('#patient-name').fill('合成初診乙');
     await page.locator('#confirm-patient-booking').click();
     await expect(page.locator('#booking-result')).toContainText(
-      'appointment_synthetic_001'
+      /\d{4}年\d{1,2}月\d{1,2}日/
     );
     expect(posted.body).toMatchObject({
       bookingKind: 'initial',

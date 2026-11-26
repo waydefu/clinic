@@ -77,7 +77,11 @@ export async function createBooking(
   await page.locator('#booking-items [data-booking-item]').first().check();
   await page.locator('#slots [data-select-slot]').first().click();
   await page.locator('#booking-form button[type="submit"]').click();
-  await expect(page.locator('#status')).toContainText('預約已建立');
+  await expect(page.locator('#status')).toContainText(`預約已建立：${name}`);
+  // 畫面不能出現亂碼編號（預約 id、hash）。
+  await expect(page.locator('#status')).not.toHaveText(
+    /[0-9a-f]{32}|appointment_/
+  );
 }
 
 /** 合成狀態在瀏覽器裡的鍵。改版時 state-schema.js 與這裡要一起改。 */
