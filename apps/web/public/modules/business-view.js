@@ -300,11 +300,14 @@ function input(type, name, options = {}) {
   node.type = type;
   node.name = name;
   node.required = options.required ?? true;
-  if (options.min) node.min = options.min;
-  if (options.max) node.max = options.max;
   if (options.value) node.value = options.value;
-  if (options.inputMode) node.inputMode = options.inputMode;
   if (options.autocomplete) node.autocomplete = options.autocomplete;
+  if (name === 'evidenceRef')
+    Object.assign(node, {
+      placeholder: 'C1-2026-11-26-launch',
+      pattern: '([0-9A-Za-z_]|-)+',
+      title: '只限英數字、- 與 _'
+    });
   return node;
 }
 
@@ -782,7 +785,6 @@ export function initializeBusinessView({
         form.className = 'filter-bar';
         const launchDate = input('date', 'launchDate');
         const evidenceRef = input('text', 'evidenceRef', {
-          inputMode: 'text',
           autocomplete: 'off'
         });
         const submit = button(
@@ -819,7 +821,6 @@ export function initializeBusinessView({
         const form = document.createElement('form');
         form.className = 'filter-bar';
         const evidenceRef = input('text', 'evidenceRef', {
-          inputMode: 'text',
           autocomplete: 'off'
         });
         const submit = button(

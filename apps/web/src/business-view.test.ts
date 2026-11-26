@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   createBusinessViewAccessInvalidationCleanup,
+  createBusinessWriteRunner,
   clearBusinessWriteIdempotencyKey,
   clearBusinessWriteIdempotencyKeys,
   getBusinessWriteIdempotencyKey,
@@ -402,5 +403,28 @@ describe('requestPendingDeletionPage', () => {
     const { api, urls } = readerFor([{ patients: [] }]);
     await requestPendingDeletionPage(api, 'a b/c');
     expect(urls).toEqual([`${PATH}?cursor=a%20b%2Fc`]);
+  });
+});
+
+describe('createBusinessWriteRunner conflict feedback', () => {
+  it('shows the server reason after the 409 prefix and re-enables the control', async () => {
+    const message = '這位患者還有未來的預約，請先取消或完成預約再封存。';
+    const setStatus = vi.fn();
+    const run = createBusinessWriteRunner({
+      writeLock: { controller: undefined },
+      isViewActive: () => true,
+      nextKey: () => 'key_1',
+      clearKey: vi.fn(),
+      setStatus,
+      api: vi
+        .fn()
+        .mockRejectedValue(Object.assign(new Error(message), { status: 409 })),
+      target: {} as never,
+      loadPendingDeletion: vi.fn()
+    });
+    const control = { disabled: false };
+    await run(control, 'archive', '/x', { patientId: 'patient_wang_1' });
+    expect(setStatus).toHaveBeenLastCalledWith(`409：${message}`, 'error');
+    expect(control.disabled).toBe(false);
   });
 });

@@ -2662,3 +2662,11 @@ details[open] > summary .workflow-summary-chevron {
   font-weight: var(--weight-bold);
   margin: var(--space-2xs) 0 0;
 }
+/* 商務區很長（操作按鈕離頂端數千像素）：區內回饋釘在全域橫條下方，操作後不必捲回頂端才看得到。 */
+#business-content > .form-status {
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--line);
+  position: sticky;
+  top: 8rem;
+  z-index: 6;
+}
