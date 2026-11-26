@@ -700,7 +700,12 @@ export function createInternalTestBookingTransport({
         url: '/v1/schedule',
         method: 'GET'
       });
-      const listed = await listBookingPages(v1);
+      // 公開預約頁且沒有回診 session：匿名病患本來就不能列預約（API 回 401），不呼叫。
+      // 員工頁與已回診查詢的公開頁維持原樣，失敗照常往上拋。
+      const listed =
+        publicBookingLocation() && storedReturnSession() === undefined
+          ? { appointments: [], truncated: false }
+          : await listBookingPages(v1);
       const withSchedule =
         published === undefined
           ? next
