@@ -301,6 +301,17 @@ export class FirestoreBusinessExportRepository {
     });
   }
 
+  public async list(now: string, limit: number): Promise<BusinessExportJob[]> {
+    const snapshot = await this.db
+      .collection(EXPORT_COLLECTIONS.jobs)
+      .orderBy('createdAt', 'desc')
+      .limit(limit)
+      .get();
+    return snapshot.docs.map((document) =>
+      view(versionOneJob(document.data()), now)
+    );
+  }
+
   public async get(
     exportId: string,
     now: string

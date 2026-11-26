@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 import {
   ACTIVE_BOOKING_LIMIT,
@@ -18,6 +18,8 @@ import type {
   PatientArchivedResponse,
   PatientIdentityCandidatesResponse,
   PatientIdentityConfirmedResponse,
+  PatientIdentityReviewsResponse,
+  PatientSearchResponse,
   PatientLegalHoldResponse,
   PatientPermanentlyDeletedResponse,
   PatientRestoredResponse,
@@ -53,6 +55,25 @@ export interface PendingDeletionPosition {
 export interface PendingDeletionPage extends PendingPatientDeletionResponse {
   /** Present only when more records follow this page. */
   readonly next?: PendingDeletionPosition;
+}
+
+/** Most rows one patient search returns. */
+export const MAX_PATIENT_SEARCH = 20;
+
+/** Display-only fields so a manager can tell patients apart without an ID. */
+function patientLabel(data: Record<string, unknown> | undefined): {
+  name?: string;
+  phoneLast3?: string;
+  birthMonthDay?: string;
+} {
+  const name = stringField(data, 'name');
+  const phone = stringField(data, 'phoneDigits');
+  const birth = stringField(data, 'birthMonthDay');
+  return {
+    ...(name === undefined ? {} : { name }),
+    ...(phone === undefined ? {} : { phoneLast3: phone.slice(-3) }),
+    ...(birth === undefined ? {} : { birthMonthDay: birth })
+  };
 }
 
 export const RETENTION_COLLECTIONS = {
@@ -608,11 +629,102 @@ export class FirestoreBusinessRetentionRepository {
           {
             patientId: snapshot.id,
             archivedAt,
-            legalHold: candidate?.['legalHold'] === true
+            legalHold: candidate?.['legalHold'] === true,
+            ...patientLabel(candidate)
           }
         ];
       })
     };
+  }
+
+  /**
+   * Manager-only finder for the retention forms. A phone-like query matches
+   * the stored phone digits by prefix; anything else matches the name by
+   * prefix. At most MAX_PATIENT_SEARCH rows. Every call writes one log entry
+   * holding only a hash and the length of the query, never the text.
+   */
+  public async searchPatients(input: {
+    readonly query: string;
+    readonly actorRef: string;
+    readonly now: string;
+  }): Promise<PatientSearchResponse> {
+    const patients = this.db.collection(PATIENT_COLLECTIONS.patients);
+    const digits = input.query.replace(/\D/g, '');
+    const phoneLike = /^[0-9+\-() ]+$/.test(input.query) && digits.length >= 3;
+    const field = phoneLike ? 'phoneDigits' : 'name';
+    const term = phoneLike ? digits : input.query;
+    const found = await patients
+      .where(field, '>=', term)
+      .where(field, '<=', `${term}`)
+      .orderBy(field)
+      .limit(MAX_PATIENT_SEARCH)
+      .get();
+    const rows = await Promise.all(
+      found.docs.map(async (document) => {
+        const data = document.data();
+        const appointments = await this.db
+          .collection(COLLECTIONS.appointments)
+          .where('patientId', '==', document.id)
+          .get();
+        let latest: { startsAt: string; status: string } | undefined;
+        for (const appointment of appointments.docs) {
+          const startsAt = stringField(appointment.data(), 'startsAt');
+          const status = stringField(appointment.data(), 'status');
+          if (
+            startsAt !== undefined &&
+            status !== undefined &&
+            (latest === undefined || startsAt > latest.startsAt)
+          )
+            latest = { startsAt, status };
+        }
+        return {
+          patientId: document.id,
+          name: stringField(data, 'name') ?? '',
+          phoneLast3: (stringField(data, 'phoneDigits') ?? '').slice(-3),
+          birthMonthDay: stringField(data, 'birthMonthDay') ?? '',
+          archived: hasArchivedAt(data),
+          ...(latest === undefined ? {} : { lastAppointment: latest })
+        };
+      })
+    );
+    await this.db
+      .collection(RETENTION_COLLECTIONS.log)
+      .doc(`patient_search_${randomUUID()}`)
+      .create({
+        schemaVersion: 1,
+        action: 'patient_search',
+        patientId: '',
+        actorRef: input.actorRef,
+        at: input.now,
+        requestHash: sha256(input.query),
+        queryLength: input.query.length,
+        result: { count: rows.length }
+      });
+    return { patients: rows };
+  }
+
+  /** New records flagged for identity review (待櫃台確認), newest first. */
+  public async identityReviews(): Promise<PatientIdentityReviewsResponse> {
+    const found = await this.db
+      .collection(PATIENT_COLLECTIONS.patients)
+      .where('identityReviewRequired', '==', true)
+      .limit(MAX_PATIENT_SEARCH * 5)
+      .get();
+    const rows = found.docs.flatMap((document) => {
+      const data = document.data();
+      if (hasArchivedAt(data)) return [];
+      return [
+        {
+          patientId: document.id,
+          name: stringField(data, 'name') ?? '',
+          phoneLast3: (stringField(data, 'phoneDigits') ?? '').slice(-3),
+          birthMonthDay: stringField(data, 'birthMonthDay') ?? '',
+          createdAt: stringField(data, 'createdAt') ?? ''
+        }
+      ];
+    });
+    rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return { patients: rows.slice(0, MAX_PATIENT_SEARCH) };
   }
 
   /**

@@ -400,11 +400,61 @@ export const PatientIdentityCandidatesResponseSchema = z
         .object({
           patientId: OpaqueIdentifierSchema,
           archivedAt: z.string(),
-          legalHold: z.boolean()
+          legalHold: z.boolean(),
+          /** Manager-only display aids so the candidate can be told apart. */
+          name: z.string().optional(),
+          phoneLast3: z.string().optional(),
+          birthMonthDay: z.string().optional()
         })
         .strict()
     )
   })
+  .strict();
+
+/** Manager-only patient finder for the retention forms; 1 to 30 characters. */
+export const PatientSearchQuerySchema = z
+  .object({ q: z.string().trim().min(1).max(30) })
+  .strict();
+
+export const PatientSearchResultSchema = z
+  .object({
+    patientId: OpaqueIdentifierSchema,
+    name: z.string(),
+    phoneLast3: z.string(),
+    birthMonthDay: z.string(),
+    archived: z.boolean(),
+    lastAppointment: z
+      .object({ startsAt: z.string(), status: z.string() })
+      .strict()
+      .optional()
+  })
+  .strict();
+
+export const PatientSearchResponseSchema = z
+  .object({ patients: z.array(PatientSearchResultSchema).max(20) })
+  .strict();
+
+/** New records flagged "待櫃台確認"; the manager picks one to find candidates. */
+export const PatientIdentityReviewsResponseSchema = z
+  .object({
+    patients: z
+      .array(
+        z
+          .object({
+            patientId: OpaqueIdentifierSchema,
+            name: z.string(),
+            phoneLast3: z.string(),
+            birthMonthDay: z.string(),
+            createdAt: z.string()
+          })
+          .strict()
+      )
+      .max(20)
+  })
+  .strict();
+
+export const BusinessExportListResponseSchema = z
+  .object({ exports: z.array(BusinessExportJobSchema).max(20) })
   .strict();
 
 export const PatientArchivedResponseSchema = z
@@ -495,6 +545,13 @@ export type PatientIdentityConfirmedResponse = z.infer<
 >;
 export type PatientIdentityCandidatesResponse = z.infer<
   typeof PatientIdentityCandidatesResponseSchema
+>;
+export type PatientSearchResponse = z.infer<typeof PatientSearchResponseSchema>;
+export type PatientIdentityReviewsResponse = z.infer<
+  typeof PatientIdentityReviewsResponseSchema
+>;
+export type BusinessExportListResponse = z.infer<
+  typeof BusinessExportListResponseSchema
 >;
 export type PatientArchivedResponse = z.infer<
   typeof PatientArchivedResponseSchema

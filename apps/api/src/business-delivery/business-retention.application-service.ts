@@ -2,11 +2,14 @@ import { NotFoundException } from '@nestjs/common';
 import {
   ConfirmArchivedIdentityRequestSchema,
   OpaqueIdentifierSchema,
+  PatientSearchQuerySchema,
   PendingPatientDeletionQuerySchema,
   PermanentDeletePatientRequestSchema,
   RetentionPatientRequestSchema,
   SetPatientLegalHoldRequestSchema,
   type PatientArchivedResponse,
+  type PatientIdentityReviewsResponse,
+  type PatientSearchResponse,
   type PatientIdentityCandidatesResponse,
   type PatientIdentityConfirmedResponse,
   type PatientLegalHoldResponse,
@@ -37,6 +40,8 @@ export type BusinessRetentionRepositoryPort = Pick<
   | 'permanentlyDelete'
   | 'setLegalHold'
   | 'pendingDeletion'
+  | 'searchPatients'
+  | 'identityReviews'
 >;
 
 function authorizeRetention(authentication: AuthenticationContext): void {
@@ -117,6 +122,33 @@ export class BusinessRetentionApplicationService {
     return this.repository.identityCandidates(
       OpaqueIdentifierSchema.parse(patientId)
     );
+  }
+
+  /**
+   * Manager-only finder so forms need no hand-typed ID. At most 20 rows; an
+   * empty or over-long query is refused before anything is read.
+   */
+  public async searchPatients(
+    query: unknown,
+    authentication: AuthenticationContext
+  ): Promise<PatientSearchResponse> {
+    this.enabledConfig();
+    authorizeRetention(authentication);
+    const parsed = PatientSearchQuerySchema.parse({ q: query });
+    return this.repository.searchPatients({
+      query: parsed.q,
+      actorRef: actorRefForUid(authentication.actorId),
+      now: this.nowUtc()
+    });
+  }
+
+  /** Manager-only list of new records waiting for identity confirmation. */
+  public async identityReviews(
+    authentication: AuthenticationContext
+  ): Promise<PatientIdentityReviewsResponse> {
+    this.enabledConfig();
+    authorizeRetention(authentication);
+    return this.repository.identityReviews();
   }
 
   /**

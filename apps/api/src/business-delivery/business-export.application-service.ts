@@ -19,7 +19,7 @@ import { actorRefForUid } from './usage-events.js';
 
 export type BusinessExportRepositoryPort = Pick<
   FirestoreBusinessExportRepository,
-  'create' | 'get' | 'download' | 'revoke'
+  'create' | 'get' | 'list' | 'download' | 'revoke'
 >;
 
 const EXPORT_ID = /^exp_[a-f0-9]{40}$/;
@@ -89,6 +89,15 @@ export class BusinessExportApplicationService {
       now,
       policy: config.policy
     });
+  }
+
+  /** Recent exports (newest first) so a manager picks one instead of typing an ID. */
+  public async list(
+    authentication: AuthenticationContext
+  ): Promise<{ readonly exports: readonly BusinessExportJob[] }> {
+    this.enabledConfig();
+    authorizeExport(authentication);
+    return { exports: await this.repository.list(this.nowUtc(), 10) };
   }
 
   public async get(

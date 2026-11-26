@@ -47,6 +47,11 @@ export class BusinessExportController {
     );
   }
 
+  @Get()
+  public list(@Req() request: CalendarPilotAuthenticatedRequest) {
+    return this.application.list(request.calendarPilotAuthentication);
+  }
+
   @Get(':exportId')
   public get(
     @Param('exportId') exportId: string,
