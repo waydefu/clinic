@@ -415,14 +415,10 @@ export const PatientSearchQuerySchema = z
 export const PatientSearchResultSchema = z
   .object({
     patientId: OpaqueIdentifierSchema,
-    name: z.string(),
-    phoneLast3: z.string(),
-    birthMonthDay: z.string(),
-    archived: z.boolean(),
-    lastAppointment: z
-      .object({ startsAt: z.string(), status: z.string() })
-      .strict()
-      .optional()
+    /** Ready-to-show text: name, phone last 3 digits, birth month and day. */
+    label: z.string(),
+    /** Ready-to-show text: latest appointment (Taipei time) and its status. */
+    detail: z.string()
   })
   .strict();
 
@@ -438,10 +434,8 @@ export const PatientIdentityReviewsResponseSchema = z
         z
           .object({
             patientId: OpaqueIdentifierSchema,
-            name: z.string(),
-            phoneLast3: z.string(),
-            birthMonthDay: z.string(),
-            createdAt: z.string()
+            label: z.string(),
+            detail: z.string()
           })
           .strict()
       )
@@ -449,8 +443,17 @@ export const PatientIdentityReviewsResponseSchema = z
   })
   .strict();
 
+/** Recent exports as ready-to-show choices: date range, created time, status. */
 export const BusinessExportListResponseSchema = z
-  .object({ exports: z.array(BusinessExportJobSchema).max(20) })
+  .object({
+    exports: z
+      .array(
+        z
+          .object({ exportId: OpaqueIdentifierSchema, label: z.string() })
+          .strict()
+      )
+      .max(20)
+  })
   .strict();
 
 export const PatientArchivedResponseSchema = z

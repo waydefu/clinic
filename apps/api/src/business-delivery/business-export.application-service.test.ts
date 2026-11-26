@@ -309,7 +309,12 @@ describe('get, download and revoke', () => {
 
   it('lists recent exports for the owner role only', async () => {
     await expect(service().list(staff(OWNER_ROLE))).resolves.toEqual({
-      exports: [JOB]
+      exports: [
+        {
+          exportId: EXPORT_ID,
+          label: '2030-10-01 至 2030-10-31｜建立 2030-10-20 08:00｜可下載'
+        }
+      ]
     });
   });
 

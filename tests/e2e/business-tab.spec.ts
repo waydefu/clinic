@@ -198,6 +198,10 @@ async function openBusinessViewWithListenerBaseline(page) {
 async function openManualIdFields(page: Page) {
   await page
     .locator('details.manual-id')
+    .first()
+    .waitFor({ state: 'attached' });
+  await page
+    .locator('details.manual-id')
     .evaluateAll((nodes) =>
       nodes.forEach((node) => ((node as HTMLDetailsElement).open = true))
     );

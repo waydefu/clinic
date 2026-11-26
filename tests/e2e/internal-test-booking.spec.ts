@@ -985,7 +985,7 @@ test.describe('internal-test booking occupancy overlay', () => {
     );
   });
 
-  test('opt-in staff create posts onBehalfPatientId then complete hits /v1', async ({
+  test('opt-in staff create posts intake (not a local patient id) then complete hits /v1', async ({
     page
   }) => {
     const startsAt = upcomingIso(48);
@@ -1033,8 +1033,16 @@ test.describe('internal-test booking occupancy overlay', () => {
       slotId: 'slot_overlay_open',
       serviceId: expect.any(String),
       bookingKind: 'initial',
-      onBehalfPatientId: expect.stringMatching(/^patient_\d{3}$/)
+      intake: {
+        name: '測試患者甲',
+        phone: '0912345678',
+        birthDate: '--05-20',
+        nationality: 'domestic',
+        privacyConsent: true
+      }
     });
+    // F-1126-02: a browser-generated patient_001 must never leave the browser.
+    expect(posted.body).not.toHaveProperty('onBehalfPatientId');
     expect(posted.body).not.toHaveProperty('patient');
     expect(posted.body?.idempotencyKey).toEqual(
       expect.stringMatching(/^.{16,}$/)

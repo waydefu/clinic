@@ -60,6 +60,36 @@ export interface PendingDeletionPage extends PendingPatientDeletionResponse {
 /** Most rows one patient search returns. */
 export const MAX_PATIENT_SEARCH = 20;
 
+const APPOINTMENT_STATUS_TEXT: Record<string, string> = {
+  confirmed: '已確認',
+  arrived: '已報到',
+  cancellation_requested: '取消申請中',
+  cancelled: '已取消',
+  completed: '已完成',
+  no_show: '未到'
+};
+
+/** Name, last 3 phone digits and birth month-day, for a manager to tell people apart. */
+function displayLabel(data: Record<string, unknown> | undefined): string {
+  const phone = stringField(data, 'phoneDigits') ?? '';
+  const birth = stringField(data, 'birthMonthDay') ?? '';
+  return [
+    stringField(data, 'name') ?? '',
+    phone === '' ? '' : `電話末 3 碼 ${phone.slice(-3)}`,
+    birth === '' ? '' : `生日 ${birth.slice(2)}`
+  ]
+    .filter((part) => part !== '')
+    .join('　');
+}
+
+/** UTC timestamp to Taipei `YYYY-MM-DD HH:mm`. */
+function taipeiMinute(utc: string): string {
+  const at = Date.parse(utc);
+  return Number.isNaN(at)
+    ? ''
+    : new Date(at + 8 * 3_600_000).toISOString().slice(0, 16).replace('T', ' ');
+}
+
 export const RETENTION_COLLECTIONS = {
   log: 'bd_retention_log'
 } as const;
@@ -638,7 +668,7 @@ export class FirestoreBusinessRetentionRepository {
     const term = phoneLike ? digits : input.query;
     const found = await patients
       .where(field, '>=', term)
-      .where(field, '<=', `${term}`)
+      .where(field, '<=', `${term}\uf8ff`)
       .orderBy(field)
       .limit(MAX_PATIENT_SEARCH)
       .get();
@@ -662,11 +692,12 @@ export class FirestoreBusinessRetentionRepository {
         }
         return {
           patientId: document.id,
-          name: stringField(data, 'name') ?? '',
-          phoneLast3: (stringField(data, 'phoneDigits') ?? '').slice(-3),
-          birthMonthDay: stringField(data, 'birthMonthDay') ?? '',
-          archived: hasArchivedAt(data),
-          ...(latest === undefined ? {} : { lastAppointment: latest })
+          label: displayLabel(data),
+          detail: `最近預約：${
+            latest === undefined
+              ? '無'
+              : `${taipeiMinute(latest.startsAt)} ${APPOINTMENT_STATUS_TEXT[latest.status] ?? latest.status}`
+          }${hasArchivedAt(data) ? '（已封存）' : ''}`
         };
       })
     );
@@ -699,15 +730,19 @@ export class FirestoreBusinessRetentionRepository {
       return [
         {
           patientId: document.id,
-          name: stringField(data, 'name') ?? '',
-          phoneLast3: (stringField(data, 'phoneDigits') ?? '').slice(-3),
-          birthMonthDay: stringField(data, 'birthMonthDay') ?? '',
-          createdAt: stringField(data, 'createdAt') ?? ''
+          createdAt: stringField(data, 'createdAt') ?? '',
+          label: displayLabel(data)
         }
       ];
     });
     rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    return { patients: rows.slice(0, MAX_PATIENT_SEARCH) };
+    return {
+      patients: rows.slice(0, MAX_PATIENT_SEARCH).map((row) => ({
+        patientId: row.patientId,
+        label: row.label,
+        detail: `建立時間：${taipeiMinute(row.createdAt)}`
+      }))
+    };
   }
 
   /**

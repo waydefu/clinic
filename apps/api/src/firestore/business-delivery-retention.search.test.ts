@@ -114,19 +114,16 @@ describe('FirestoreBusinessRetentionRepository.searchPatients', () => {
       actorRef: 'actor_ref',
       now: NOW
     });
-    expect(result.patients.map((p) => p.name)).toEqual(['王小明', '王美玲']);
+    expect(result.patients.map((p) => p.label.split('　')[0])).toEqual([
+      '王小明',
+      '王美玲'
+    ]);
     expect(result.patients[0]).toEqual({
       patientId: 'a8d64d067543ebf6251617049065c51d',
-      name: '王小明',
-      phoneLast3: '678',
-      birthMonthDay: '--03-08',
-      archived: false,
-      lastAppointment: {
-        startsAt: '2030-10-25T01:00:00.000Z',
-        status: 'confirmed'
-      }
+      label: '王小明　電話末 3 碼 678　生日 03-08',
+      detail: '最近預約：2030-10-25 09:00 已確認'
     });
-    expect(result.patients[1]?.archived).toBe(true);
+    expect(result.patients[1]?.detail).toBe('最近預約：無（已封存）');
   });
 
   it('treats digits as a phone prefix', async () => {
@@ -137,7 +134,9 @@ describe('FirestoreBusinessRetentionRepository.searchPatients', () => {
       now: NOW
     });
     expect(filters[0]?.[0]).toBe('phoneDigits');
-    expect(result.patients.map((p) => p.name)).toEqual(['陳美玲']);
+    expect(result.patients.map((p) => p.label.split('　')[0])).toEqual([
+      '陳美玲'
+    ]);
   });
 
   it('writes an audit record without the query text', async () => {
