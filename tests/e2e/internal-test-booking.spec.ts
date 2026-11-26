@@ -299,7 +299,7 @@ async function createOptInBooking(page: Page, slotId: string): Promise<void> {
   await fillPatientCreateForm(page);
   await page.locator('#confirm-patient-booking').click();
   await expect(page.locator('#booking-result')).toContainText(
-    /d{4}年d{1,2}月d{1,2}日/
+    /\d{4}年\d{1,2}月\d{1,2}日/
   );
 }
 
@@ -734,7 +734,7 @@ test.describe('internal-test booking occupancy overlay', () => {
     await page.locator('#confirm-patient-booking').click();
 
     await expect(page.locator('#booking-result')).toContainText(
-      /d{4}年d{1,2}月d{1,2}日/
+      /\d{4}年\d{1,2}月\d{1,2}日/
     );
     expect(posted.body).toMatchObject({
       slotId: 'slot_overlay_open',
@@ -1629,7 +1629,7 @@ test.describe('internal-test booking occupancy overlay', () => {
     await page.locator('#patient-note').fill(note);
     await page.locator('#confirm-patient-booking').click();
     await expect(page.locator('#booking-result')).toContainText(
-      /d{4}年d{1,2}月d{1,2}日/
+      /\d{4}年\d{1,2}月\d{1,2}日/
     );
     expect(posted.body).toMatchObject({ patientNote: note });
     server.storedNote = posted.body?.patientNote as string;
@@ -1852,7 +1852,7 @@ test.describe('internal-test booking occupancy overlay', () => {
     await page.locator('#confirm-patient-booking').click();
 
     await expect(page.locator('#booking-result')).toContainText(
-      /d{4}年d{1,2}月d{1,2}日/
+      /\d{4}年\d{1,2}月\d{1,2}日/
     );
     expect(posted.body).toMatchObject({
       slotId: 'slot_follow_up_open',
@@ -1910,7 +1910,7 @@ test.describe('internal-test booking occupancy overlay', () => {
     await page.locator('[data-patient-slot="slot_return_001"]').click();
     await page.locator('#confirm-patient-booking').click();
     await expect(page.locator('#booking-result')).toContainText(
-      /d{4}年d{1,2}月d{1,2}日/
+      /\d{4}年\d{1,2}月\d{1,2}日/
     );
     expect(posted.createHeaders?.['x-return-session']).toBe(
       'synthetic_return_001'
@@ -1927,7 +1927,7 @@ test.describe('internal-test booking occupancy overlay', () => {
     await page.locator('#patient-name').fill('合成初診乙');
     await page.locator('#confirm-patient-booking').click();
     await expect(page.locator('#booking-result')).toContainText(
-      /d{4}年d{1,2}月d{1,2}日/
+      /\d{4}年\d{1,2}月\d{1,2}日/
     );
     expect(posted.body).toMatchObject({
       bookingKind: 'initial',

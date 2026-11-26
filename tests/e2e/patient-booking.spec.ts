@@ -230,7 +230,7 @@ test.describe('患者線上預約', () => {
     );
     // 員工與患者畫面不顯示亂碼編號：成功區塊與訊息只有日期時間與療程。
     await expect(page.locator('#booking-result')).toContainText(
-      /d{4}年d{1,2}月d{1,2}日/
+      /\d{4}年\d{1,2}月\d{1,2}日/
     );
     await expect(page.locator('#booking-result')).not.toContainText(
       'appointment_'

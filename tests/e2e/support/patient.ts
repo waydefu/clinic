@@ -36,7 +36,7 @@ export async function chooseNationality(
 export async function submitBooking(page: Page): Promise<void> {
   await page.locator('#confirm-patient-booking').click();
   await expect(page.locator('#booking-result')).toContainText(
-    /d{4}年d{1,2}月d{1,2}日/
+    /\d{4}年\d{1,2}月\d{1,2}日/
   );
 }
 
