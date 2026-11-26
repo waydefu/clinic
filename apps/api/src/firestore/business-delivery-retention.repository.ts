@@ -60,22 +60,6 @@ export interface PendingDeletionPage extends PendingPatientDeletionResponse {
 /** Most rows one patient search returns. */
 export const MAX_PATIENT_SEARCH = 20;
 
-/** Display-only fields so a manager can tell patients apart without an ID. */
-function patientLabel(data: Record<string, unknown> | undefined): {
-  name?: string;
-  phoneLast3?: string;
-  birthMonthDay?: string;
-} {
-  const name = stringField(data, 'name');
-  const phone = stringField(data, 'phoneDigits');
-  const birth = stringField(data, 'birthMonthDay');
-  return {
-    ...(name === undefined ? {} : { name }),
-    ...(phone === undefined ? {} : { phoneLast3: phone.slice(-3) }),
-    ...(birth === undefined ? {} : { birthMonthDay: birth })
-  };
-}
-
 export const RETENTION_COLLECTIONS = {
   log: 'bd_retention_log'
 } as const;
@@ -629,8 +613,7 @@ export class FirestoreBusinessRetentionRepository {
           {
             patientId: snapshot.id,
             archivedAt,
-            legalHold: candidate?.['legalHold'] === true,
-            ...patientLabel(candidate)
+            legalHold: candidate?.['legalHold'] === true
           }
         ];
       })

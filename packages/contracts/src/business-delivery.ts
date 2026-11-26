@@ -400,11 +400,7 @@ export const PatientIdentityCandidatesResponseSchema = z
         .object({
           patientId: OpaqueIdentifierSchema,
           archivedAt: z.string(),
-          legalHold: z.boolean(),
-          /** Manager-only display aids so the candidate can be told apart. */
-          name: z.string().optional(),
-          phoneLast3: z.string().optional(),
-          birthMonthDay: z.string().optional()
+          legalHold: z.boolean()
         })
         .strict()
     )

@@ -37,18 +37,17 @@ const MILESTONE_STATUS_LABELS = Object.freeze({
   active: '進行中',
   reached: '已達成'
 });
-const APPOINTMENT_STATUS_LABELS = Object.freeze({
-  confirmed: '已確認',
+const APPOINTMENT_STATUS_LABELS = {
   arrived: '已報到',
   cancellation_requested: '取消申請中',
+  confirmed: '已確認',
   cancelled: '已取消',
   completed: '已完成',
   no_show: '未到'
-});
+};
 const ID_EXAMPLE = '例：a8d64d067543ebf6251617049065c51d';
-const ID_HINT = '32 碼英數；可用上方「找患者」自動帶入';
-const EXPORT_ID_EXAMPLE =
-  '例：exp_' + 'a8d64d067543ebf6251617049065c51d12345678';
+const ID_HINT = '32 碼英數；用「找患者」可自動帶入';
+const EXPORT_ID_EXAMPLE = '例：exp_a8d64d067543ebf6251617049065c51d12345678';
 const TERMINATION_STATE_LABELS = Object.freeze({
   termination_pending: '合作終止通知進行中',
   controlled_retention: '受控保留期',
@@ -317,42 +316,42 @@ function input(type, name, options = {}) {
   return node;
 }
 
-/**
- * 手動輸入代碼的欄位收在預設收合的區塊裡：主要操作是「先找患者再選」，
- * 欄位仍可用，並附範例與說明。欄位不設 required（收合時瀏覽器無法提示），
- * 由送出時檢查。
- */
-function manualIdField(
-  labelText,
-  control,
-  example = ID_EXAMPLE,
-  hint = ID_HINT
-) {
+function manualIdField(label, control, example = ID_EXAMPLE, hint = ID_HINT) {
   control.placeholder = example;
   control.required = false;
   const details = element('details', 'manual-id');
   details.append(
     element('summary', '', '進階：手動輸入代碼'),
-    makeField(labelText, control, hint)
+    makeField(label, control, hint)
   );
   return details;
 }
 
-function monthDayLabel(value) {
-  const match = /^--(\d{2})-(\d{2})$/.exec(String(value ?? ''));
-  return match === null
-    ? '未提供'
-    : `${Number(match[1])} 月 ${Number(match[2])} 日`;
+function patientSummary(p) {
+  return (
+    [
+      p.name,
+      p.phoneLast3 && `電話末 3 碼 ${p.phoneLast3}`,
+      p.birthMonthDay && `生日 ${p.birthMonthDay.slice(2)}`
+    ]
+      .filter(Boolean)
+      .join('　') || p.patientId
+  );
 }
 
-/** 姓名、電話末 3 碼、生日月日；舊資料缺欄位時略過，不顯示 undefined。 */
-function patientSummary(patient) {
-  const parts = [];
-  if (patient.name) parts.push(patient.name);
-  if (patient.phoneLast3) parts.push(`電話末 3 碼 ${patient.phoneLast3}`);
-  if (patient.birthMonthDay)
-    parts.push(`生日 ${monthDayLabel(patient.birthMonthDay)}`);
-  return parts.length === 0 ? patient.patientId : parts.join('　');
+const holdLabel = (p) =>
+  p.legalHold ? 'legal hold：已設定' : 'legal hold：未設定';
+
+function patientCard(patient, lines, label, onPick) {
+  const item = element('article', 'event-panel');
+  item.append(
+    element('strong', '', patientSummary(patient)),
+    ...lines.map((line) => element('p', '', line))
+  );
+  const pick = button(label);
+  pick.addEventListener('click', onPick);
+  item.append(pick);
+  return item;
 }
 
 function reasonSelect(name, omit = []) {
@@ -644,7 +643,7 @@ export function initializeBusinessView({
     element(
       'p',
       'section-description',
-      '待永久刪除清單不含姓名；請用下方「找患者」選人。未永久刪除的封存資料，管理者皆可復原，不限 30 天；系統不會自動永久刪除。手動封存與永久刪除須重新登入，有 legal hold 時不能永久刪除。'
+      '清單不含姓名。未永久刪除的封存資料，管理者皆可復原，不限 30 天；系統不會自動永久刪除。手動封存與永久刪除須重新登入，有 legal hold 時不能永久刪除。'
     )
   );
   const retentionForms = element('div', 'card-list');
@@ -717,12 +716,12 @@ export function initializeBusinessView({
   recentExports.name = 'recentExport';
   const exportField = element('div', 'field-group');
   exportField.append(
-    makeField('已簽收匯出（從最近的匯出選）', recentExports),
+    makeField('最近的匯出', recentExports),
     manualIdField(
       '已簽收匯出識別碼',
       exportId,
       EXPORT_ID_EXAMPLE,
-      '「exp_」開頭加 40 碼英數；可從上方清單選取自動帶入'
+      'exp_ 開頭加 40 碼英數；從清單選可自動帶入'
     )
   );
   const evidenceField = makeField('人工核對證據編號', evidenceRef);
@@ -1029,48 +1028,33 @@ export function initializeBusinessView({
   });
 
   const patientField = (name) => input('text', name, { autocomplete: 'off' });
-  const requireId = (field, what = '患者') => {
+  const requireId = (field) => {
     if (field.value.trim() !== '') return true;
-    setStatus(
-      `請先用上方「找${what}」選一位，或展開「進階」手動輸入代碼。`,
-      'error'
-    );
+    setStatus('請先用「找患者」選一位。', 'error');
     return false;
   };
 
-  // 找患者：主管輸入姓名或電話，選一位後把代碼帶入下方各表單。
-  const selectedLine = element('p', 'result-summary', '尚未選患者。');
+  const selectedLine = element('p', 'result-summary');
   const searchForm = document.createElement('form');
   searchForm.className = 'filter-bar';
   const searchQuery = input('search', 'patientSearch', {
     autocomplete: 'off'
   });
-  searchQuery.placeholder = '例：王小明　或　0912345678';
+  searchQuery.placeholder = '例：王小明 或 0912345678';
   searchQuery.maxLength = 30;
   const searchSubmit = button('找患者', 'button button-primary', 'submit');
-  searchForm.append(
-    makeField(
-      '姓名或電話',
-      searchQuery,
-      '姓名從第一個字開始比對；電話輸入前幾碼即可。'
-    ),
-    searchSubmit
-  );
+  searchForm.append(makeField('姓名或電話', searchQuery), searchSubmit);
   const searchOutput = element('div', 'card-list');
-  const patientIdFields = [];
   const selectPatient = (patient) => {
-    for (const field of patientIdFields) field.value = patient.patientId;
+    for (const field of [archiveId, restoreId, holdId, deleteId])
+      field.value = patient.patientId;
     selectedLine.textContent = `已選：${patientSummary(patient)}`;
-    selectedLine.dataset.patientId = patient.patientId;
   };
   searchForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const q = searchQuery.value.trim();
     searchOutput.replaceChildren();
-    if (q === '') {
-      setStatus('請輸入姓名或電話。', 'error');
-      return;
-    }
+    if (q === '') return setStatus('請輸入姓名或電話。', 'error');
     searchSubmit.disabled = true;
     try {
       const data = await api(
@@ -1081,31 +1065,21 @@ export function initializeBusinessView({
         element(
           'p',
           'result-summary',
-          data.patients.length === 0
-            ? '找不到符合的患者。'
-            : `找到 ${data.patients.length} 位（最多顯示 20 位）。`
+          data.patients.length === 0 ? '找不到符合的患者。' : ''
         )
       );
-      for (const patient of data.patients) {
-        const item = element('article', 'event-panel');
-        item.append(
-          element('strong', '', patientSummary(patient)),
-          element(
-            'p',
-            '',
-            patient.lastAppointment
-              ? `最近預約：${dateLabel(patient.lastAppointment.startsAt)}（${APPOINTMENT_STATUS_LABELS[patient.lastAppointment.status] ?? patient.lastAppointment.status}）`
-              : '最近預約：無'
-          ),
-          element('p', '', patient.archived ? '狀態：已封存' : '狀態：使用中')
+      for (const p of data.patients) {
+        const last = p.lastAppointment;
+        searchOutput.append(
+          patientCard(
+            p,
+            [
+              `最近預約：${last ? `${dateLabel(last.startsAt)} ${APPOINTMENT_STATUS_LABELS[last.status] ?? ''}` : '無'}${p.archived ? '（已封存）' : ''}`
+            ],
+            '選這位',
+            () => selectPatient(p)
+          )
         );
-        const choose = button('選這位');
-        choose.addEventListener('click', () => {
-          selectPatient(patient);
-          setStatus(`已選：${patientSummary(patient)}`, 'success');
-        });
-        item.append(choose);
-        searchOutput.append(item);
       }
     } catch (error) {
       if (!disposed) setStatus(reportError(error), 'error');
@@ -1117,7 +1091,6 @@ export function initializeBusinessView({
   const archiveForm = document.createElement('form');
   archiveForm.className = 'filter-bar';
   const archiveId = patientField('patientId');
-  patientIdFields.push(archiveId);
   const archiveSubmit = button(
     '重新登入並封存',
     'button button-primary',
@@ -1150,7 +1123,6 @@ export function initializeBusinessView({
   const restoreForm = document.createElement('form');
   restoreForm.className = 'filter-bar';
   const restoreId = patientField('patientId');
-  patientIdFields.push(restoreId);
   const restoreSubmit = button(
     '復原封存患者',
     'button button-secondary',
@@ -1178,7 +1150,6 @@ export function initializeBusinessView({
   const holdForm = document.createElement('form');
   holdForm.className = 'filter-bar';
   const holdId = patientField('patientId');
-  patientIdFields.push(holdId);
   const hold = document.createElement('select');
   hold.name = 'hold';
   hold.append(
@@ -1220,7 +1191,6 @@ export function initializeBusinessView({
   const deleteForm = document.createElement('form');
   deleteForm.className = 'filter-bar';
   const deleteId = patientField('patientId');
-  patientIdFields.push(deleteId);
   const deleteReason = reasonSelect('reasonCode');
   const confirmationLabel = element('label');
   const confirmation = input('checkbox', 'confirmed');
@@ -1267,7 +1237,6 @@ export function initializeBusinessView({
     }
   });
 
-  // 待櫃台確認身分：管理者核對後，把新預約重新連回原封存病患。
   const identityForm = document.createElement('form');
   identityForm.className = 'filter-bar';
   const identityProvisionalId = patientField('provisionalPatientId');
@@ -1280,15 +1249,7 @@ export function initializeBusinessView({
     'submit'
   );
   const identityOutput = element('div', 'card-list');
-  const identitySelected = element(
-    'p',
-    'result-summary',
-    '尚未選待確認的新紀錄。'
-  );
-  const reviewsHeader = element('div', 'list-section-heading');
-  const refreshReviews = button('重新整理待確認清單');
-  reviewsHeader.append(element('h4', '', '待確認的新紀錄'), refreshReviews);
-  const reviewsSummary = element('p', 'result-summary', '尚未載入清單。');
+  const reviewsSummary = element('p', 'result-summary');
   const reviewsOutput = element('div', 'card-list');
   identityForm.append(
     manualIdField('待確認新紀錄 ID', identityProvisionalId),
@@ -1298,7 +1259,6 @@ export function initializeBusinessView({
     identitySubmit
   );
   async function loadIdentityReviews() {
-    refreshReviews.disabled = true;
     try {
       const data = await api(
         '/v1/business-delivery/retention/identity-reviews'
@@ -1306,39 +1266,28 @@ export function initializeBusinessView({
       if (disposed) return;
       reviewsOutput.replaceChildren();
       reviewsSummary.textContent =
-        data.patients.length === 0
-          ? '目前沒有待確認的新紀錄。'
-          : `${data.patients.length} 筆待確認。`;
-      for (const patient of data.patients) {
-        const item = element('article', 'event-panel');
-        item.append(
-          element('strong', '', patientSummary(patient)),
-          element('p', '', `建立時間：${dateLabel(patient.createdAt)}`)
+        data.patients.length === 0 ? '沒有待確認的新紀錄。' : '';
+      for (const p of data.patients)
+        reviewsOutput.append(
+          patientCard(
+            p,
+            [`建立時間：${dateLabel(p.createdAt)}`],
+            '查詢候選',
+            () => {
+              identityProvisionalId.value = p.patientId;
+              identityArchivedId.value = '';
+              identityLookup.click();
+            }
+          )
         );
-        const choose = button('查詢候選');
-        choose.addEventListener('click', () => {
-          identityProvisionalId.value = patient.patientId;
-          identityArchivedId.value = '';
-          identitySelected.textContent = `已選待確認：${patientSummary(patient)}`;
-          identityLookup.click();
-        });
-        item.append(choose);
-        reviewsOutput.append(item);
-      }
     } catch (error) {
       if (!disposed) reviewsSummary.textContent = reportError(error);
-    } finally {
-      refreshReviews.disabled = false;
     }
   }
-  refreshReviews.addEventListener('click', () => void loadIdentityReviews());
   identityLookup.addEventListener('click', async () => {
     identityOutput.replaceChildren();
     if (identityProvisionalId.value === '') {
-      setStatus(
-        '請先從上方「待確認的新紀錄」選一筆，或展開「進階」手動輸入代碼。',
-        'error'
-      );
+      setStatus('請先選待確認紀錄與候選。', 'error');
       return;
     }
     identityLookup.disabled = true;
@@ -1354,26 +1303,18 @@ export function initializeBusinessView({
           `${data.candidates.length} 筆候選封存身分。`
         )
       );
-      for (const candidate of data.candidates) {
-        const item = element('article', 'event-panel');
-        item.append(
-          element('strong', '', patientSummary(candidate)),
-          element('p', '', `封存時間：${dateLabel(candidate.archivedAt)}`),
-          element(
-            'p',
-            '',
-            candidate.legalHold ? 'legal hold：已設定' : 'legal hold：未設定'
+      for (const c of data.candidates)
+        identityOutput.append(
+          patientCard(
+            c,
+            [`封存時間：${dateLabel(c.archivedAt)}`, holdLabel(c)],
+            '選用此候選',
+            () => {
+              identityArchivedId.value = c.patientId;
+              identitySubmit.focus();
+            }
           )
         );
-        const useCandidate = button('選用此候選');
-        useCandidate.addEventListener('click', () => {
-          identityArchivedId.value = candidate.patientId;
-          identitySelected.textContent += `；已選候選：${patientSummary(candidate)}`;
-          identitySubmit.focus();
-        });
-        item.append(useCandidate);
-        identityOutput.append(item);
-      }
     } catch (error) {
       if (!disposed) setStatus(reportError(error), 'error');
     } finally {
@@ -1383,7 +1324,7 @@ export function initializeBusinessView({
   identityForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     if (identityProvisionalId.value === '' || identityArchivedId.value === '') {
-      setStatus('請先選待確認的新紀錄，再查詢並選用候選封存身分。', 'error');
+      setStatus('請先選待確認紀錄與候選。', 'error');
       return;
     }
     if (
@@ -1405,13 +1346,12 @@ export function initializeBusinessView({
     ) {
       identityProvisionalId.value = '';
       identityArchivedId.value = '';
-      identitySelected.textContent = '尚未選待確認的新紀錄。';
       identityOutput.replaceChildren();
+      void loadIdentityReviews();
     }
   });
 
   retentionForms.append(
-    element('h4', '', '找患者'),
     searchForm,
     searchOutput,
     selectedLine,
@@ -1424,10 +1364,9 @@ export function initializeBusinessView({
       'section-description',
       '預約被標示「待櫃台確認」時，請先核對本人，再查詢候選並確認；確認後原封存資料復原、新預約連回原紀錄，新建的暫時紀錄會封存保留，不會刪除。'
     ),
-    reviewsHeader,
+    element('h4', '', '待確認的新紀錄'),
     reviewsSummary,
     reviewsOutput,
-    identitySelected,
     identityForm,
     identityOutput
   );
@@ -1454,30 +1393,19 @@ export function initializeBusinessView({
         next === undefined
           ? `${pendingShown} 位患者待處理。`
           : `已顯示 ${pendingShown} 位患者，還有更多。`;
-      for (const patient of patients) {
-        const item = element('article', 'event-panel');
-        item.append(
-          element('strong', '', patient.patientId),
-          element('p', '', `封存時間：${dateLabel(patient.archivedAt)}`),
-          element(
-            'p',
-            '',
-            `可送人工刪除審理日：${dateLabel(patient.restorableUntil)}`
-          ),
-          element(
-            'p',
-            '',
-            patient.legalHold ? 'legal hold：已設定' : 'legal hold：未設定'
+      for (const patient of patients)
+        pendingList.append(
+          patientCard(
+            patient,
+            [
+              `封存時間：${dateLabel(patient.archivedAt)}`,
+              `可送人工刪除審理日：${dateLabel(patient.restorableUntil)}`,
+              holdLabel(patient)
+            ],
+            '填入患者識別碼',
+            () => selectPatient(patient)
           )
         );
-        const useId = button('填入患者識別碼');
-        useId.addEventListener('click', () => {
-          selectPatient({ patientId: patient.patientId });
-          archiveId.focus();
-        });
-        item.append(useId);
-        pendingList.append(item);
-      }
     } catch (error) {
       // A failed first load clears the list; a failed 載入更多 keeps what is
       // shown and leaves the button to try the same page again.
@@ -1602,29 +1530,18 @@ export function initializeBusinessView({
     exportId.value = recentExports.value;
   });
   async function loadRecentExports() {
-    try {
-      const data = await api('/v1/business-delivery/exports');
-      if (disposed) return;
-      recentExports.replaceChildren();
-      const none = element(
-        'option',
-        '',
-        data.exports.length === 0 ? '目前沒有匯出紀錄' : '請選擇'
+    const data = await api('/v1/business-delivery/exports').catch(() => ({
+      exports: []
+    }));
+    if (disposed) return;
+    recentExports.replaceChildren(new Option('請選擇', ''));
+    for (const job of data.exports)
+      recentExports.append(
+        new Option(
+          `${job.from} 至 ${job.to}｜${dateLabel(job.createdAt)}｜${EXPORT_STATUS_LABELS[job.status] ?? ''}`,
+          job.exportId
+        )
       );
-      none.value = '';
-      recentExports.append(none);
-      for (const job of data.exports) {
-        const option = element(
-          'option',
-          '',
-          `${job.from} 至 ${job.to}｜建立 ${dateLabel(job.createdAt)}｜${EXPORT_STATUS_LABELS[job.status] ?? '狀態需人工確認'}`
-        );
-        option.value = job.exportId;
-        recentExports.append(option);
-      }
-    } catch {
-      // 清單載不到時仍可用「進階」手動輸入，不打斷其他區塊。
-    }
   }
   receiptKind.addEventListener('change', updateAcknowledgementFields);
   updateAcknowledgementFields();
@@ -1655,10 +1572,7 @@ export function initializeBusinessView({
     }
     const kind = receiptKind.value;
     if (kind === 'data_return' && exportId.value.trim() === '') {
-      setStatus(
-        '請先從「最近的匯出」選一筆，或展開「進階」手動輸入代碼。',
-        'error'
-      );
+      setStatus('請先選一筆匯出。', 'error');
       return;
     }
     const payload =
