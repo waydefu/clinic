@@ -888,6 +888,68 @@ describe('createInternalTestBookingTransport', () => {
     }
   );
 
+  describe('public /booking page /state', () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    function publicSetup(returnSession?: string) {
+      const memory = new Map<string, string>();
+      if (returnSession !== undefined) memory.set('itrs', returnSession);
+      vi.stubGlobal('location', { pathname: '/booking' });
+      vi.stubGlobal('sessionStorage', {
+        getItem: (key: string) => memory.get(key) ?? null,
+        setItem: (key: string, value: string) => memory.set(key, value),
+        removeItem: (key: string) => memory.delete(key)
+      });
+      const reads: string[] = [];
+      const fetchImpl = vi.fn((url: string) => {
+        reads.push(url);
+        if (url === '/v1/bookings')
+          return Promise.resolve({
+            ok: false,
+            status: 401,
+            json: () =>
+              Promise.resolve({ error: { code: 'UNAUTHENTICATED' } })
+          });
+        if (url === '/v1/schedule')
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                publishedVersion: 1,
+                publishedAt: '2030-01-01T00:00:00.000Z',
+                schedule: initialState().schedule
+              })
+          });
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ slots: [] })
+        });
+      });
+      const transport = createInternalTestBookingTransport({
+        local: vi.fn(() => Promise.resolve({ version: 8, slots: [] })),
+        toError: httpTransportError,
+        fetchImpl
+      });
+      return { reads, transport };
+    }
+
+    it('loads /state without GET /v1/bookings when there is no return session', async () => {
+      const { reads, transport } = publicSetup();
+      await expect(transport('/state')).resolves.toMatchObject({
+        appointments: []
+      });
+      expect(reads).toEqual(['/v1/slots', '/v1/schedule']);
+    });
+
+    it('still rejects a bookings 401 on /state once a return session exists', async () => {
+      const { reads, transport } = publicSetup('synthetic_return_001');
+      await expect(transport('/state')).rejects.toMatchObject({
+        code: 'UNAUTHENTICATED'
+      });
+      expect(reads).toContain('/v1/bookings');
+    });
+  });
+
   it('keeps valid empty arrays from the three reads as a successful empty state', async () => {
     const local = vi.fn(() => Promise.resolve({ version: 8, slots: [] }));
     const fetchImpl = vi.fn((url: string) => {
