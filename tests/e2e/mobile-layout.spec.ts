@@ -391,7 +391,9 @@ test.describe('患者預約頁手機版', () => {
     );
     await expect(page.locator('.patient-menu-button')).toHaveCount(0);
     await expect(page.locator('#patient-nav')).toHaveCount(0);
-    await expect(page.locator('a[href="https://www.beauessence.com.tw/"]')).toHaveCount(2);
+    await expect(
+      page.locator('a[href="https://www.beauessence.com.tw/"]')
+    ).toHaveCount(2);
     await expect(
       page.locator('.patient-header a[href="https://www.beauessence.com.tw/"]')
     ).toHaveCount(2);

@@ -28,8 +28,7 @@ export const PUBLIC_PAGE_SCAN_ROUTES = [
   '/booking',
   '/privacy'
 ] as const;
-const [WORKBENCH_ROUTE, BOOKING_ROUTE, PRIVACY_ROUTE] =
-  PUBLIC_PAGE_SCAN_ROUTES;
+const [WORKBENCH_ROUTE, BOOKING_ROUTE, PRIVACY_ROUTE] = PUBLIC_PAGE_SCAN_ROUTES;
 
 // axe 無障礙掃描，跑在打包後的產物上。這是自動化能抓到的一部分 WCAG 問題
 // （對比、名稱、地標、表單標籤…）；它補足而非取代人工報讀器與鍵盤測試。

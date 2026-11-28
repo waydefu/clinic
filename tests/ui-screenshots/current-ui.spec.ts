@@ -385,7 +385,9 @@ async function prepareBookingStepOne(page: Page): Promise<void> {
     'href',
     'https://www.beauessence.com.tw/'
   );
-  await expect(page.locator('a[href="https://www.beauessence.com.tw/"]')).toHaveCount(2);
+  await expect(
+    page.locator('a[href="https://www.beauessence.com.tw/"]')
+  ).toHaveCount(2);
   await expect(page.locator('a[href="/clinic/doctors"]')).toHaveCount(0);
   await expect(page.locator('a[href="/"]')).toHaveCount(0);
 }

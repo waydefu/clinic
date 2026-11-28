@@ -5,8 +5,7 @@ export const PUBLIC_PAGE_SCAN_ROUTES = [
   '/booking',
   '/privacy'
 ] as const;
-const [WORKBENCH_ROUTE, BOOKING_ROUTE, PRIVACY_ROUTE] =
-  PUBLIC_PAGE_SCAN_ROUTES;
+const [WORKBENCH_ROUTE, BOOKING_ROUTE, PRIVACY_ROUTE] = PUBLIC_PAGE_SCAN_ROUTES;
 
 // 版面在每個斷點都不得產生水平捲軸（WCAG 1.4.10 Reflow：320px 寬度下內容要能
 // 單欄重排）。
