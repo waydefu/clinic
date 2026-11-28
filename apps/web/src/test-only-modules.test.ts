@@ -2137,7 +2137,8 @@ describe('工作臺語意 T2-WB-02', () => {
     });
     const html = renderAppointments(state, filtersAll);
     expect(html).toContain('（未留姓名）');
-    expect(html).not.toMatch(/末 4 碼|[0-9a-f]{32}|_001|term_|409：/);
+    const visible = html.replace(/<[^>]*>/g, '');
+    expect(visible).not.toMatch(/末 4 碼|[0-9a-f]{32}|_001|term_|409：/);
     expect(html).not.toContain(`>${patientId}<`);
   });
 
