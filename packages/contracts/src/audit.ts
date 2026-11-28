@@ -20,6 +20,7 @@ export const AuditActionSchema = z.enum([
   'appointment_deleted',
   'follow_up_decided',
   // Staff operational note edited; carries no note content.
+  'appointment_completed_without_nhi_card',
   'appointment_notes_updated',
   // The only action whose resource is the schedule rather than an appointment.
   'schedule_published',

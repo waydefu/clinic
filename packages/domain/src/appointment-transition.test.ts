@@ -1051,3 +1051,45 @@ describe('planTransition patient self-service window', () => {
     ).toBe('CANCELLATION_WINDOW_CLOSED');
   });
 });
+
+describe('complete without NHI card', () => {
+  const plan = (
+    transition: AppointmentTransition,
+    status: AppointmentStatusValue
+  ) =>
+    planTransition(
+      {
+        appointmentId: 'appointment_001',
+        transition,
+        nhiCardMissing: true,
+        audit,
+        requestedAt: NOW,
+        idempotency: idempotencyFor()
+      },
+      { ...appointment, status },
+      patientBookingGuard
+    );
+
+  it('completes an arrived appointment, flags the card and audits it separately', () => {
+    const planned = plan('complete', 'arrived');
+    expect(planned.nextStatus).toBe('completed');
+    expect(planned.completedAt).toBe(NOW);
+    expect(planned.nhiCardMissing).toBe(true);
+    expect(planned.auditEvent.action).toBe(
+      'appointment_completed_without_nhi_card'
+    );
+  });
+
+  it('never sets the flag on an ordinary completion', () => {
+    const planned = request('complete', { status: 'arrived' }).plan();
+    expect(planned.nhiCardMissing).toBeUndefined();
+    expect(planned.auditEvent.action).toBe('appointment_completed');
+  });
+
+  it('keeps the arrived-only rule and rejects the flag on other transitions', () => {
+    expect(codeOf(() => plan('complete', 'confirmed'))).toBe(
+      'TRANSITION_NOT_ALLOWED'
+    );
+    expect(codeOf(() => plan('cancel', 'confirmed'))).toBe('INVALID_VALUE');
+  });
+});

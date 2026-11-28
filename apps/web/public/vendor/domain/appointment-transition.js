@@ -132,16 +132,23 @@ export function planTransition(request, appointment, patientBookingGuard) {
     if (request.expectedPatientId !== undefined) {
         assertWithinSelfCancelWindow(appointment.startsAt, request.requestedAt);
     }
+    if (request.nhiCardMissing === true && request.transition !== 'complete') {
+        throw new DomainError('INVALID_VALUE', 'Only a completion can record a missing NHI card.');
+    }
     assertTransitionAllowed(request.transition, appointment.status);
     assertPatientBookingGuardOwnedBy(appointment, patientBookingGuard);
     const nextStatus = NEXT_STATUS[request.transition];
     // 取消與未到會把時段還給其他患者；提出取消只是等櫃台確認，到診與完成
     // 都是已經發生的事實，兩者都不釋出時段、也不刪日曆事件。
     const releasesSlot = request.transition === 'cancel' || request.transition === 'no_show';
+    let action = AUDIT_ACTIONS[request.transition];
+    if (request.nhiCardMissing === true) {
+        action = 'appointment_completed_without_nhi_card';
+    }
     const auditEvent = planAuditEvent({
         eventId: `audit_${appointment.id}_${nextStatus}_${request.idempotency.recordId}`,
         occurredAt: request.requestedAt,
-        action: AUDIT_ACTIONS[request.transition],
+        action,
         resourceType: 'appointment',
         resourceId: appointment.id,
         before: {
@@ -161,6 +168,7 @@ export function planTransition(request, appointment, patientBookingGuard) {
         ...(request.transition === 'complete'
             ? { completedAt: request.requestedAt }
             : {}),
+        ...(request.nhiCardMissing === true ? { nhiCardMissing: true } : {}),
         ...(releasesSlot ? { releaseSlotId: appointment.slotId } : {}),
         patientBookingGuard: request.transition === 'request_cancellation' ||
             request.transition === 'arrive'

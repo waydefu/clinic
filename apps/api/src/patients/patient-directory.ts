@@ -378,6 +378,9 @@ export function toListRecord(
       : {}),
     ...(intakeNationality === undefined ? {} : { intakeNationality }),
     ...noteFieldsOf(data),
+    ...(data?.['nhiCardMissing'] === true
+      ? { nhiCardMissing: true as const }
+      : {}),
     ...(data?.['identityReviewRequired'] === true
       ? { identityReviewRequired: true as const }
       : {}),

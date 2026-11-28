@@ -864,6 +864,55 @@ describe('AppointmentApplicationService arrive, complete and no-show', () => {
     });
   });
 
+  it('lets staff complete without the NHI card under the complete authority', async () => {
+    const { assertCanComplete, transition, service } = createBoundary();
+    transition.mockResolvedValueOnce({
+      appointmentId: 'appointment_server_001',
+      replayed: false,
+      status: 'completed'
+    });
+
+    await expect(
+      service.completeWithoutCard(
+        'appointment_server_001',
+        CANCEL_COMMAND,
+        STAFF
+      )
+    ).resolves.toEqual({
+      appointmentId: 'appointment_server_001',
+      status: 'completed'
+    });
+    expect(assertCanComplete).toHaveBeenCalledWith(STAFF, {
+      appointmentPatientId: 'patient_opaque_001'
+    });
+    expect(transition.mock.calls[0]?.[0]).toMatchObject({
+      transition: 'complete',
+      nhiCardMissing: true
+    });
+  });
+
+  it('keeps ordinary completion free of the NHI flag and hashes the two apart', async () => {
+    const { transition, service } = createBoundary();
+    transition.mockResolvedValue({
+      appointmentId: 'appointment_server_001',
+      replayed: false,
+      status: 'completed'
+    });
+
+    await service.complete('appointment_server_001', CANCEL_COMMAND, STAFF);
+    await service.completeWithoutCard(
+      'appointment_server_001',
+      CANCEL_COMMAND,
+      STAFF
+    );
+    const requests = transition.mock.calls.map((call) => call[0]);
+    const [ordinary, withoutCard] = requests;
+    expect(ordinary).not.toHaveProperty('nhiCardMissing');
+    expect(withoutCard?.idempotency.requestHash).not.toBe(
+      ordinary?.idempotency.requestHash
+    );
+  });
+
   it('lets staff record no-show', async () => {
     const { assertCanComplete, transition, service } = createBoundary();
     transition.mockResolvedValueOnce({
