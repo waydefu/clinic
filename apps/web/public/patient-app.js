@@ -1009,15 +1009,18 @@ for (const field of formFields)
 function hasReturnSession() {
   try {
     // Same key internal-test-booking-transport.js writes after /v1/return-lookup.
-    return Boolean(window.sessionStorage.getItem('itrs'));
+    return (
+      selectedBookingType === 'follow_up' &&
+      Boolean(window.sessionStorage.getItem('itrs'))
+    );
   } catch {
     return false;
   }
 }
 
-// 回診 session 有效時，第 3 步不再要姓名／電話／生日／國籍，也不要隱私勾選（送出時本來就略過）。
+// 回診 session 有效時，第 3 步不要身分欄位與隱私勾選（送出時本來就略過）。
 function syncReturnIdentity() {
-  const reuse = hasReturnSession() && selectedBookingType === 'follow_up';
+  const reuse = hasReturnSession();
   elements['patient-identity-section'].hidden = reuse;
   elements['return-identity-note'].hidden = !reuse;
   elements['privacy-consent'].closest('label').style.display = reuse
@@ -1036,7 +1039,7 @@ elements['patient-booking-form'].addEventListener('submit', async (event) => {
     );
     return;
   }
-  const reuseReturn = hasReturnSession() && selectedBookingType === 'follow_up';
+  const reuseReturn = hasReturnSession();
   if (!reuseReturn) {
     // 送出時把每一欄都視為已造訪，錯誤一次講完，並把焦點帶到第一個問題欄位。
     for (const field of formFields) touched.add(field);
