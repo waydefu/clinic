@@ -672,19 +672,22 @@ describe('createInternalTestBookingTransport', () => {
 
   it('saves the counter note right after a staff booking is created', async () => {
     const local = vi.fn();
-    const fetchImpl = vi
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            appointmentId: 'appointment_api_001',
-            status: 'confirmed',
-            startsAt: '2030-01-02T04:00:00.000Z',
-            endsAt: '2030-01-02T04:30:00.000Z'
-          })
-      })
-      .mockResolvedValueOnce({ ok: false, status: 503, json: () => ({}) });
+    const fetchImpl = vi.fn();
+    fetchImpl.mockResolvedValueOnce({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          appointmentId: 'appointment_api_001',
+          status: 'confirmed',
+          startsAt: '2030-01-02T04:00:00.000Z',
+          endsAt: '2030-01-02T04:30:00.000Z'
+        })
+    });
+    fetchImpl.mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+      json: () => ({})
+    });
     const transport = createInternalTestBookingTransport({
       local,
       toError: httpTransportError,
@@ -748,7 +751,9 @@ describe('createInternalTestBookingTransport', () => {
       dueTime: '12:15',
       followUpRecordedByRole: 'manager'
     });
-    expect(merged[1]).toMatchObject({ appointmentId: 'appointment_local_only' });
+    expect(merged[1]).toMatchObject({
+      appointmentId: 'appointment_local_only'
+    });
     expect(merged[2]).toMatchObject({
       appointmentId: 'appointment_b',
       status: 'not_required'
