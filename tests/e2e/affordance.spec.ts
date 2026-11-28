@@ -1,13 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { CLINIC_UI_SCAN_ROUTES } from './support/clinic-routes';
 import { createBooking, login, showAllAppointments } from './support/workbench';
 
 export const PUBLIC_PAGE_SCAN_ROUTES = [
   '/staff',
   '/booking',
-  '/privacy',
-  '/clinic'
+  '/privacy'
 ] as const;
 const [WORKBENCH_ROUTE, BOOKING_ROUTE, PRIVACY_ROUTE] = PUBLIC_PAGE_SCAN_ROUTES;
 
@@ -29,9 +27,6 @@ const [WORKBENCH_ROUTE, BOOKING_ROUTE, PRIVACY_ROUTE] = PUBLIC_PAGE_SCAN_ROUTES;
 
 /** 導覽列裡的連結靠**位置**表達可點擊，依 NN/g 不需要額外的底線或框。 */
 const POSITIONALLY_SIGNALLED = ['nav', '.workspace-nav', '.patient-nav'];
-
-/** 診所官網的四類取樣。單一來源在 `support/clinic-routes`。 */
-const CLINIC_ROUTES = CLINIC_UI_SCAN_ROUTES;
 
 const WORKSPACES = [
   '#overview',
@@ -345,20 +340,6 @@ test.describe('可點擊性（affordance）', () => {
     }
   });
 
-  // 診所官網（2026-07-27 併入）。它進了無障礙、重排、預算與 check:ui，唯獨漏了
-  // 這一組——規則書 R-7 的第 1 項就是「加進 affordance 掃描」。manifest loop
-  // 已掃首頁，這裡再補共享 shell 的代表性內頁。
-  test('診所官網內頁的互動元素都看得出可以按', async ({ page }) => {
-    for (const path of CLINIC_ROUTES.slice(1)) {
-      await page.goto(path);
-      const offenders = await affordanceReport(page);
-      expect(
-        offenders,
-        `${path} 有互動元素只剩文字顏色：\n${offenders.join('\n')}`
-      ).toEqual([]);
-    }
-  });
-
   // 可按的東西，它的字不能被逐字斷行。
   //
   // 2026-07-27 實機回報：頁尾的「預約須知」「隱私權政策」被擠成一個字一行的
@@ -368,7 +349,7 @@ test.describe('可點擊性（affordance）', () => {
   test('可點擊的短標籤不會被逐字斷成好幾行', async ({ page }) => {
     for (const width of [1280, 1024, 900, 768, 480, 390, 320]) {
       await page.setViewportSize({ width, height: 900 });
-      for (const path of [BOOKING_ROUTE, PRIVACY_ROUTE, ...CLINIC_ROUTES]) {
+      for (const path of [BOOKING_ROUTE, PRIVACY_ROUTE]) {
         await page.goto(path);
         const broken = await page.evaluate(wrapScanSource);
         expect(
@@ -421,15 +402,6 @@ test.describe('可點擊性（affordance）', () => {
     await page.goto(BOOKING_ROUTE);
     expect(await page.evaluate(stackScanSource)).toEqual([]);
 
-    for (const path of CLINIC_ROUTES) {
-      await page.goto(path);
-      const offenders = await page.evaluate(stackScanSource);
-      expect(
-        offenders,
-        `${path} 有動作群組在 1280px 下無理由堆疊：\n${offenders.join('\n')}`
-      ).toEqual([]);
-    }
-
     await login(page, 'admin', { fresh: false });
     await createBooking(page, { name: '堆疊掃描' });
     await showAllAppointments(page);
@@ -467,7 +439,7 @@ test.describe('可點擊性（affordance）', () => {
   test('患者端的可點目標在手機寬度達到 44px', async ({ page }) => {
     for (const width of [390, 320]) {
       await page.setViewportSize({ width, height: 844 });
-      for (const path of [BOOKING_ROUTE, PRIVACY_ROUTE, ...CLINIC_ROUTES]) {
+      for (const path of [BOOKING_ROUTE, PRIVACY_ROUTE]) {
         await page.goto(path);
         const small = await page.evaluate(() => {
           const effectiveTarget = (element: HTMLElement): HTMLElement => {

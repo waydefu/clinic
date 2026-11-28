@@ -1,6 +1,6 @@
 import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, sep } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import process from 'node:process';
 
 // 把 apps/web/public 產出成內容雜湊過的 apps/web/dist。
@@ -316,19 +316,9 @@ async function main() {
   await minifyStylesheets(files);
   await minifyModules(files);
   const { outputs, manifest } = planHashedBuild(files);
-  // 唯讀取用 runtime 同一份內容。網域可由 WEB_SITE_ORIGIN 指定；未設時用預約頁
-  // patient.html 的 canonical 已經宣告的同一個網域，兩邊才不會各說各話。這個網域
-  // 本身仍待診所確認（決策登記 D-011），上線前要和 patient.html 一起核對。
-  const clinicContent = await import(
-    pathToFileURL(join(publicDir, 'clinic-content.js')).href
-  );
-  const origin = process.env.WEB_SITE_ORIGIN || 'https://beauessence.com.tw';
-  for (const [path, html] of planClinicRoutePages(
-    String(outputs.get('clinic.html')),
-    clinicContent,
-    { origin }
-  ))
-    outputs.set(path, html);
+  // 第一期不做官網（2026-11-28）：官網首頁與路由頁不出貨，/clinic 由 Hosting 301
+  // 到診所既有官網。原始碼保留在 apps/web/public，只是不進 dist。
+  outputs.delete('clinic.html');
 
   await rm(distDir, { recursive: true, force: true });
   for (const [outPath, content] of outputs) {

@@ -237,8 +237,8 @@ describe('parseArgs', () => {
 describe('repositoryInputs', () => {
   it('讀得懂本 repo 的真實組態', async () => {
     const inputs = await repositoryInputs();
-    expect(inputs.clinicRoutes).toContain('/clinic/nasal/septoplasty');
-    expect(inputs.shellRoutes).toContain('/clinic');
+    expect(inputs.clinicRoutes).toEqual([]);
+    expect(inputs.shellRoutes).not.toContain('/clinic');
     expect(inputs.shellRoutes).not.toContain('/404');
     expect(inputs.budgets.length).toBeGreaterThan(0);
   });

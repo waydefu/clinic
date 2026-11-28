@@ -30,7 +30,7 @@ const PRETTY_PATHS: PrettyPath[] = [
 ];
 
 const ROOT_REDIRECT_DECLARATION =
-  "const ROOT_REDIRECT = { source: '/', destination: '/clinic', type: 302 };";
+  "const ROOT_REDIRECT = { source: '/', destination: '/booking', type: 302 };";
 
 function serverSource(paths: PrettyPath[] = PRETTY_PATHS): string {
   return `${ROOT_REDIRECT_DECLARATION}
@@ -147,7 +147,7 @@ function fixture() {
         redirects: [
           {
             source: '/',
-            destination: '/clinic',
+            destination: '/booking',
             type: 302
           },
           {
@@ -195,7 +195,7 @@ function fixture() {
         redirects: [
           {
             source: '/',
-            destination: '/clinic',
+            destination: '/booking',
             type: 302
           },
           {
@@ -235,7 +235,7 @@ function fixture() {
         redirects: [
           {
             source: '/',
-            destination: '/clinic',
+            destination: '/booking',
             type: 302
           },
           {
@@ -464,14 +464,14 @@ describe('checkPublicPageConfiguration', () => {
       );
 
     expect(failuresOf(missing)).toContainEqual(
-      expect.stringContaining('redirects 少了 / → /clinic (302)')
+      expect.stringContaining('redirects 少了 / → /booking (302)')
     );
 
     const mistyped = fixture();
     mistyped.firebase.hosting.redirects[0].type = 301;
 
     expect(failuresOf(mistyped)).toContainEqual(
-      expect.stringContaining('manifest 要求 /clinic (302)')
+      expect.stringContaining('manifest 要求 /booking (302)')
     );
 
     const undescribed = fixture();

@@ -383,9 +383,11 @@ async function prepareBookingStepOne(page: Page): Promise<void> {
   // 2026-10-19：頁首標誌與「回官網」連到官網，出口只有這兩處。
   await expect(page.locator('.patient-header .brand')).toHaveAttribute(
     'href',
-    '/clinic'
+    'https://www.beauessence.com.tw/'
   );
-  await expect(page.locator('a[href="/clinic"]')).toHaveCount(2);
+  await expect(
+    page.locator('a[href="https://www.beauessence.com.tw/"]')
+  ).toHaveCount(2);
   await expect(page.locator('a[href="/clinic/doctors"]')).toHaveCount(0);
   await expect(page.locator('a[href="/"]')).toHaveCount(0);
 }

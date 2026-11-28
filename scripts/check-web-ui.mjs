@@ -584,25 +584,28 @@ requireText(
   'Patient preview no longer warns against real patient or health data.'
 );
 // 2026-10-19（業主「官網與預約頁風格要相同」，決策登錄同日條）：預約頁頁首改為官網
-// 風格，標誌連到官網 /clinic，並多一條「回官網」文字連結。先前這裡釘的是標誌回
+// 風格，標誌連到官網，並多一條「回官網」文字連結（2026-11-28 起連既有官網
+// www.beauessence.com.tw）。先前這裡釘的是標誌回
 // /booking（預約頁自成一體）；那條改成釘新的出口，而醫師頁與工作臺根路徑仍不得
 // 出現在預約頁。官網入口只有頁首這兩處。
 requireText(
   files.patientHtml,
-  'class="brand booking-brand" href="/clinic"',
-  'Patient logo no longer links to the official site (/clinic).'
+  'class="brand booking-brand" href="https://www.beauessence.com.tw/"',
+  'Patient logo no longer links to the existing official site.'
 );
 requireText(
   files.patientHtml,
-  '<a class="patient-site-link" href="/clinic">回官網</a>',
+  'class="patient-site-link" href="https://www.beauessence.com.tw/"',
   'Patient header lost its 回官網 link.'
 );
 {
   const clinicLinks =
-    files.patientHtml.match(/<a\b[^>]*\bhref=["']\/clinic["']/g) ?? [];
+    files.patientHtml.match(
+      /<a\b[^>]*\bhref=["']https:\/\/www\.beauessence\.com\.tw\/["']/g
+    ) ?? [];
   if (clinicLinks.length !== 2)
     failures.push(
-      `Patient booking surface must link to /clinic exactly twice (header logo and 回官網), found ${clinicLinks.length}.`
+      `Patient booking surface must link to the existing site exactly twice (header logo and 回官網), found ${clinicLinks.length}.`
     );
 }
 for (const href of ['/clinic/doctors', '/']) {
@@ -1075,8 +1078,8 @@ if (bookingPayload === null) {
 // 政策頁沒有指令碼，所以 UI-only「已閱讀草稿」只能靠網址把狀態帶回預約頁。
 requireText(
   files.errorHtml,
-  'href="/clinic"',
-  'The branded 404 home recovery no longer points at the public clinic site.'
+  'href="https://www.beauessence.com.tw/"',
+  'The branded 404 home recovery no longer points at the existing clinic site.'
 );
 requireText(
   files.errorHtml,

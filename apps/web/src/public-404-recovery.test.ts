@@ -13,7 +13,7 @@ describe('public 404 recovery', () => {
   it('sends home and booking CTAs to public routes, not staff login', () => {
     const html = readWeb('public/404.html');
     expect(html).toMatch(
-      /<a\b[^>]*\bhref="\/clinic"[^>]*>\s*回到首頁\s*<\/a\s*>/
+      /<a\b[^>]*\bhref="https:\/\/www\.beauessence\.com\.tw\/"[^>]*>\s*回到首頁\s*<\/a\s*>/
     );
     expect(html).toMatch(
       /<a\b[^>]*\bhref="\/booking"[^>]*>\s*前往線上預約\s*<\/a\s*>/
