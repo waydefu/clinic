@@ -98,9 +98,7 @@ function patientDetail(state, appointment) {
     appointment.identityReviewRequired === true ? '待櫃台確認' : undefined;
   // API 不帶舊病患資料；只顯示注意旗標，不讓工作臺自動取用封存身分。
   if (record === undefined)
-    return (
-      [shownNationality, identityReview].filter(Boolean).join(' · ')
-    );
+    return [shownNationality, identityReview].filter(Boolean).join(' · ');
   // 新預約的生日只有月日（`--05-20`，BOOKING-MINIMIZATION-2026-09-22）。直接印
   // 出來櫃台會看到兩個減號，像是資料壞掉；換成「5/20」。舊紀錄可能帶年份。
   const birth = !record.birthDate
