@@ -41,7 +41,9 @@ export function defaultEntryRoutes({ clinicRoutes }) {
   return [
     { entryPath: '/patient.html', routes: ['/booking'] },
     { entryPath: '/index.html', routes: ['/staff'] },
-    { entryPath: '/clinic.html', routes: [...clinicRoutes] }
+    ...(clinicRoutes.length === 0
+      ? []
+      : [{ entryPath: '/clinic.html', routes: [...clinicRoutes] }])
   ];
 }
 

@@ -9,8 +9,6 @@ vi.mock('node:child_process', () => ({ execFile: vi.fn() }));
 const origin =
   'https://beauessence-clinic-staging--synthetic-review-synthetic.web.app';
 const originalExitCode = process.exitCode;
-const clinicHtml =
-  'ONLINE PREVIEW 合成預覽環境，請勿輸入真實患者資料 id="clinic-main" <script src="/app.1234567890.js"></script>';
 const bookingHtml =
   'id="patient-name" id="patient-phone" id="patient-birth-month" id="patient-birth-day" id="patient-nationality-domestic" 資料只會保存在我這台裝置的瀏覽器 <script src="/app.1234567890.js"></script>';
 
@@ -59,10 +57,10 @@ function redirectResponse(url, location) {
 function response(url, status = 200) {
   const target = String(url);
   if (target === `${origin}/` && status === 200) {
-    return redirectResponse(url, '/clinic');
+    return redirectResponse(url, '/booking');
   }
   const asset = target.endsWith('.js');
-  const body = target.endsWith('/clinic') ? clinicHtml : bookingHtml;
+  const body = bookingHtml;
   return {
     status,
     url: target,
@@ -163,7 +161,7 @@ describe('preview request deadlines with synthetic HTTP and memory-only evidence
     expect(fetch.mock.calls[3][1].signal.aborted).toBe(true);
   });
 
-  it('preserves successful 302 clinic redirect, booking HTML and immutable asset checks', async () => {
+  it('preserves successful 302 booking redirect, booking HTML and immutable asset checks', async () => {
     const fetch = vi.fn((url) => Promise.resolve(response(url)));
     vi.stubGlobal('fetch', fetch);
     await import('./verify-preview-deployment.mjs');
@@ -200,7 +198,7 @@ describe('preview request deadlines with synthetic HTTP and memory-only evidence
     ).toBe(true);
   });
 
-  it('fails closed on wrong redirect target or missing clinic marker', async () => {
+  it('fails closed on wrong redirect target or missing booking marker', async () => {
     const wrongTarget = vi.fn((url) =>
       Promise.resolve(
         String(url) === `${origin}/`
@@ -220,7 +218,7 @@ describe('preview request deadlines with synthetic HTTP and memory-only evidence
     process.exitCode = originalExitCode;
 
     const missingMarker = vi.fn((url) => {
-      if (String(url) !== `${origin}/clinic`) {
+      if (String(url) !== `${origin}/booking`) {
         return Promise.resolve(response(url));
       }
       return Promise.resolve({
@@ -233,7 +231,7 @@ describe('preview request deadlines with synthetic HTTP and memory-only evidence
     expect(report().conclusion).toBe('failure');
     expect(
       report().checks.some(
-        (c) => c.name.includes('id="clinic-main"') && !c.passed
+        (c) => c.name.includes('id="patient-name"') && !c.passed
       )
     ).toBe(true);
   });

@@ -181,31 +181,49 @@ describe('clinic website scope', () => {
 });
 
 describe('clinic route integration', () => {
-  it('keeps Firebase Hosting and the local server aligned', () => {
-    const firebase = JSON.parse(repoFile('firebase.json'));
-    const rewrites = firebase.hosting.rewrites;
-    expect(rewrites).toContainEqual({
-      source: '/clinic',
-      destination: '/clinic.html'
-    });
-    expect(rewrites).toContainEqual({
-      source: '/clinic/**',
-      destination: '/clinic.html'
-    });
-
-    const server = repoFile('apps/web/server.mjs');
-    for (const route of CLINIC_ROUTES) {
-      expect(server).toContain(`['${route}', 'clinic.html']`);
+  // 第一期不做官網（2026-11-28）：官網路由不再由本站提供，一律 301 到既有官網。
+  it('redirects the retired clinic routes to the existing site in every Hosting config', () => {
+    for (const file of [
+      'firebase.json',
+      'firebase.isolated-preview.json',
+      'firebase.isolated-api-preview.json'
+    ]) {
+      const { hosting } = JSON.parse(repoFile(file));
+      for (const source of ['/clinic', '/clinic.html', '/clinic/**']) {
+        expect(hosting.redirects).toContainEqual({
+          source,
+          destination: 'https://www.beauessence.com.tw/',
+          type: 301
+        });
+        expect(
+          hosting.rewrites.some(
+            (rule: { source: string }) => rule.source === source
+          )
+        ).toBe(false);
+      }
+      expect(hosting.redirects).toContainEqual({
+        source: '/',
+        destination: '/booking',
+        type: 302
+      });
     }
+    const server = repoFile('apps/web/server.mjs');
+    expect(server).toContain('RETIRED_SITE_URL');
+    expect(server).not.toContain("'clinic.html'");
   });
 
-  // 2026-10-19（業主「官網與預約頁風格要相同」）：預約頁頁首改為官網風格，標誌與
-  // 「回官網」連到 /clinic；醫師頁與工作臺根路徑仍不得出現在預約頁。樣式依序載入
+  // 2026-10-19 預約頁頁首改為官網風格；2026-11-28 第一期不做官網，標誌與
+  // 「回官網」連到既有官網。醫師頁與工作臺根路徑仍不得出現在預約頁。樣式依序載入
   // 共用層、品牌 token、預約頁換膚。
   it('links the booking header to the official site only and loads the brand tokens before the booking skin', () => {
     const patient = repoFile('apps/web/public/patient.html');
-    expect(patient).toContain('class="brand booking-brand" href="/clinic"');
-    expect(patient.match(/<a\b[^>]*\bhref="\/clinic"/g)).toHaveLength(2);
+    expect(patient).toContain(
+      'class="brand booking-brand" href="https://www.beauessence.com.tw/"'
+    );
+    expect(
+      patient.match(/<a\b[^>]*\bhref="https:\/\/www\.beauessence\.com\.tw\/"/g)
+    ).toHaveLength(2);
+    expect(patient).not.toMatch(/\bhref="\/clinic"/);
     expect(patient).not.toContain('href="/clinic/doctors"');
     expect(patient).not.toMatch(/<a\b[^>]*\bhref="\/"/);
     const stylesheets = [
