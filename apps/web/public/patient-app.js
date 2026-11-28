@@ -201,6 +201,8 @@ async function runUiAction({
 }
 
 function showStep(step, { focusHeading = true, scroll = true } = {}) {
+  // 回診 session 有效時第 3 步不要身分欄位（送出時本來就略過）。
+  elements['patient-identity-section'].hidden = hasReturnSession();
   bookingResultPanel.hidden = true;
   document.body.dataset.bookingFlowStep = String(step);
   elements['patient-hero'].hidden = step !== 1;
@@ -1008,7 +1010,10 @@ for (const field of formFields)
 function hasReturnSession() {
   try {
     // Same key internal-test-booking-transport.js writes after /v1/return-lookup.
-    return Boolean(window.sessionStorage.getItem('itrs'));
+    return (
+      selectedBookingType === 'follow_up' &&
+      Boolean(window.sessionStorage.getItem('itrs'))
+    );
   } catch {
     return false;
   }
@@ -1025,7 +1030,7 @@ elements['patient-booking-form'].addEventListener('submit', async (event) => {
     );
     return;
   }
-  const reuseReturn = hasReturnSession() && selectedBookingType === 'follow_up';
+  const reuseReturn = hasReturnSession();
   if (!reuseReturn) {
     // 送出時把每一欄都視為已造訪，錯誤一次講完，並把焦點帶到第一個問題欄位。
     for (const field of formFields) touched.add(field);
