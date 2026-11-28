@@ -69,6 +69,8 @@ export interface TransitionRequest {
    * Staff requests carry no patient id and are not subject to the window.
    */
   readonly expectedPatientId?: string;
+  /** Complete only: staff recorded that the patient did not bring the NHI card. */
+  readonly nhiCardMissing?: true;
   readonly audit: AuditContext;
   readonly requestedAt: string;
   readonly idempotency: IdempotencyContext;
@@ -153,6 +155,7 @@ export interface TransitionPlan {
   readonly nextStatus: AppointmentStatusValue;
   readonly updatedAt: string;
   readonly completedAt?: string;
+  readonly nhiCardMissing?: true;
   /** 需要釋出的時段；undefined 表示時段維持佔用。 */
   readonly releaseSlotId?: string;
   readonly patientBookingGuard: PlannedPatientBookingGuardMutation;
@@ -366,6 +369,12 @@ export function planTransition(
   if (request.expectedPatientId !== undefined) {
     assertWithinSelfCancelWindow(appointment.startsAt, request.requestedAt);
   }
+  if (request.nhiCardMissing === true && request.transition !== 'complete') {
+    throw new DomainError(
+      'INVALID_VALUE',
+      'Only a completion can record a missing NHI card.'
+    );
+  }
   assertTransitionAllowed(request.transition, appointment.status);
   assertPatientBookingGuardOwnedBy(appointment, patientBookingGuard);
 
@@ -374,10 +383,14 @@ export function planTransition(
   // 都是已經發生的事實，兩者都不釋出時段、也不刪日曆事件。
   const releasesSlot =
     request.transition === 'cancel' || request.transition === 'no_show';
+  let action = AUDIT_ACTIONS[request.transition];
+  if (request.nhiCardMissing === true) {
+    action = 'appointment_completed_without_nhi_card';
+  }
   const auditEvent = planAuditEvent({
     eventId: `audit_${appointment.id}_${nextStatus}_${request.idempotency.recordId}`,
     occurredAt: request.requestedAt,
-    action: AUDIT_ACTIONS[request.transition],
+    action,
     resourceType: 'appointment',
     resourceId: appointment.id,
     before: {
@@ -398,6 +411,7 @@ export function planTransition(
     ...(request.transition === 'complete'
       ? { completedAt: request.requestedAt }
       : {}),
+    ...(request.nhiCardMissing === true ? { nhiCardMissing: true } : {}),
     ...(releasesSlot ? { releaseSlotId: appointment.slotId } : {}),
     patientBookingGuard:
       request.transition === 'request_cancellation' ||

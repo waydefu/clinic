@@ -483,7 +483,11 @@ describe('mapInternalTestBookingRequest', () => {
         'POST',
         {}
       )
-    ).toBeUndefined();
+    ).toMatchObject({
+      url: '/v1/bookings/appointment_001/complete-without-card',
+      method: 'POST',
+      body: { idempotencyKey: expect.any(String) }
+    });
     expect(mapInternalTestBookingRequest('/slots', 'GET')).toEqual({
       url: '/v1/slots',
       method: 'GET'
@@ -700,25 +704,6 @@ describe('createInternalTestBookingTransport', () => {
     expect(url).toBe('/v1/bookings/appointment_api_001');
     expect(init?.method).toBe('GET');
     expect(init?.body).toBeUndefined();
-  });
-
-  it('fail-closes complete-without-card instead of completing on the local store', async () => {
-    const local = vi.fn();
-    const fetchImpl = vi.fn();
-    const transport = createInternalTestBookingTransport({
-      local,
-      toError: httpTransportError,
-      fetchImpl
-    });
-
-    await expect(
-      transport('/bookings/appointment_001/complete-without-card', {
-        method: 'POST',
-        body: '{}'
-      })
-    ).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE' });
-    expect(local).not.toHaveBeenCalled();
-    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   it('fail-closes case assignment and local outbox demo writes', async () => {

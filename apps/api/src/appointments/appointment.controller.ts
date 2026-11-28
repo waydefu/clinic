@@ -242,6 +242,24 @@ export class AppointmentController {
     );
   }
 
+  @Post(':appointmentId/complete-without-card')
+  public async completeWithoutCard(
+    @Param('appointmentId') appointmentId: string,
+    @Body() body: unknown,
+    @Req() request: AuthenticatableRequest
+  ) {
+    this.assertInternalTestGate();
+    const authentication = await this.authenticateAndLimit(request, true);
+    return admitResponse(
+      TransitionAppointmentResponseSchema,
+      await this.appointments.completeWithoutCard(
+        identifier(appointmentId),
+        CancelAppointmentRequestSchema.parse(body),
+        authentication
+      )
+    );
+  }
+
   @Post(':appointmentId/no-show')
   public async markNoShow(
     @Param('appointmentId') appointmentId: string,

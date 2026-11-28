@@ -48,11 +48,13 @@ export function transitionAppointmentIdempotency(input: {
   readonly actorId: string;
   readonly appointmentId: string;
   readonly transition: AppointmentTransition;
+  readonly nhiCardMissing?: true;
 }): IdempotencyContext {
   const scope = `appointment:${input.appointmentId}:transition`;
   return contextFor(input.key, input.actorId, scope, [
     input.appointmentId,
-    input.transition
+    input.transition,
+    ...(input.nhiCardMissing === true ? ['nhi_card_missing'] : [])
   ]);
 }
 

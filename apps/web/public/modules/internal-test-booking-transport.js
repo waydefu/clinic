@@ -1,4 +1,3 @@
-import { calendarPilotAuthenticationGeneration } from './calendar-pilot-authority.js';
 async function clearCalendarPilotClientAuthState(storage) {
   const session = await import('./pilot-google-totp-session.js');
   session.clearCalendarPilotClientAuthState(storage);
@@ -232,6 +231,16 @@ export function mapInternalTestBookingRequest(
   if (verb === 'POST' && complete !== null) {
     return {
       url: `/v1/bookings/${complete[1]}/complete`,
+      method: 'POST',
+      body: { idempotencyKey: idempotencyKey() }
+    };
+  }
+  const noCard = /^\/bookings\/([A-Za-z0-9_-]+)\/complete-without-card$/.exec(
+    path
+  );
+  if (verb === 'POST' && noCard !== null) {
+    return {
+      url: `/v1/bookings/${noCard[1]}/complete-without-card`,
       method: 'POST',
       body: { idempotencyKey: idempotencyKey() }
     };
@@ -705,8 +714,7 @@ export function createInternalTestBookingTransport({
     if (mapped === undefined) {
       if (
         String(options.method ?? 'GET').toUpperCase() === 'POST' &&
-        (/^\/bookings\/[A-Za-z0-9_-]+\/complete-without-card$/.test(path) ||
-          path === '/case-assignments' ||
+        (path === '/case-assignments' ||
           path === '/outbox/simulate' ||
           path === '/outbox/requeue')
       ) {
@@ -774,6 +782,7 @@ export function createInternalTestBookingTransport({
             : {}),
           // 櫃台營運備註（STAFF-NOTE-2026-11-28）：同樣只在櫃台清單回傳。
           ...(Array.isArray(item.noteTags) ? { noteTags: item.noteTags } : {}),
+          ...(item.nhiCardMissing === true ? { nhiCardMissing: true } : {}),
           ...(typeof item.noteText === 'string'
             ? { noteText: item.noteText }
             : {})

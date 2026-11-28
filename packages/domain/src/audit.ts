@@ -20,6 +20,7 @@ export type AuditAction =
   | 'appointment_deleted'
   | 'follow_up_decided'
   /** Staff operational note edited; the note content is never part of the event. */
+  | 'appointment_completed_without_nhi_card'
   | 'appointment_notes_updated'
   /** Resource is the schedule, not an appointment; state is version + slot count. */
   | 'schedule_published'
