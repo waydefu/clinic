@@ -1020,7 +1020,9 @@ function syncReturnIdentity() {
   const reuse = hasReturnSession() && selectedBookingType === 'follow_up';
   elements['patient-identity-section'].hidden = reuse;
   elements['return-identity-note'].hidden = !reuse;
-  elements['privacy-consent'].closest('label').style.display = reuse ? 'none' : '';
+  elements['privacy-consent'].closest('label').style.display = reuse
+    ? 'none'
+    : '';
 }
 
 elements['patient-booking-form'].addEventListener('submit', async (event) => {
