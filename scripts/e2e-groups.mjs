@@ -48,7 +48,6 @@ export const E2E_GROUPS = {
   // 版面、字體、動態與效能預算：不屬於任何一條業務流程，但拆組時最容易被遺漏。
   ui: [
     'affordance.spec.ts',
-    'clinic-motion.spec.ts',
     'performance.spec.ts',
     'theme.spec.ts',
     'typography.spec.ts',
