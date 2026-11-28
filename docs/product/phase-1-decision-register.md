@@ -1407,6 +1407,23 @@ merge、部署、secret、IAM、資料轉換與其他受保護動作，仍各自
      Claude 審查、業主合併。
   9. **診所正式 Google 帳號**：驗收通過後再開始準備。
 
+- `STAFF-NOTE-2026-11-28`（決定者：負責人，2026-11-28 對話，由 Claude 轉達）：核准伺服器保存
+  **員工營運備註**。範圍：標籤 `same_day`（當天到）／`overseas`（國外客）／`long_distance`（遠距離）
+  可複選，加最多 120 字的 `noteText`；櫃台與主管可改；只存在伺服器的預約上，**不進稽核內容、
+  日誌或日曆標題**，稽核只記 `appointment_notes_updated`（狀態與時段，不含備註）。已取消或未到的
+  預約不可再改。這不是臨床紀錄，D-014 仍擋住臨床欄位；production 的保存與匯出邊界仍屬 D-002。
+- `STAFF-NO-CARD-2026-11-28`（決定者：負責人，2026-11-28 對話）：核准記錄「這一次到診未帶健保卡」
+  這個事實（`nhiCardMissing`）。語意同本機版：與一般完成同一個狀態轉換（`arrived` → `completed`）、
+  同一個 `complete_visit` 權限，多記一個旗標與稽核動作 `appointment_completed_without_nhi_card`；
+  一般完成不寫 `false`。依 ADR-0004 改 `packages/domain` 的 `planTransition`。
+- `STAFF-CASE-DEFERRED-2026-11-28`（決定者：負責人，2026-11-28 對話）：**D-007 個管指派維持延後**，
+  不做 API。有後端的線上模式（C1）隱藏導覽「個管指派」、個管區塊、回診指示表單的「個管師」選擇與
+  首頁「查看個管」入口；本機 127.0.0.1 示範模式不變。`/case-assignments` 在線上模式維持 503。
+- `STAFF-PRIVACY-CONSENT-2026-11-28`（決定者：負責人，2026-11-26 決定，2026-11-28 記錄）：櫃台代建
+  預約時 `privacyConsent` 暫維持自動 `true`，正式上線前再定；依個資法第 8 條的告知義務，待正式
+  流程處理。
+
+
 上列 `BD-POLICY-2026-09-29` 已回答原本待決的 BD policy 期限／角色／allowlist／保留／返還／人證
 與付款里程碑映射。仍待決：production 套用的專業隱私／法律審閱，以及 CP-06-E 實際還原的執行核准。
 不得從 fixture 值推定核准，不重新詢問已定的出生年替代欄位。

@@ -293,6 +293,17 @@ function createBoundService(
   const assertCanQuery = vi.fn<
     AppointmentAuthorizationPolicy['assertCanQuery']
   >(() => Promise.resolve());
+  const updateNotes = vi.fn(() =>
+    Promise.resolve({
+      appointmentId: 'appointment_server_001',
+      replayed: false,
+      noteTags: ['same_day' as const],
+      noteText: '請提早到'
+    })
+  );
+  const assertCanUpdateNotes = vi.fn<
+    AppointmentAuthorizationPolicy['assertCanUpdateNotes']
+  >(() => Promise.resolve());
   const assertCanDelete = vi.fn<
     AppointmentAuthorizationPolicy['assertCanDelete']
   >(() => Promise.resolve());
@@ -303,6 +314,7 @@ function createBoundService(
     read,
     transition,
     recordFollowUp,
+    updateNotes,
     deleteAppointment
   };
   const authorization: AppointmentAuthorizationPolicy = {
@@ -312,7 +324,8 @@ function createBoundService(
     assertCanComplete,
     assertCanDecideFollowUp,
     assertCanQuery,
-    assertCanDelete
+    assertCanDelete,
+    assertCanUpdateNotes
   };
   const service = new AppointmentApplicationService(
     repository,
@@ -337,6 +350,8 @@ function createBoundService(
     reschedule,
     transition,
     recordFollowUp,
+    updateNotes,
+    assertCanUpdateNotes,
     deleteAppointment,
     patients,
     stored,
@@ -928,6 +943,48 @@ describe('AppointmentApplicationService arrive, complete and no-show', () => {
       service.recordFollowUp('appointment_server_001', FOLLOW_UP_COMMAND, STAFF)
     ).rejects.toThrow('denied');
     expect(recordFollowUp).not.toHaveBeenCalled();
+  });
+
+  it('lets staff update the counter note after role authorization', async () => {
+    const { assertCanUpdateNotes, read, updateNotes, service } =
+      createBoundary();
+
+    await expect(
+      service.updateNotes(
+        'appointment_server_001',
+        {
+          idempotencyKey: 'notes_request_0001',
+          noteTags: ['same_day'],
+          noteText: '請提早到'
+        },
+        STAFF
+      )
+    ).resolves.toEqual({
+      appointmentId: 'appointment_server_001',
+      noteTags: ['same_day'],
+      noteText: '請提早到'
+    });
+    expect(assertCanUpdateNotes).toHaveBeenCalledWith(STAFF);
+    expect(read).not.toHaveBeenCalled();
+    expect(updateNotes.mock.calls[0]?.[0]).toMatchObject({
+      appointmentId: 'appointment_server_001',
+      noteTags: ['same_day'],
+      noteText: '請提早到'
+    });
+  });
+
+  it('does not touch storage when note authorization denies', async () => {
+    const { assertCanUpdateNotes, updateNotes, service } = createBoundary();
+    assertCanUpdateNotes.mockRejectedValueOnce(new Error('denied'));
+
+    await expect(
+      service.updateNotes(
+        'appointment_server_001',
+        { idempotencyKey: 'notes_request_0001', noteTags: [], noteText: '' },
+        STAFF
+      )
+    ).rejects.toThrow('denied');
+    expect(updateNotes).not.toHaveBeenCalled();
   });
 
   it('lets a manager delete with a closed reason code after authorization', async () => {

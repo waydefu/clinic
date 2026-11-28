@@ -87,22 +87,18 @@
       ],
       "note": "IP-001 允許內部測試可達；FS-001 basic follow-up tracking。Command 只有 required/not_required 與目標時間，不含臨床備註、診斷書或個管指派。D-004 pending 仍擋住 public production。"
     },
-    "clinical_follow_up": {
+    "booking_operational_notes": {
       "permissions": ["update_appointment_notes"],
       "approvedPolicyDependencies": ["D-006"],
       "remainingBlockers": [
         {
           "kind": "decision",
-          "id": "D-007",
-          "description": "個管指派、重派與例外證據規則尚未核定。"
-        },
-        {
-          "kind": "decision",
-          "id": "D-014",
-          "description": "clinical／surgical follow-up 欄位、責任、保存、修正與匯出邊界尚未核定。"
+          "id": "D-002",
+          "description": "員工營運備註的正式保存、存取與匯出邊界尚未核定。",
+          "blocks": "public_production_route"
         }
       ],
-      "note": "目前 candidate permission 不得被解讀為已核准的 clinical record 或 case-management write capability。"
+      "note": "STAFF-NOTE-2026-11-28：只限標籤（當天到／國外客／遠距離）加 120 字備註，前台與主管可改；不進稽核內容、日誌或日曆標題；不含臨床紀錄（D-014 仍擋住臨床欄位，本權限不涵蓋）。"
     },
     "case_assignment": {
       "permissions": ["assign_case_manager"],

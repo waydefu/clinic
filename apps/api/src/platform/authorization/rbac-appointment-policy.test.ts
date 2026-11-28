@@ -185,6 +185,21 @@ describe('createRbacAppointmentPolicy', () => {
     ).rejects.toBeInstanceOf(AuthorizationDeniedError);
   });
 
+  it('lets front-desk and manager update the counter note; denies others', async () => {
+    for (const role of ['front_desk', 'manager'] as const) {
+      await expect(
+        policyFor(role).assertCanUpdateNotes(context())
+      ).resolves.toBeUndefined();
+    }
+    for (const role of ['patient', 'physician', 'auditor'] as const) {
+      await expect(
+        policyFor(role).assertCanUpdateNotes(
+          context({ verifiedPatientId: 'patient_001' })
+        )
+      ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+    }
+  });
+
   it('lets a manager delete and denies the front desk', async () => {
     await expect(
       policyFor('manager').assertCanDelete(context())

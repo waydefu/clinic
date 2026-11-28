@@ -45,6 +45,11 @@ type MutationStub =
       appointmentId: string;
       deleted: true;
       auditEventId: string;
+    }
+  | {
+      appointmentId: string;
+      noteTags: string[];
+      noteText: string;
     };
 type MutationKind =
   | 'cancel'
@@ -53,6 +58,7 @@ type MutationKind =
   | 'complete'
   | 'noShow'
   | 'followUp'
+  | 'notes'
   | 'delete';
 
 type CapturedPost = {
@@ -82,6 +88,7 @@ const MUTATION_ROUTES: Array<{ kind: MutationKind; pattern: RegExp }> = [
   { kind: 'complete', pattern: /^\/v1\/bookings\/[^/]+\/complete$/ },
   { kind: 'noShow', pattern: /^\/v1\/bookings\/[^/]+\/no-show$/ },
   { kind: 'followUp', pattern: /^\/v1\/bookings\/[^/]+\/follow-up$/ },
+  { kind: 'notes', pattern: /^\/v1\/bookings\/[^/]+\/notes$/ },
   { kind: 'delete', pattern: /^\/v1\/bookings\/[^/]+\/delete$/ }
 ];
 
@@ -108,6 +115,7 @@ async function stubV1(
   complete: CapturedPost;
   noShow: CapturedPost;
   followUp: CapturedPost;
+  notes: CapturedPost;
   delete: CapturedPost;
   query: CapturedPost;
   publish: CapturedPost;
@@ -122,6 +130,7 @@ async function stubV1(
     complete: CapturedPost;
     noShow: CapturedPost;
     followUp: CapturedPost;
+    notes: CapturedPost;
     delete: CapturedPost;
     query: CapturedPost;
     publish: CapturedPost;
@@ -133,6 +142,7 @@ async function stubV1(
     complete: {},
     noShow: {},
     followUp: {},
+    notes: {},
     delete: {},
     query: {},
     publish: {},
@@ -1212,9 +1222,9 @@ test.describe('internal-test booking occupancy overlay', () => {
     await expect(card).toContainText('已到診');
   });
 
-  test('opt-in staff notes do not succeed locally', async ({ page }) => {
+  test('opt-in staff notes post /v1/bookings/:id/notes', async ({ page }) => {
     const startsAt = upcomingIso(48);
-    await stubV1(
+    const posted = await stubV1(
       page,
       {
         slots: [
@@ -1231,6 +1241,13 @@ test.describe('internal-test booking occupancy overlay', () => {
         status: 'confirmed',
         startsAt,
         endsAt: upcomingIso(48.5)
+      },
+      {
+        notes: {
+          appointmentId: 'appointment_api_001',
+          noteTags: ['same_day'],
+          noteText: '櫃台備註'
+        }
       }
     );
 
@@ -1247,10 +1264,13 @@ test.describe('internal-test booking occupancy overlay', () => {
     await form.locator('[name="noteText"]').fill('櫃台備註');
     await form.getByRole('button', { name: '儲存備註' }).click();
 
-    await expect(page.locator('#status')).toContainText(
-      '服務暫時無法使用，請稍後再試。'
-    );
-    await expect(form.locator('[name="noteText"]')).toHaveValue('櫃台備註');
+    await expect(page.locator('#status')).toContainText('備註已更新');
+    expect(posted.notes.path).toBe('/v1/bookings/appointment_api_001/notes');
+    expect(posted.notes.body).toMatchObject({
+      noteTags: [],
+      noteText: '櫃台備註'
+    });
+    expect(posted.notes.body).not.toHaveProperty('patientId');
   });
 
   test('opt-in staff reschedule posts /v1/bookings/:id/reschedule without patient fields', async ({

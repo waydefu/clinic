@@ -462,6 +462,22 @@ describe('mapInternalTestBookingRequest', () => {
       )?.body
     ).not.toHaveProperty('authorizationSecret');
     expect(
+      mapInternalTestBookingRequest('/bookings/appointment_001/notes', 'POST', {
+        noteTags: ['same_day', 'same_day', 'overseas'],
+        noteText: ' 請提早到 ',
+        patientId: 'must-not-leave-the-browser'
+      })
+    ).toMatchObject({
+      url: '/v1/bookings/appointment_001/notes',
+      method: 'POST',
+      body: { noteTags: ['same_day', 'overseas'], noteText: '請提早到' }
+    });
+    expect(
+      mapInternalTestBookingRequest('/bookings/appointment_001/notes', 'POST', {
+        noteTags: ['same_day']
+      })?.body
+    ).not.toHaveProperty('patientId');
+    expect(
       mapInternalTestBookingRequest(
         '/bookings/appointment_001/complete-without-card',
         'POST',
@@ -705,7 +721,7 @@ describe('createInternalTestBookingTransport', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it('fail-closes notes, case assignment and local outbox demo writes', async () => {
+  it('fail-closes case assignment and local outbox demo writes', async () => {
     const local = vi.fn();
     const fetchImpl = vi.fn();
     const transport = createInternalTestBookingTransport({
@@ -714,12 +730,6 @@ describe('createInternalTestBookingTransport', () => {
       fetchImpl
     });
 
-    await expect(
-      transport('/bookings/appointment_001/notes', {
-        method: 'POST',
-        body: JSON.stringify({ noteText: 'must-not-persist-locally' })
-      })
-    ).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE' });
     await expect(
       transport('/case-assignments', {
         method: 'POST',

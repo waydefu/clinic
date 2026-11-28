@@ -252,6 +252,18 @@ export function mapInternalTestBookingRequest(
       body: { idempotencyKey: idempotencyKey() }
     };
   }
+  const notes = /^\/bookings\/([A-Za-z0-9_-]+)\/notes$/.exec(path);
+  if (verb === 'POST' && notes !== null) {
+    return {
+      url: `/v1/bookings/${notes[1]}/notes`,
+      method: 'POST',
+      body: {
+        idempotencyKey: idempotencyKey(),
+        noteTags: [...new Set(body.noteTags ?? [])],
+        noteText: String(body.noteText ?? '').trim()
+      }
+    };
+  }
   const deletion = /^\/bookings\/([A-Za-z0-9_-]+)\/delete$/.exec(path);
   if (verb === 'POST' && deletion !== null) {
     return {
@@ -693,9 +705,7 @@ export function createInternalTestBookingTransport({
     if (mapped === undefined) {
       if (
         String(options.method ?? 'GET').toUpperCase() === 'POST' &&
-        (/^\/bookings\/[A-Za-z0-9_-]+\/(complete-without-card|notes)$/.test(
-          path
-        ) ||
+        (/^\/bookings\/[A-Za-z0-9_-]+\/complete-without-card$/.test(path) ||
           path === '/case-assignments' ||
           path === '/outbox/simulate' ||
           path === '/outbox/requeue')
@@ -761,6 +771,11 @@ export function createInternalTestBookingTransport({
           // 伺服器只在櫃台清單回傳；這裡不帶，工作臺就永遠看不到它。
           ...(typeof item.patientNote === 'string' && item.patientNote !== ''
             ? { patientNote: item.patientNote }
+            : {}),
+          // 櫃台營運備註（STAFF-NOTE-2026-11-28）：同樣只在櫃台清單回傳。
+          ...(Array.isArray(item.noteTags) ? { noteTags: item.noteTags } : {}),
+          ...(typeof item.noteText === 'string'
+            ? { noteText: item.noteText }
             : {})
         }))
       };

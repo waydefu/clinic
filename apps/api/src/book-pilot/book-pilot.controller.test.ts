@@ -112,6 +112,13 @@ const harnessRepository: AppointmentRepositoryPort = {
       decision: 'required' as const,
       dueAt: '2030-01-02T04:15:00.000Z'
     }),
+  updateNotes: () =>
+    Promise.resolve({
+      appointmentId: 'appointment_unused',
+      replayed: false,
+      noteTags: [],
+      noteText: ''
+    }),
   deleteAppointment: () =>
     Promise.resolve({
       appointmentId: 'appointment_harness_001',

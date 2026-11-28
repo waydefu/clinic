@@ -37,6 +37,7 @@ import {
   WORKBENCH_PROCEDURES
 } from './modules/constants.js';
 import { hasPermission } from './modules/permissions.js';
+import { disableWorkbenchCapability } from './modules/workbench-scope-policy.js';
 import { overdueAppointments } from './modules/case-management.js';
 import { renderTagOptions } from './modules/tag-picker.js';
 import { taipeiTodayDate } from './modules/taipei-time.js';
@@ -66,6 +67,14 @@ const elements = Object.fromEntries(
   [...document.querySelectorAll('[id]')].map((element) => [element.id, element])
 );
 const isOnline = !['127.0.0.1', 'localhost'].includes(window.location.hostname);
+// D-007 延後：有後端的線上模式不提供個管指派（STAFF-CASE-DEFERRED-2026-11-28）。
+if (isOnline) {
+  disableWorkbenchCapability('CASE_MANAGEMENT');
+  for (const el of document.querySelectorAll(
+    '#case-section, a[href="#case-section"]'
+  ))
+    (el.closest('li') ?? el).hidden = true;
+}
 const mobileViewport = window.matchMedia('(max-width: 48rem)');
 const appShell = document.querySelector('.app-shell');
 // 商務區的操作回饋在區內；點擊時清掉頂端橫條殘留的舊訊息，避免兩處互相矛盾。

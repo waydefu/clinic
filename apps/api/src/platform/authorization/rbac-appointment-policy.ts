@@ -117,6 +117,17 @@ export function createRbacAppointmentPolicy(
         resolve();
       });
     },
+    assertCanUpdateNotes(context): Promise<void> {
+      return new Promise<void>((resolve) => {
+        evaluateAccess(context, {
+          role: resolveRole(context),
+          accountActive: true,
+          permission: 'update_appointment_notes',
+          scope: { kind: 'any' }
+        });
+        resolve();
+      });
+    },
     assertCanQuery(context, command): Promise<void> {
       return new Promise<void>((resolve) => {
         const role = resolveRole(context);
