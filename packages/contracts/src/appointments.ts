@@ -361,3 +361,4 @@ export type UpdateAppointmentNotesRequest = z.infer<
 export type UpdateAppointmentNotesResponse = z.infer<
   typeof UpdateAppointmentNotesResponseSchema
 >;
+export type AppointmentNoteTag = z.infer<typeof AppointmentNoteTagSchema>;
