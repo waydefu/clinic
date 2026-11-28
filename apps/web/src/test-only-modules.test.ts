@@ -2122,7 +2122,7 @@ describe('工作臺語意 T2-WB-02', () => {
     expect(html).not.toContain('末 4 碼');
   });
 
-  it('沒有病患紀錄時患者欄只顯示末 4 碼，不印整串雜湊', () => {
+  it('沒有病患紀錄時患者欄顯示（未留姓名），不印編號或整串雜湊', () => {
     const state: any = initialState();
     const patientId = 'e4f891aa00bb11cc22dd33ee44ff33ee';
     state.appointments.push({
@@ -2136,8 +2136,8 @@ describe('工作臺語意 T2-WB-02', () => {
       status: 'confirmed'
     });
     const html = renderAppointments(state, filtersAll);
-    expect(html).toContain('患者 · 末 4 碼 33ee');
-    expect(html).toContain('預約 · 末 4 碼 8f90');
+    expect(html).toContain('（未留姓名）');
+    expect(html).not.toMatch(/末 4 碼|[0-9a-f]{32}|_001|term_|409：/);
     expect(html).not.toContain(`>${patientId}<`);
   });
 
