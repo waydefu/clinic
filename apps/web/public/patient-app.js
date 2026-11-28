@@ -201,6 +201,7 @@ async function runUiAction({
 }
 
 function showStep(step, { focusHeading = true, scroll = true } = {}) {
+  syncReturnIdentity();
   bookingResultPanel.hidden = true;
   document.body.dataset.bookingFlowStep = String(step);
   elements['patient-hero'].hidden = step !== 1;
@@ -1012,6 +1013,14 @@ function hasReturnSession() {
   } catch {
     return false;
   }
+}
+
+// 回診 session 有效時，第 3 步不再要姓名／電話／生日／國籍，也不要隱私勾選（送出時本來就略過）。
+function syncReturnIdentity() {
+  const reuse = hasReturnSession() && selectedBookingType === 'follow_up';
+  elements['patient-identity-section'].hidden = reuse;
+  elements['return-identity-note'].hidden = !reuse;
+  elements['privacy-consent'].closest('label').style.display = reuse ? 'none' : '';
 }
 
 elements['patient-booking-form'].addEventListener('submit', async (event) => {
