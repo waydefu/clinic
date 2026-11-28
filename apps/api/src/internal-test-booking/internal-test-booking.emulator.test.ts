@@ -1253,33 +1253,23 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
         payload: { idempotencyKey: key }
       });
 
+    const noCard = (key: string, headers = managerHeaders()) =>
+      post('complete-without-card', key, headers);
+
     // Not arrived yet: the arrived-only rule of `complete` still applies.
-    expect(
-      (await post('complete-without-card', 'booking-idempotency-0022'))
-        .statusCode
-    ).toBe(409);
-    expect((await post('arrive', 'booking-idempotency-0023')).statusCode).toBe(
-      201
-    );
-    expect(
-      (
-        await post(
-          'complete-without-card',
-          'booking-idempotency-0024',
-          patientHeaders()
-        )
-      ).statusCode
-    ).toBe(403);
-    const done = await post('complete-without-card', 'booking-idempotency-0025');
+    const early = await noCard('booking-idempotency-0022');
+    expect(early.statusCode).toBe(409);
+    const arrived = await post('arrive', 'booking-idempotency-0023');
+    expect(arrived.statusCode).toBe(201);
+    const denied = await noCard('booking-idempotency-0024', patientHeaders());
+    expect(denied.statusCode).toBe(403);
+    const done = await noCard('booking-idempotency-0025');
     expect(done.statusCode).toBe(201);
     expect(JSON.parse(done.payload)).toEqual({
       appointmentId,
       status: 'completed'
     });
-    const replayed = await post(
-      'complete-without-card',
-      'booking-idempotency-0025'
-    );
+    const replayed = await noCard('booking-idempotency-0025');
     expect(replayed.statusCode).toBe(201);
 
     const stored = await db

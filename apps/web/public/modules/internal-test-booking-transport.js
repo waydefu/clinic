@@ -1,3 +1,4 @@
+import { calendarPilotAuthenticationGeneration } from './calendar-pilot-authority.js';
 async function clearCalendarPilotClientAuthState(storage) {
   const session = await import('./pilot-google-totp-session.js');
   session.clearCalendarPilotClientAuthState(storage);
