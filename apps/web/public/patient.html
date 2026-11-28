@@ -408,9 +408,6 @@
                     的欄位為必填。
                   </p>
                   <div class="patient-form-grid">
-                    <p id="return-identity-note" hidden>
-                      已確認回診身分，不必再填身分資料。
-                    </p>
                     <section
                       id="patient-identity-section"
                       class="patient-form-section"
@@ -616,7 +613,17 @@
                             hidden
                           ></span>
                         </label>
-                        <!-- P6：行內入口開 /privacy 全文（個資法第 8 條）；僅測試用閱讀 gate，非正式同意紀錄（D-003 未核准）。 -->
+                        <!-- P6（業主 2026-07-27）：告知改為一行閱讀確認＋行內入口。
+                     業主要的是「不要把打電話刪資料寫得太突出」——**呈現**可以
+                     低調，內容不行：個資法第 8 條要求蒐集前告知蒐集者、目的、
+                     類別、期間地區對象方式、當事人權利**及行使方式**與不提供
+                     的影響。所以那個行內入口打開的是 /privacy 的**全文**（由
+                     policy-dialog 就地取回），不是另一份摘要——兩份文件必然漂移。
+                     它是真的 <a href="/privacy">：沒有 JavaScript 時仍是一條
+                     走得到告知的路；有 JavaScript 時才攔下來就地展開，不必放棄
+                     填到一半的表單。D-003 尚未核准，而且目前不保存政策版本、
+                     顯示時間或接受紀錄，所以這只能叫測試用閱讀 gate，不能稱為
+                     正式同意或告知證據。 -->
                         <label class="consent-preview consent-inline"
                           ><input
                             id="privacy-consent"

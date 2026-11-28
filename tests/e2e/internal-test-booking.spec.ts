@@ -1849,7 +1849,7 @@ test.describe('internal-test booking occupancy overlay', () => {
     );
     await page.locator('#booking-management-close').click();
     await page.locator('[data-patient-slot="slot_follow_up_open"]').click();
-    await expect(page.locator('#return-identity-note')).toBeVisible();
+    await expect(page.locator('#patient-identity-section')).toBeHidden();
     await expect(page.locator('#patient-name')).toBeHidden();
     await expect(page.locator('#patient-phone')).toBeHidden();
     await page.locator('#confirm-patient-booking').click();
