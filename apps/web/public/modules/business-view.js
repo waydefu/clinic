@@ -395,8 +395,7 @@ function milestoneText(value) {
 }
 
 function reportError(error) {
-  const message = error instanceof Error ? error.message : '目前無法完成操作。';
-  return error?.status === 409 ? `409：${message}` : message;
+  return error instanceof Error ? error.message : '目前無法完成操作。';
 }
 
 /**
@@ -1382,7 +1381,6 @@ export function initializeBusinessView({
         '',
         TERMINATION_STATE_LABELS[record.state] ?? '狀態需人工確認'
       ),
-      element('p', '', `個案識別碼：${record.terminationId}`),
       element('p', '', `通知日期：${record.noticeDate}`),
       element('p', '', `通知時間：${dateLabel(record.noticeStartedAt)}`),
       element('p', '', `通知期限：${dateLabel(record.noticeDueAt)}`),
@@ -1496,7 +1494,7 @@ export function initializeBusinessView({
       {
         reauthenticate: true,
         responseLabel: (record) =>
-          `${TERMINATION_STATE_LABELS[record.state] ?? '終止通知已建立'}，個案識別碼 ${record.terminationId}。`
+          `${TERMINATION_STATE_LABELS[record.state] ?? '終止通知已建立'}（通知日 ${record.noticeDate}）。`
       }
     );
     if (result && result.terminationId) renderTerminationCase(result);

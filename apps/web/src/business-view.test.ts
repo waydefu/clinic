@@ -407,7 +407,7 @@ describe('requestPendingDeletionPage', () => {
 });
 
 describe('createBusinessWriteRunner conflict feedback', () => {
-  it('shows the server reason after the 409 prefix and re-enables the control', async () => {
+  it('shows the server reason without an HTTP code prefix and re-enables the control', async () => {
     const message = '這位患者還有未來的預約，請先取消或完成預約再封存。';
     const setStatus = vi.fn();
     const run = createBusinessWriteRunner({
@@ -424,7 +424,7 @@ describe('createBusinessWriteRunner conflict feedback', () => {
     });
     const control = { disabled: false };
     await run(control, 'archive', '/x', { patientId: 'patient_wang_1' });
-    expect(setStatus).toHaveBeenLastCalledWith(`409：${message}`, 'error');
+    expect(setStatus).toHaveBeenLastCalledWith(message, 'error');
     expect(control.disabled).toBe(false);
   });
 });
