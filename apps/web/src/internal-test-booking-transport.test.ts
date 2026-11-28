@@ -18,6 +18,7 @@ import {
   applyFollowUpContractWrite,
   clearInternalTestReturnSession,
   commitInternalTestBookingWrite,
+  consumeNoteSaveFailure,
   createInternalTestBookingTransport,
   isStageFM11Enabled,
   mergeServerFollowUps,
@@ -717,6 +718,10 @@ describe('createInternalTestBookingTransport', () => {
       noteTags: ['same_day'],
       noteText: '請提早到'
     });
+    // 補存失敗不丟錯、不重複建立預約，但要留下旗標讓畫面提示櫃台補備註。
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(consumeNoteSaveFailure()).toBe(true);
+    expect(consumeNoteSaveFailure()).toBe(false);
   });
 
   it('merges server follow-up decisions into the local list', () => {

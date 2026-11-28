@@ -335,6 +335,15 @@ export function mapInternalTestBookingRequest(
   return undefined;
 }
 
+let noteSaveFailed = false;
+
+/** 取走並清除「建立預約後備註補存失敗」旗標，給畫面接在成功訊息後提示。 */
+export function consumeNoteSaveFailure() {
+  const failed = noteSaveFailed;
+  noteSaveFailed = false;
+  return failed;
+}
+
 function taipeiClock(iso) {
   const minutes = taipeiMinutes(iso);
   const pad = (value) => String(value).padStart(2, '0');
@@ -856,7 +865,7 @@ export function createInternalTestBookingTransport({
       rememberReturnSession(payload?.sessionId);
     }
     // 櫃台建立時填的備註：預約建好後補存。補存失敗不回報整筆失敗（預約已存在，
-    // 重送只會重複建立），櫃台可在卡片上再改備註。
+    // 重送只會重複建立），改記下失敗，讓畫面提示櫃台到卡片上補備註。
     const noteTags = [...new Set(body.noteTags ?? [])];
     const noteText = String(body.noteText ?? '').trim();
     if (
@@ -869,7 +878,9 @@ export function createInternalTestBookingTransport({
         url: `/v1/bookings/${payload.appointmentId}/notes`,
         method: 'POST',
         body: { idempotencyKey: idempotencyKey(), noteTags, noteText }
-      }).catch(() => undefined);
+      }).catch(() => {
+        noteSaveFailed = true;
+      });
     }
     if (path === '/schedule/publish' && payload !== undefined) {
       try {
