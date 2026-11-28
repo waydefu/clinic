@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test.describe('public 404 recovery', () => {
-  test('unknown paths stay on the branded 404 and recover to clinic or booking', async ({
+  test('unknown paths stay on the branded 404 and recover to the clinic website or booking', async ({
     page
   }) => {
     const response = await page.goto('/this-page-does-not-exist');
@@ -12,7 +12,7 @@ test.describe('public 404 recovery', () => {
     ).toBeVisible();
     await expect(page.getByRole('link', { name: '回到首頁' })).toHaveAttribute(
       'href',
-      '/clinic'
+      'https://www.beauessence.com.tw/'
     );
     await expect(
       page.getByRole('link', { name: '前往線上預約' })
@@ -20,8 +20,6 @@ test.describe('public 404 recovery', () => {
     await expect(page.locator('a[href="/"]')).toHaveCount(0);
     await expect(page.locator('a[href="/staff"]')).toHaveCount(0);
 
-    await page.getByRole('link', { name: '回到首頁' }).click();
-    await expect(page).toHaveURL(/\/clinic$/);
     await expect(
       page.getByRole('heading', { name: '登入營運工作臺' })
     ).toHaveCount(0);
@@ -40,11 +38,11 @@ test.describe('public 404 recovery', () => {
 });
 
 test.describe('public front-door split', () => {
-  test('root splits to the public clinic instead of the staff login', async ({
+  test('root splits to booking instead of the staff login', async ({
     page
   }) => {
     await page.goto('/');
-    await expect(page).toHaveURL(/\/clinic$/);
+    await expect(page).toHaveURL(/\/booking$/);
     await expect(
       page.getByRole('heading', { name: '登入營運工作臺' })
     ).toHaveCount(0);

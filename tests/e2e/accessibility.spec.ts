@@ -3,10 +3,6 @@ import { join } from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
-// canonical 診所路由：clinic-content.js 的 CLINIC_ROUTES 是唯一真實來源，
-// check:pages 會拿它與 public-pages.json、server 與 Hosting 雙向比對。
-// 完整迴圈直接 import，不手抄第二份路由清單。
-import { CLINIC_ROUTES } from '../../apps/web/public/clinic-content.js';
 import {
   classifyFindings,
   targetKey
@@ -30,10 +26,9 @@ import { openPatientRescheduleControls } from './support/patient.js';
 export const PUBLIC_PAGE_SCAN_ROUTES = [
   '/staff',
   '/booking',
-  '/privacy',
-  '/clinic'
+  '/privacy'
 ] as const;
-const [WORKBENCH_ROUTE, BOOKING_ROUTE, PRIVACY_ROUTE, CLINIC_ROUTE] =
+const [WORKBENCH_ROUTE, BOOKING_ROUTE, PRIVACY_ROUTE] =
   PUBLIC_PAGE_SCAN_ROUTES;
 
 // axe 無障礙掃描，跑在打包後的產物上。這是自動化能抓到的一部分 WCAG 問題
@@ -77,10 +72,6 @@ const waiversRegistry = JSON.parse(
 
 // 期望掃描矩陣的互動狀態那一半住在 `scripts/merge-web-evidence.mjs` 的
 // WORKBENCH_SCAN_STATES（單一來源）；這裡的 scan() 呼叫必須逐字使用那些字串。
-// `/clinic` 已在字面迴圈掃過，完整迴圈只補其餘具體路由，不重複。
-const CONCRETE_CLINIC_ROUTES = (CLINIC_ROUTES as string[]).filter(
-  (route) => route !== CLINIC_ROUTE
-);
 
 async function scan(page: Page, route: string, state: string) {
   const builder = new AxeBuilder({ page }).withTags(STANDARD_TAGS).options({
@@ -165,25 +156,8 @@ for (const route of PUBLIC_PAGE_SCAN_ROUTES) {
       await expect(
         page.getByRole('heading', { level: 1, name: /隱私權政策/ })
       ).toBeVisible();
-    } else {
-      await expect(
-        page.getByRole('heading', {
-          level: 1,
-          name: '鼻塞、打鼾與睡眠呼吸門診'
-        })
-      ).toBeVisible();
     }
 
-    await scan(page, route, 'default');
-  });
-}
-
-// 具體 clinic 路由全掃：八條路由共用 clinic.html 殼，但醫師／療程內容實質不同，
-// 只掃 `/clinic` 證明不了其餘七條。每條的 h1 由 clinic-site.spec.ts 背書。
-for (const route of CONCRETE_CLINIC_ROUTES) {
-  test(`clinic 具體路由沒有未豁免違規：${route}`, async ({ page }) => {
-    await page.goto(route);
-    await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
     await scan(page, route, 'default');
   });
 }

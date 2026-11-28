@@ -198,12 +198,10 @@ async function inspectHtml(
   }
 }
 
-await inspectHtml(
-  '/',
-  'clinic entry',
-  ['ONLINE PREVIEW', '合成預覽環境，請勿輸入真實患者資料', 'id="clinic-main"'],
-  { expectedRedirectPath: '/clinic' }
-);
+// 第一期不做官網（2026-11-28）：根目錄 302 到預約頁。
+await inspectHtml('/', 'root entry', ['id="patient-name"'], {
+  expectedRedirectPath: '/booking'
+});
 // 2026-09-22（BOOKING-MINIMIZATION-2026-09-22）：生日只收月日，國籍只分
 // 本國／外國，不再收身分證或護照。這裡只釘「必填的那幾欄真的出貨了」。
 await inspectHtml('/booking', 'patient entry', [

@@ -3,10 +3,9 @@ import { expect, test, type Page } from '@playwright/test';
 export const PUBLIC_PAGE_SCAN_ROUTES = [
   '/staff',
   '/booking',
-  '/privacy',
-  '/clinic'
+  '/privacy'
 ] as const;
-const [WORKBENCH_ROUTE, BOOKING_ROUTE, PRIVACY_ROUTE, CLINIC_ROUTE] =
+const [WORKBENCH_ROUTE, BOOKING_ROUTE, PRIVACY_ROUTE] =
   PUBLIC_PAGE_SCAN_ROUTES;
 
 // 版面在每個斷點都不得產生水平捲軸（WCAG 1.4.10 Reflow：320px 寬度下內容要能
@@ -74,13 +73,6 @@ for (const route of PUBLIC_PAGE_SCAN_ROUTES) {
           page.getByRole('heading', {
             level: 1,
             name: /隱私權政策與個人資料蒐集告知草稿/
-          })
-        ).toBeVisible();
-      } else if (route === CLINIC_ROUTE) {
-        await expect(
-          page.getByRole('heading', {
-            level: 1,
-            name: '鼻塞、打鼾與睡眠呼吸門診'
           })
         ).toBeVisible();
       }

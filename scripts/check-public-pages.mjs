@@ -51,10 +51,13 @@ const DECISION_PATTERN = /^D-\d{3}$/;
 const ROUTING_KINDS = new Set(['exact', 'shared-shell', 'hosting-404']);
 
 /**
- * 根入口分流（Q4 front-door 分離）：`/` 不是頁面，302 到 `/clinic`。
+ * 根入口分流（Q4 front-door 分離）：`/` 不是頁面，302 到 `/booking`。
  * server.mjs 以同名常數宣告，firebase.json 以同值宣告；兩邊逐字比對。
  */
-const ROOT_REDIRECT = { source: '/', destination: '/clinic', type: 302 };
+const ROOT_REDIRECT = { source: '/', destination: '/booking', type: 302 };
+// 第一期不做官網（2026-11-28）：官網路由 301 到診所既有官網，不再由本站提供。
+const RETIRED_SITE_URL = 'https://www.beauessence.com.tw/';
+const RETIRED_SITE_SOURCES = ['/clinic', '/clinic.html', '/clinic/**'];
 const ROUTE_PATTERN =
   /^\/(?:[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)*)?$/;
 // 建置把每條官網路由頁放在這個目錄；名稱刻意不會等於任何對外路徑（見 build-web.mjs）。
@@ -447,11 +450,15 @@ function buildExpectedRouting(pages, dataRouteSources, routePages, failures) {
       );
   }
 
-  // 根 `/` 不是頁面：302 分流到 `/clinic`，由 ROOT_REDIRECT 常數擁有。
+  // 根 `/` 不是頁面：302 分流到 `/booking`，由 ROOT_REDIRECT 常數擁有。
   redirects.set(ROOT_REDIRECT.source, {
     destination: ROOT_REDIRECT.destination,
     type: ROOT_REDIRECT.type
   });
+  // manifest 沒有宣告 /clinic 頁面時，官網路由一律 301 到既有官網。
+  if (!pages.some((page) => page.route === '/clinic'))
+    for (const source of RETIRED_SITE_SOURCES)
+      redirects.set(source, { destination: RETIRED_SITE_URL, type: 301 });
 
   return {
     serverMappings,
@@ -751,13 +758,17 @@ function compareFirebaseRedirects(expected, rules, failures) {
       label,
       failures
     );
-    if (value.source !== '/' && !isEntryPath(value.source))
+    if (
+      value.source !== '/' &&
+      !isEntryPath(value.source) &&
+      !RETIRED_SITE_SOURCES.includes(value.source)
+    )
       failures.push(`${label}.source 必須是 /<entry>.html。`);
     if (value.source === '/' && value.type !== ROOT_REDIRECT.type)
       failures.push(
         `${label} 的根分流 type 必須是 manifest 支援的 ${ROOT_REDIRECT.type}。`
       );
-    if (!isRoute(value.destination))
+    if (!isRoute(value.destination) && value.destination !== RETIRED_SITE_URL)
       failures.push(`${label}.destination 必須是合法 canonical route。`);
     if (value.source !== '/' && value.type !== 301)
       failures.push(`${label}.type 必須是 manifest 支援的 301。`);
@@ -1521,9 +1532,6 @@ export async function repositoryInputs() {
     scanSources[scan] = await read(...path.split('/'));
 
   const buildWeb = await import(new URL('./build-web.mjs', import.meta.url));
-  const clinicContent = await import(
-    new URL('../apps/web/public/clinic-content.js', import.meta.url)
-  );
   return {
     inventory: JSON.parse(await read('apps', 'web', 'public-pages.json')),
     budgets: JSON.parse(await read('apps', 'web', 'performance-budget.json')),
@@ -1540,10 +1548,8 @@ export async function repositoryInputs() {
       )
     ],
     scanSources,
-    dataRouteSources: {
-      CLINIC_ROUTES: clinicContent.CLINIC_ROUTES
-    },
-    clinicRoutePages: buildWeb.clinicRoutePageFiles(clinicContent)
+    dataRouteSources: {},
+    clinicRoutePages: new Map()
   };
 }
 

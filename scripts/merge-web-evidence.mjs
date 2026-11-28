@@ -220,9 +220,6 @@ export async function repositoryInputs() {
   const shellRoutes = inventory.pages
     .filter((page) => page.scans?.includes('axe'))
     .map((page) => page.route);
-  const clinicContent = await import(
-    new URL('../apps/web/public/clinic-content.js', import.meta.url)
-  );
   const waivers = JSON.parse(
     await read('apps', 'web', 'accessibility-waivers.json')
   );
@@ -245,7 +242,7 @@ export async function repositoryInputs() {
   return {
     budgets,
     shellRoutes,
-    clinicRoutes: clinicContent.CLINIC_ROUTES,
+    clinicRoutes: [],
     waivers,
     perfShards,
     a11yShards

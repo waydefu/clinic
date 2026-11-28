@@ -131,14 +131,7 @@ describe('hosting security headers', () => {
       [firebaseConfig, STAGING_AUTH_FRAME],
       [isolatedConfig, ISOLATED_AUTH_FRAME]
     ] as const) {
-      for (const source of [
-        '/clinic',
-        '/clinic/**',
-        '/clinic.html',
-        '/privacy',
-        '/privacy.html',
-        '/404.html'
-      ]) {
+      for (const source of ['/privacy', '/privacy.html', '/404.html']) {
         const directive = headerOn(config, source, 'Content-Security-Policy')
           .split(';')
           .map((part: string) => part.trim())
