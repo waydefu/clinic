@@ -266,7 +266,6 @@
             </ol>
 
             <section
-              id="booking-start"
               class="booking-panel"
               data-booking-step="1"
               aria-labelledby="booking-type-heading"
@@ -515,7 +514,6 @@
                         <!-- BOOKING-MINIMIZATION-2026-09-22：國籍恰好兩個選項，不收身分證
                      或護照。它只是這次門診的資料，不用來辨認是誰。 -->
                         <fieldset
-                          id="patient-nationality-field"
                           class="patient-fieldset"
                           aria-describedby="patient-nationality-error"
                         >
@@ -573,7 +571,7 @@
                       <div class="patient-form-section-fields">
                         <!-- 健保卡：預約時不再詢問（BOOKING-MINIMIZATION-2026-09-22）。
                      自費的後果仍然要事先講清楚，只是不收一個勾選值。 -->
-                        <p id="patient-nhi-card-hint" class="field-hint">
+                        <p class="field-hint">
                           看診請攜帶健保卡；未攜帶者本次看診須全額自費。
                         </p>
 
@@ -743,7 +741,7 @@
         請輸入預約時留的電話與生日（月、日）；查無結果時不會指出是哪一項不相符。
       </p>
       <form id="booking-lookup-form" class="booking-lookup-form" novalidate>
-        <label id="booking-lookup-phone-field"
+        <label
           >聯絡電話
           <input
             id="booking-lookup-phone"
