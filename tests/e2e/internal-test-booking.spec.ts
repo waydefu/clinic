@@ -59,6 +59,7 @@ type MutationKind =
   | 'noShow'
   | 'followUp'
   | 'notes'
+  | 'completeWithoutCard'
   | 'delete';
 
 type CapturedPost = {
@@ -89,6 +90,10 @@ const MUTATION_ROUTES: Array<{ kind: MutationKind; pattern: RegExp }> = [
   { kind: 'noShow', pattern: /^\/v1\/bookings\/[^/]+\/no-show$/ },
   { kind: 'followUp', pattern: /^\/v1\/bookings\/[^/]+\/follow-up$/ },
   { kind: 'notes', pattern: /^\/v1\/bookings\/[^/]+\/notes$/ },
+  {
+    kind: 'completeWithoutCard',
+    pattern: /^\/v1\/bookings\/[^/]+\/complete-without-card$/
+  },
   { kind: 'delete', pattern: /^\/v1\/bookings\/[^/]+\/delete$/ }
 ];
 
@@ -116,6 +121,7 @@ async function stubV1(
   noShow: CapturedPost;
   followUp: CapturedPost;
   notes: CapturedPost;
+  completeWithoutCard: CapturedPost;
   delete: CapturedPost;
   query: CapturedPost;
   publish: CapturedPost;
@@ -131,6 +137,7 @@ async function stubV1(
     noShow: CapturedPost;
     followUp: CapturedPost;
     notes: CapturedPost;
+    completeWithoutCard: CapturedPost;
     delete: CapturedPost;
     query: CapturedPost;
     publish: CapturedPost;
@@ -143,6 +150,7 @@ async function stubV1(
     noShow: {},
     followUp: {},
     notes: {},
+    completeWithoutCard: {},
     delete: {},
     query: {},
     publish: {},
@@ -1171,11 +1179,11 @@ test.describe('internal-test booking occupancy overlay', () => {
     await expect(card).toContainText('已到診');
   });
 
-  test('opt-in staff complete-without-card does not succeed locally', async ({
+  test('opt-in staff complete-without-card posts the new endpoint', async ({
     page
   }) => {
     const startsAt = upcomingIso(48);
-    await stubV1(
+    const posted = await stubV1(
       page,
       {
         slots: [
@@ -1199,6 +1207,12 @@ test.describe('internal-test booking occupancy overlay', () => {
           status: 'arrived',
           startsAt,
           endsAt: upcomingIso(48.5)
+        },
+        completeWithoutCard: {
+          appointmentId: 'appointment_api_001',
+          status: 'completed',
+          startsAt,
+          endsAt: upcomingIso(48.5)
         }
       }
     );
@@ -1219,10 +1233,11 @@ test.describe('internal-test booking occupancy overlay', () => {
       .click();
     await page.locator('.confirm-dialog button.button-primary').click();
 
-    await expect(page.locator('#status')).toContainText(
-      '服務暫時無法使用，請稍後再試。'
+    await expect(page.locator('#status')).toContainText('未帶健保卡');
+    expect(posted.completeWithoutCard.path).toBe(
+      '/v1/bookings/appointment_api_001/complete-without-card'
     );
-    await expect(card).toContainText('已到診');
+    expect(posted.completeWithoutCard.body).not.toHaveProperty('patientId');
   });
 
   test('a booking created with a note tells the counter when the note was not saved', async ({

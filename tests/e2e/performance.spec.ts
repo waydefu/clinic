@@ -2,10 +2,6 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 
-//  canonical 診所路由：clinic-content.js 的 CLINIC_ROUTES 是唯一真實來源，
-// check:pages 會拿它與 public-pages.json、server 與 Hosting 雙向比對。
-// 這裡直接 import，不手抄第二份路由清單。
-import { CLINIC_ROUTES } from '../../apps/web/public/clinic-content.js';
 import {
   PERFORMANCE_PROFILES,
   classifyPerformanceStatus,
@@ -74,9 +70,11 @@ const budgets = JSON.parse(
 ) as BudgetEntry[];
 
 // 進入點產物檔名 → 對外路由（單一來源在 web-performance-matrix.mjs）。
-const ENTRY_ROUTES = defaultEntryRoutes({
-  clinicRoutes: CLINIC_ROUTES as string[]
-}) as Array<{ entryPath: string; routes: string[] }>;
+// 第一期不做官網（2026-11-28）：沒有官網路由要量。
+const ENTRY_ROUTES = defaultEntryRoutes({ clinicRoutes: [] }) as Array<{
+  entryPath: string;
+  routes: string[];
+}>;
 
 declare global {
   interface Window {

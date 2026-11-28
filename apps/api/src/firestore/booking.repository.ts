@@ -543,7 +543,8 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
         updatedAt: plan.updatedAt,
         ...(plan.completedAt === undefined
           ? {}
-          : { completedAt: plan.completedAt })
+          : { completedAt: plan.completedAt }),
+        ...(plan.nhiCardMissing === true ? { nhiCardMissing: true } : {})
       });
       if (plan.releaseSlotId !== undefined && slotDocument !== undefined) {
         this.releaseSlot(transaction, slotDocument, plan.appointmentId);

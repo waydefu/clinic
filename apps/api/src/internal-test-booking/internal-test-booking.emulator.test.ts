@@ -1236,4 +1236,63 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
     expect(JSON.stringify(audits)).not.toContain('請提早十分鐘到');
     expect(JSON.stringify(audits)).not.toContain('same_day');
   });
+
+  it('completes an arrived visit without the NHI card and flags it once', async () => {
+    const harness = requireHarness();
+    const published = await harness.inject({
+      method: 'POST',
+      url: '/v1/schedule/publish',
+      headers: managerHeaders(),
+      payload: { ...PUBLISH_BODY, idempotencyKey: 'schedule_publish_0020' }
+    });
+    expect(published.statusCode).toBe(201);
+    const created = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings',
+      headers: patientHeaders(),
+      payload: { ...CREATE_BODY, idempotencyKey: 'booking-idempotency-0021' }
+    });
+    const { appointmentId } = JSON.parse(created.payload) as {
+      appointmentId: string;
+    };
+    const post = (action: string, key: string, headers = managerHeaders()) =>
+      harness.inject({
+        method: 'POST',
+        url: `/v1/bookings/${appointmentId}/${action}`,
+        headers,
+        payload: { idempotencyKey: key }
+      });
+
+    const noCard = (key: string, headers = managerHeaders()) =>
+      post('complete-without-card', key, headers);
+
+    // Not arrived yet: the arrived-only rule of `complete` still applies.
+    const early = await noCard('booking-idempotency-0022');
+    expect(early.statusCode).toBe(409);
+    const arrived = await post('arrive', 'booking-idempotency-0023');
+    expect(arrived.statusCode).toBe(201);
+    const denied = await noCard('booking-idempotency-0024', patientHeaders());
+    expect(denied.statusCode).toBe(403);
+    const done = await noCard('booking-idempotency-0025');
+    expect(done.statusCode).toBe(201);
+    expect(JSON.parse(done.payload)).toEqual({
+      appointmentId,
+      status: 'completed'
+    });
+    const replayed = await noCard('booking-idempotency-0025');
+    expect(replayed.statusCode).toBe(201);
+
+    const stored = await db
+      .collection(COLLECTIONS.appointments)
+      .doc(appointmentId)
+      .get();
+    expect(stored.data()).toMatchObject({
+      status: 'completed',
+      nhiCardMissing: true
+    });
+    const actions = (await db.collection(COLLECTIONS.auditEvents).get()).docs
+      .map((document) => document.data()['action'])
+      .filter((action) => String(action).startsWith('appointment_completed'));
+    expect(actions).toEqual(['appointment_completed_without_nhi_card']);
+  });
 });

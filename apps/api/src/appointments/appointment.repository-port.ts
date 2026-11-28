@@ -42,6 +42,8 @@ export interface AppointmentRecord {
     readonly dueAt: string | null;
     readonly recordedByRole?: string;
   };
+  /** Staff-only: the visit was completed without the NHI card. */
+  readonly nhiCardMissing?: true;
   /** Attention only: no archive identity or history is disclosed. */
   readonly identityReviewRequired?: true;
 }

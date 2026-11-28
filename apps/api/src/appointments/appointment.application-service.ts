@@ -214,23 +214,28 @@ export function toTransitionRequest(
   transition: AppointmentTransition,
   context: {
     readonly expectedPatientId?: string;
+    readonly nhiCardMissing?: true;
     readonly requestedAt: string;
     readonly audit: AuditContext;
   }
 ): TransitionRequest {
+  const flag =
+    context.nhiCardMissing === true ? { nhiCardMissing: true as const } : {};
   return {
     appointmentId,
     transition,
     ...(context.expectedPatientId === undefined
       ? {}
       : { expectedPatientId: context.expectedPatientId }),
+    ...flag,
     audit: context.audit,
     requestedAt: context.requestedAt,
     idempotency: transitionAppointmentIdempotency({
       key: command.idempotencyKey,
       actorId: context.audit.actorId,
       appointmentId,
-      transition
+      transition,
+      ...flag
     })
   };
 }
@@ -642,6 +647,9 @@ export class AppointmentApplicationService {
         ...(patientScope || record.followUp === undefined
           ? {}
           : { followUp: record.followUp }),
+        ...(patientScope || record.nhiCardMissing !== true
+          ? {}
+          : { nhiCardMissing: true as const }),
         ...(patientScope || record.identityReviewRequired !== true
           ? {}
           : { identityReviewRequired: true as const })
@@ -723,6 +731,22 @@ export class AppointmentApplicationService {
       authentication,
       'complete',
       'completed'
+    );
+  }
+
+  /** Same authority and transition as `complete`; also records the missing NHI card. */
+  public async completeWithoutCard(
+    appointmentId: string,
+    command: CancelAppointmentRequest,
+    authentication: AuthenticationContext
+  ): Promise<TransitionAppointmentResponse> {
+    return this.staffVisitTransition(
+      appointmentId,
+      command,
+      authentication,
+      'complete',
+      'completed',
+      true
     );
   }
 
@@ -839,7 +863,8 @@ export class AppointmentApplicationService {
     command: CancelAppointmentRequest,
     authentication: AuthenticationContext,
     transition: 'arrive' | 'complete' | 'no_show',
-    expectedStatus: 'arrived' | 'completed' | 'no_show'
+    expectedStatus: 'arrived' | 'completed' | 'no_show',
+    nhiCardMissing?: true
   ): Promise<TransitionAppointmentResponse> {
     // Role denial does not need the record. Reading first turned a 403 into a
     // 500 when Cloud Firestore credentials were absent.
@@ -852,6 +877,7 @@ export class AppointmentApplicationService {
 
     const result = await this.repository.transition(
       toTransitionRequest(appointmentId, command, transition, {
+        ...(nhiCardMissing === true ? { nhiCardMissing } : {}),
         requestedAt: this.nowUtc(),
         audit: {
           actorId: authentication.actorId,

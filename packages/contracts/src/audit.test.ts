@@ -35,6 +35,7 @@ describe('AuditEventV2Schema', () => {
       'appointment_rescheduled',
       'appointment_deleted',
       'follow_up_decided',
+      'appointment_completed_without_nhi_card',
       'appointment_notes_updated',
       'schedule_published',
       'case_manager_assigned',

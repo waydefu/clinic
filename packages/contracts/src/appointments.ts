@@ -147,6 +147,8 @@ export const GetAppointmentResponseSchema = z
     /** Staff clinic list only: counter operational note (STAFF-NOTE-2026-11-28). */
     noteTags: z.array(AppointmentNoteTagSchema).max(3).optional(),
     noteText: z.string().max(120).optional(),
+    /** Staff clinic list only: the visit was completed without the NHI card. */
+    nhiCardMissing: z.literal(true).optional(),
     /**
      * Staff clinic list only: the follow-up decision already recorded on the
      * server, so a second counter stops listing the visit as still pending.
