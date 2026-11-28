@@ -356,6 +356,25 @@ export function noteFieldsOf(data: Record<string, unknown> | undefined): {
   };
 }
 
+/** Follow-up decision denormalised onto the appointment row by recordFollowUp. */
+export function followUpFieldsOf(
+  data: Record<string, unknown> | undefined
+): Pick<AppointmentRecord, 'followUp'> {
+  const decision = data?.['followUpDecision'];
+  if (decision !== 'required' && decision !== 'not_required') return {};
+  const dueAt = data?.['followUpDueAt'];
+  const role = data?.['followUpByRole'];
+  return {
+    followUp: {
+      decision,
+      dueAt: typeof dueAt === 'string' ? dueAt : null,
+      ...(typeof role === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(role)
+        ? { recordedByRole: role }
+        : {})
+    }
+  };
+}
+
 /** Maps a stored appointment row to the list record. Exported for tests. */
 export function toListRecord(
   id: string,
@@ -378,6 +397,7 @@ export function toListRecord(
       : {}),
     ...(intakeNationality === undefined ? {} : { intakeNationality }),
     ...noteFieldsOf(data),
+    ...followUpFieldsOf(data),
     ...(data?.['identityReviewRequired'] === true
       ? { identityReviewRequired: true as const }
       : {}),

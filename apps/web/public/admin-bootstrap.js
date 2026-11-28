@@ -602,8 +602,8 @@ function renderSession() {
     `${state.session.account.label} · ${roleLabel(state.session.account.role)}`;
   elements['current-account-boundary'].textContent =
     state.session.account.role === 'manager'
-      ? '可設定營業時間、改派個管、帳號與系統治理。'
-      : '可處理預約、到診、登錄回診指示與首次個管指派。';
+      ? `可設定營業時間、${isOnline ? '' : '改派個管、'}帳號與系統治理。`
+      : `可處理預約、到診、登錄回診指示${isOnline ? '' : '與首次個管指派'}。`;
   applyWorkspacePanel();
   window.dispatchEvent(
     new CustomEvent('beauessence:workbench-access-change', {

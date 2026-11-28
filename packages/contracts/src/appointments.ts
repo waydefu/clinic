@@ -148,6 +148,18 @@ export const GetAppointmentResponseSchema = z
     noteTags: z.array(AppointmentNoteTagSchema).max(3).optional(),
     noteText: z.string().max(120).optional(),
     /**
+     * Staff clinic list only: the follow-up decision already recorded on the
+     * server, so a second counter stops listing the visit as still pending.
+     */
+    followUp: z
+      .object({
+        decision: z.enum(['required', 'not_required']),
+        dueAt: UtcIsoTimestampSchema.nullable(),
+        recordedByRole: OpaqueIdentifierSchema.optional()
+      })
+      .strict()
+      .optional(),
+    /**
      * Staff clinic list only (STAFF-LIST-PATIENT-DISPLAY-2026-11-23): the
      * patient's full name and phone digits for the counter. No birth date.
      */

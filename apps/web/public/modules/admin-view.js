@@ -887,7 +887,10 @@ export function renderFollowUps(state, editingIds = new Set()) {
               (account) =>
                 account.id ===
                 (decision.followUpRecordedBy ?? decision.decidedBy)
-            )?.label ?? '合成帳號');
+            )?.label ??
+            (decision.followUpRecordedByRole === undefined
+              ? '合成帳號'
+              : roleLabel(decision.followUpRecordedByRole)));
       // W4（業主 2026-07-27）：病歷號碼填在這裡。這是櫃台第一次真的拿得到號碼的
       // 時機——患者已經到診、病歷已經開出來了。號碼掛在**患者**身上（回診時是
       // 同一個），所以欄位的預設值讀的是患者紀錄，不是這一筆預約。

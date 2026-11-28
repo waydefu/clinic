@@ -4,6 +4,7 @@ async function clearCalendarPilotClientAuthState(storage) {
   session.clearCalendarPilotClientAuthState(storage);
 }
 import { DEFAULT_BLOCKED_TIMES } from './constants.js';
+import { taipeiDate, taipeiMinutes } from './taipei-time.js';
 import { validateSchedule } from './schedule-engine.js';
 import { CALENDAR_PILOT_SCHEDULE } from '../vendor/domain/calendar-sync.js';
 
@@ -332,6 +333,47 @@ export function mapInternalTestBookingRequest(
     };
   }
   return undefined;
+}
+
+function taipeiClock(iso) {
+  const minutes = taipeiMinutes(iso);
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
+}
+
+// 伺服器清單帶回的回診決定併進本機 state.followUps：狀態與日期以伺服器為準，
+// 瀏覽器自己存的項目標籤、備註等細節保留，另一台電腦登錄的決定也看得到。
+export function mergeServerFollowUps(local, listed) {
+  const merged = Array.isArray(local) ? [...local] : [];
+  for (const item of listed) {
+    const decision = item.followUp;
+    if (decision === undefined) continue;
+    const index = merged.findIndex(
+      (entry) => entry.appointmentId === item.appointmentId
+    );
+    const base = index === -1 ? {} : { ...merged[index] };
+    delete base.dueDate;
+    delete base.dueTime;
+    const entry = {
+      ...base,
+      appointmentId: item.appointmentId,
+      ...(item.patientId === undefined ? {} : { patientId: item.patientId }),
+      status: decision.decision,
+      followUpDecisionBy: 'doctor_instruction',
+      ...(decision.recordedByRole === undefined
+        ? {}
+        : { followUpRecordedByRole: decision.recordedByRole }),
+      ...(decision.decision === 'required' && decision.dueAt !== null
+        ? {
+            dueDate: taipeiDate(decision.dueAt),
+            dueTime: taipeiClock(decision.dueAt)
+          }
+        : {})
+    };
+    if (index === -1) merged.push(entry);
+    else merged[index] = entry;
+  }
+  return merged;
 }
 
 export function applyFollowUpContractWrite(state, path, body, result) {
@@ -750,8 +792,24 @@ export function createInternalTestBookingTransport({
             phone: item.patient.phone
           });
       }
+      const followUps = mergeServerFollowUps(
+        withSchedule.followUps,
+        listed.appointments
+      );
+      const decided = new Set(followUps.map((entry) => entry.appointmentId));
       return {
         ...withSchedule,
+        followUps,
+        // 首頁待辦也以伺服器清單為準（本機 store 在線上模式沒有這些預約）。
+        tasks: {
+          ...withSchedule.tasks,
+          pendingFollowUps: listed.appointments
+            .filter(
+              (item) =>
+                item.status === 'completed' && !decided.has(item.appointmentId)
+            )
+            .map((item) => item.appointmentId)
+        },
         ...(listedPatients.size > 0
           ? { patients: [...listedPatients.values()] }
           : {}),
@@ -796,6 +854,22 @@ export function createInternalTestBookingTransport({
         throw new DOMException('Booking context changed.', 'AbortError');
       }
       rememberReturnSession(payload?.sessionId);
+    }
+    // 櫃台建立時填的備註：預約建好後補存。補存失敗不回報整筆失敗（預約已存在，
+    // 重送只會重複建立），櫃台可在卡片上再改備註。
+    const noteTags = [...new Set(body.noteTags ?? [])];
+    const noteText = String(body.noteText ?? '').trim();
+    if (
+      isPost &&
+      path === '/bookings' &&
+      typeof payload?.appointmentId === 'string' &&
+      (noteTags.length > 0 || noteText !== '')
+    ) {
+      await v1({
+        url: `/v1/bookings/${payload.appointmentId}/notes`,
+        method: 'POST',
+        body: { idempotencyKey: idempotencyKey(), noteTags, noteText }
+      }).catch(() => undefined);
     }
     if (path === '/schedule/publish' && payload !== undefined) {
       try {
