@@ -19,6 +19,8 @@ export const AuditActionSchema = z.enum([
   // record of it. `after` is null and `reasonCode` is never null for it.
   'appointment_deleted',
   'follow_up_decided',
+  // Staff operational note edited; carries no note content.
+  'appointment_notes_updated',
   // The only action whose resource is the schedule rather than an appointment.
   'schedule_published',
   // Effective-dated case-manager assignment; the resource is the patient it

@@ -1,6 +1,8 @@
 import { ServiceUnavailableError } from '../platform/errors/api-error.js';
 import {
   assertIdempotencyContext,
+  planAuditEvent,
+  planIdempotencyRecord,
   DomainError,
   parseAppointmentSnapshot,
   parsePatientBookingGuard,
@@ -35,6 +37,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 import {
   FirestorePatientDirectory,
+  noteFieldsOf,
   type PreparedPatientIntake,
   assertFollowUpBookable,
   assertPatientNotArchived,
@@ -46,6 +49,8 @@ import type {
   AppointmentRepositoryPort,
   DeletionResult,
   FollowUpResult,
+  NotesUpdateRequest,
+  NotesUpdateResult,
   ReservationResult,
   TransitionResult
 } from '../appointments/appointment.repository-port.js';
@@ -805,6 +810,96 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
       };
     };
     return within === undefined ? this.db.runTransaction(work) : work(within);
+  }
+
+  /**
+   * Counter operational note (STAFF-NOTE-2026-11-28). Replaces the tags and
+   * text in one transaction with its audit event and idempotency record. The
+   * audit event carries status and slot only, never the note. No outbox job:
+   * the note is not projected to Calendar.
+   */
+  public async updateNotes(
+    request: NotesUpdateRequest
+  ): Promise<NotesUpdateResult> {
+    assertIdempotencyContext(request.idempotency, request.audit.actorId);
+    const idempotencyRef = this.db
+      .collection(COLLECTIONS.idempotencyKeys)
+      .doc(request.idempotency.recordId);
+    const appointmentRef = this.db
+      .collection(COLLECTIONS.appointments)
+      .doc(request.appointmentId);
+
+    return this.db.runTransaction(async (transaction) => {
+      const replay = this.replayOf(
+        await transaction.get(idempotencyRef),
+        request.idempotency
+      );
+      const document = await transaction.get(appointmentRef);
+      const appointment = this.snapshotOf(document);
+      if (replay !== undefined) {
+        const stored = noteFieldsOf(document.data());
+        return {
+          appointmentId: replay.appointmentId,
+          replayed: true,
+          noteTags: stored.noteTags ?? [],
+          noteText: stored.noteText ?? ''
+        };
+      }
+      if (appointment === undefined) {
+        throw new DomainError(
+          'APPOINTMENT_NOT_FOUND',
+          'The appointment does not exist.'
+        );
+      }
+      // A cancelled or no-show appointment is a settled fact: no more notes.
+      if (
+        appointment.status === 'cancelled' ||
+        appointment.status === 'no_show'
+      ) {
+        throw new DomainError(
+          'TRANSITION_NOT_ALLOWED',
+          'The appointment can no longer take a note.'
+        );
+      }
+      const state = {
+        status: appointment.status,
+        slotId: appointment.slotId
+      };
+      const auditEvent = planAuditEvent({
+        eventId: `audit_${appointment.id}_notes_${request.idempotency.recordId}`,
+        occurredAt: request.requestedAt,
+        action: 'appointment_notes_updated',
+        resourceType: 'appointment',
+        resourceId: appointment.id,
+        before: state,
+        after: state,
+        context: request.audit
+      });
+
+      transaction.update(appointmentRef, {
+        noteTags: [...request.noteTags],
+        noteText: request.noteText,
+        updatedAt: request.requestedAt
+      });
+      transaction.create(
+        this.db.collection(COLLECTIONS.auditEvents).doc(auditEvent.eventId),
+        auditEvent
+      );
+      transaction.create(
+        idempotencyRef,
+        planIdempotencyRecord(
+          request.idempotency,
+          appointment.id,
+          request.requestedAt
+        )
+      );
+      return {
+        appointmentId: appointment.id,
+        replayed: false,
+        noteTags: [...request.noteTags],
+        noteText: request.noteText
+      };
+    });
   }
 
   public async recordFollowUp(

@@ -17,7 +17,8 @@ import {
   STAFF_TRANSITION_TO_DOMAIN,
   StaffAppointmentTransitionSchema,
   TransitionAppointmentRequestSchema,
-  TransitionAppointmentResponseSchema
+  TransitionAppointmentResponseSchema,
+  UpdateAppointmentNotesRequestSchema
 } from './index.js';
 
 const unapprovedFields: ReadonlyArray<[string, Record<string, unknown>]> = [
@@ -556,5 +557,35 @@ describe('appointment list query and response', () => {
     expect(
       ListAppointmentsResponseSchema.safeParse({ appointments: [] }).success
     ).toBe(true);
+  });
+});
+
+describe('counter note command', () => {
+  const valid = {
+    idempotencyKey: 'notes_request_0001',
+    noteTags: ['same_day', 'overseas'],
+    noteText: '請提早到'
+  };
+
+  it('accepts the closed tag set and up to 120 characters', () => {
+    expect(UpdateAppointmentNotesRequestSchema.parse(valid)).toEqual(valid);
+    expect(
+      UpdateAppointmentNotesRequestSchema.safeParse({
+        ...valid,
+        noteText: '備'.repeat(120)
+      }).success
+    ).toBe(true);
+  });
+
+  it.each([
+    ['unknown tag', { noteTags: ['vip'] }],
+    ['duplicate tag', { noteTags: ['same_day', 'same_day'] }],
+    ['over-long text', { noteText: '備'.repeat(121) }],
+    ['extra field', { patientId: 'patient_001' }]
+  ])('rejects %s', (_label, override) => {
+    expect(
+      UpdateAppointmentNotesRequestSchema.safeParse({ ...valid, ...override })
+        .success
+    ).toBe(false);
   });
 });

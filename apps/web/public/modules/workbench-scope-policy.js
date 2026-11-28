@@ -16,8 +16,17 @@ const TASK_CAPABILITIES = Object.freeze({
   pendingCaseAssignments: 'CASE_MANAGEMENT'
 });
 
+// 線上（有後端）模式的收斂：只能關、不能開（D-007 延後，STAFF-CASE-DEFERRED-2026-11-28）。
+const disabledHere = new Set();
+
+export function disableWorkbenchCapability(capability) {
+  disabledHere.add(capability);
+}
+
 export function isWorkbenchCapabilityEnabled(capability) {
-  return WORKBENCH_CAPABILITIES[capability] === true;
+  return (
+    WORKBENCH_CAPABILITIES[capability] === true && !disabledHere.has(capability)
+  );
 }
 
 export function activeOperationalTasks(tasks) {
