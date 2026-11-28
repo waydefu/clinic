@@ -735,6 +735,16 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
       patientId: PATIENT_UID
     });
 
+    // The staff clinic list reads the decision back from the appointment row.
+    const stored = await db
+      .collection(COLLECTIONS.appointments)
+      .doc(createdBody.appointmentId)
+      .get();
+    expect(stored.data()).toMatchObject({
+      followUpDecision: 'required',
+      followUpDueAt: '2030-01-02T04:15:00.000Z'
+    });
+
     const audits = await db.collection(COLLECTIONS.auditEvents).get();
     expect(
       audits.docs.some(

@@ -990,6 +990,12 @@ export class FirestoreBookingRepository implements AppointmentRepositoryPort {
         decidedAt: plan.decidedAt
       });
       if (appointment !== undefined) {
+        // 員工清單從預約本身讀回診狀態，不必再查一次 follow_ups。
+        transaction.update(appointmentRef, {
+          followUpDecision: plan.decision,
+          followUpDueAt: plan.dueAt,
+          followUpByRole: request.audit.actorRole
+        });
         transaction.set(
           this.db
             .collection(COLLECTIONS.followUpState)

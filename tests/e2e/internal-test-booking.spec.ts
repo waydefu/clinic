@@ -329,7 +329,8 @@ async function openCreatedBookingManagement(page: Page): Promise<void> {
 
 async function fillStaffOptInCreateForm(
   page: Page,
-  slotId: string
+  slotId: string,
+  noteText?: string
 ): Promise<void> {
   await page.evaluate(() => {
     window.location.hash = 'appointments-section';
@@ -342,6 +343,8 @@ async function fillStaffOptInCreateForm(
   await page.locator('#booking-nationality').selectOption('domestic');
   await page.locator('#booking-kind').selectOption('initial');
   await page.locator('#booking-items [data-booking-item]').first().check();
+  if (noteText !== undefined)
+    await page.locator('#booking-note').fill(noteText);
   await page.locator(`[data-select-slot="${slotId}"]`).click();
   await page.locator('#booking-form button[type="submit"]').click();
   await expect(page.locator('#status')).toContainText('預約已建立');
@@ -1235,6 +1238,42 @@ test.describe('internal-test booking occupancy overlay', () => {
       '/v1/bookings/appointment_api_001/complete-without-card'
     );
     expect(posted.completeWithoutCard.body).not.toHaveProperty('patientId');
+  });
+
+  test('a booking created with a note tells the counter when the note was not saved', async ({
+    page
+  }) => {
+    const startsAt = upcomingIso(48);
+    const posted = await stubV1(
+      page,
+      {
+        slots: [
+          {
+            slotId: 'slot_overlay_open',
+            kind: 'initial',
+            startsAt,
+            available: true
+          }
+        ]
+      },
+      {
+        appointmentId: 'appointment_api_001',
+        status: 'confirmed',
+        startsAt,
+        endsAt: upcomingIso(48.5)
+      },
+      { notes: 'closed' }
+    );
+
+    await login(page, 'admin', {
+      fresh: true,
+      path: '/staff?internalTestBooking=1'
+    });
+    await fillStaffOptInCreateForm(page, 'slot_overlay_open', '櫃台備註');
+
+    await expect(page.locator('#status')).toContainText('備註未儲存');
+    await expect(page.locator('#status')).toContainText('修改備註');
+    expect(posted.notes.path).toBe('/v1/bookings/appointment_api_001/notes');
   });
 
   test('opt-in staff notes post /v1/bookings/:id/notes', async ({ page }) => {

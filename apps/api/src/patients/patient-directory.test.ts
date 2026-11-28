@@ -869,3 +869,46 @@ describe('FirestorePatientDirectory.listClinic past the scan bound', () => {
     expect(result.resumeAfter).toBeUndefined();
   });
 });
+
+describe('toListRecord staff note and follow-up read-back', () => {
+  const row = {
+    patientId: 'patient_001',
+    slotId: 'slot_001',
+    bookingKind: 'initial',
+    status: 'completed',
+    startsAt: '2026-09-29T04:00:00.000Z'
+  };
+
+  it('returns the stored note and follow-up decision', () => {
+    expect(
+      toListRecord('appointment_001', {
+        ...row,
+        noteTags: ['same_day', 'vip'],
+        noteText: '請提早到',
+        followUpDecision: 'required',
+        followUpDueAt: '2030-01-02T04:15:00.000Z',
+        followUpByRole: 'manager'
+      })
+    ).toMatchObject({
+      noteTags: ['same_day'],
+      noteText: '請提早到',
+      followUp: {
+        decision: 'required',
+        dueAt: '2030-01-02T04:15:00.000Z',
+        recordedByRole: 'manager'
+      }
+    });
+  });
+
+  it('omits them when absent or malformed', () => {
+    const record = toListRecord('appointment_001', {
+      ...row,
+      noteTags: 'same_day',
+      noteText: 'x'.repeat(121),
+      followUpDecision: 'maybe'
+    });
+    expect(record).not.toHaveProperty('noteTags');
+    expect(record).not.toHaveProperty('noteText');
+    expect(record).not.toHaveProperty('followUp');
+  });
+});

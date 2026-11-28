@@ -602,8 +602,8 @@ function renderSession() {
     `${state.session.account.label} · ${roleLabel(state.session.account.role)}`;
   elements['current-account-boundary'].textContent =
     state.session.account.role === 'manager'
-      ? '可設定營業時間、改派個管、帳號與系統治理。'
-      : '可處理預約、到診、登錄回診指示與首次個管指派。';
+      ? `可設定營業時間、${isOnline ? '' : '改派個管、'}帳號與系統治理。`
+      : `可處理預約、到診、登錄回診指示${isOnline ? '' : '與首次個管指派'}。`;
   applyWorkspacePanel();
   window.dispatchEvent(
     new CustomEvent('beauessence:workbench-access-change', {
@@ -1445,7 +1445,7 @@ elements['booking-form'].addEventListener('submit', async (event) => {
         origin: 'staff'
       });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       // 成功訊息講清楚建立哪一筆，操作者不必捲到清單才能確認。
       const created = state.appointments.find(
         (item) => item.slotId === bookedSlotId && item.status === 'confirmed'
@@ -1459,7 +1459,17 @@ elements['booking-form'].addEventListener('submit', async (event) => {
           ? '預約已建立，可於「櫃台處理清單」查看。'
           : `預約已建立：${patient.name ? `${patient.name} · ` : ''}${formatFullDate(created.startsAt)} ${formatTime(created.startsAt)}。`;
       elements['booking-workflow'].open = false;
-      message(successMessage, 'success');
+      const noteLost =
+        isInternalTestBookingEnabled() &&
+        (
+          await import('./modules/internal-test-booking-transport.js')
+        ).consumeNoteSaveFailure();
+      message(
+        noteLost
+          ? `${successMessage}備註未儲存，請在預約卡片上按「修改備註」補上。`
+          : successMessage,
+        'success'
+      );
       if (created !== undefined)
         window.setTimeout(() => {
           document

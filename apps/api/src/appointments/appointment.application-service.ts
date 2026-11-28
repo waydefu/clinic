@@ -644,6 +644,9 @@ export class AppointmentApplicationService {
         ...(patientScope || record.noteText === undefined
           ? {}
           : { noteText: record.noteText }),
+        ...(patientScope || record.followUp === undefined
+          ? {}
+          : { followUp: record.followUp }),
         ...(patientScope || record.nhiCardMissing !== true
           ? {}
           : { nhiCardMissing: true as const }),

@@ -18,8 +18,10 @@ import {
   applyFollowUpContractWrite,
   clearInternalTestReturnSession,
   commitInternalTestBookingWrite,
+  consumeNoteSaveFailure,
   createInternalTestBookingTransport,
   isStageFM11Enabled,
+  mergeServerFollowUps,
   mapInternalTestBookingRequest,
   refreshPublishedOccupancy
 } from '../public/modules/internal-test-booking-transport.js';
@@ -671,6 +673,101 @@ describe('createInternalTestBookingTransport', () => {
       'X-CSRF-Token': 'csrf_test_token',
       Authorization: 'Bearer id_token_test'
     });
+  });
+
+  it('saves the counter note right after a staff booking is created', async () => {
+    const local = vi.fn();
+    const fetchImpl = vi.fn();
+    fetchImpl.mockResolvedValueOnce({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          appointmentId: 'appointment_api_001',
+          status: 'confirmed',
+          startsAt: '2030-01-02T04:00:00.000Z',
+          endsAt: '2030-01-02T04:30:00.000Z'
+        })
+    });
+    fetchImpl.mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+      json: () => ({})
+    });
+    const transport = createInternalTestBookingTransport({
+      local,
+      toError: httpTransportError,
+      fetchImpl,
+      csrfToken: () => 'csrf_test_token',
+      accessToken: () => 'id_token_test'
+    });
+
+    await expect(
+      transport('/bookings', {
+        method: 'POST',
+        body: JSON.stringify({
+          slotId: 'slot_001',
+          itemIds: ['service_consult'],
+          bookingKind: 'initial',
+          noteTags: ['same_day', 'same_day'],
+          noteText: ' 請提早到 '
+        })
+      })
+    ).resolves.toMatchObject({ appointmentId: 'appointment_api_001' });
+    const [createUrl, createInit] = fetchImpl.mock.calls[0] ?? [];
+    expect(createUrl).toBe('/v1/bookings');
+    expect(JSON.parse(String(createInit?.body))).not.toHaveProperty('noteText');
+    const [noteUrl, noteInit] = fetchImpl.mock.calls[1] ?? [];
+    expect(noteUrl).toBe('/v1/bookings/appointment_api_001/notes');
+    expect(JSON.parse(String(noteInit?.body))).toMatchObject({
+      noteTags: ['same_day'],
+      noteText: '請提早到'
+    });
+    // 補存失敗不丟錯、不重複建立預約，但要留下旗標讓畫面提示櫃台補備註。
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(consumeNoteSaveFailure()).toBe(true);
+    expect(consumeNoteSaveFailure()).toBe(false);
+  });
+
+  it('merges server follow-up decisions into the local list', () => {
+    const merged = mergeServerFollowUps(
+      [
+        { appointmentId: 'appointment_a', status: 'required', tags: ['x'] },
+        { appointmentId: 'appointment_local_only', status: 'not_required' }
+      ],
+      [
+        {
+          appointmentId: 'appointment_a',
+          patientId: 'patient_a',
+          followUp: {
+            decision: 'required',
+            dueAt: '2030-01-02T04:15:00.000Z',
+            recordedByRole: 'manager'
+          }
+        },
+        {
+          appointmentId: 'appointment_b',
+          followUp: { decision: 'not_required', dueAt: null }
+        },
+        { appointmentId: 'appointment_c' }
+      ]
+    );
+    expect(merged).toHaveLength(3);
+    expect(merged[0]).toMatchObject({
+      appointmentId: 'appointment_a',
+      status: 'required',
+      tags: ['x'],
+      dueDate: '2030-01-02',
+      dueTime: '12:15',
+      followUpRecordedByRole: 'manager'
+    });
+    expect(merged[1]).toMatchObject({
+      appointmentId: 'appointment_local_only'
+    });
+    expect(merged[2]).toMatchObject({
+      appointmentId: 'appointment_b',
+      status: 'not_required'
+    });
+    expect(merged[2]).not.toHaveProperty('dueDate');
   });
 
   it('queries by appointment id without a body', async () => {

@@ -36,6 +36,12 @@ export interface AppointmentRecord {
   /** Staff-only counter note (STAFF-NOTE-2026-11-28). */
   readonly noteTags?: readonly AppointmentNoteTag[];
   readonly noteText?: string;
+  /** Staff-only follow-up decision read back from the appointment row. */
+  readonly followUp?: {
+    readonly decision: 'required' | 'not_required';
+    readonly dueAt: string | null;
+    readonly recordedByRole?: string;
+  };
   /** Staff-only: the visit was completed without the NHI card. */
   readonly nhiCardMissing?: true;
   /** Attention only: no archive identity or history is disclosed. */
