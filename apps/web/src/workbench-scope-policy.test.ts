@@ -10,6 +10,7 @@ import { renderIntakeSheet } from '../public/modules/intake-sheet.js';
 import { initialState } from '../public/modules/state-schema.js';
 import {
   activeOperationalTasks,
+  disableWorkbenchCapability,
   isWorkbenchCapabilityEnabled,
   resolveScopedWorkbenchPanel,
   WORKBENCH_CAPABILITIES
@@ -163,5 +164,20 @@ describe('Phase 1 workbench scope policy', () => {
     expect(renderIntakeSheet(state, 'appointment_scope_test_001')).toContain(
       '合成個管師 A'
     );
+  });
+});
+
+// 放在最後：關閉是模組層級、不可逆的（線上模式啟動時呼叫一次）。
+describe('online mode hides Case management (D-007 deferred)', () => {
+  it('removes the Case tasks, deep link, follow-up manager field and table', () => {
+    disableWorkbenchCapability('CASE_MANAGEMENT');
+    const state = completedState();
+    expect(isWorkbenchCapabilityEnabled('CASE_MANAGEMENT')).toBe(false);
+    expect(renderTasks(state)).not.toContain('個管尚未指派');
+    expect(renderFollowUps(state)).not.toContain('name="managerId"');
+    expect(renderCaseAssignments(state)).toBe('');
+    expect(
+      resolveScopedWorkbenchPanel('case-section', ['overview', 'case-section'])
+    ).toEqual({ panelId: 'overview', scopeRedirected: true });
   });
 });

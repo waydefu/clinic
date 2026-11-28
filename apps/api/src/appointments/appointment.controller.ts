@@ -15,6 +15,8 @@ import {
   CreateAppointmentRequestSchema,
   ListAppointmentsQuerySchema,
   RecordFollowUpRequestSchema,
+  UpdateAppointmentNotesRequestSchema,
+  UpdateAppointmentNotesResponseSchema,
   DeleteAppointmentRequestSchema,
   RescheduleAppointmentRequestSchema,
   CancelAppointmentResponseSchema,
@@ -253,6 +255,24 @@ export class AppointmentController {
       await this.appointments.markNoShow(
         identifier(appointmentId),
         CancelAppointmentRequestSchema.parse(body),
+        authentication
+      )
+    );
+  }
+
+  @Post(':appointmentId/notes')
+  public async updateNotes(
+    @Param('appointmentId') appointmentId: string,
+    @Body() body: unknown,
+    @Req() request: AuthenticatableRequest
+  ) {
+    this.assertInternalTestGate();
+    const authentication = await this.authenticateAndLimit(request, true);
+    return admitResponse(
+      UpdateAppointmentNotesResponseSchema,
+      await this.appointments.updateNotes(
+        identifier(appointmentId),
+        UpdateAppointmentNotesRequestSchema.parse(body),
         authentication
       )
     );

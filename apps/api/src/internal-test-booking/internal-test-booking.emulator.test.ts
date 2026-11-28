@@ -1154,4 +1154,76 @@ describe('InternalTestBookingModule composing HTTP occupancy', () => {
       )
     ).toBe(false);
   });
+
+  it('stores a counter note in one transaction, replays it, and keeps it out of the audit event', async () => {
+    const harness = requireHarness();
+    const published = await harness.inject({
+      method: 'POST',
+      url: '/v1/schedule/publish',
+      headers: managerHeaders(),
+      payload: { ...PUBLISH_BODY, idempotencyKey: 'schedule_publish_0017' }
+    });
+    expect(published.statusCode).toBe(201);
+    const created = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings',
+      headers: patientHeaders(),
+      payload: { ...CREATE_BODY, idempotencyKey: 'booking-idempotency-0018' }
+    });
+    expect(created.statusCode).toBe(201);
+    const { appointmentId } = JSON.parse(created.payload) as {
+      appointmentId: string;
+    };
+    const note = {
+      idempotencyKey: 'booking-idempotency-0019',
+      noteTags: ['same_day', 'overseas'],
+      noteText: '請提早十分鐘到'
+    };
+
+    const denied = await harness.inject({
+      method: 'POST',
+      url: `/v1/bookings/${appointmentId}/notes`,
+      headers: patientHeaders(),
+      payload: note
+    });
+    expect(denied.statusCode).toBe(403);
+
+    const updated = await harness.inject({
+      method: 'POST',
+      url: `/v1/bookings/${appointmentId}/notes`,
+      headers: managerHeaders(),
+      payload: note
+    });
+    expect(updated.statusCode).toBe(201);
+    const expected = {
+      appointmentId,
+      noteTags: ['same_day', 'overseas'],
+      noteText: '請提早十分鐘到'
+    };
+    expect(JSON.parse(updated.payload)).toEqual(expected);
+
+    const replayed = await harness.inject({
+      method: 'POST',
+      url: `/v1/bookings/${appointmentId}/notes`,
+      headers: managerHeaders(),
+      payload: note
+    });
+    expect(replayed.statusCode).toBe(201);
+    expect(JSON.parse(replayed.payload)).toEqual(expected);
+
+    const stored = await db
+      .collection(COLLECTIONS.appointments)
+      .doc(appointmentId)
+      .get();
+    expect(stored.data()).toMatchObject({
+      noteTags: ['same_day', 'overseas'],
+      noteText: '請提早十分鐘到'
+    });
+    const audits = (await db.collection(COLLECTIONS.auditEvents).get()).docs
+      .map((document) => document.data())
+      .filter((event) => event['action'] === 'appointment_notes_updated');
+    expect(audits).toHaveLength(1);
+    expect(JSON.stringify(audits)).not.toContain('請提早十分鐘到');
+    expect(JSON.stringify(audits)).not.toContain('same_day');
+  });
 });

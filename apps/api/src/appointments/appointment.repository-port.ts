@@ -1,11 +1,14 @@
+import type { AppointmentNoteTag } from '@beauessence/contracts';
 import type { PreparedPatientIntake } from '../patients/patient-directory.js';
 import type {
   AppointmentStatusValue,
+  AuditContext,
   BookingKind,
   BookingRequest,
   DeleteAppointmentRequest,
   FollowUpDecisionRequest,
   FollowUpDecisionValue,
+  IdempotencyContext,
   PatientNationality,
   RescheduleRequest,
   TransitionRequest
@@ -30,8 +33,27 @@ export interface AppointmentRecord {
   readonly intakeNationality?: PatientNationality;
   /** Staff-only booking note (BOOKING-NOTE-STORAGE-2026-09-29). */
   readonly patientNote?: string;
+  /** Staff-only counter note (STAFF-NOTE-2026-11-28). */
+  readonly noteTags?: readonly AppointmentNoteTag[];
+  readonly noteText?: string;
   /** Attention only: no archive identity or history is disclosed. */
   readonly identityReviewRequired?: true;
+}
+
+export interface NotesUpdateRequest {
+  readonly appointmentId: string;
+  readonly noteTags: readonly AppointmentNoteTag[];
+  readonly noteText: string;
+  readonly audit: AuditContext;
+  readonly requestedAt: string;
+  readonly idempotency: IdempotencyContext;
+}
+
+export interface NotesUpdateResult {
+  readonly appointmentId: string;
+  readonly replayed: boolean;
+  readonly noteTags: readonly AppointmentNoteTag[];
+  readonly noteText: string;
 }
 
 export interface TransitionResult {
@@ -64,6 +86,7 @@ export interface AppointmentRepositoryPort {
   ): Promise<ReservationResult>;
   reschedule(request: RescheduleRequest): Promise<ReservationResult>;
   transition(request: TransitionRequest): Promise<TransitionResult>;
+  updateNotes(request: NotesUpdateRequest): Promise<NotesUpdateResult>;
   recordFollowUp(request: FollowUpDecisionRequest): Promise<FollowUpResult>;
   deleteAppointment(request: DeleteAppointmentRequest): Promise<DeletionResult>;
   read(appointmentId: string): Promise<AppointmentRecord | undefined>;

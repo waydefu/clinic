@@ -98,3 +98,18 @@ export function deleteAppointmentIdempotency(input: {
     input.reasonCode
   ]);
 }
+
+export function notesAppointmentIdempotency(input: {
+  readonly key: string;
+  readonly actorId: string;
+  readonly appointmentId: string;
+  readonly noteTags: readonly string[];
+  readonly noteText: string;
+}): IdempotencyContext {
+  const scope = `appointment:${input.appointmentId}:notes`;
+  return contextFor(input.key, input.actorId, scope, [
+    input.appointmentId,
+    [...input.noteTags].sort().join(','),
+    input.noteText
+  ]);
+}

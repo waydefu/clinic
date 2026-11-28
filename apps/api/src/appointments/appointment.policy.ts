@@ -29,6 +29,7 @@ export interface AppointmentAuthorizationPolicy {
     context: AuthenticationContext,
     command: { readonly appointmentPatientId?: string }
   ): Promise<void>;
+  assertCanUpdateNotes(context: AuthenticationContext): Promise<void>;
   assertCanQuery(
     context: AuthenticationContext,
     command: { readonly appointmentPatientId?: string }

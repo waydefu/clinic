@@ -20,7 +20,11 @@ import {
   type QueryDocumentSnapshot
 } from 'firebase-admin/firestore';
 
-import type { PatientIntake } from '@beauessence/contracts';
+import {
+  AppointmentNoteTagSchema,
+  type AppointmentNoteTag,
+  type PatientIntake
+} from '@beauessence/contracts';
 import type { AppointmentRecord } from '../appointments/appointment.repository-port.js';
 import { ConflictError } from '../platform/errors/api-error.js';
 
@@ -328,6 +332,30 @@ export function assertPatientNotArchived(
   if (isArchivedPatient(patient)) throw new ConflictError();
 }
 
+/**
+ * Staff counter note on a stored appointment row. Unknown tags and over-long
+ * text are dropped rather than echoed to the Workbench.
+ */
+export function noteFieldsOf(data: Record<string, unknown> | undefined): {
+  noteTags?: AppointmentNoteTag[];
+  noteText?: string;
+} {
+  const rawTags = data?.['noteTags'];
+  const tags = Array.isArray(rawTags)
+    ? rawTags.flatMap((tag: unknown) => {
+        const parsed = AppointmentNoteTagSchema.safeParse(tag);
+        return parsed.success ? [parsed.data] : [];
+      })
+    : [];
+  const text = data?.['noteText'];
+  return {
+    ...(tags.length === 0 ? {} : { noteTags: tags }),
+    ...(typeof text === 'string' && text !== '' && text.length <= 120
+      ? { noteText: text }
+      : {})
+  };
+}
+
 /** Maps a stored appointment row to the list record. Exported for tests. */
 export function toListRecord(
   id: string,
@@ -349,6 +377,7 @@ export function toListRecord(
       ? { startsAt: data['startsAt'] }
       : {}),
     ...(intakeNationality === undefined ? {} : { intakeNationality }),
+    ...noteFieldsOf(data),
     ...(data?.['identityReviewRequired'] === true
       ? { identityReviewRequired: true as const }
       : {}),

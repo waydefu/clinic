@@ -95,6 +95,36 @@ export const CancelAppointmentResponseSchema = z
   .strict();
 
 /**
+ * Counter operational note (STAFF-NOTE-2026-11-28): a closed tag set plus at
+ * most 120 characters of text. Staff-only; never an audit, log or Calendar
+ * value. The tag ids match the workbench's `BOOKING_NOTE_TAGS`.
+ */
+export const AppointmentNoteTagSchema = z.enum([
+  'same_day',
+  'overseas',
+  'long_distance'
+]);
+
+export const UpdateAppointmentNotesRequestSchema = z
+  .object({
+    idempotencyKey: IdempotencyKeySchema,
+    noteTags: z
+      .array(AppointmentNoteTagSchema)
+      .max(3)
+      .refine((tags) => new Set(tags).size === tags.length),
+    noteText: z.string().max(120)
+  })
+  .strict();
+
+export const UpdateAppointmentNotesResponseSchema = z
+  .object({
+    appointmentId: OpaqueIdentifierSchema,
+    noteTags: z.array(AppointmentNoteTagSchema).max(3),
+    noteText: z.string().max(120)
+  })
+  .strict();
+
+/**
  * Internal-test query. Opaque identifiers and timestamps only; no patient
  * profile. Status is the stored lifecycle value.
  *
@@ -114,6 +144,9 @@ export const GetAppointmentResponseSchema = z
     intakeNationality: NationalitySchema.optional(),
     /** Staff clinic list only, like `intakeNationality`. */
     patientNote: z.string().max(120).optional(),
+    /** Staff clinic list only: counter operational note (STAFF-NOTE-2026-11-28). */
+    noteTags: z.array(AppointmentNoteTagSchema).max(3).optional(),
+    noteText: z.string().max(120).optional(),
     /**
      * Staff clinic list only (STAFF-LIST-PATIENT-DISPLAY-2026-11-23): the
      * patient's full name and phone digits for the counter. No birth date.
@@ -322,3 +355,9 @@ export type ListAppointmentsResponse = z.infer<
 >;
 export type ReturnLookupRequest = z.infer<typeof ReturnLookupRequestSchema>;
 export type ReturnLookupResponse = z.infer<typeof ReturnLookupResponseSchema>;
+export type UpdateAppointmentNotesRequest = z.infer<
+  typeof UpdateAppointmentNotesRequestSchema
+>;
+export type UpdateAppointmentNotesResponse = z.infer<
+  typeof UpdateAppointmentNotesResponseSchema
+>;

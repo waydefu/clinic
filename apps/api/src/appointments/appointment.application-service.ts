@@ -14,7 +14,9 @@ import {
   type RescheduleAppointmentResponse,
   type ReturnLookupRequest,
   type ReturnLookupResponse,
-  type TransitionAppointmentResponse
+  type TransitionAppointmentResponse,
+  type UpdateAppointmentNotesRequest,
+  type UpdateAppointmentNotesResponse
 } from '@beauessence/contracts';
 import type {
   AppointmentTransition,
@@ -41,6 +43,7 @@ import {
   createAppointmentIdempotency,
   deleteAppointmentIdempotency,
   followUpAppointmentIdempotency,
+  notesAppointmentIdempotency,
   rescheduleAppointmentIdempotency,
   transitionAppointmentIdempotency
 } from '../idempotency/appointment-idempotency.js';
@@ -630,6 +633,12 @@ export class AppointmentApplicationService {
         ...(patientScope || record.patientNote === undefined
           ? {}
           : { patientNote: record.patientNote }),
+        ...(patientScope || record.noteTags === undefined
+          ? {}
+          : { noteTags: [...record.noteTags] }),
+        ...(patientScope || record.noteText === undefined
+          ? {}
+          : { noteText: record.noteText }),
         ...(patientScope || record.identityReviewRequired !== true
           ? {}
           : { identityReviewRequired: true as const })
@@ -726,6 +735,41 @@ export class AppointmentApplicationService {
       'no_show',
       'no_show'
     );
+  }
+
+  public async updateNotes(
+    appointmentId: string,
+    command: UpdateAppointmentNotesRequest,
+    authentication: AuthenticationContext
+  ): Promise<UpdateAppointmentNotesResponse> {
+    // Role denial needs no record: deny before touching storage.
+    await this.authorization.assertCanUpdateNotes(authentication);
+    const result = await this.repository.updateNotes({
+      appointmentId,
+      noteTags: command.noteTags,
+      noteText: command.noteText,
+      requestedAt: this.nowUtc(),
+      audit: {
+        actorId: authentication.actorId,
+        actorRole: authentication.actorRole,
+        correlationId: this.correlations.next(),
+        source: 'api',
+        reasonCode: null,
+        policyVersion: null
+      },
+      idempotency: notesAppointmentIdempotency({
+        key: command.idempotencyKey,
+        actorId: authentication.actorId,
+        appointmentId,
+        noteTags: command.noteTags,
+        noteText: command.noteText
+      })
+    });
+    return {
+      appointmentId: result.appointmentId,
+      noteTags: [...result.noteTags],
+      noteText: result.noteText
+    };
   }
 
   public async recordFollowUp(

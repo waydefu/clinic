@@ -130,6 +130,13 @@ const harnessRepository: AppointmentRepositoryPort = {
       decision: 'required' as const,
       dueAt: '2030-01-02T04:15:00.000Z'
     }),
+  updateNotes: () =>
+    Promise.resolve({
+      appointmentId: 'appointment_harness_001',
+      replayed: false,
+      noteTags: [],
+      noteText: ''
+    }),
   deleteAppointment: () =>
     Promise.resolve({
       appointmentId: 'appointment_harness_001',
@@ -749,6 +756,42 @@ describe('unrouted AppointmentController RBAC harness', () => {
       appointmentId: 'appointment_harness_001',
       decision: 'required',
       dueAt: '2030-01-02T04:15:00.000Z'
+    });
+  });
+
+  it('rejects a patient note update with 403', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/notes',
+      payload: {
+        idempotencyKey: 'notes_request_0001',
+        noteTags: ['same_day'],
+        noteText: ''
+      },
+      headers: actorHeaders('patient', { 'x-test-patient-id': 'patient_001' })
+    });
+    expect(response.statusCode).toBe(403);
+  });
+
+  it('lets front desk update the counter note with 2xx', async () => {
+    const harness = await startHarness();
+    const response = await harness.inject({
+      method: 'POST',
+      url: '/v1/bookings/appointment_harness_001/notes',
+      payload: {
+        idempotencyKey: 'notes_request_0001',
+        noteTags: [],
+        noteText: ''
+      },
+      headers: actorHeaders('front_desk')
+    });
+    expect(response.statusCode).toBeGreaterThanOrEqual(200);
+    expect(response.statusCode).toBeLessThan(300);
+    expect(response.json()).toEqual({
+      appointmentId: 'appointment_harness_001',
+      noteTags: [],
+      noteText: ''
     });
   });
 });
