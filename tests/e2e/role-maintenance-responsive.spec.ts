@@ -263,6 +263,9 @@ test.describe('行動版 header 與重排', () => {
     const notificationPhone = page.locator('#notification-list .bell-row a');
     await expect(notificationPhone).toHaveText('0912345678');
     await expect(notificationPhone).toHaveAttribute('href', 'tel:0912345678');
+    await expect(page.locator('#notification-list')).not.toContainText(
+      /[0-9a-f]{32}|term_|_001|409：/
+    );
     await expect(page.locator('#notification-list')).not.toHaveAttribute(
       'aria-live',
       /.*/

@@ -198,7 +198,9 @@ function renderGate() {
   if (credentialHint !== null)
     credentialHint.hidden = serverAuthority !== undefined;
   const authenticated = state.session.authenticated === true;
-  elements['login-view'].hidden = authenticated;
+  // 有後端（C1）時登入只走 CAL-PILOT 安全登入；合成帳密表單不可在登出後露出。
+  elements['login-view'].hidden =
+    authenticated || (isOnline && isInternalTestBookingEnabled());
   appShell.hidden = !authenticated;
 }
 
@@ -981,7 +983,7 @@ function syncBell() {
       .map(({ appointment: item, reason }) => {
         const person = state.patients.find((p) => p.id === item.patientId);
         // 原因要寫出來。清單裡現在有兩種通知，而「排在前面」不是任何人讀得到的線索。
-        return `<li class="bell-row"><strong>${escapeHtml(person?.name ?? item.patientId)}</strong><span class="bell-reason">${escapeHtml(reason)}</span><a href="tel:${escapeHtml(person?.phone ?? '')}">${escapeHtml(person?.phone ?? '')}</a><span class="code">${escapeHtml(formatFullDate(item.startsAt))} ${escapeHtml(formatTime(item.startsAt))} · ${escapeHtml(item.id)}</span></li>`;
+        return `<li class="bell-row"><strong>${escapeHtml(person?.name ?? '（未留姓名）')}</strong><span class="bell-reason">${escapeHtml(reason)}</span><a href="tel:${escapeHtml(person?.phone ?? '')}">${escapeHtml(person?.phone ?? '')}</a><span class="code">${escapeHtml(formatFullDate(item.startsAt))} ${escapeHtml(formatTime(item.startsAt))}</span></li>`;
       })
       .join('')
   );
@@ -2342,6 +2344,7 @@ document.querySelector('.skip-link').addEventListener('click', (event) => {
 
 if (isInternalTestBookingEnabled()) {
   elements['environment-label'].textContent = 'INTERNAL TEST';
+  document.querySelector('.app-footer span:last-child').hidden = isOnline;
 } else if (!isOnline) {
   elements['environment-label'].textContent = 'LOCAL TEST ONLY';
 }

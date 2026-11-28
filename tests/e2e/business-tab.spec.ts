@@ -1312,6 +1312,12 @@ test.describe('商務與驗收工作區', () => {
     await expect(page.locator('#business-section')).toContainText(
       '合作終止通知進行中'
     );
+    await expect(page.locator('#business-section')).toContainText(
+      '（通知日 2026-10-01）'
+    );
+    await expect(page.locator('#business-section')).not.toContainText(
+      /termination_synthetic_001|term_[0-9a-f]{8}|409：/
+    );
     expect(writes[0]?.body).toEqual({
       idempotencyKey: expect.stringMatching(/^[a-f0-9]{32}$/),
       noticeDate
@@ -1333,9 +1339,7 @@ test.describe('商務與驗收工作區', () => {
     );
     expect(record.receipts).toHaveLength(0);
     await page.getByRole('button', { name: '重新登入並送交結案審查' }).click();
-    await expect(page.locator('#business-section')).toContainText(
-      '409：仍缺少'
-    );
+    await expect(page.locator('#business-section')).toContainText('仍缺少');
     expect(record.closeReadiness.missingSteps).toContain('minimum_notice');
     expect(record.state).not.toBe('manual_close_review');
 
@@ -1358,9 +1362,7 @@ test.describe('商務與驗收工作區', () => {
     expect(record.controlledRetentionUntil).toBe('2026-11-30T00:00:00.000Z');
     expect(record.receipts[0]?.acknowledgedAt).toBe('2026-10-31T00:00:00.000Z');
     await page.getByRole('button', { name: '重新登入並送交結案審查' }).click();
-    await expect(page.locator('#business-section')).toContainText(
-      '409：仍缺少'
-    );
+    await expect(page.locator('#business-section')).toContainText('仍缺少');
     expect(record.closeReadiness.missingSteps).toContain(
       'controlled_copy_retention'
     );

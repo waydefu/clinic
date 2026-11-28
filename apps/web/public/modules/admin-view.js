@@ -79,14 +79,13 @@ function patient(state, id) {
 }
 
 // 清單只顯示遮罩後的身分證字號，避免在櫃台螢幕上完整外露。
-// C1 伺服器清單不帶病患資料（ADR-0007），找不到紀錄時不印 32 位雜湊，只留末
-// 4 碼讓櫃台能分辨不同人；完整 ID 仍在 data-* 屬性裡供功能使用。
+// C1 伺服器清單不帶病患資料（ADR-0007），沒有姓名時顯示「（未留姓名）」，不印任何編號。
 function idTail(id) {
   return String(id ?? '').slice(-4);
 }
 function patientLabel(state, id) {
   const record = patient(state, id);
-  return record === undefined ? `患者 · 末 4 碼 ${idTail(id)}` : record.name;
+  return record?.name ?? '（未留姓名）';
 }
 function patientDetail(state, appointment) {
   const record = patient(state, appointment.patientId);
@@ -99,10 +98,7 @@ function patientDetail(state, appointment) {
     appointment.identityReviewRequired === true ? '待櫃台確認' : undefined;
   // API 不帶舊病患資料；只顯示注意旗標，不讓工作臺自動取用封存身分。
   if (record === undefined)
-    return (
-      [shownNationality, identityReview].filter(Boolean).join(' · ') ||
-      `預約 · 末 4 碼 ${escapeHtml(idTail(appointment.id))}`
-    );
+    return [shownNationality, identityReview].filter(Boolean).join(' · ');
   // 新預約的生日只有月日（`--05-20`，BOOKING-MINIMIZATION-2026-09-22）。直接印
   // 出來櫃台會看到兩個減號，像是資料壞掉；換成「5/20」。舊紀錄可能帶年份。
   const birth = !record.birthDate
