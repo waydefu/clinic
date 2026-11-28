@@ -1018,14 +1018,11 @@ function hasReturnSession() {
   }
 }
 
-// 回診 session 有效時，第 3 步不要身分欄位與隱私勾選（送出時本來就略過）。
+// 回診 session 有效時，第 3 步不要身分欄位（送出時本來就略過）。
 function syncReturnIdentity() {
   const reuse = hasReturnSession();
   elements['patient-identity-section'].hidden = reuse;
   elements['return-identity-note'].hidden = !reuse;
-  elements['privacy-consent'].closest('label').style.display = reuse
-    ? 'none'
-    : '';
 }
 
 elements['patient-booking-form'].addEventListener('submit', async (event) => {
